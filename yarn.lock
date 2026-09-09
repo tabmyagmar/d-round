@@ -2654,10 +2654,12 @@ __metadata:
     cn: "npm:0.2.6"
     eslint: "npm:10.10.0"
     lucide-react: "npm:1.43.0"
+    next-themes: "npm:0.4.6"
     postcss: "npm:8.5.28"
     react: "npm:19.2.8"
     react-dom: "npm:19.2.8"
     shadcn: "npm:4.21.0"
+    sonner: "npm:2.0.8"
     tailwindcss: "npm:4.3.3"
     tw-animate-css: "npm:1.4.0"
     typescript: "npm:6.0.3"
@@ -2702,6 +2704,7 @@ __metadata:
     "@types/node": "npm:24.13.3"
     "@types/react": "npm:19.2.18"
     "@types/react-dom": "npm:19.2.7"
+    better-auth: "npm:1.7.3"
     eslint: "npm:10.10.0"
     next: "npm:16.3.4"
     next-themes: "npm:0.4.6"
@@ -2709,6 +2712,7 @@ __metadata:
     react: "npm:19.2.8"
     react-dom: "npm:19.2.8"
     react-hook-form: "npm:7.87.0"
+    sonner: "npm:2.0.8"
     superjson: "npm:2.2.6"
     tailwindcss: "npm:4.3.3"
     typescript: "npm:6.0.3"
@@ -10219,6 +10223,20 @@ __metadata:
   dependencies:
     atomic-sleep: "npm:^1.0.0"
   checksum: 10c0/f374e9c3dfe194d706d8ef8aed4e28bc10638f9952fd19bcbddf2cef05d53334ad9e9dca3e01e24e88dd88fb278c6b8c5b2ae5002494b289c4914aaea3d9eae9
+  languageName: node
+  linkType: hard
+
+"sonner@npm:2.0.8":
+  version: 2.0.8
+  resolution: "sonner@npm:2.0.8"
+  peerDependencies:
+    "@types/react": ^18.0.0 || ^19.0.0
+    react: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+    react-dom: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+  peerDependenciesMeta:
+    "@types/react":
+      optional: true
+  checksum: 10c0/cc271f78dca7e7d7ce34a724883f3292ba671b5ed3d41732430df28c38a8f6a47e8e59da5fdd0b258ac07136db0cdaf02f8cda9afb9cc9f12d81b6c319b427f7
   languageName: node
   linkType: hard
 
