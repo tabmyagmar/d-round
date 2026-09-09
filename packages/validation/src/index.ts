@@ -4,3 +4,4 @@ export { z } from "zod";
 export type { ZodError, ZodType } from "zod";
 
 export * from "./common.schema";
+export * from "./user.schema";

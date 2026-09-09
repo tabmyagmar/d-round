@@ -1,0 +1,39 @@
+{
+  "name": "@repo/permissions",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CASL abilities: rules defined once, built for the browser (mongo) and the API (prisma); the matrix test is the spec",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./react": "./src/react.tsx"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@casl/ability": "7.0.1",
+    "@casl/prisma": "2.0.2",
+    "@casl/react": "7.0.1",
+    "@prisma/client": "7.10.0",
+    "@repo/database": "workspace:*",
+    "@repo/validation": "workspace:*"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.18",
+    "eslint": "10.10.0",
+    "react": "19.2.8",
+    "typescript": "6.0.3",
+    "vite": "8.2.2",
+    "vitest": "5.0.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}

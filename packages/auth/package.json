@@ -1,34 +1,29 @@
 {
-  "name": "@repo/worker",
+  "name": "@repo/auth",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "BullMQ worker process — the only place queue consumers live",
+  "description": "Better Auth server configuration, access-control roles and the React client",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./access-control": "./src/access-control.ts"
+  },
   "scripts": {
-    "dev": "tsx watch --clear-screen=false src/index.ts",
-    "build": "tsdown",
-    "start": "node dist/index.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
     "@repo/database": "workspace:*",
-    "@repo/logger": "workspace:*",
-    "@repo/queue": "workspace:*",
     "@repo/validation": "workspace:*",
-    "bullmq": "6.3.4",
-    "dotenv": "17.4.2",
-    "nodemailer": "10.0.1"
+    "better-auth": "1.7.3"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "24.13.3",
-    "@types/nodemailer": "8.0.1",
     "eslint": "10.10.0",
-    "tsdown": "0.23.0",
-    "tsx": "4.23.13",
     "typescript": "6.0.3",
     "vite": "8.2.2",
     "vitest": "5.0.0"

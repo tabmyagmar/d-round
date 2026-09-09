@@ -90,6 +90,18 @@ export const boundariesPolicies = [
   // The web app may import API *types* (AppRouter) and nothing server-side.
   disallowPackages("web", ["@repo/api"], { dependency: { kind: "value" } }),
   disallowPackages("web", SERVER_ONLY_PACKAGES),
+  // Browser code may use the browser-safe entries of auth/permissions only.
+  {
+    from: { element: { type: ["web", "ui"] } },
+    disallow: { to: { module: { source: "@repo/permissions", internalPath: "server" } } },
+    message: "apps/web must import @repo/permissions (browser-safe), not @repo/permissions/server",
+  },
+  {
+    from: { element: { type: ["web", "ui"] } },
+    disallow: { to: { module: { source: "@repo/auth", internalPath: null } } },
+    message:
+      "apps/web must import @repo/auth/client or @repo/auth/access-control, not the server entry",
+  },
   // Queue consumers live only in apps/worker.
   {
     from: {
