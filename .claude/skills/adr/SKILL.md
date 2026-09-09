@@ -36,8 +36,8 @@ Date: YYYY-MM-DD
 
 ## How-to
 
-1. Next number: `ls docs/adr` → `NNNN-<kebab-title>.md` (`0001-stack.md` exists; Phase 1 adds
-   `0002-auth.md`, `0003-permissions.md`, `0004-outbox.md`).
+1. Next number: `ls docs/adr` → `NNNN-<kebab-title>.md`. Existing: `0001-stack.md`,
+   `0002-auth.md`, `0003-permissions.md`, `0004-outbox.md`; the next one is `0005`.
 2. Write the five bullets; keep the whole file under one screen. Link related ADRs.
 3. For a schema change inside an existing area, add a dated line under a `## Changes` heading of
    the existing ADR instead of a new file.
@@ -45,7 +45,21 @@ Date: YYYY-MM-DD
    message.
 5. Superseding: set the old status to `superseded by NNNN`; never delete an ADR.
 
-<!-- Phase 1: add real example (0002-auth.md written alongside the Better Auth setup) -->
+## Examples in the repo
+
+- `docs/adr/0002-auth.md` — Better Auth: config location, generated models merged with our
+  mappings, `role String? @default("member")` instead of a Prisma enum (with the reason: Better
+  Auth writes strings), cookies/CORS, rate limit. Rejected: own sessions, Clerk/Supabase.
+- `docs/adr/0003-permissions.md` — two-layer authorization: CASL rules built twice (browser and
+  Prisma), stateful rules in services, the matrix test as spec. Rejected: Better Auth statements
+  only, Cerbos/OpenFGA.
+- `docs/adr/0004-outbox.md` — transactional outbox for email: row inside the transaction, job after
+  commit, idempotent worker, sweeper, manual retry = row back to `PENDING`. Rejected: inline send,
+  enqueue inside the transaction, BullMQ failed set as the record.
+
+Each one is one screen, uses the `Context / Decision / Alternatives / Consequences` headings and
+names the migration it belongs to (`20260909113011_phase1_auth_outbox`). A later schema change to
+users or the outbox adds a dated line under `## Changes` in 0002 or 0004 rather than a new file.
 
 ## Gotchas
 

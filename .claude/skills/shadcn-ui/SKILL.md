@@ -12,20 +12,25 @@ composed components on top, and the Tailwind v4 theme. Rules: `.claude/rules/ui.
 
 ## How-to: add a primitive
 
-1. From `apps/web` run `npx shadcn@latest add <component>` (for example `button`, `input`,
-   `dialog`, `table`).
-2. The CLI reads `apps/web/components.json`, whose aliases point at `@repo/ui/*`, so the file
-   lands in `packages/ui/src/components/<component>.tsx` (helpers in `packages/ui/src/lib/`).
-   Nothing is written into `apps/web`.
+1. From `apps/web` run `npx shadcn@4.21.0 add <component>` (the version pinned in
+   `packages/ui/package.json`; for example `dialog`, `tooltip`, `pagination`).
+2. The CLI reads `apps/web/components.json` (`ui: "@repo/ui/components"`,
+   `utils: "@repo/ui/lib/utils"`, css `../../packages/ui/src/styles/globals.css`), so the file
+   lands in `packages/ui/src/components/<component>.tsx`. Nothing is written into `apps/web`.
 3. Import it: `import { Button } from "@repo/ui/components/button"` (exports map
    `./components/*` → `src/components/*.tsx`).
-4. Run `yarn lint` — generated files must pass the repo rules (kebab-case `.tsx` names are
-   allowed, named exports).
+4. Run `yarn lint`. `packages/ui/eslint.config.mjs` relaxes a few style rules for
+   `src/components/*.tsx` so generated code passes untouched; if a type error remains
+   (`exactOptionalPropertyTypes`), fix it with the smallest possible change and note it here.
 
-The workspace was initialised with shadcn CLI 4 and the preset `b1Ymqvgiu`; re-running `init` is
-not needed for new components.
+The workspace was initialised with shadcn CLI 4 (style `base-nova`, Base UI primitives — not
+Radix — and `lucide` icons); re-running `init` is not needed for new components.
 
-<!-- Phase 1: add real example (Button, Input, Form, Badge added for login/register/users) -->
+Installed: `alert`, `badge`, `button`, `card`, `dropdown-menu`, `field`, `input`, `label`,
+`select`, `separator`, `skeleton`, `sonner`, `table`. Known local patch: `sonner.tsx` uses
+`theme={(theme as ToasterProps["theme"]) ?? "system"}`; re-apply it after
+`npx shadcn@4.21.0 add sonner --overwrite`. Base UI `Select` takes `items` and `onValueChange`
+(see `apps/web/app/(app)/users/[id]/user-editor.tsx`).
 
 ## How-to: create a composed component
 
@@ -35,9 +40,41 @@ not needed for new components.
    imports, no server-only packages.
 3. Export a named component; import as `@repo/ui/components/composed/<name>`.
 
-Phase 1 example: `StatusBadge` mapping a role or status to a `Badge` variant.
+Example — `packages/ui/src/components/composed/status-badge.tsx`:
 
-<!-- Phase 1: add real example (StatusBadge) -->
+```tsx
+const statusBadgeVariants = cva("gap-1.5 font-medium", {
+  variants: {
+    tone: {
+      neutral: "bg-muted text-muted-foreground",
+      info: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200",
+      success: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
+      warning: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
+      danger: "bg-destructive/10 text-destructive",
+    },
+  },
+  defaultVariants: { tone: "neutral" },
+});
+
+export type StatusTone = NonNullable<VariantProps<typeof statusBadgeVariants>["tone"]>;
+
+export const StatusBadge = ({
+  tone,
+  dot = true,
+  className,
+  children,
+  ...props
+}: StatusBadgeProps) => (
+  <Badge variant="outline" className={cn(statusBadgeVariants({ tone }), className)} {...props}>
+    {dot ? <span aria-hidden className="size-1.5 rounded-full bg-current" /> : null}
+    {children}
+  </Badge>
+);
+```
+
+Domain code maps its states to a tone: `apps/web/components/role-badge.tsx` (`RoleBadge`) maps
+`admin → danger`, `hr_manager → info`, `dept_head → warning`, `member → neutral`. An outbox status
+badge would do the same with `PENDING → warning`, `SENT → success`, `FAILED → danger`.
 
 ## How-to: change the theme
 
@@ -50,7 +87,8 @@ Tokens are CSS variables in `packages/ui/src/styles/globals.css` (Tailwind v4 �
 
 - Run the CLI from `apps/web`, not from the repo root or `packages/ui` — only the app has
   `components.json`.
-- Do not hand-edit generated primitives beyond documented variant changes; regenerate instead.
+- Do not hand-edit generated primitives beyond documented variant changes; regenerate instead
+  (`--overwrite`) and re-apply the one documented patch (`sonner.tsx`).
 - `packages/ui` must stay browser-safe: no `@repo/database`, `@repo/queue`, `@repo/logger`
   (lint-enforced).
 - Merge classes with `cn()` from `packages/ui/src/lib`; never concatenate className strings.

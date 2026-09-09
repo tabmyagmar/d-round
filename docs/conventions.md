@@ -164,7 +164,7 @@ with Prettier.
 | zod schemas           | `<name>.schema.ts`                   | `user.schema.ts`                     |
 | Worker processor      | `<queue>.processor.ts`               | `email.processor.ts`                 |
 | Test                  | `<file>.test.ts` next to the file    | `user.service.test.ts`               |
-| React component       | `PascalCase.tsx` or `kebab-case.tsx` | `StatusBadge.tsx`, `button.tsx`      |
+| React component       | `PascalCase.tsx` or `kebab-case.tsx` | `status-badge.tsx`, `button.tsx`     |
 | Next.js special files | framework names                      | `page.tsx`, `layout.tsx`, `proxy.ts` |
 | Config                | `<tool>.config.{ts,mjs}`             | `vitest.config.ts`                   |
 | ADR                   | `NNNN-<kebab-title>.md`              | `0001-stack.md`                      |
@@ -222,6 +222,41 @@ up to 200 characters for this reason. Human-only commits carry no trailer.
   complaining.
 - `NEXT_PUBLIC_*` is the only prefix that reaches the browser. Never put a secret behind it.
 - Never commit `.env`; agents are denied reading it (`.claude/settings.json`).
+- Variables per app (`apps/api/src/env.ts`, `apps/worker/src/env.ts`, `apps/web/lib/env.ts`):
+  - shared: `NODE_ENV`, `LOG_LEVEL`, `DATABASE_URL`, `REDIS_URL`;
+  - api: `API_PORT`, `API_URL` (public origin, Better Auth cookies are set for this host),
+    `WEB_ORIGIN` (CORS with credentials + `trustedOrigins`), `BETTER_AUTH_SECRET` (≥ 32 chars),
+    optional `COOKIE_DOMAIN` (production parent domain);
+  - worker: `MAIL_SMTP_URL` (`smtp://localhost:1025` = Mailpit), `MAIL_FROM`;
+  - web: `NEXT_PUBLIC_API_URL`.
+
+## Authentication and sessions
+
+Better Auth (`packages/auth`, ADR `docs/adr/0002-auth.md`) runs inside the API at `/api/auth/*`;
+the web app is a plain client of it.
+
+- **Cookies, not tokens.** The session lives in an HTTP-only cookie set by the API host
+  (`API_URL`). In development `localhost:3000` → `localhost:4000` works because cookies are
+  host-scoped, not port-scoped. In production web and api share a parent domain and
+  `COOKIE_DOMAIN` enables `crossSubDomainCookies`. The browser sends the cookie with
+  `credentials: "include"` on both the auth client and the tRPC link; server components forward the
+  incoming `cookie` header to `/api/auth/get-session`.
+- **CORS** (`apps/api/src/app.ts`) allows exactly `WEB_ORIGIN` with credentials on `/api/auth/*`
+  and `/trpc/*`; every other origin gets no `Access-Control-Allow-Origin`. Better Auth additionally
+  checks `trustedOrigins`.
+- **Verified email required.** Sign-up creates the user and a `PENDING` outbox row for the
+  verification mail; sign-in is refused (403) until the link is clicked; the link signs the user in
+  (`autoSignInAfterVerification`) and redirects to the sign-up `callbackURL`.
+- **Rate limit.** `/api/auth/sign-in/*` allows 10 attempts per minute per client IP
+  (`X-Forwarded-For` first, else the socket address), then blocks for 60 s with `429` and
+  `Retry-After` (`apps/api/src/middleware/rate-limit.ts`, `RateLimiterRedis` on the shared ioredis
+  connection).
+- **Per request.** `buildRequestContext` resolves the session once (`auth.api.getSession`) into
+  `ctx.user` and builds `ctx.ability`; services never talk to Better Auth for identity. Deactivating
+  a user soft-deletes and bans the row and revokes its sessions through the admin API with the
+  caller's headers.
+- **Roles** are stored as strings on `users.role` (Better Auth admin plugin); the allowed set is
+  `roleSchema` in `@repo/validation`, and unknown values fall back to `member`.
 
 ## Testing policy
 
@@ -282,28 +317,38 @@ id is a no-op — a naive "retry by re-enqueueing" does nothing. After it is rem
 memory of the failure at all — a naive "list failed jobs" shows nothing. Redis can therefore
 neither block nor report failures reliably.
 
-The outbox row is the only place that can: `status PENDING | SENT | FAILED`, `attempts`,
-`lastError`, `sentAt`.
+The outbox row is the only place that can: `OutboxEmail.status PENDING | SENT | FAILED`,
+`attempts`, `lastError`, `sentAt` (`packages/database/src/repositories/outbox-email.repository.ts`).
+This is how `apps/worker/src/processors/email.processor.ts` uses it:
 
-- The processor marks the row `FAILED` (with `lastError`) when it exhausts its attempts or throws
-  `UnrecoverableError`.
-- The sweeper (a repeatable job via BullMQ 6 job schedulers) re-enqueues only stale `PENDING`
-  rows, so a permanently failing job is not retried forever, and a job lost between commit and
-  enqueue (crash, Redis flush, failed after-commit hook) is recovered.
-- Manual retry is an operation on the row: set `FAILED` back to `PENDING` (and, while the failed
-  job still exists in Redis under the same id, remove or retry that job); the sweeper — or an
-  explicit re-enqueue — takes it from there.
+- A job for a row that is no longer `PENDING` does nothing (idempotent); a job whose row does not
+  exist is dropped with `UnrecoverableError`.
+- A transient delivery error (SMTP unreachable) with attempts left → `recordFailedAttempt`
+  (`attempts + 1`, `lastError`, still `PENDING`) and BullMQ retries with backoff.
+- The last attempt (`job.attemptsStarted >= job.opts.attempts`, 5 by default) → `markFailed`.
+- A permanent error — `PermanentMailError` from the mail provider or `TemplateError` from
+  `renderEmail` (unknown template, invalid payload) — → `markFailed` on the first attempt and
+  `UnrecoverableError`, so BullMQ does not retry.
+- The sweeper (`apps/worker/src/schedulers/outbox-sweeper.ts`, a BullMQ 6 job scheduler every 2
+  minutes) re-enqueues up to 200 rows that are still `PENDING` after 1 minute, with the same job
+  ids. It never touches `FAILED`, so a permanently failing job is not retried forever, and a job
+  lost between commit and enqueue (crash, Redis flush, failed after-commit hook) is recovered.
+- Manual retry is an operation on the row: `resetToPending(id)` sets `FAILED` back to `PENDING`
+  and clears `lastError`; the next sweep (or an explicit `enqueueEmailJob`) delivers it. While the
+  failed job still exists in Redis under the same id, a re-add is a no-op until that job is removed
+  or retried — the row, not Redis, is where the retry is decided. There is no UI for this yet;
+  operators do it with SQL or Prisma Studio.
 
-Phase 1 implements this for `OutboxEmail` (sweeper every 2 minutes for rows older than 1 minute);
-every later outbox follows the same pattern.
+Every later outbox (notifications, PDF rendering) follows the same shape.
 
 ## Docker and Apple Silicon
 
 `docker-compose.yml` runs `postgis/postgis:18-3.6` (Postgres 18 + PostGIS, needed from Phase 7,
 zero cost now), `dpage/pgadmin4:9` preconfigured from the `POSTGRES_*` variables,
-`redis:8-alpine` with append-only persistence, and optionally `redis/redisinsight:3.8`
-(`docker compose --profile tools up -d`). Healthchecks gate `yarn docker:up`
-(`docker compose up -d --wait`); data lives in named volumes.
+`redis:8-alpine` with append-only persistence, `axllent/mailpit:v1.31` as the local mail sink
+(SMTP 1025, UI http://localhost:8025 — every outbox email lands there), and optionally
+`redis/redisinsight:3.8` (`docker compose --profile tools up -d`). Healthchecks gate
+`yarn docker:up` (`docker compose up -d --wait`); data lives in named volumes.
 
 `postgis/postgis` is published for `linux/amd64` only, so on Apple Silicon Docker Desktop runs it
 under Rosetta emulation — correct but slower. For native speed put this in `.env`:

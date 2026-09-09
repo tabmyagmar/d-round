@@ -8,64 +8,146 @@ description: Use when adding a page, layout or route to apps/web, deciding betwe
 ## Purpose
 
 `apps/web` is a Next.js 16 App Router app (React 19, Tailwind v4) that talks to `apps/api` over
-tRPC. It never touches the database or the queue. Rules: `.claude/rules/ui.md`,
-`.claude/rules/layers.md`.
+tRPC and to Better Auth over `/api/auth`. It never touches the database or the queue. Rules:
+`.claude/rules/ui.md`, `.claude/rules/layers.md`.
+
+## Layout of the app (no `src/`)
+
+```text
+apps/web/
+  proxy.ts                      cookie-presence redirect for /dashboard, /users, /profile
+  app/layout.tsx                ThemeProvider + TRPCReactProvider + <Toaster />
+  app/(auth)/layout.tsx         centered card shell; login/, register/, verify-email/
+  app/(app)/layout.tsx          server-side session check + <AppShell>
+  app/(app)/dashboard|profile|users|users/[id]
+  components/                   app-wide: app-shell, profile-form, role-badge, theme-provider
+  lib/auth/{client,server}.ts   authClient (browser) / getServerSession (server)
+  lib/trpc/{react.tsx,query-client.ts}
+  lib/env.ts                    publicEnv.apiUrl (NEXT_PUBLIC_API_URL)
+```
 
 ## Server vs client components
 
-| Need                                                 | Component type                      |
-| ---------------------------------------------------- | ----------------------------------- |
-| Layout, page shell, static content                   | server (default)                    |
-| Read the session, redirect when signed out           | server (`proxy.ts` + server lookup) |
-| Data that can be fetched on the server               | server                              |
-| Forms, buttons with handlers, `useState`, tRPC hooks | client (`"use client"` at the leaf) |
+| Need                                                 | Component type                                       |
+| ---------------------------------------------------- | ---------------------------------------------------- |
+| Layout, page shell, static content                   | server (default)                                     |
+| Read the session, redirect when signed out           | server (`proxy.ts` + `getServerSession` in a layout) |
+| Data that can be fetched on the server               | server                                               |
+| Forms, buttons with handlers, `useState`, tRPC hooks | client (`"use client"` at the leaf)                  |
 
-Keep the `"use client"` boundary as low as possible. Only Next.js special files (`page`, `layout`,
-`loading`, `error`, `not-found`, `route`, `proxy.ts`, ...) may default-export
-(`packages/eslint-config/next.js`); everything else is a named export.
+Keep the `"use client"` boundary as low as possible: `app/(app)/users/page.tsx` is a server page
+rendering the client `users-table.tsx`; `app/(auth)/login/page.tsx` renders `login-form.tsx`. Only
+Next.js special files (`page`, `layout`, `loading`, `error`, `not-found`, `route`, `proxy.ts`, ...)
+may default-export (`packages/eslint-config/next.js`); everything else is a named export.
 
 ## `proxy.ts` replaces `middleware.ts`
 
-Next 16 runs request interception from `apps/web/src/proxy.ts` (default export). Use it for
-redirects on a missing session cookie and header handling; keep it thin — the API re-checks
-everything.
+```ts
+// apps/web/proxy.ts
+import { getSessionCookie } from "better-auth/cookies";
 
-<!-- Phase 1: add real example (proxy.ts protecting /dashboard, server-side session in a layout) -->
+export const proxy = (request: NextRequest) => {
+  if (!getSessionCookie(request)) {
+    const login = new URL("/login", request.url);
+    login.searchParams.set("next", request.nextUrl.pathname);
+    return NextResponse.redirect(login);
+  }
+  return NextResponse.next();
+};
+
+export const config = { matcher: ["/dashboard/:path*", "/users/:path*", "/profile/:path*"] };
+```
+
+It checks cookie **presence** only (no network call, as Better Auth recommends). The real check is
+the `(app)` layout:
+
+```tsx
+// apps/web/app/(app)/layout.tsx
+const AppLayout = async ({ children }: { children: ReactNode }) => {
+  const session = await getServerSession();
+  if (!session) {
+    redirect("/login");
+  }
+  return <AppShell user={toCurrentUser(session)}>{children}</AppShell>;
+};
+```
+
+`getServerSession` (`lib/auth/server.ts`) forwards the incoming `cookie` header to
+`${publicEnv.apiUrl}/api/auth/get-session` with `cache: "no-store"` and returns `null` on any
+failure; `toCurrentUser` narrows `role` with `roleSchema`. `AppShell` mounts `AbilityProvider` and
+the nav (`Users` hidden for `member`), and signs out with `authClient.signOut()` followed by
+`router.push("/login"); router.refresh()`.
 
 ## tRPC + React Query (`@trpc/tanstack-react-query`)
 
-1. `createTRPCContext<AppRouter>()` → export `TRPCProvider` and `useTRPC`
+1. `lib/trpc/react.tsx`: `export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRouter>()`
    (`import type { AppRouter } from "@repo/api/router"`).
-2. A client provider component (`"use client"`) creates one `QueryClient` and one tRPC client
-   (`httpBatchLink` to `${NEXT_PUBLIC_API_URL}/trpc`, `transformer: superjson`, a `fetch`
-   override with `credentials: "include"`) and wraps the app in `QueryClientProvider` +
-   `TRPCProvider` from the root layout.
-3. In components: `const trpc = useTRPC();` then `useQuery(trpc.health.ping.queryOptions())`,
-   `useMutation(trpc.user.updateProfile.mutationOptions())`, and invalidate with
-   `queryClient.invalidateQueries({ queryKey: trpc.user.list.queryKey() })`.
+2. `TRPCReactProvider` (`"use client"`) creates one `QueryClient` (`getQueryClient`) and one tRPC
+   client (`httpBatchLink` to `${publicEnv.apiUrl}/trpc`, `transformer: superjson`, a `fetch`
+   override with `credentials: "include"`) and wraps the app from `app/layout.tsx`.
+3. In components: `const trpc = useTRPC();` then
+   `useQuery(trpc.user.list.queryOptions({ page, perPage, search, role }))`,
+   `useMutation(trpc.user.updateProfile.mutationOptions({ onSuccess, onError }))`, and invalidate
+   with `queryClient.invalidateQueries(trpc.user.pathFilter())`.
 
-<!-- Phase 1: add real example (provider file, users list with pagination and search) -->
+`users-table.tsx` is the list example: `useState` for `page`, `search`, `role`; `Select` (Base UI:
+`items`, `onValueChange`) for the role filter; `Skeleton` while pending; `Table` from `@repo/ui`.
 
 ## Forms
 
-`react-hook-form` + `zodResolver(schema)` with the schema from `@repo/validation` — the same
-schema the API validates with. Submit through a tRPC mutation; show `error.data.requestId` in the
-error message so users can quote it.
+`react-hook-form` + `zodResolver(schema)` with the schema from `@repo/validation` — the same schema
+the API validates with. Auth forms submit through `authClient`, everything else through a tRPC
+mutation.
 
-<!-- Phase 1: add real example (login form with updateProfileSchema-style validation) -->
+```tsx
+// apps/web/app/(auth)/login/login-form.tsx
+const form = useForm<SignInInput>({
+  resolver: zodResolver(signInSchema),
+  defaultValues: { email: "", password: "" },
+});
+
+const onSubmit = form.handleSubmit(async (values) => {
+  const { error } = await authClient.signIn.email({ ...values, callbackURL: next });
+  if (error) {
+    setServerError({
+      message: error.message ?? "Sign in failed",
+      unverified: error.status === 403,
+    });
+    return;
+  }
+  router.push(next);
+  router.refresh();
+});
+
+<Field>
+  <FieldLabel htmlFor="email">Email</FieldLabel>
+  <Input id="email" type="email" autoComplete="email" {...form.register("email")} />
+  <FieldError errors={[form.formState.errors.email]} />
+</Field>;
+```
+
+`register-form.tsx` does the same with `signUpSchema` and `authClient.signUp.email(...)`, passing
+`callbackURL` = `<window.location.origin>/dashboard` (where Better Auth lands the user after the
+verification link) and then routing to `/verify-email?email=...`. `profile-form.tsx` (shared by
+`/profile` and `/users/[id]`) uses `updateProfileSchema` and `trpc.user.updateProfile`. Show server
+errors in an `Alert`; use `toast` (sonner) for mutation results.
 
 ## Env
 
-Only `NEXT_PUBLIC_*` variables reach the browser (`NEXT_PUBLIC_API_URL=http://localhost:4000`);
-they are inlined at build time. Everything else stays on the server.
+Only `NEXT_PUBLIC_*` variables reach the browser (`NEXT_PUBLIC_API_URL=http://localhost:4000`,
+read through `lib/env.ts`); they are inlined at build time. Everything else stays on the server.
 
 ## Gotchas
 
 - Yarn 4 with `nodeLinker: node-modules` is required (`.yarnrc.yml`); PnP breaks Next.js.
-- `apps/web` may import `@repo/api` types only; `@repo/database`, `@repo/queue` and
-  `@repo/logger` are lint-forbidden in the web element.
+- `apps/web` may import `@repo/api` types only; `@repo/database`, `@repo/queue`, `@repo/logger`,
+  `@repo/permissions/server` and the `@repo/auth` server entry are lint-forbidden in the web
+  element (use `@repo/permissions`, `@repo/permissions/react`, `@repo/auth/client`).
 - `superjson` must be configured on both the server (`init.ts`) and the client link, or dates
   break.
-- Do not call the browser tRPC client from server components; Phase 1 decides the server-side
-  data pattern once (server caller or fetch) and every page follows it.
+- Server-side data pattern: server components read the session with `getServerSession` (plain
+  `fetch` with the forwarded cookie) and leave tRPC data fetching to client components. Do not call
+  the browser tRPC client from a server component.
+- After a verification link is clicked, Better Auth signs the user in and redirects to the
+  `callbackURL` given at sign-up (`/dashboard`); the login form passes `next` as `callbackURL`.
 - Prettier sorts Tailwind classes; do not fight the order.

@@ -1,5 +1,6 @@
 // Seed placeholder — run with `yarn db:seed` (prisma db seed → tsx prisma/seed.ts).
-// Phase 1 adds the initial admin user here. Keep seeds idempotent (upsert, never insert).
+// There is no admin seed yet: promote the first user with SQL (see README, "Phase 1 walkthrough").
+// Keep seeds idempotent (upsert, never insert).
 import { createPrismaClient } from "../src/client";
 
 const main = async (): Promise<void> => {

@@ -39,7 +39,56 @@ in CI) and contained (Prisma only inside `packages/database`). Rules:
 7. `yarn verify`. CI additionally runs
    `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code`.
 
-<!-- Phase 1: add real example (Better Auth models User/Session/Account/Verification, OutboxEmail) -->
+Existing models (`20260909113011_phase1_auth_outbox`): `User`, `Session`, `Account`,
+`Verification` (Better Auth — field names fixed, tables/columns mapped to snake_case, plus our
+`employeeCode`, `department`, `deletedAt`) and `OutboxEmail` with enum `OutboxStatus`
+(`PENDING | SENT | FAILED`). Regenerating the Better Auth models: `.claude/rules/migrations.md`.
+
+## How-to: write a repository
+
+```ts
+// packages/database/src/repositories/outbox-email.repository.ts
+export const createOutboxEmailRepository = (db: DbClient) => ({
+  create: (data: CreateOutboxEmailData): Promise<OutboxEmail> => db.outboxEmail.create({ data }),
+
+  markSent: (id: string): Promise<OutboxEmail> =>
+    db.outboxEmail.update({
+      where: { id },
+      data: { status: "SENT", sentAt: new Date(), attempts: { increment: 1 }, lastError: null },
+    }),
+
+  findStalePending: (olderThan: Date, limit = 100): Promise<OutboxEmail[]> =>
+    db.outboxEmail.findMany({
+      where: { status: "PENDING", createdAt: { lt: olderThan } },
+      orderBy: { createdAt: "asc" },
+      take: limit,
+    }),
+});
+```
+
+`DbClient = PrismaClient | Prisma.TransactionClient`, so the factory works with the client or an
+open transaction. One method per transition, no validation, no business rule, no queue. Paginated
+lists take a caller-composed `Prisma.<Model>WhereInput` (`createUserRepository(db).findMany(params, where)`)
+and add `deletedAt: null` themselves. Export from `packages/database/src/repositories/index.ts`.
+
+## How-to: transactions with after-commit hooks
+
+```ts
+// apps/api/src/modules/user/user.service.ts
+return withTransaction(ctx.db, async ({ tx }) => {
+  const users = createUserRepository(tx);
+  const target = await users.findById(input.userId);
+  if (target?.role === "admin" && (await users.countActiveAdmins()) <= 1) {
+    throw new ConflictError("Cannot demote the last admin");
+  }
+  return users.updateRole(input.userId, input.role);
+});
+```
+
+`withTransaction(prisma, callback, options?)` (`packages/database/src/utils/transaction.ts`) runs an
+interactive transaction; `afterCommit(hook)` registers work that runs only after the commit (queue
+producers — see `queueEmailInTransaction` in `apps/api/src/modules/email/email.service.ts`).
+Hooks that throw are collected into an `AfterCommitError` unless `onAfterCommitError` is given.
 
 ## How-to: raw SQL
 
@@ -75,7 +124,11 @@ The workspace's `test/global-setup.ts` starts the container (`startTestDatabase(
 `prisma migrate deploy`) and provides `databaseUrl`. A workspace without that setup copies
 `packages/database/test/global-setup.ts` and adds `globalSetup` to its `vitest.config.ts`.
 
-<!-- Phase 1: add real example (user.repository.test.ts with a factory helper) -->
+Repository tests (`packages/database/src/repositories/user.repository.test.ts`,
+`outbox-email.repository.test.ts`) create their rows with unique values
+(`${crypto.randomUUID()}@example.com`) directly through the client, call the repository and assert
+on what comes back — for example "excludes soft-deleted users from reads and counts" and "finds
+stale PENDING rows only".
 
 ## Gotchas
 

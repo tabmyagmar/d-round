@@ -36,9 +36,45 @@ Anything touching Postgres or Redis runs against testcontainers:
 - Docker must be running. `turbo.json` passes `DOCKER_*` and `TESTCONTAINERS_*` through to tasks.
   Hook timeouts are generous (`hookTimeout` 120–180 s) because the first image pull is slow.
 
-Mocks are allowed only for **external providers** we do not run locally: HTTP APIs, mail
-(`MailProvider` interface, Phase 1), payment, AI. Never mock Prisma, Redis, BullMQ, repositories
-or services of this repo.
+Mocks are allowed only for **external providers** we do not run locally: HTTP APIs, mail, payment,
+AI. The one existing mock is `createMemoryMailProvider` (`apps/worker/src/mail/memory-mail-provider.ts`),
+an implementation of the `MailProvider` interface with `failFirst` / `alwaysFailPermanently` knobs.
+Never mock Prisma, Redis, BullMQ, Better Auth, repositories or services of this repo.
+
+## Test harnesses — copy these, do not reinvent them
+
+`apps/api/test/support.ts` (real Postgres + Redis, real Better Auth):
+
+| Helper                                        | What it gives you                                                                                        |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `createHarness()`                             | `{ db, redis, auth, emailQueue, logger, sentMails, stop }`; call `stop()` in `afterAll`                  |
+| `signedInUser(h, { role, department, name })` | registers via Better Auth, marks verified + role in the DB, signs in; returns `{ user, email, headers }` |
+| `contextFor(h, headers?)`                     | a `RequestContext` built by `buildRequestContext` for those headers (anonymous when omitted)             |
+| `cookieHeaderFrom(response)`                  | `Cookie` header value from a `Set-Cookie` response, for follow-up HTTP requests                          |
+| `TEST_WEB_ORIGIN`, `TEST_PASSWORD`            | constants used by the HTTP tests                                                                         |
+
+Service tests call the service with `await contextFor(h, user.headers)`; router tests wrap the same
+context in `createCallerFactory(appRouter)`; HTTP tests build `createApp(...)` from the harness
+(`logger`, `db`, `redis`, `auth`, `webOrigin`, optional `signInRateLimiter`) and use
+`app.request(...)`.
+
+`apps/worker/test/support.ts` (real Postgres + Redis):
+
+| Helper                                                     | What it gives you                                                                                                   |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `createWorkerHarness()`                                    | `{ db, connection, logger, stop }`                                                                                  |
+| `isolatedEmailQueue(connection, { attempts, backoffMs })`  | a uniquely named `EmailQueue` so parallel tests never share jobs; pass `name` as `queueName` to `createEmailWorker` |
+| `createPendingEmail(db, { to, template, payload, ageMs })` | an `OutboxEmail` row in `PENDING`, optionally back-dated for sweeper tests                                          |
+| `waitForFinalStatus(db, id)`                               | polls until the row leaves `PENDING` (or 10 s)                                                                      |
+| `waitForJobDone(queue, jobId)`                             | polls until BullMQ reports `completed` / `failed`                                                                   |
+
+Both `test/global-setup.ts` files start Postgres and Redis once per workspace run and are the
+template for any workspace that needs both.
+
+`apps/api/vitest.config.ts` sets `fileParallelism: false`: all API test files share one database,
+and the user service enforces a global invariant ("at least one active admin") that a parallel file
+creating and demoting admins would break. Worker and package tests keep the default parallelism and
+isolate through unique names instead.
 
 ## Test behaviour, not implementation
 
@@ -49,17 +85,18 @@ or services of this repo.
 - Each test creates its own data with unique values (`crypto.randomUUID()`) — the container is
   shared by the whole package run — and cleans up what it started (`worker.close()`,
   `queue.obliterate({ force: true })`, disconnect clients) in `afterAll` / `finally`.
-- Routers are tested through `createCallerFactory(appRouter)` with a hand-built
-  `RequestContext`; the HTTP surface through `createApp(deps).request("/health")` (Hono).
-  `createApp` accepts `probes` so dependency failures can be simulated without breaking the
-  containers.
+- Routers are tested through `createCallerFactory(appRouter)` with a context from `contextFor`;
+  the HTTP surface through `createApp(deps).request("/health")` (Hono). `createApp` accepts
+  `probes` (simulate dependency failures) and `signInRateLimiter` (a small limit with a unique
+  `keyPrefix`) so tests never depend on the production settings.
 
 ## Where tests live
 
 - Unit and module tests: `*.test.ts` next to the file they test (`user.service.test.ts`).
 - Integration tests spanning a workspace (HTTP + database + Redis, migrations): `test/*.test.ts`
-  in that workspace, alongside `test/global-setup.ts` and helpers (`test/index.ts`).
-- The ability matrix test (`packages/permissions`, Phase 1) is the permission spec.
+  in that workspace (`apps/api/test/app.test.ts`, `apps/api/test/auth-http.test.ts`), alongside
+  `test/global-setup.ts` and the helpers in `test/support.ts`.
+- The ability matrix test (`packages/permissions/src/ability.test.ts`) is the permission spec.
 
 ## Never
 

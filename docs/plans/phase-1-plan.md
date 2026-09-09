@@ -1,8 +1,40 @@
 # Phase 1 plan — auth, user module, permissions, first real job
 
-**Status: DRAFT — waiting for human approval (protocol.md, Step 1).**
-Source: `phase-0-1-claude-code-prompts.md` §F. Assumptions from §B: single tenant, GitHub Actions,
-`@repo/*` namespace. Phase 0 is committed and `yarn verify` is green.
+**Status: IMPLEMENTED 2026-09-09.** Source: `phase-0-1-claude-code-prompts.md` §F. Assumptions
+from §B: single tenant, GitHub Actions, `@repo/*` namespace. Phase 0 is committed and `yarn verify`
+is green.
+
+## Deviations from the plan
+
+- `User.role` is `String? @default("member")` (nullable, as Better Auth generates it), not a Prisma
+  enum; the allowed set is `roleSchema` in `@repo/validation` (`docs/adr/0002-auth.md`).
+- The Better Auth CLI is `npx auth@1.7.3 generate --config packages/auth/auth-cli.config.ts`; the
+  `@better-auth/cli` package listed below is stale and was not used.
+- Env: the API's public origin is `API_URL` (not `BETTER_AUTH_URL`), plus `WEB_ORIGIN` and an
+  optional `COOKIE_DOMAIN`; worker mail settings `MAIL_SMTP_URL`, `MAIL_FROM` as planned.
+- `dept_head` may read users in the own department (the plan left dept_head unspecified); the
+  matrix test relations are `self | same-dept | other-dept`.
+- `requireAbility` lives in `apps/api/src/trpc/init.ts`, not in a separate `trpc/middleware/`
+  file; `ctx.ability` is a Prisma-aware `ServerAbility` (`definePrismaAbilityFor`), the browser
+  gets `defineAbilityFor`; list filtering uses `accessibleUsersWhere`.
+- Email producer API: `queueEmailInTransaction(deps, transactionContext, request)` and
+  `sendEmail(deps, request)` instead of `enqueueEmail(deps, ..., tx?)`; templates are rendered in
+  the worker (`apps/worker/src/mail/templates.ts`), not in the API. The `EmailJob` contract,
+  `EMAIL_TEMPLATES` and `enqueueEmailJob` live in `packages/queue/src/jobs/email.job.ts`.
+- `deactivate` soft-deletes and sets `banned` / `banReason` in the repository, then calls
+  `auth.api.revokeUserSessions({ body: { userId }, headers: ctx.headers })` with the admin's request
+  headers; it also refuses self-deactivation.
+- The sweeper's scheduler id is `outbox-email-sweeper` on the `outbox-sweeper` queue
+  (`QUEUE_NAMES.outboxSweeper`), batch 200.
+- The "untrusted origin → 4xx" HTTP test was dropped: Better Auth relies on its CSRF /
+  Fetch-Metadata checks plus CORS; the CORS preflight test in `apps/api/test/app.test.ts` covers the
+  allowed-origin rule.
+- Web pages live in `apps/web/app` (no `src/`); `AbilityProvider` comes from
+  `@repo/permissions/react` and is mounted in `apps/web/components/app-shell.tsx` (no
+  `components/ability-provider.tsx`). Tests for the API run with `fileParallelism: false`.
+- The MR split was done as 4 commits on `main` (no remote yet): schema + auth + permissions; API
+  wiring + user module; worker + outbox + Mailpit; web pages. Docs follow in a fifth commit.
+- No admin seed was added; the first admin is promoted with SQL (README).
 
 ## Versions (checked 2026-09-09 with `npm view <pkg> version`)
 

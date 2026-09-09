@@ -31,12 +31,43 @@ paths:
 - Every table has `createdAt DateTime @default(now()) @map("created_at")`; mutable tables add
   `updatedAt DateTime @updatedAt @map("updated_at")`; soft-deletable tables add
   `deletedAt DateTime? @map("deleted_at")`.
-- Enums for closed sets (`OutboxEmailStatus { PENDING SENT FAILED }`); `Json` for provider
-  payloads only; `Unsupported("...")` for types Prisma cannot model (PostGIS), accessed via raw SQL
-  in a repository.
+- Enums for closed sets (`OutboxStatus { PENDING SENT FAILED }`, mapped to `outbox_status`);
+  `Json` for provider payloads only (`OutboxEmail.payload`); `Unsupported("...")` for types Prisma
+  cannot model (PostGIS), accessed via raw SQL in a repository. Exception: `User.role` is a
+  `String? @default("member")`, not an enum, because Better Auth writes roles as strings — the
+  allowed set is `roleSchema` in `@repo/validation` (`docs/adr/0002-auth.md`).
 - Relations declare `onDelete` explicitly. Index every foreign key and every column used in the
   `where` of a list endpoint.
 - Export the new model's type from `packages/database/src/index.ts`.
+
+## Existing migrations
+
+| Migration                           | Contents                                                                                                                                                                               |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `20260909060455_init`               | `health_checks`                                                                                                                                                                        |
+| `20260909113011_phase1_auth_outbox` | Better Auth tables `users`, `sessions`, `accounts`, `verifications` (+ admin plugin columns, `employee_code`, `department`, `deleted_at`), enum `outbox_status`, table `outbox_emails` |
+
+Both are applied; never edit them.
+
+## Better Auth models
+
+`User`, `Session`, `Account`, `Verification` are Better Auth's models. **Field names must stay
+exactly as Better Auth expects** (`emailVerified`, `banExpires`, `impersonatedBy`, `providerId`,
+...); only table and column names are mapped (`@@map("users")`, `@map("email_verified")`). Our own
+fields (`employeeCode`, `department`, `deletedAt`) and the UUID v7 ids (Better Auth runs with
+`generateId: false`) are merged in by hand.
+
+When the Better Auth config changes (new plugin, new additional field) or Better Auth is upgraded,
+regenerate and diff instead of guessing:
+
+```sh
+npx auth@1.7.3 generate --config packages/auth/auth-cli.config.ts --output /tmp/better-auth.prisma -y
+```
+
+Then diff `/tmp/better-auth.prisma` against `schema.prisma` by hand and port only the field-level
+changes, keeping the mappings. The CLI package is `auth` (matching the `better-auth` version), not
+`@better-auth/cli` — that package is stale. `packages/auth/auth-cli.config.ts` exists only for this
+command; it never runs at runtime.
 
 ## Workflow for a schema change
 
