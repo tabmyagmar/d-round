@@ -1,0 +1,41 @@
+{
+  "name": "@repo/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Hono + tRPC API server (transport adapters → services → repositories)",
+  "exports": {
+    "./router": "./src/trpc/router.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/index.ts",
+    "build": "tsdown",
+    "start": "node dist/index.mjs",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.1",
+    "@hono/trpc-server": "0.4.2",
+    "@repo/database": "workspace:*",
+    "@repo/logger": "workspace:*",
+    "@repo/queue": "workspace:*",
+    "@repo/validation": "workspace:*",
+    "@trpc/server": "11.18.0",
+    "dotenv": "17.4.2",
+    "hono": "4.13.7",
+    "superjson": "2.2.6"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "24.13.3",
+    "eslint": "10.10.0",
+    "tsdown": "0.23.0",
+    "tsx": "4.23.13",
+    "typescript": "6.0.3",
+    "vite": "8.2.2",
+    "vitest": "5.0.0"
+  }
+}

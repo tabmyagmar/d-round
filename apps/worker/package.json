@@ -1,0 +1,34 @@
+{
+  "name": "@repo/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "BullMQ worker process — the only place queue consumers live",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/index.ts",
+    "build": "tsdown",
+    "start": "node dist/index.mjs",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@repo/database": "workspace:*",
+    "@repo/logger": "workspace:*",
+    "@repo/queue": "workspace:*",
+    "@repo/validation": "workspace:*",
+    "bullmq": "6.3.4",
+    "dotenv": "17.4.2"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "24.13.3",
+    "eslint": "10.10.0",
+    "tsdown": "0.23.0",
+    "tsx": "4.23.13",
+    "typescript": "6.0.3",
+    "vite": "8.2.2",
+    "vitest": "5.0.0"
+  }
+}

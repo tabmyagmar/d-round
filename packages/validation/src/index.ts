@@ -1,0 +1,6 @@
+// Single zod entry point for the whole monorepo (server and browser). Import `z` from
+// "@repo/validation", never from "zod" directly, so the version is pinned in one place.
+export { z } from "zod";
+export type { ZodError, ZodType } from "zod";
+
+export * from "./common.schema";

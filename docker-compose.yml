@@ -1,0 +1,82 @@
+name: d-round
+
+services:
+  postgres:
+    # Official PostGIS image, so PostGIS is available from day one (Phase 7 needs it).
+    # It is published for linux/amd64 only; Apple Silicon runs it under Rosetta emulation.
+    # For native speed on arm64 put this in .env:
+    #   POSTGRES_IMAGE=imresamu/postgis:18-3.6   (multi-arch build of the same Dockerfiles)
+    #   POSTGRES_PLATFORM=linux/arm64
+    image: ${POSTGRES_IMAGE:-postgis/postgis:18-3.6}
+    platform: ${POSTGRES_PLATFORM:-linux/amd64}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-workflow}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Postgres 18 images keep PGDATA below /var/lib/postgresql (not .../data).
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  pgadmin:
+    image: dpage/pgadmin4:9
+    restart: unless-stopped
+    # Generates servers.json + pgpass from the POSTGRES_* variables (see docker/pgadmin).
+    entrypoint: ["/bin/sh", "/custom-entrypoint.sh"]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-workflow}
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+      - ./docker/pgadmin/entrypoint.sh:/custom-entrypoint.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  # Optional GUI: `docker compose --profile tools up -d`
+  redisinsight:
+    image: redis/redisinsight:3.8
+    restart: unless-stopped
+    profiles: ["tools"]
+    ports:
+      - "${REDISINSIGHT_PORT:-5540}:5540"
+    volumes:
+      - redisinsight-data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  pgadmin-data:
+  redis-data:
+  redisinsight-data:

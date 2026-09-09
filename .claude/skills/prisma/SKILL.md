@@ -1,0 +1,93 @@
+---
+name: prisma
+description: Use when changing the Prisma schema, writing a migration, regenerating the client, writing raw SQL in a repository, or wiring a test to the testcontainers Postgres.
+---
+
+# Prisma 7 in this repo
+
+## Purpose
+
+Keep every schema change safe (expand-contract), reproducible (committed migrations, drift check
+in CI) and contained (Prisma only inside `packages/database`). Rules:
+`.claude/rules/migrations.md`, `.claude/rules/repositories.md`.
+
+## Where things are
+
+| What                | Where                                                            |
+| ------------------- | ---------------------------------------------------------------- |
+| Schema              | `packages/database/prisma/schema.prisma`                         |
+| Migrations          | `packages/database/prisma/migrations/`                           |
+| Config (URL, paths) | `packages/database/prisma.config.ts` (loads the root `.env`)     |
+| Generated client    | `packages/database/src/generated/prisma/` (git-ignored)          |
+| Client factory      | `packages/database/src/client.ts` (`@prisma/adapter-pg`)         |
+| Repositories        | `packages/database/src/repositories/<name>.repository.ts`        |
+| Utilities           | `packages/database/src/utils/{pagination,errors,transaction}.ts` |
+| Test helpers        | `packages/database/test/index.ts` (`startTestDatabase`)          |
+
+## How-to: add or change a model
+
+1. Add the ADR line (`docs/adr/`, see the `adr` skill). A schema change without an ADR line is a
+   review BLOCKER.
+2. Edit `schema.prisma`: PascalCase model, `@@map("snake_case")`, `@map` on multi-word columns,
+   `id String @id @default(uuid(7)) @db.Uuid`,
+   `createdAt DateTime @default(now()) @map("created_at")`.
+3. Make it expand-contract safe: new columns nullable or defaulted; constraints only after a
+   backfill.
+4. `yarn docker:up`, then `yarn db:migrate:dev --name add_<thing>`; read the SQL it generated.
+5. Export the model type from `packages/database/src/index.ts`; add or extend the repository.
+6. Write the repository test (`<name>.repository.test.ts`) against `inject("databaseUrl")`.
+7. `yarn verify`. CI additionally runs
+   `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code`.
+
+<!-- Phase 1: add real example (Better Auth models User/Session/Account/Verification, OutboxEmail) -->
+
+## How-to: raw SQL
+
+Only in a repository, only as a tagged template:
+
+```ts
+const rows = await db.$queryRaw<{ id: string }[]>`
+  SELECT id FROM users WHERE department = ${department} AND deleted_at IS NULL
+`;
+```
+
+Columns Prisma cannot model (PostGIS `geometry`) are declared as
+`Unsupported("geometry(Point, 4326)")` in the schema and read/written only through raw queries.
+Never `$queryRawUnsafe` with input.
+
+## How-to: use the test database
+
+```ts
+import { afterAll, beforeAll, inject } from "vitest";
+
+import { createPrismaClient, type PrismaClient } from "@repo/database";
+
+let prisma: PrismaClient;
+
+beforeAll(() => {
+  prisma = createPrismaClient({ connectionString: inject("databaseUrl") });
+});
+
+afterAll(() => prisma.$disconnect());
+```
+
+The workspace's `test/global-setup.ts` starts the container (`startTestDatabase()` runs
+`prisma migrate deploy`) and provides `databaseUrl`. A workspace without that setup copies
+`packages/database/test/global-setup.ts` and adds `globalSetup` to its `vitest.config.ts`.
+
+<!-- Phase 1: add real example (user.repository.test.ts with a factory helper) -->
+
+## Gotchas
+
+- `prisma.config.ts` deliberately does not use `env("DATABASE_URL")`: `prisma generate` runs on
+  `postinstall` without a database. Commands that connect fail loudly on the sentinel host.
+- Existing process env wins over `.env` — CI and testcontainers rely on it.
+- After pulling a schema change run `yarn db:generate` (or reinstall), or types are stale.
+- Prisma 7 requires a driver adapter: never `new PrismaClient()` without one; use
+  `createPrismaClient` / `getPrismaClient`.
+- The generated client is ESM (`moduleFormat = "esm"`); import model types via `@repo/database`,
+  never from `src/generated`.
+- Prisma error codes (`P2002`, `P2003`, `P2025`) and Postgres SQLSTATEs (`23505`, `23503`) are
+  compared only in `packages/database/src/utils/errors.ts`; elsewhere use
+  `translateDatabaseError` / `isUniqueViolation`.
+- `prisma migrate reset` is denied for agents; never run it against a shared database.

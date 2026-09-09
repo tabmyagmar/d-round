@@ -1,0 +1,23 @@
+// Prisma 7: the datasource URL lives in prisma.config.ts, the client is generated into
+// src/generated (git-ignored) and uses the pg driver adapter (see src/client.ts).
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Conventions: PascalCase models mapped to snake_case tables and columns,
+/// UUID v7 primary keys (time-ordered, index friendly), explicit created_at.
+
+/// Used by the health endpoint and integration tests to prove migrations ran.
+model HealthCheck {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("health_checks")
+}

@@ -1,0 +1,32 @@
+{
+  "name": "@repo/queue",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "BullMQ + ioredis wrapper: connection factory, typed queues/workers, pub/sub, job ids",
+  "exports": {
+    ".": "./src/index.ts",
+    "./test": "./test/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "bullmq": "6.3.4",
+    "ioredis": "6.0.0"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/logger": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@testcontainers/redis": "12.1.0",
+    "@types/node": "24.13.3",
+    "eslint": "10.10.0",
+    "testcontainers": "12.1.0",
+    "typescript": "6.0.3",
+    "vite": "8.2.2",
+    "vitest": "5.0.0"
+  }
+}

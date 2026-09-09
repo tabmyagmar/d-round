@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# build outputs
+dist/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# generated code (rebuilt by `yarn db:generate` / postinstall)
+packages/database/src/generated/
+
+# environment — only .env.example is committed
+.env
+.env.*
+!.env.example
+
+# tests
+coverage/
+
+# logs & OS
+*.log
+.DS_Store
+
+# tooling
+.eslintcache
+.claude/settings.local.json
