@@ -1,19 +1,25 @@
+import type { Auth, SessionUser } from "@repo/auth";
 import type { PrismaClient } from "@repo/database";
 import { childLogger } from "@repo/logger";
 import type { Logger } from "@repo/logger";
+import { definePrismaAbilityFor } from "@repo/permissions/server";
+import type { ServerAbility } from "@repo/permissions/server";
 import type { RedisConnection } from "@repo/queue";
+import { DEFAULT_ROLE, roleSchema } from "@repo/validation";
+import type { Role } from "@repo/validation";
 
 export const REQUEST_ID_HEADER = "x-request-id";
 
-/** Placeholder until Better Auth lands (Phase 1). */
+/** The signed-in user as services see it (normalised from the Better Auth session). */
 export type AuthUser = {
   id: string;
   email: string;
-  role: string;
+  name: string;
+  role: Role;
+  department: string | null;
+  employeeCode: string | null;
+  emailVerified: boolean;
 };
-
-/** Placeholder until CASL lands (Phase 1). */
-export type Ability = null;
 
 /**
  * Everything a service needs, built once per request. Transports (tRPC now, GraphQL/REST
@@ -22,16 +28,20 @@ export type Ability = null;
 export type RequestContext = {
   requestId: string;
   logger: Logger;
+  /** Raw request headers — needed to call Better Auth's admin API on behalf of the caller. */
+  headers: Headers;
   user: AuthUser | null;
-  ability: Ability;
+  ability: ServerAbility;
   db: PrismaClient;
   redis: RedisConnection;
+  auth: Auth;
 };
 
 export type ContextDeps = {
   logger: Logger;
   db: PrismaClient;
   redis: RedisConnection;
+  auth: Auth;
 };
 
 export type ContextInput = {
@@ -40,15 +50,36 @@ export type ContextInput = {
   requestId?: string;
 };
 
-export const buildRequestContext = (input: ContextInput, deps: ContextDeps): RequestContext => {
+export const toAuthUser = (user: SessionUser): AuthUser => {
+  const role = roleSchema.safeParse(user.role);
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: role.success ? role.data : DEFAULT_ROLE,
+    department: user.department ?? null,
+    employeeCode: user.employeeCode ?? null,
+    emailVerified: user.emailVerified,
+  };
+};
+
+export const buildRequestContext = async (
+  input: ContextInput,
+  deps: ContextDeps,
+): Promise<RequestContext> => {
   const requestId = input.requestId ?? input.headers.get(REQUEST_ID_HEADER) ?? crypto.randomUUID();
+
+  const session = await deps.auth.api.getSession({ headers: input.headers });
+  const user = session ? toAuthUser(session.user) : null;
 
   return {
     requestId,
-    logger: childLogger(deps.logger, { requestId }),
-    user: null,
-    ability: null,
+    logger: childLogger(deps.logger, { requestId, userId: user?.id ?? null }),
+    headers: input.headers,
+    user,
+    ability: definePrismaAbilityFor(user),
     db: deps.db,
     redis: deps.redis,
+    auth: deps.auth,
   };
 };

@@ -2,10 +2,12 @@ import { trpcServer } from "@hono/trpc-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
+import type { RateLimiterAbstract } from "rate-limiter-flexible";
 
 import { REQUEST_ID_HEADER, buildRequestContext } from "./core/context";
 import type { ContextDeps } from "./core/context";
 import { createHealthProbes } from "./health/probes";
+import { SIGN_IN_RATE_LIMIT, createRateLimiter, rateLimit } from "./middleware/rate-limit";
 import { requestLogger } from "./middleware/request-logger";
 import type { AppVariables } from "./middleware/request-logger";
 import { checkHealth } from "./modules/health/health.service";
@@ -17,33 +19,41 @@ export type AppDeps = ContextDeps & {
   webOrigin: string;
   /** Override for tests; defaults to real Postgres + Redis probes. */
   probes?: HealthProbes;
+  /** Override for tests; defaults to SIGN_IN_RATE_LIMIT on Redis. */
+  signInRateLimiter?: RateLimiterAbstract;
 };
 
 export type App = Hono<{ Variables: AppVariables }>;
 
 /**
- * HTTP composition root. Transports are mounted side by side: /trpc now, /graphql and
- * /api/v1 later — each one only wraps buildRequestContext and the shared error mapping.
+ * HTTP composition root. Transports are mounted side by side: /api/auth (Better Auth) and
+ * /trpc now, /graphql and /api/v1 later — each one only wraps buildRequestContext and the
+ * shared error mapping.
  */
 export const createApp = (deps: AppDeps): App => {
   const app = new Hono<{ Variables: AppVariables }>();
   const probes = deps.probes ?? createHealthProbes(deps);
+  const signInLimiter = deps.signInRateLimiter ?? createRateLimiter(deps.redis, SIGN_IN_RATE_LIMIT);
 
   app.use(requestId({ headerName: REQUEST_ID_HEADER }));
   app.use(requestLogger(deps.logger));
-  app.use(
-    "/trpc/*",
-    cors({
-      origin: deps.webOrigin,
-      credentials: true,
-      allowHeaders: ["content-type", REQUEST_ID_HEADER],
-    }),
-  );
+
+  const browserCors = cors({
+    origin: deps.webOrigin,
+    credentials: true,
+    allowHeaders: ["content-type", "authorization", REQUEST_ID_HEADER],
+  });
+  app.use("/trpc/*", browserCors);
+  app.use("/api/auth/*", browserCors);
 
   app.get("/health", async (c) => {
     const report = await checkHealth(probes);
     return c.json(report, report.status === "ok" ? 200 : 503);
   });
+
+  // Better Auth owns everything below /api/auth; sign-in attempts are rate limited per IP.
+  app.use("/api/auth/sign-in/*", rateLimit(signInLimiter));
+  app.on(["GET", "POST"], "/api/auth/*", (c) => deps.auth.handler(c.req.raw));
 
   app.use(
     "/trpc/*",

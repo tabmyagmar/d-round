@@ -1,9 +1,11 @@
 import { TRPCError, initTRPC } from "@trpc/server";
 import superjson from "superjson";
 
+import type { Action, SubjectName } from "@repo/permissions";
+
 import type { RequestContext } from "../core/context";
 import { toTRPCError } from "../core/error-mapping";
-import { isDomainError } from "../core/errors";
+import { ForbiddenError, isDomainError } from "../core/errors";
 
 /**
  * tRPC wiring. Routers live in ./routers, one per module, and only ever do:
@@ -55,3 +57,15 @@ export const protectedProcedure = publicProcedure.use(({ ctx, next }) => {
   }
   return next({ ctx: { ...ctx, user: ctx.user } });
 });
+
+/**
+ * Layer-1 authorization: may this role attempt this kind of action at all? Row-level and
+ * stateful decisions stay in the service. Every non-public procedure uses this.
+ */
+export const requireAbility = (action: Action, subjectName: SubjectName) =>
+  t.middleware(({ ctx, next }) => {
+    if (!ctx.ability.can(action, subjectName)) {
+      throw new ForbiddenError(`Not allowed to ${action} ${subjectName}`);
+    }
+    return next();
+  });

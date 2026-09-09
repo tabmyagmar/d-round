@@ -5,7 +5,8 @@ export type TransactionClient = Prisma.TransactionClient;
 /** Anything a repository can run queries against: the client or an open transaction. */
 export type DbClient = PrismaClient | TransactionClient;
 
-export type AfterCommitHook = () => void | Promise<void>;
+/** Return values are ignored; hooks usually return the promise of a queue.add(). */
+export type AfterCommitHook = () => unknown;
 
 export type TransactionContext = {
   tx: TransactionClient;

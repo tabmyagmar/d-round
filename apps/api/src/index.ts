@@ -1,12 +1,14 @@
 import { serve } from "@hono/node-server";
 
+import { createAuth } from "@repo/auth";
 import { disconnectPrismaClient, getPrismaClient } from "@repo/database";
 import { createLogger } from "@repo/logger";
-import { createRedisConnection } from "@repo/queue";
+import { EMAIL_TEMPLATES, createEmailQueue, createRedisConnection } from "@repo/queue";
 
 import { createApp } from "./app";
 import { loadApiEnv } from "./env";
 import { registerGracefulShutdown } from "./lib/graceful-shutdown";
+import { sendEmail } from "./modules/email/email.service";
 
 const env = loadApiEnv();
 const logger = createLogger({
@@ -21,11 +23,27 @@ const redis = createRedisConnection(env.REDIS_URL, { connectionName: "api" });
 redis.on("error", (error) => {
   logger.error({ err: error }, "redis connection error");
 });
+const emailQueue = createEmailQueue(redis);
 
-const app = createApp({ logger, db, redis, webOrigin: env.WEB_ORIGIN });
+const auth = createAuth({
+  prisma: db,
+  secret: env.BETTER_AUTH_SECRET,
+  baseURL: env.API_URL,
+  trustedOrigins: [env.WEB_ORIGIN],
+  ...(env.COOKIE_DOMAIN ? { cookieDomain: env.COOKIE_DOMAIN } : {}),
+  // Outbox: row inside a transaction, job after commit; the worker sends the mail.
+  sendVerificationEmail: async ({ user, url }) => {
+    await sendEmail(
+      { db, emailQueue, logger },
+      { to: user.email, template: EMAIL_TEMPLATES.verification, payload: { name: user.name, url } },
+    );
+  },
+});
+
+const app = createApp({ logger, db, redis, auth, webOrigin: env.WEB_ORIGIN });
 
 const server = serve({ fetch: app.fetch, port: env.API_PORT }, (info) => {
-  logger.info({ port: info.port, webOrigin: env.WEB_ORIGIN }, "api listening");
+  logger.info({ port: info.port, webOrigin: env.WEB_ORIGIN, apiUrl: env.API_URL }, "api listening");
 });
 
 registerGracefulShutdown({
@@ -44,6 +62,7 @@ registerGracefulShutdown({
           });
         }),
     },
+    { name: "email queue", run: () => emailQueue.close() },
     { name: "redis", run: () => redis.quit() },
     { name: "database", run: () => disconnectPrismaClient() },
   ],

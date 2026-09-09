@@ -1,44 +1,46 @@
-import { Writable } from "node:stream";
-
 import { TRPCError } from "@trpc/server";
 import { describe, expect, it } from "vitest";
 
-import { createLogger } from "@repo/logger";
+import type { Auth } from "@repo/auth";
+import { definePrismaAbilityFor } from "@repo/permissions/server";
 
-import type { RequestContext } from "../core/context";
+import { silentLogger } from "../../test/support";
+import type { AuthUser, RequestContext } from "../core/context";
 import { NotFoundError } from "../core/errors";
 
 import { createCallerFactory, protectedProcedure, publicProcedure, router } from "./init";
 import { appRouter } from "./router";
 
-const silentLogger = () =>
-  createLogger(
-    { name: "test", level: "silent" },
-    new Writable({
-      write: (_chunk, _encoding, callback) => {
-        callback();
-      },
-    }),
-  );
-
-const contextFor = (overrides: Partial<RequestContext> = {}): RequestContext => ({
+/** Pure wiring tests: hand-built contexts, no database (health and middleware only). */
+const contextFor = (user: AuthUser | null = null): RequestContext => ({
   requestId: "req-1",
   logger: silentLogger(),
-  user: null,
-  ability: null,
+  headers: new Headers(),
+  user,
+  ability: definePrismaAbilityFor(user),
   db: {} as RequestContext["db"],
   redis: {} as RequestContext["redis"],
-  ...overrides,
+  auth: {} as Auth,
 });
+
+const member: AuthUser = {
+  id: "019187d5-0d76-7d1a-9a4c-4f7d2a1f3b6e",
+  email: "a@b.c",
+  name: "A",
+  role: "member",
+  department: null,
+  employeeCode: null,
+  emailVerified: true,
+};
 
 describe("appRouter.health.ping", () => {
   it("answers with ok, the request id and a Date", async () => {
-    const caller = createCallerFactory(appRouter)(contextFor({ requestId: "req-ping" }));
+    const caller = createCallerFactory(appRouter)(contextFor());
 
     const result = await caller.health.ping();
 
     expect(result.ok).toBe(true);
-    expect(result.requestId).toBe("req-ping");
+    expect(result.requestId).toBe("req-1");
     expect(result.time).toBeInstanceOf(Date);
   });
 });
@@ -76,8 +78,6 @@ describe("procedure middleware", () => {
     await expect(createCaller(contextFor()).secret()).rejects.toMatchObject({
       code: "UNAUTHORIZED",
     });
-
-    const user = { id: "u1", email: "a@b.c", role: "member" };
-    await expect(createCaller(contextFor({ user })).secret()).resolves.toBe("a@b.c");
+    await expect(createCaller(contextFor(member)).secret()).resolves.toBe("a@b.c");
   });
 });

@@ -1,7 +1,7 @@
-import { AbilityBuilder } from "@casl/ability";
+import { AbilityBuilder, subject } from "@casl/ability";
 import type { Ability } from "@casl/ability";
 import { accessibleBy, createPrismaAbility } from "@casl/prisma/runtime";
-import type { PrismaQueryOf, Subjects } from "@casl/prisma/runtime";
+import type { Model, PrismaQueryOf, Subjects } from "@casl/prisma/runtime";
 
 import type { Prisma, User } from "@repo/database";
 
@@ -19,6 +19,9 @@ export type PrismaQuery = PrismaQueryOf<Prisma.TypeMap>;
 export type ServerSubjects = "all" | Subjects<{ User: User }>;
 
 export type ServerAbility = Ability<[Action, ServerSubjects], PrismaQuery>;
+
+/** Tags a Prisma User row so the server ability can evaluate row conditions. */
+export const prismaUserSubject = (user: User): Model<User, "User"> => subject("User", user);
 
 export const definePrismaAbilityFor = (user: AbilityUser | null): ServerAbility => {
   const builder = new AbilityBuilder<ServerAbility>(createPrismaAbility);

@@ -1,46 +1,64 @@
-import { Writable } from "node:stream";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { describe, expect, it } from "vitest";
-
-import { createLogger } from "@repo/logger";
+import { contextFor, createHarness, signedInUser } from "../../test/support";
+import type { TestHarness } from "../../test/support";
 
 import { REQUEST_ID_HEADER, buildRequestContext } from "./context";
-import type { ContextDeps } from "./context";
 
-const deps = (): ContextDeps & { lines: string[] } => {
-  const lines: string[] = [];
-  const stream = new Writable({
-    write: (chunk: Buffer | string, _encoding, callback) => {
-      lines.push(chunk.toString());
-      callback();
-    },
-  });
-  return {
-    lines,
-    logger: createLogger({ name: "test" }, stream),
-    // Context only carries these references; nothing here touches them.
-    db: {} as ContextDeps["db"],
-    redis: {} as ContextDeps["redis"],
-  };
-};
+let h: TestHarness;
+
+beforeAll(async () => {
+  h = await createHarness();
+});
+
+afterAll(async () => {
+  await h.stop();
+});
+
+const deps = () => ({ logger: h.logger, db: h.db, redis: h.redis, auth: h.auth });
 
 describe("buildRequestContext", () => {
-  it("prefers the explicit request id, then the header, then generates one", () => {
-    const d = deps();
+  it("prefers the explicit request id, then the header, then generates one", async () => {
     const headers = new Headers({ [REQUEST_ID_HEADER]: "from-header" });
 
-    expect(buildRequestContext({ headers, requestId: "explicit" }, d).requestId).toBe("explicit");
-    expect(buildRequestContext({ headers }, d).requestId).toBe("from-header");
-    expect(buildRequestContext({ headers: new Headers() }, d).requestId).toMatch(/^[0-9a-f-]{36}$/);
+    expect((await buildRequestContext({ headers, requestId: "explicit" }, deps())).requestId).toBe(
+      "explicit",
+    );
+    expect((await buildRequestContext({ headers }, deps())).requestId).toBe("from-header");
+    expect((await buildRequestContext({ headers: new Headers() }, deps())).requestId).toMatch(
+      /^[0-9a-f-]{36}$/,
+    );
   });
 
-  it("starts unauthenticated and binds the request id to the logger", () => {
-    const d = deps();
-    const ctx = buildRequestContext({ headers: new Headers(), requestId: "req-42" }, d);
+  it("is anonymous without a session cookie and nothing is allowed", async () => {
+    const ctx = await contextFor(h);
 
     expect(ctx.user).toBeNull();
-    expect(ctx.ability).toBeNull();
-    ctx.logger.info("hello");
-    expect(d.lines[0]).toContain('"requestId":"req-42"');
+    expect(ctx.ability.can("read", "User")).toBe(false);
+  });
+
+  it("resolves the session into a typed user with role and department", async () => {
+    const signedIn = await signedInUser(h, { role: "hr_manager", department: "Finance" });
+
+    const ctx = await contextFor(h, signedIn.headers);
+
+    expect(ctx.user).toMatchObject({
+      id: signedIn.user.id,
+      email: signedIn.email,
+      role: "hr_manager",
+      department: "Finance",
+      emailVerified: true,
+    });
+    expect(ctx.ability.can("read", "User")).toBe(true);
+    expect(ctx.ability.can("changeRole", "User")).toBe(false);
+  });
+
+  it("falls back to the default role when the stored role is unknown", async () => {
+    const signedIn = await signedInUser(h);
+    await h.db.user.update({ where: { id: signedIn.user.id }, data: { role: "ceo" } });
+
+    const ctx = await contextFor(h, signedIn.headers);
+
+    expect(ctx.user?.role).toBe("member");
   });
 });
