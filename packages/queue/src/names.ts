@@ -5,6 +5,8 @@
  */
 export const QUEUE_NAMES = {
   email: "email",
+  /** Repeatable job that re-enqueues stale PENDING outbox emails (apps/worker). */
+  outboxSweeper: "outbox-sweeper",
 } as const satisfies Record<string, string>;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
