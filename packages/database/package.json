@@ -31,6 +31,7 @@
     "@repo/typescript-config": "workspace:*",
     "@testcontainers/postgresql": "12.1.0",
     "@types/node": "24.13.3",
+    "better-auth": "1.7.3",
     "eslint": "10.10.0",
     "testcontainers": "12.1.0",
     "tsx": "4.23.13",

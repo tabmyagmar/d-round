@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 
+import { RegisterForm } from "@/features/auth/register-form";
 import { getServerSession } from "@/lib/auth/server";
-
-import { RegisterForm } from "./register-form";
 
 const RegisterPage = async () => {
   if (await getServerSession()) {

@@ -1,0 +1,31 @@
+// Better Auth core model + admin plugin fields + d-round fields. Generated with
+// `npx auth generate` (packages/auth/auth-cli.config.ts) and merged by hand: snake_case mapping,
+// UUID v7 ids (Better Auth runs with generateId: false). Field names must stay as Better Auth
+// expects. See docs/adr/0002-auth.md.
+model User {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false) @map("email_verified")
+  image         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  /// admin plugin: admin | hr_manager | dept_head | member (allowed set: @repo/validation roleSchema)
+  role       String?   @default("member")
+  banned     Boolean?  @default(false)
+  banReason  String?   @map("ban_reason")
+  banExpires DateTime? @map("ban_expires")
+
+  /// d-round
+  employeeCode String?   @unique @map("employee_code")
+  department   String?
+  /// Soft delete (deactivate). Deactivated users cannot sign in; rows are never deleted.
+  deletedAt    DateTime? @map("deleted_at")
+
+  sessions Session[]
+  accounts Account[]
+
+  @@index([department])
+  @@map("users")
+}

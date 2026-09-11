@@ -1,4 +1,4 @@
-import { ProfileEditor } from "./profile-editor";
+import { ProfileEditor } from "@/features/users/profile-editor";
 
 const ProfilePage = () => (
   <>

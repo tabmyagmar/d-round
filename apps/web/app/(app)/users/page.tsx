@@ -1,4 +1,4 @@
-import { UsersTable } from "./users-table";
+import { UsersTable } from "@/features/users/users-table";
 
 const UsersPage = () => (
   <>

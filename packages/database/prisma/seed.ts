@@ -1,7 +1,100 @@
-// Seed placeholder — run with `yarn db:seed` (prisma db seed → tsx prisma/seed.ts).
-// There is no admin seed yet: promote the first user with SQL (see README, "Phase 1 walkthrough").
-// Keep seeds idempotent (upsert, never insert).
+// Development seed — `yarn db:seed` (prisma db seed → tsx prisma/seed.ts). Idempotent: users are
+// upserted by email, so running it again only refreshes them.
+//
+// Test accounts (all verified, password `A123456`):
+//   admin@test.com   admin        HR
+//   hr@test.com      hr_manager   HR
+//   head@test.com    dept_head    Engineering
+//   member@test.com  member       Engineering
+//   guest@test.com   member       (no department)
+//
+// Passwords are hashed with Better Auth's own scrypt implementation so the accounts sign in
+// through the normal /api/auth/sign-in/email flow. Never run this against production data.
+import { hashPassword } from "better-auth/crypto";
+
 import { createPrismaClient } from "../src/client";
+import type { PrismaClient } from "../src/client";
+
+export const SEED_PASSWORD = "A123456";
+
+export const SEED_USERS = [
+  {
+    email: "admin@test.com",
+    name: "Admin Test",
+    role: "admin",
+    department: "HR",
+    employeeCode: "EMP-0001",
+  },
+  {
+    email: "hr@test.com",
+    name: "HR Manager Test",
+    role: "hr_manager",
+    department: "HR",
+    employeeCode: "EMP-0002",
+  },
+  {
+    email: "head@test.com",
+    name: "Department Head Test",
+    role: "dept_head",
+    department: "Engineering",
+    employeeCode: "EMP-0003",
+  },
+  {
+    email: "member@test.com",
+    name: "Member Test",
+    role: "member",
+    department: "Engineering",
+    employeeCode: "EMP-0004",
+  },
+  {
+    email: "guest@test.com",
+    name: "Guest Test",
+    role: "member",
+    department: null,
+    employeeCode: null,
+  },
+] as const;
+
+const CREDENTIAL_PROVIDER = "credential";
+
+export const seedUsers = async (prisma: PrismaClient): Promise<void> => {
+  const password = await hashPassword(SEED_PASSWORD);
+
+  for (const seed of SEED_USERS) {
+    const user = await prisma.user.upsert({
+      where: { email: seed.email },
+      update: {
+        name: seed.name,
+        role: seed.role,
+        department: seed.department,
+        employeeCode: seed.employeeCode,
+        emailVerified: true,
+        banned: false,
+        banReason: null,
+        deletedAt: null,
+      },
+      create: {
+        email: seed.email,
+        name: seed.name,
+        role: seed.role,
+        department: seed.department,
+        employeeCode: seed.employeeCode,
+        emailVerified: true,
+      },
+    });
+
+    const account = await prisma.account.findFirst({
+      where: { userId: user.id, providerId: CREDENTIAL_PROVIDER },
+    });
+    if (account) {
+      await prisma.account.update({ where: { id: account.id }, data: { password } });
+    } else {
+      await prisma.account.create({
+        data: { userId: user.id, providerId: CREDENTIAL_PROVIDER, accountId: user.id, password },
+      });
+    }
+  }
+};
 
 const main = async (): Promise<void> => {
   // `prisma db seed` inherits the env loaded by prisma.config.ts (root .env).
@@ -11,8 +104,10 @@ const main = async (): Promise<void> => {
   }
   const prisma = createPrismaClient({ connectionString });
   try {
-    const count = await prisma.healthCheck.count();
-    process.stdout.write(`seed: nothing to do (health_checks rows: ${String(count)})\n`);
+    await seedUsers(prisma);
+    process.stdout.write(
+      `seed: ${String(SEED_USERS.length)} test users ready (password ${SEED_PASSWORD}): ${SEED_USERS.map((u) => u.email).join(", ")}\n`,
+    );
   } finally {
     await prisma.$disconnect();
   }

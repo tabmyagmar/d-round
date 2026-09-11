@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 
+import { LoginForm } from "@/features/auth/login-form";
 import { getServerSession } from "@/lib/auth/server";
-
-import { LoginForm } from "./login-form";
 
 const LoginPage = async ({ searchParams }: { searchParams: Promise<{ next?: string }> }) => {
   const [session, params] = await Promise.all([getServerSession(), searchParams]);

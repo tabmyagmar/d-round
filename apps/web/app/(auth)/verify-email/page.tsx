@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@repo/ui/components/card";
 
-import { ResendVerification } from "./resend-verification";
+import { ResendVerification } from "@/features/auth/resend-verification";
 
 const VerifyEmailPage = async ({ searchParams }: { searchParams: Promise<{ email?: string }> }) => {
   const { email } = await searchParams;

@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@repo/ui/components/card";
 
-import { RoleBadge } from "@/components/role-badge";
+import { RoleBadge } from "@/features/users/role-badge";
 import { getServerSession, toCurrentUser } from "@/lib/auth/server";
 
 const DashboardPage = async () => {

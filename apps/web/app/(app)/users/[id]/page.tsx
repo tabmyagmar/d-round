@@ -1,4 +1,4 @@
-import { UserEditor } from "./user-editor";
+import { UserEditor } from "@/features/users/user-editor";
 
 const UserDetailPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;

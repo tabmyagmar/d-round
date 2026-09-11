@@ -11,7 +11,7 @@ loadEnv({ path: new URL("../../.env", import.meta.url), quiet: true });
 const databaseUrl = process.env.DATABASE_URL ?? "postgresql://localhost:5432/DATABASE_URL_NOT_SET";
 
 export default defineConfig({
-  schema: "prisma/schema.prisma",
+  schema: "prisma/schema",
   migrations: {
     path: "prisma/migrations",
     seed: "tsx prisma/seed.ts",

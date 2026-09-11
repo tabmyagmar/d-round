@@ -1,0 +1,8 @@
+/// Used by the health endpoint and integration tests to prove migrations ran.
+model HealthCheck {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("health_checks")
+}

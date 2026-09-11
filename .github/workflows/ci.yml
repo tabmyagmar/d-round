@@ -81,7 +81,7 @@ jobs:
 
       - name: Detect schema drift (schema.prisma must match the applied migrations)
         working-directory: packages/database
-        run: yarn prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+        run: yarn prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code
 
       - name: Verify (lint, typecheck, test, build, format check)
         run: yarn verify

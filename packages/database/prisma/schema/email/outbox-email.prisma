@@ -1,0 +1,26 @@
+// Outbox: the durable record of every email. The queue is only a trigger; this row is the
+// truth (PENDING → SENT | FAILED). See docs/adr/0004-outbox.md and .claude/rules/queue.md.
+
+enum OutboxStatus {
+  PENDING
+  SENT
+  FAILED
+
+  @@map("outbox_status")
+}
+
+model OutboxEmail {
+  id        String       @id @default(uuid(7)) @db.Uuid
+  to        String
+  template  String
+  payload   Json
+  status    OutboxStatus @default(PENDING)
+  attempts  Int          @default(0)
+  sentAt    DateTime?    @map("sent_at")
+  lastError String?      @map("last_error")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@map("outbox_emails")
+}

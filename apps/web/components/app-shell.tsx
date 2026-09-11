@@ -10,7 +10,7 @@ import { Separator } from "@repo/ui/components/separator";
 import { cn } from "@repo/ui/lib/utils";
 import type { Role } from "@repo/validation";
 
-import { RoleBadge } from "@/components/role-badge";
+import { RoleBadge } from "@/features/users/role-badge";
 import { authClient } from "@/lib/auth/client";
 import type { CurrentUser } from "@/lib/auth/server";
 

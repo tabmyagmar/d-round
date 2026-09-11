@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 const RootLayout = ({ children }: Readonly<{ children: ReactNode }>) => (
   <html
-    lang="en"
+    lang="ja"
     suppressHydrationWarning
     className={cn("font-sans antialiased", fontSans.variable, fontMono.variable)}
   >
