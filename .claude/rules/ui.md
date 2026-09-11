@@ -23,8 +23,9 @@ paths:
 the workspace root and are imported through the `@/` alias (`@/features/users/role-badge`). The web
 app is feature-based: everything with domain knowledge lives in `features/<feature>/`
 (`auth`: `login-form`, `register-form`, `resend-verification`; `users`: `users-table`,
-`user-editor`, `profile-form`, `profile-editor`, `role-badge`). Route files under `app/` are thin:
-they import only from `@/features/<feature>/...` and `@/lib/...` and render one feature component.
+`user-editor`, `profile-form`, `profile-editor`, `role-badge`, `user-picker-field`). Route files
+under `app/` are thin: they import only from `@/features/<feature>/...` and `@/lib/...` and render
+one feature component.
 
 `@repo/ui` exports `./components/*`, `./components/form` (the form-field barrel), `./lib/*`,
 `./hooks/*`, `./globals.css` and `./postcss.config` (`packages/ui/package.json`). Import as
@@ -43,19 +44,27 @@ primitives beyond what shadcn documents (variants via `cva`).
 Generated primitives are kept pristine so they can be regenerated: `packages/ui/eslint.config.mjs`
 relaxes `func-style`, `import-x/consistent-type-specifier-style`,
 `@typescript-eslint/no-unnecessary-condition`, `@eslint-react/no-leaked-conditional-rendering`,
-`@eslint-react/no-array-index-key` and `eqeqeq` for `src/components/*.tsx` only. Our own code in
-`components/form/` and `components/composed/` follows the house style in full. One consequence:
-form fields destructure `ref` out of `field`
+`@eslint-react/no-array-index-key`, `@eslint-react/no-nested-component-definitions` and `eqeqeq`
+for `src/components/*.tsx` only. Our own code in `components/form/` and `components/composed/`
+follows the house style in full. One consequence: form fields bind through `useFormField`
+(`components/form/use-form-field.ts`), which pulls `ref` out of `field`
 (`const { field: { ref, ...field } } = useController(...)`) so that spreading the rest onto the
-input does not trip the `react-hooks/refs` rule.
+input does not trip the `react-hooks/refs` rule, and forwards `disabled` only when it is set
+(`exactOptionalPropertyTypes`).
 
-Installed primitives: `alert`, `badge`, `button`, `card`, `checkbox`, `dialog`, `dropdown-menu`,
-`field`, `input`, `label`, `radio-group`, `select`, `separator`, `skeleton`, `sonner`, `table`,
-`textarea`.
+Installed primitives: `alert`, `badge`, `button`, `calendar`, `card`, `checkbox`, `combobox`,
+`dialog`, `dropdown-menu`, `field`, `input`, `input-group`, `label`, `popover`, `radio-group`,
+`select`, `separator`, `skeleton`, `sonner`, `switch`, `table`, `textarea`, `tooltip`. `calendar`
+brings `react-day-picker 10.0.1` and `date-fns 4.4.0` into `packages/ui` dependencies.
 
-Known local patch: `sonner.tsx` passes `theme={(theme as ToasterProps["theme"]) ?? "system"}`
-(upstream has no `?? "system"`) because `exactOptionalPropertyTypes` rejects `undefined` for the
-optional `theme` prop. Re-apply that one line after `npx shadcn@4.21.0 add sonner --overwrite`.
+Known local patches (both for `exactOptionalPropertyTypes`, re-apply after `--overwrite`):
+
+1. `sonner.tsx` passes `theme={(theme as ToasterProps["theme"]) ?? "system"}` (upstream has no
+   `?? "system"`) because the optional `theme` prop rejects `undefined`. One line after
+   `npx shadcn@4.21.0 add sonner --overwrite`.
+2. `calendar.tsx` renders `DayButton` with `{...(locale ? { locale } : {})}` instead of
+   `locale={locale}` because `locale={undefined}` is rejected. One line after
+   `npx shadcn@4.21.0 add calendar --overwrite`.
 
 ## Promotion rule
 
@@ -153,8 +162,8 @@ Client-side auth calls go through `authClient` (`apps/web/lib/auth/client.ts`,
 
 `react-hook-form` + `zodResolver(schema)` with the schema imported from `@repo/validation` — the
 same schema the router validates with. Do not redeclare validation in the component. Inputs are
-the bound fields from `@repo/ui/components/form`; each one calls `useController` and renders
-`Field` + `FieldLabel` + the input + `FieldError` itself:
+the bound fields from `@repo/ui/components/form`; each one binds itself with `useFormField` and
+renders label, control, description and error itself:
 
 ```tsx
 // apps/web/features/users/profile-form.tsx
@@ -164,21 +173,80 @@ const form = useForm<UpdateProfileInput>({
 });
 
 <FieldGroup>
-  <TextField control={form.control} name="name" label="Full name" />
+  <TextField control={form.control} name="name" label="Full name" required />
   <TextField control={form.control} name="employeeCode" label="Employee code" emptyAs="null" />
 </FieldGroup>;
 ```
 
-- Available fields (`packages/ui/src/components/form/`): `TextField` (`control`, `name`, `label`,
-  `description?`, `disabled?`, `className?`, `type?`, `placeholder?`, `autoComplete?`, `emptyAs?`),
-  `PasswordField` (show/hide toggle), `TextareaField`, `SelectField` (wraps the standalone
-  `Select`; `options: { value, label, disabled? }[]`, `placeholder?`, `nullable?`),
-  `CheckboxField`, `RadioField` (`options`, `orientation`).
+### Shared props (`BaseFieldProps`, `form/types.ts`)
+
+Every field takes `control`, `name` (type-checked against the form values), `label`,
+`description?`, `required?` (red `*` next to the label — validation itself stays in zod), `hint?`
+(short help text in a tooltip behind an info icon), `disabled?` and `className?`. The hint tooltip
+needs the `TooltipProvider` from `@repo/ui/components/tooltip`, which `apps/web/app/layout.tsx`
+wraps the whole app in. Shared types: `SelectOption` (`{ value, label, disabled? }`), `EmptyAs`
+(`"string" | "null" | "undefined"`), `FileFieldValue`, `DateRangeValue`.
+
+### Fields (`packages/ui/src/components/form/`)
+
+| Field                | Stores                                                             | Extras                                                                                                                                                                                                                                           |
+| -------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TextField`          | `string`; cleared → `emptyAs` (`""` default, `null`, `undefined`)  | `type` (`text`, `email`, `url`, `tel`, `search`), `placeholder`, `autoComplete`, `maxLength` (caps input, shows `n / max`). Not for numbers.                                                                                                     |
+| `TextareaField`      | `string`; `emptyAs`                                                | `rows`, `placeholder`, `maxLength` counter                                                                                                                                                                                                       |
+| `PasswordField`      | `string`                                                           | show/hide toggle, `autoComplete: "current-password" \| "new-password"`                                                                                                                                                                           |
+| `NumberField`        | `number`; cleared → `null` (default) or `undefined` (`emptyAs`)    | `min`, `max`, `step`, `unit` suffix (`円`, `%`), `prefix` (`¥`), `inputMode: "numeric" \| "decimal"`; keeps the raw text while typing, so `z.number()` works without `coerce`                                                                    |
+| `SelectField`        | `string`; `nullable` → `null`                                      | wraps the standalone `Select`; `options`, `placeholder`. Short static lists.                                                                                                                                                                     |
+| `ComboboxField`      | `string`; `nullable` → `null`                                      | searchable single select (Base UI Combobox); `options`, `placeholder`, `emptyMessage`; server search via `onSearch(query)` + `serverFiltered` (skips the client filter) + `loading`                                                              |
+| `MultiSelectField`   | `string[]`                                                         | chips; `options`, `placeholder`, `emptyMessage`, `max`; same server-search props                                                                                                                                                                 |
+| `CheckboxField`      | `boolean`                                                          | consent style: box left, label and description right                                                                                                                                                                                             |
+| `SwitchField`        | `boolean`                                                          | setting style: label and description left, switch right                                                                                                                                                                                          |
+| `CheckboxGroupField` | `string[]`                                                         | `options`, `orientation: "vertical" \| "horizontal"`                                                                                                                                                                                             |
+| `RadioField`         | `string`                                                           | `options`, `orientation`                                                                                                                                                                                                                         |
+| `DateField`          | `yyyy-MM-dd` (`valueAs: "iso-date"`, default) or `Date` (`"date"`) | popover + `Calendar`; `nullable` clear button, `min`, `max`, `disabledDays` (react-day-picker `Matcher`), `locale` (display, default `ja-JP`), `calendarLocale` (`import { ja } from "react-day-picker/locale"`)                                 |
+| `DateTimeField`      | UTC ISO string (`valueAs: "iso"`, default) or `Date`               | date popover + `<input type="time">`; `minuteStep` (default 5), `defaultTime` (default `09:00`), same date props                                                                                                                                 |
+| `DateRangeField`     | `DateRangeValue` = `{ from, to }` (`iso-date` or `Date`)           | `numberOfMonths: 1 \| 2`, same date props                                                                                                                                                                                                        |
+| `FileField`          | `FileFieldValue[]` (always an array)                               | drop zone + list; `accept`, `multiple`, `maxSize` (bytes per file), `maxFiles`, `dropLabel`, `upload(file) => { id, url }` — uploads immediately and swaps the `File` for the reference; on failure the entry is removed and an error line shown |
+| `HiddenField`        | whatever is registered                                             | `control` + `name` only; keeps the value registered and posted with native submits                                                                                                                                                               |
+| `ReadOnlyField`      | — (display only)                                                   | renders the value in an `<output>`; `format(value)`, `emptyText`                                                                                                                                                                                 |
+| `ArrayField`         | `object[]`                                                         | `useFieldArray` wrapper: `renderRow({ index, id, isFirst, isLast, remove })`, `newItem()`, `min`, `max`, `addLabel`, `sortable` (up/down buttons), `emptyMessage`; array-level (`root`) errors render below the rows                             |
+
+Domain pickers live in the web app, not in `packages/ui`: `UserPickerField`
+(`apps/web/features/users/user-picker-field.tsx`) is a `ComboboxField` backed by `trpc.user.list`
+(debounced 250 ms, first 20 matches) plus `user.byId` to label the current value when it is not
+among the results; it stores the user id. Follow it for future pickers (department, once a
+`Department` model exists).
+
+### Which field for which zod shape
+
+| Schema                                 | Field                                                                                        |
+| -------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `z.string()`                           | `TextField`, `TextareaField`                                                                 |
+| `z.number()`                           | `NumberField` (no `z.coerce`)                                                                |
+| `z.enum([...])`                        | short list: `SelectField` / `RadioField`; long or searchable: `ComboboxField`                |
+| `z.array(z.enum([...]))`               | few options: `CheckboxGroupField`; many: `MultiSelectField`                                  |
+| `z.boolean()`                          | consent: `CheckboxField`; setting: `SwitchField`                                             |
+| `z.iso.date()`                         | `DateField`; a `{ from, to }` object of them: `DateRangeField`                               |
+| `z.iso.datetime()`                     | `DateTimeField`                                                                              |
+| `z.array(<file value schema>)`         | `FileField` — a zod object matching `FileFieldValue` (`name`, `size`, `type`, `id?`, `url?`) |
+| `z.array(z.object({...}))`             | `ArrayField`                                                                                 |
+| an id (`z.string()` pointing at a row) | `UserPickerField` and future domain pickers                                                  |
+
+Phase 2 form-template field types map 1:1 onto these components through a renderer registry, so a
+new template field type starts as a new component here.
+
 - Never hand-write `Field` / `FieldLabel` / `Input` / `FieldError` for a standard input in
   `apps/web`; add a field to `@repo/ui/components/form` if one is missing. Hand-written `Field`
   markup is for the rare non-standard control only.
-- Nullable fields say what a cleared input stores with `emptyAs`: `"string"` (default, keeps
-  `""`), `"null"` or `"undefined"` — no `setValueAs` / `emptyToNull` helpers in the form.
+- Custom fields are built on the shared pieces: `useFormField({ control, name, disabled })` for
+  the binding, `FormFieldShell` (`htmlFor`, `label`, `required`, `hint`, `description`, `error`,
+  optional `counter: { length, max }`) for the vertical frame and `FormFieldLabel` (`asLegend`
+  for grouped controls) where the shell does not fit. New file `<name>-field.tsx`, exported from
+  `index.ts`.
+- Nullable fields say what a cleared input stores with `emptyAs`: text fields default to `""`,
+  `NumberField` to `null` — no `setValueAs` / `emptyToNull` helpers in the form.
+- Date helpers `toIsoDate`, `toDate`, `formatDate`, `formatDateTime` (`form/date-utils.ts`) are
+  exported from the barrel for showing stored dates outside a form; the explicit `ja-JP` default
+  keeps server and client rendering the same text.
 - The standalone `Select` from `@repo/ui/components/select` stays for filters, toolbars and
   controls that are not react-hook-form fields (`users-table.tsx` role filter, `user-editor.tsx`
   role select, which fires a mutation directly); inside a form use `SelectField`.

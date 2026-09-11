@@ -27,33 +27,55 @@ composed components on top, and the Tailwind v4 theme. Rules: `.claude/rules/ui.
 The workspace was initialised with shadcn CLI 4 (style `base-nova`, Base UI primitives — not
 Radix — and `lucide` icons); re-running `init` is not needed for new components.
 
-Installed: `alert`, `badge`, `button`, `card`, `checkbox`, `dialog`, `dropdown-menu`, `field`,
-`input`, `label`, `radio-group`, `select`, `separator`, `skeleton`, `sonner`, `table`, `textarea`.
-Known local patch: `sonner.tsx` uses `theme={(theme as ToasterProps["theme"]) ?? "system"}`;
-re-apply it after `npx shadcn@4.21.0 add sonner --overwrite`. Base UI `Select` takes `items` and
-`onValueChange` (see `apps/web/features/users/user-editor.tsx`).
+Installed: `alert`, `badge`, `button`, `calendar`, `card`, `checkbox`, `combobox`, `dialog`,
+`dropdown-menu`, `field`, `input`, `input-group`, `label`, `popover`, `radio-group`, `select`,
+`separator`, `skeleton`, `sonner`, `switch`, `table`, `textarea`, `tooltip`. `calendar` added
+`react-day-picker 10.0.1` and `date-fns 4.4.0` to `packages/ui` dependencies. Base UI `Select`
+takes `items` and `onValueChange` (see `apps/web/features/users/user-editor.tsx`). `tooltip` needs
+a `TooltipProvider` above its consumers; `apps/web/app/layout.tsx` provides it app-wide.
+
+Known local patches (both for `exactOptionalPropertyTypes`; re-apply after `--overwrite`):
+
+- `sonner.tsx` uses `theme={(theme as ToasterProps["theme"]) ?? "system"}`
+  (`npx shadcn@4.21.0 add sonner --overwrite`).
+- `calendar.tsx` renders `DayButton` with `{...(locale ? { locale } : {})}` instead of
+  `locale={locale}` (`npx shadcn@4.21.0 add calendar --overwrite`).
+
+The relaxed-rule list for `src/components/*.tsx` in `packages/ui/eslint.config.mjs` also turns off
+`@eslint-react/no-nested-component-definitions` (the generated `calendar.tsx` defines `DayButton`
+inline).
 
 ## Form fields (`@repo/ui/components/form`)
 
 `packages/ui/src/components/form/` (barrel `index.ts`, export `./components/form`) binds the
-shadcn `Field` primitives to react-hook-form with `useController`; `react-hook-form` is a peer
-dependency of `packages/ui`. Every field takes `control`, `name`, `label`, optional `description`,
-`disabled`, `className`, and renders `Field` + `FieldLabel` + input + `FieldError` itself:
+shadcn `Field` primitives to react-hook-form; `react-hook-form` is a peer dependency of
+`packages/ui`. Every field takes `BaseFieldProps` (`types.ts`): `control`, `name`, `label`,
+optional `description`, `required` (red `*`, validation stays in zod), `hint` (info-icon tooltip),
+`disabled`, `className`. The full table with stored value types and the zod-shape mapping is in
+`.claude/rules/ui.md` (Forms); the short list:
 
-| Field           | Extras                                                                                                             |
-| --------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `TextField`     | `type`, `placeholder`, `autoComplete`, `emptyAs?: "string" \| "null" \| "undefined"` (what a cleared input stores) |
-| `PasswordField` | show/hide toggle                                                                                                   |
-| `TextareaField` | wraps `Textarea`                                                                                                   |
-| `SelectField`   | wraps the standalone `Select`; `options: { value, label, disabled? }[]`, `placeholder?`, `nullable?`               |
-| `CheckboxField` | wraps `Checkbox`                                                                                                   |
-| `RadioField`    | `options`, `orientation`                                                                                           |
+| Field                                                | Notes                                                                                                                                |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `TextField`, `TextareaField`, `PasswordField`        | strings; `maxLength` shows a `n / max` counter; `emptyAs: "string" \| "null" \| "undefined"`. `TextField` is not for numbers.        |
+| `NumberField`                                        | real `number`, `null`/`undefined` when empty; `min`/`max`/`step`, `unit` (`円`), `prefix` (`¥`), `inputMode`                         |
+| `SelectField`, `RadioField`                          | single value from a short static `options` list; `SelectField` wraps the standalone `Select`, `nullable`                             |
+| `ComboboxField`, `MultiSelectField`                  | Base UI Combobox; searchable single (`nullable`) / chips `string[]` (`max`); server search: `onSearch`, `serverFiltered`, `loading`  |
+| `CheckboxField`, `SwitchField`, `CheckboxGroupField` | boolean consent / boolean setting / `string[]` (`options`, `orientation`)                                                            |
+| `DateField`, `DateTimeField`, `DateRangeField`       | `popover` + `calendar`; `valueAs` (`iso-date` / `iso` / `date`), `nullable`, `min`/`max`, `disabledDays`, `locale`, `calendarLocale` |
+| `FileField`                                          | drop zone; `FileFieldValue[]`; `accept`, `multiple`, `maxSize`, `maxFiles`, optional `upload(file) => { id, url }`                   |
+| `HiddenField`, `ReadOnlyField`                       | registered-only value / `<output>` display with `format`, `emptyText`                                                                |
+| `ArrayField`                                         | `useFieldArray`: `renderRow`, `newItem`, `min`/`max`, `addLabel`, `sortable`, `emptyMessage`                                         |
 
+Shared building blocks: `useFormField({ control, name, disabled })` wraps `useController`, pulls
+`ref` out of `field` (`react-hooks/refs`) and forwards `disabled` only when set; `FormFieldShell`
+is the vertical frame (label with required/hint, control, description, optional counter, error);
+`FormFieldLabel` (`asLegend` for grouped controls); `date-utils.ts` (`toIsoDate`, `toDate`,
+`formatDate`, `formatDateTime` with an explicit `ja-JP` default, `compact` to strip `undefined`).
 Forms in `apps/web` use these and never hand-write `Field` / `FieldLabel` / `Input` / `FieldError`
 for a standard input; the standalone `Select` stays for filters and toolbars (`users-table.tsx`
-role filter). Fields destructure `ref` out of `field`
-(`const { field: { ref, ...field } } = useController(...)`) to satisfy `react-hooks/refs`. Adding a
-field: new `<name>-field.tsx`, export it from `index.ts`, house style throughout.
+role filter). Adding a field: new `<name>-field.tsx` built on `useFormField` + `FormFieldShell`,
+export it (and its props type) from `index.ts`, house style throughout. Domain pickers such as
+`UserPickerField` (`apps/web/features/users/user-picker-field.tsx`) stay in the web app.
 
 ## How-to: create a composed component
 
@@ -124,7 +146,7 @@ Tokens are CSS variables in `packages/ui/src/styles/globals.css` (Tailwind v4 �
 - Run the CLI from `apps/web`, not from the repo root or `packages/ui` — only the app has
   `components.json`.
 - Do not hand-edit generated primitives beyond documented variant changes; regenerate instead
-  (`--overwrite`) and re-apply the one documented patch (`sonner.tsx`).
+  (`--overwrite`) and re-apply the two documented patches (`sonner.tsx`, `calendar.tsx`).
 - `packages/ui` must stay browser-safe: no `@repo/database`, `@repo/queue`, `@repo/logger`
   (lint-enforced).
 - Merge classes with `cn()` from `packages/ui/src/lib`; never concatenate className strings.

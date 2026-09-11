@@ -153,7 +153,9 @@ packages/
               QUEUE_NAMES, jobs/email.job.ts (EmailJob contract), test/ (testcontainers Redis)
   logger/     pino with redaction, createLogger / childLogger
   ui/         shadcn primitives (src/components), react-hook-form fields (src/components/form:
-              TextField, PasswordField, TextareaField, SelectField, CheckboxField, RadioField),
+              Text/Textarea/Password/Number, Select/Combobox/MultiSelect, Checkbox/Switch/
+              CheckboxGroup/Radio, Date/DateTime/DateRange, File, Hidden/ReadOnly, Array +
+              FormFieldShell/useFormField for custom ones),
               composed components (src/components/composed: StatusBadge, DataTable, ConfirmDialog),
               theme tokens (src/styles/globals.css)
   eslint-config/      ESLint 10 presets: base, node, react, next + boundaries.js (layer rules)

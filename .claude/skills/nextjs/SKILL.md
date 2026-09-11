@@ -109,9 +109,15 @@ with `isLoading` and a server-side `pagination` object built from the `PageResul
 
 `react-hook-form` + `zodResolver(schema)` with the schema from `@repo/validation` — the same schema
 the API validates with. Inputs are the bound fields from `@repo/ui/components/form` (`TextField`,
-`PasswordField`, `TextareaField`, `SelectField`, `CheckboxField`, `RadioField`) inside a
-`FieldGroup`; never hand-write `Field` / `FieldLabel` / `Input` / `FieldError` for a standard
-input. Auth forms submit through `authClient`, everything else through a tRPC mutation.
+`NumberField`, `SelectField`, `ComboboxField`, `DateField`, `FileField`, `ArrayField`, ... — the
+full table and the zod-shape mapping are in `.claude/rules/ui.md`, Forms) inside a `FieldGroup`;
+never hand-write `Field` / `FieldLabel` / `Input` / `FieldError` for a standard input. Domain
+pickers live in the feature that owns the data: `UserPickerField`
+(`features/users/user-picker-field.tsx`) wraps `ComboboxField` with `trpc.user.list` search
+(debounced 250 ms, 20 results) and `user.byId` for the current value's label, and stores the user
+id. Field `hint` tooltips rely on the `TooltipProvider` that `app/layout.tsx` wraps the app in
+(next to `ThemeProvider` and `TRPCReactProvider`); do not add a second one per form. Auth forms
+submit through `authClient`, everything else through a tRPC mutation.
 
 ```tsx
 // apps/web/features/auth/login-form.tsx
