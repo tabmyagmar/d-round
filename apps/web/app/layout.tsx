@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import "@repo/ui/globals.css";
 import { Toaster } from "@repo/ui/components/sonner";
+import { TooltipProvider } from "@repo/ui/components/tooltip";
 import { cn } from "@repo/ui/lib/utils";
 
 import { ThemeProvider } from "@/components/theme-provider";
@@ -25,7 +26,9 @@ const RootLayout = ({ children }: Readonly<{ children: ReactNode }>) => (
   >
     <body>
       <ThemeProvider>
-        <TRPCReactProvider>{children}</TRPCReactProvider>
+        <TooltipProvider>
+          <TRPCReactProvider>{children}</TRPCReactProvider>
+        </TooltipProvider>
         <Toaster richColors position="top-right" />
       </ThemeProvider>
     </body>

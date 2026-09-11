@@ -1,12 +1,13 @@
 "use client";
 
-import { useController } from "react-hook-form";
 import type { FieldValues } from "react-hook-form";
 
-import { Field, FieldDescription, FieldError, FieldLabel, FieldLegend, FieldSet } from "../field";
+import { Field, FieldDescription, FieldError, FieldLabel, FieldSet } from "../field";
 import { RadioGroup, RadioGroupItem } from "../radio-group";
 
+import { FormFieldLabel } from "./form-field-label";
 import type { BaseFieldProps, SelectOption } from "./types";
+import { useFormField } from "./use-form-field";
 
 export type RadioFieldProps<TValues extends FieldValues> = BaseFieldProps<TValues> & {
   options: readonly SelectOption[];
@@ -19,21 +20,21 @@ export const RadioField = <TValues extends FieldValues>({
   name,
   label,
   description,
+  required,
+  hint,
   disabled,
   className,
   options,
   orientation = "vertical",
 }: RadioFieldProps<TValues>) => {
-  const { field, fieldState } = useController({
-    control,
-    name,
-    ...(disabled === undefined ? {} : { disabled }),
-  });
+  const { field, fieldState } = useFormField({ control, name, disabled });
   const value: unknown = field.value;
 
   return (
     <FieldSet className={className}>
-      <FieldLegend>{label}</FieldLegend>
+      <FormFieldLabel asLegend required={required} hint={hint}>
+        {label}
+      </FormFieldLabel>
       {description ? <FieldDescription>{description}</FieldDescription> : null}
       <RadioGroup
         name={field.name}

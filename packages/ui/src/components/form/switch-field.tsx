@@ -2,17 +2,17 @@
 
 import type { FieldValues } from "react-hook-form";
 
-import { Checkbox } from "../checkbox";
-import { Field, FieldDescription, FieldError } from "../field";
+import { Field, FieldContent, FieldDescription, FieldError } from "../field";
+import { Switch } from "../switch";
 
 import { FormFieldLabel } from "./form-field-label";
 import type { BaseFieldProps } from "./types";
 import { useFormField } from "./use-form-field";
 
-export type CheckboxFieldProps<TValues extends FieldValues> = BaseFieldProps<TValues>;
+export type SwitchFieldProps<TValues extends FieldValues> = BaseFieldProps<TValues>;
 
-/** Boolean consent-style field: checkbox on the left, label and description on the right. */
-export const CheckboxField = <TValues extends FieldValues>({
+/** Boolean setting-style field: label and description on the left, switch on the right. */
+export const SwitchField = <TValues extends FieldValues>({
   control,
   name,
   label,
@@ -21,12 +21,19 @@ export const CheckboxField = <TValues extends FieldValues>({
   hint,
   disabled,
   className,
-}: CheckboxFieldProps<TValues>) => {
+}: SwitchFieldProps<TValues>) => {
   const { ref, field, fieldState } = useFormField({ control, name, disabled });
 
   return (
     <Field orientation="horizontal" className={className}>
-      <Checkbox
+      <FieldContent>
+        <FormFieldLabel htmlFor={field.name} required={required} hint={hint}>
+          {label}
+        </FormFieldLabel>
+        {description ? <FieldDescription>{description}</FieldDescription> : null}
+        <FieldError errors={[fieldState.error]} />
+      </FieldContent>
+      <Switch
         id={field.name}
         name={field.name}
         inputRef={ref}
@@ -38,13 +45,6 @@ export const CheckboxField = <TValues extends FieldValues>({
         disabled={field.disabled}
         aria-invalid={fieldState.invalid}
       />
-      <div className="flex flex-col gap-1">
-        <FormFieldLabel htmlFor={field.name} required={required} hint={hint}>
-          {label}
-        </FormFieldLabel>
-        {description ? <FieldDescription>{description}</FieldDescription> : null}
-        <FieldError errors={[fieldState.error]} />
-      </div>
     </Field>
   );
 };

@@ -1,17 +1,16 @@
 "use client";
 
-import { cn } from "cn";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { useState } from "react";
 import type { ComponentProps } from "react";
-import { useController } from "react-hook-form";
 import type { FieldValues } from "react-hook-form";
 
 import { Button } from "../button";
-import { Field, FieldDescription, FieldError, FieldLabel } from "../field";
 import { Input } from "../input";
 
+import { FormFieldShell } from "./form-field-shell";
 import type { BaseFieldProps } from "./types";
+import { useFormField } from "./use-form-field";
 
 export type PasswordFieldProps<TValues extends FieldValues> = BaseFieldProps<TValues> & {
   autoComplete?: Extract<
@@ -27,38 +26,38 @@ export const PasswordField = <TValues extends FieldValues>({
   name,
   label,
   description,
+  required,
+  hint,
   disabled,
   className,
   autoComplete = "current-password",
   placeholder,
 }: PasswordFieldProps<TValues>) => {
-  // `ref` is pulled out so the React Compiler lint (react-hooks/refs) does not treat the whole
-  // `field` object as a ref; it is only ever forwarded to the input element.
-  const {
-    field: { ref, ...field },
-    fieldState,
-  } = useController({
-    control,
-    name,
-    ...(disabled === undefined ? {} : { disabled }),
-  });
+  const { ref, field, fieldState } = useFormField({ control, name, disabled });
   const [visible, setVisible] = useState(false);
   const value: unknown = field.value;
 
   return (
-    <Field className={className}>
-      <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
+    <FormFieldShell
+      htmlFor={field.name}
+      label={label}
+      required={required}
+      hint={hint}
+      description={description}
+      error={fieldState.error}
+      className={className}
+    >
       <div className="relative">
         <Input
           id={field.name}
           type={visible ? "text" : "password"}
           autoComplete={autoComplete}
           placeholder={placeholder}
+          className="pr-9"
           name={field.name}
           ref={ref}
           disabled={field.disabled}
           aria-invalid={fieldState.invalid}
-          className={cn("pr-9")}
           value={typeof value === "string" ? value : ""}
           onChange={(event) => {
             field.onChange(event.target.value);
@@ -69,18 +68,17 @@ export const PasswordField = <TValues extends FieldValues>({
           type="button"
           variant="ghost"
           size="icon-xs"
-          className="absolute top-1/2 right-1 -translate-y-1/2"
+          className="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground"
           aria-label={visible ? "Hide password" : "Show password"}
+          aria-pressed={visible}
+          disabled={field.disabled}
           onClick={() => {
             setVisible((current) => !current);
           }}
-          disabled={field.disabled}
         >
           {visible ? <EyeOffIcon /> : <EyeIcon />}
         </Button>
       </div>
-      {description ? <FieldDescription>{description}</FieldDescription> : null}
-      <FieldError errors={[fieldState.error]} />
-    </Field>
+    </FormFieldShell>
   );
 };

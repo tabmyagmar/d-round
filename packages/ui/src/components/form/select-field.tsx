@@ -1,45 +1,51 @@
 "use client";
 
-import { useController } from "react-hook-form";
 import type { FieldValues } from "react-hook-form";
 
-import { Field, FieldDescription, FieldError, FieldLabel } from "../field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../select";
 
+import { FormFieldShell } from "./form-field-shell";
 import type { BaseFieldProps, SelectOption } from "./types";
+import { useFormField } from "./use-form-field";
 
 export type SelectFieldProps<TValues extends FieldValues> = BaseFieldProps<TValues> & {
   options: readonly SelectOption[];
   placeholder?: string;
-  /** Store `null` when nothing is selected (default: leave the value untouched). */
+  /** Store `null` when nothing is selected (default: `""`). */
   nullable?: boolean;
 };
 
 /**
  * react-hook-form wrapper around the standalone `Select` (which stays usable on its own for
- * filters and toolbars). Values are strings; parse them in the zod schema.
+ * filters and toolbars). Values are strings; parse them in the zod schema. For long or searchable
+ * lists use `ComboboxField`.
  */
 export const SelectField = <TValues extends FieldValues>({
   control,
   name,
   label,
   description,
+  required,
+  hint,
   disabled,
   className,
   options,
   placeholder,
   nullable = false,
 }: SelectFieldProps<TValues>) => {
-  const { field, fieldState } = useController({
-    control,
-    name,
-    ...(disabled === undefined ? {} : { disabled }),
-  });
+  const { field, fieldState } = useFormField({ control, name, disabled });
   const value: unknown = field.value;
 
   return (
-    <Field className={className}>
-      <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
+    <FormFieldShell
+      htmlFor={field.name}
+      label={label}
+      required={required}
+      hint={hint}
+      description={description}
+      error={fieldState.error}
+      className={className}
+    >
       <Select
         items={options.map(({ value: optionValue, label: optionLabel }) => ({
           value: optionValue,
@@ -63,8 +69,6 @@ export const SelectField = <TValues extends FieldValues>({
           ))}
         </SelectContent>
       </Select>
-      {description ? <FieldDescription>{description}</FieldDescription> : null}
-      <FieldError errors={[fieldState.error]} />
-    </Field>
+    </FormFieldShell>
   );
 };

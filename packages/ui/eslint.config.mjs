@@ -11,6 +11,7 @@ export default defineConfig(reactConfig({ tsconfigRootDir: import.meta.dirname }
     "@typescript-eslint/no-unnecessary-condition": "off",
     "@eslint-react/no-leaked-conditional-rendering": "off",
     "@eslint-react/no-array-index-key": "off",
+    "@eslint-react/no-nested-component-definitions": "off",
     eqeqeq: "off",
   },
 });
