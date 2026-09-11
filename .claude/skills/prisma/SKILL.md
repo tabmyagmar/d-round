@@ -13,36 +13,58 @@ in CI) and contained (Prisma only inside `packages/database`). Rules:
 
 ## Where things are
 
-| What                | Where                                                            |
-| ------------------- | ---------------------------------------------------------------- |
-| Schema              | `packages/database/prisma/schema.prisma`                         |
-| Migrations          | `packages/database/prisma/migrations/`                           |
-| Config (URL, paths) | `packages/database/prisma.config.ts` (loads the root `.env`)     |
-| Generated client    | `packages/database/src/generated/prisma/` (git-ignored)          |
-| Client factory      | `packages/database/src/client.ts` (`@prisma/adapter-pg`)         |
-| Repositories        | `packages/database/src/repositories/<name>.repository.ts`        |
-| Utilities           | `packages/database/src/utils/{pagination,errors,transaction}.ts` |
-| Test helpers        | `packages/database/test/index.ts` (`startTestDatabase`)          |
+| What                | Where                                                                      |
+| ------------------- | -------------------------------------------------------------------------- |
+| Schema (multi-file) | `packages/database/prisma/schema/` (`schema.prisma` + `<module>/*.prisma`) |
+| Migrations          | `packages/database/prisma/migrations/`                                     |
+| Config (URL, paths) | `packages/database/prisma.config.ts` (loads the root `.env`)               |
+| Generated client    | `packages/database/src/generated/prisma/` (git-ignored)                    |
+| Client factory      | `packages/database/src/client.ts` (`@prisma/adapter-pg`)                   |
+| Repositories        | `packages/database/src/repositories/<name>.repository.ts`                  |
+| Utilities           | `packages/database/src/utils/{pagination,errors,transaction}.ts`           |
+| Test helpers        | `packages/database/test/index.ts` (`startTestDatabase`)                    |
+| Seed                | `packages/database/prisma/seed.ts` (`yarn db:seed`)                        |
+
+`prisma.config.ts` points `schema` at the **folder** `prisma/schema`. `schema/schema.prisma` holds
+only the `generator` and `datasource` blocks; every model has its own file,
+`schema/<module>/<model-kebab>.prisma` (one folder per module, one model per file, enums in the
+file of the model that owns them): `system/health-check.prisma`,
+`auth/{user,session,account,verification}.prisma`, `email/outbox-email.prisma` (`OutboxStatus` +
+`OutboxEmail`). Prisma merges the folder; relations across files work as usual.
 
 ## How-to: add or change a model
 
 1. Add the ADR line (`docs/adr/`, see the `adr` skill). A schema change without an ADR line is a
    review BLOCKER.
-2. Edit `schema.prisma`: PascalCase model, `@@map("snake_case")`, `@map` on multi-word columns,
+2. Add `prisma/schema/<module>/<model-kebab>.prisma` (or edit the existing file): PascalCase
+   model, `@@map("snake_case")`, `@map` on multi-word columns,
    `id String @id @default(uuid(7)) @db.Uuid`,
-   `createdAt DateTime @default(now()) @map("created_at")`.
+   `createdAt DateTime @default(now()) @map("created_at")`. A new module gets a new folder.
 3. Make it expand-contract safe: new columns nullable or defaulted; constraints only after a
    backfill.
 4. `yarn docker:up`, then `yarn db:migrate:dev --name add_<thing>`; read the SQL it generated.
 5. Export the model type from `packages/database/src/index.ts`; add or extend the repository.
-6. Write the repository test (`<name>.repository.test.ts`) against `inject("databaseUrl")`.
+6. Write the repository test (`packages/database/test/repositories/<name>.repository.test.ts`)
+   against `inject("databaseUrl")`.
 7. `yarn verify`. CI additionally runs
-   `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code`.
+   `prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code`.
 
 Existing models (`20260909113011_phase1_auth_outbox`): `User`, `Session`, `Account`,
 `Verification` (Better Auth — field names fixed, tables/columns mapped to snake_case, plus our
 `employeeCode`, `department`, `deletedAt`) and `OutboxEmail` with enum `OutboxStatus`
-(`PENDING | SENT | FAILED`). Regenerating the Better Auth models: `.claude/rules/migrations.md`.
+(`PENDING | SENT | FAILED`). Regenerating the Better Auth models: `.claude/rules/migrations.md`
+(diff the CLI output against the files under `prisma/schema/auth/`).
+
+## How-to: seed test accounts
+
+`yarn db:seed` runs `packages/database/prisma/seed.ts` (`prisma db seed` → `tsx prisma/seed.ts`).
+It upserts five verified accounts by email, so it is idempotent and safe to re-run; the password
+for all of them is `A123456`, hashed with `hashPassword` from `better-auth/crypto` and stored in a
+credential `Account` row so the normal `/api/auth/sign-in/email` flow accepts it:
+`admin@test.com` (admin, HR, `EMP-0001`), `hr@test.com` (hr_manager, HR, `EMP-0002`),
+`head@test.com` (dept_head, Engineering, `EMP-0003`), `member@test.com` (member, Engineering,
+`EMP-0004`), `guest@test.com` (member, no department). Add new fixtures to the `SEED_USERS` array
+as upserts — never as plain `create` — and never point the seed at production data.
 
 ## How-to: write a repository
 
@@ -124,7 +146,7 @@ The workspace's `test/global-setup.ts` starts the container (`startTestDatabase(
 `prisma migrate deploy`) and provides `databaseUrl`. A workspace without that setup copies
 `packages/database/test/global-setup.ts` and adds `globalSetup` to its `vitest.config.ts`.
 
-Repository tests (`packages/database/src/repositories/user.repository.test.ts`,
+Repository tests (`packages/database/test/repositories/user.repository.test.ts`,
 `outbox-email.repository.test.ts`) create their rows with unique values
 (`${crypto.randomUUID()}@example.com`) directly through the client, call the repository and assert
 on what comes back — for example "excludes soft-deleted users from reads and counts" and "finds

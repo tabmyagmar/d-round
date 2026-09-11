@@ -126,7 +126,7 @@ marker condition that Prisma rejects at query time — the guard turns that into
 
 ## The ability matrix test is the permission spec
 
-`packages/permissions/src/ability.test.ts` is table-driven: for each role × action × relation
+`packages/permissions/test/ability.test.ts` is table-driven: for each role × action × relation
 (`self | same-dept | other-dept`) it asserts `can` / `cannot`, checks that the Prisma ability
 answers exactly like the browser ability, and covers `accessibleUsersWhere`. Changing permissions
 means changing the `allowed` table first (the failing row documents the change), then `rules.ts`,
@@ -142,7 +142,7 @@ then an ADR line in `docs/adr/0003-permissions.md`.
 ```
 
 ```tsx
-// apps/web/app/(app)/users/[id]/user-editor.tsx
+// apps/web/features/users/user-editor.tsx
 const ability = useAbility();
 const subject = userSubject({ id: user.data.id, department: user.data.department });
 const canEdit = ability.can("update", subject);

@@ -23,9 +23,12 @@ For a new module `<name>` the files are `packages/validation/src/<name>.schema.t
 
 Plus:
 
-- Tests next to each file: `user.repository.test.ts`, `user.service.test.ts`,
-  `user.router.test.ts` (see `.claude/rules/testing.md`). Schema tests only when a schema carries
-  non-trivial transforms.
+- Tests in the workspace's `test/` folder, mirroring `src/`:
+  `packages/database/test/repositories/user.repository.test.ts`,
+  `apps/api/test/modules/user/user.service.test.ts`,
+  `apps/api/test/trpc/routers/user.router.test.ts` (see `.claude/rules/testing.md`). Schema tests
+  (`packages/validation/test/<name>.schema.test.ts`) only when a schema carries non-trivial
+  transforms.
 - Registration: add the router to `apps/api/src/trpc/router.ts`
   (`router({ health: healthRouter, user: userRouter })`) and the repository to the barrel
   `packages/database/src/repositories/index.ts`.
@@ -328,8 +331,9 @@ it("maps layer-1 denials to FORBIDDEN before touching the service", async () => 
 - [ ] Repository contains no validation, business rules or queue code.
 - [ ] Every non-public procedure has `requireAbility(...)`; the service re-checks the row with
       `prismaUserSubject` (or the module's subject helper) and its stateful invariants.
-- [ ] Tests next to each file using `apps/api/test/support.ts`; anything touching Postgres or
-      Redis uses testcontainers.
+- [ ] Tests under `test/` mirroring `src/` (`apps/api/test/modules/<name>/`,
+      `apps/api/test/trpc/routers/`, `packages/database/test/repositories/`) using
+      `apps/api/test/support.ts`; anything touching Postgres or Redis uses testcontainers.
 - [ ] Router registered in `router.ts`; repository exported from the barrel; model types exported
       from `packages/database/src/index.ts`.
 - [ ] Schema change (if any) has a migration and an ADR line (`.claude/rules/migrations.md`).

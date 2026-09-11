@@ -102,7 +102,8 @@ client per container (`@repo/database/test`). Never `new PrismaClient()` anywher
 
 ## Tests
 
-Repository tests live next to the repository (`<name>.repository.test.ts`) and run against the
-testcontainers Postgres provided by `test/global-setup.ts` (`inject("databaseUrl")`);
-`startTestDatabase()` applies the committed migrations with `prisma migrate deploy`. Use unique
-data per test — the container is shared by the whole package run. See `.claude/rules/testing.md`.
+Repository tests live in `packages/database/test/repositories/<name>.repository.test.ts`
+(mirroring `src/repositories/`) and run against the testcontainers Postgres provided by
+`test/global-setup.ts` (`inject("databaseUrl")`); `startTestDatabase()` applies the committed
+migrations with `prisma migrate deploy`. Use unique data per test — the container is shared by the
+whole package run. See `.claude/rules/testing.md`.

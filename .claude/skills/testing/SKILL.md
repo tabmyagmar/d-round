@@ -9,21 +9,28 @@ Rules: `.claude/rules/testing.md`. This skill is the mechanical part.
 
 ## Commands
 
-| Goal                           | Command                                                        |
-| ------------------------------ | -------------------------------------------------------------- |
-| Everything (Turborepo, cached) | `yarn test`                                                    |
-| Everything, one process        | `yarn vitest run` (root `vitest.config.ts` projects)           |
-| One workspace                  | `yarn workspace @repo/api test`                                |
-| One file                       | `yarn workspace @repo/api vitest run src/core/context.test.ts` |
-| Full gate                      | `yarn verify` (lint, typecheck, test, build, format:check)     |
+| Goal                           | Command                                                         |
+| ------------------------------ | --------------------------------------------------------------- |
+| Everything (Turborepo, cached) | `yarn test`                                                     |
+| Everything, one process        | `yarn vitest run` (root `vitest.config.ts` projects)            |
+| One workspace                  | `yarn workspace @repo/api test`                                 |
+| One file                       | `yarn workspace @repo/api vitest run test/core/context.test.ts` |
+| Full gate                      | `yarn verify` (lint, typecheck, test, build, format:check)      |
 
 Docker must be running for anything that uses testcontainers.
 
 ## Naming and placement
 
-- `<file>.test.ts` next to `<file>.ts`; `describe` = the unit under test, `it` = a behaviour
+- Every test lives in the workspace's `test/` folder (never in `src/`) and mirrors the `src/`
+  path: `src/modules/user/user.service.ts` → `test/modules/user/user.service.test.ts`,
+  `src/repositories/user.repository.ts` → `test/repositories/user.repository.test.ts`,
+  `src/queue.ts` → `test/queue.test.ts`. `describe` = the unit under test, `it` = a behaviour
   ("returns NotFoundError when the user is soft-deleted").
-- Integration tests for a workspace in `test/*.test.ts`; helpers in `test/support.ts`.
+- Integration tests for a workspace at the root of `test/` (`test/app.test.ts`); helpers in
+  `test/support.ts`, container lifecycle in `test/global-setup.ts`, a package's public test entry
+  in `test/index.ts`.
+- `vitest.config.ts` has `include: ["test/**/*.test.ts"]` and `tsconfig.json` includes
+  `test/**/*.ts`; a test outside `test/` is not run.
 - Test data via the harness helpers in the workspace's `test/support.ts`
   (`signedInUser(h, { role: "admin" })`, `createPendingEmail(db)`), each call unique
   (`crypto.randomUUID()`).
@@ -60,7 +67,7 @@ export default defineProject({
   test: {
     name: "@repo/<pkg>",
     environment: "node",
-    include: ["src/**/*.test.ts", "test/**/*.test.ts"],
+    include: ["test/**/*.test.ts"],
     globalSetup: ["./test/global-setup.ts"],
     testTimeout: 30_000,
     hookTimeout: 180_000,
@@ -77,8 +84,11 @@ start both Postgres and Redis and are the template for a workspace that needs bo
 API (`apps/api/test/support.ts`) — used by service, router and HTTP tests:
 
 ```ts
-import { contextFor, createHarness, signedInUser } from "../../../test/support";
-import type { TestHarness } from "../../../test/support";
+// apps/api/test/modules/user/user.service.test.ts
+import { contextFor, createHarness, signedInUser } from "../../support";
+import type { TestHarness } from "../../support";
+
+import * as userService from "../../../src/modules/user/user.service";
 
 let h: TestHarness;
 beforeAll(async () => {

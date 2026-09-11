@@ -22,7 +22,7 @@ them produces rules nobody can test.
   the last admin", workflow state) throw `ForbiddenError` / `ConflictError`. Workflow state is
   never encoded into CASL.
 - Every non-public tRPC procedure runs an ability check (`requireAbility` in `apps/api/src/trpc/init.ts`);
-  the ability matrix test `packages/permissions/src/ability.test.ts` is the permission spec.
+  the ability matrix test `packages/permissions/test/ability.test.ts` is the permission spec.
 
 ## Alternatives
 

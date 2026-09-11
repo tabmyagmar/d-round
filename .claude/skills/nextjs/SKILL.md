@@ -20,7 +20,9 @@ apps/web/
   app/(auth)/layout.tsx         centered card shell; login/, register/, verify-email/
   app/(app)/layout.tsx          server-side session check + <AppShell>
   app/(app)/dashboard|profile|users|users/[id]
-  components/                   app-wide: app-shell, profile-form, role-badge, theme-provider
+  features/auth/                login-form, register-form, resend-verification
+  features/users/               users-table, user-editor, profile-form, profile-editor, role-badge
+  components/                   app-wide shell only: app-shell, theme-provider
   lib/auth/{client,server}.ts   authClient (browser) / getServerSession (server)
   lib/trpc/{react.tsx,query-client.ts}
   lib/env.ts                    publicEnv.apiUrl (NEXT_PUBLIC_API_URL)
@@ -35,8 +37,14 @@ apps/web/
 | Data that can be fetched on the server               | server                                               |
 | Forms, buttons with handlers, `useState`, tRPC hooks | client (`"use client"` at the leaf)                  |
 
+The app is feature-based: domain components live in `features/<feature>/` and route files under
+`app/` import only from `@/features/<feature>/...` and `@/lib/...` (never from each other).
+`components/` keeps the app-wide shell. A domain-free component that another app could reuse moves
+to `packages/ui/src/components/composed/` (`.claude/rules/ui.md`, promotion rule).
+
 Keep the `"use client"` boundary as low as possible: `app/(app)/users/page.tsx` is a server page
-rendering the client `users-table.tsx`; `app/(auth)/login/page.tsx` renders `login-form.tsx`. Only
+rendering the client `features/users/users-table.tsx`; `app/(auth)/login/page.tsx` renders
+`features/auth/login-form.tsx`. Only
 Next.js special files (`page`, `layout`, `loading`, `error`, `not-found`, `route`, `proxy.ts`, ...)
 may default-export (`packages/eslint-config/next.js`); everything else is a named export.
 
@@ -90,17 +98,23 @@ the nav (`Users` hidden for `member`), and signs out with `authClient.signOut()`
    `useMutation(trpc.user.updateProfile.mutationOptions({ onSuccess, onError }))`, and invalidate
    with `queryClient.invalidateQueries(trpc.user.pathFilter())`.
 
-`users-table.tsx` is the list example: `useState` for `page`, `search`, `role`; `Select` (Base UI:
-`items`, `onValueChange`) for the role filter; `Skeleton` while pending; `Table` from `@repo/ui`.
+`features/users/users-table.tsx` is the list example: `useState` for `page`, `search`, `role`; the
+standalone `Select` (Base UI: `items`, `onValueChange`) for the role filter; columns from
+`createDataTableColumns<UserRow>()`; `DataTable` from `@repo/ui/components/composed/data-table`
+with `isLoading` and a server-side `pagination` object built from the `PageResult`.
+`features/users/user-editor.tsx` is the mutation example, including `ConfirmDialog` (never
+`window.confirm`) before deactivating a user.
 
 ## Forms
 
 `react-hook-form` + `zodResolver(schema)` with the schema from `@repo/validation` — the same schema
-the API validates with. Auth forms submit through `authClient`, everything else through a tRPC
-mutation.
+the API validates with. Inputs are the bound fields from `@repo/ui/components/form` (`TextField`,
+`PasswordField`, `TextareaField`, `SelectField`, `CheckboxField`, `RadioField`) inside a
+`FieldGroup`; never hand-write `Field` / `FieldLabel` / `Input` / `FieldError` for a standard
+input. Auth forms submit through `authClient`, everything else through a tRPC mutation.
 
 ```tsx
-// apps/web/app/(auth)/login/login-form.tsx
+// apps/web/features/auth/login-form.tsx
 const form = useForm<SignInInput>({
   resolver: zodResolver(signInSchema),
   defaultValues: { email: "", password: "" },
@@ -119,18 +133,19 @@ const onSubmit = form.handleSubmit(async (values) => {
   router.refresh();
 });
 
-<Field>
-  <FieldLabel htmlFor="email">Email</FieldLabel>
-  <Input id="email" type="email" autoComplete="email" {...form.register("email")} />
-  <FieldError errors={[form.formState.errors.email]} />
-</Field>;
+<FieldGroup>
+  <TextField control={form.control} name="email" label="Email" type="email" autoComplete="email" />
+  <PasswordField control={form.control} name="password" label="Password" />
+</FieldGroup>;
 ```
 
 `register-form.tsx` does the same with `signUpSchema` and `authClient.signUp.email(...)`, passing
 `callbackURL` = `<window.location.origin>/dashboard` (where Better Auth lands the user after the
-verification link) and then routing to `/verify-email?email=...`. `profile-form.tsx` (shared by
-`/profile` and `/users/[id]`) uses `updateProfileSchema` and `trpc.user.updateProfile`. Show server
-errors in an `Alert`; use `toast` (sonner) for mutation results.
+verification link) and then routing to `/verify-email?email=...`. `features/users/profile-form.tsx`
+(rendered by `/profile` via `profile-editor.tsx` and by `/users/[id]` via `user-editor.tsx`) uses
+`updateProfileSchema`, `trpc.user.updateProfile` and `emptyAs="null"` on the optional
+`employeeCode` / `department` fields so a cleared input stores `null`. Show server errors in an
+`Alert`; use `toast` (sonner) for mutation results.
 
 ## Env
 

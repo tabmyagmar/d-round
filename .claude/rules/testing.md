@@ -10,12 +10,13 @@ paths:
 ## Runner
 
 - Vitest 5. Each workspace has a `vitest.config.ts` (`defineProject`, `name: "@repo/<pkg>"`,
-  `include: ["src/**/*.test.ts", "test/**/*.test.ts"]`) and a `test` script `vitest run`;
+  `include: ["test/**/*.test.ts"]`) and a `test` script `vitest run`; its `tsconfig.json`
+  includes `test/**/*.ts` so tests are type-checked with the code;
   `yarn test` runs them through Turborepo (`test` depends on `^build` and `^db:generate`).
 - The root `vitest.config.ts` lists `packages/*/vitest.config.ts` and `apps/*/vitest.config.ts`
   as projects, so `yarn vitest run` from the root (and IDE integration) runs everything at once.
 - One workspace: `yarn workspace @repo/api test`. One file:
-  `yarn workspace @repo/api vitest run src/core/context.test.ts`.
+  `yarn workspace @repo/api vitest run test/core/context.test.ts`.
 
 ## Real infrastructure, not mocks
 
@@ -92,11 +93,19 @@ isolate through unique names instead.
 
 ## Where tests live
 
-- Unit and module tests: `*.test.ts` next to the file they test (`user.service.test.ts`).
-- Integration tests spanning a workspace (HTTP + database + Redis, migrations): `test/*.test.ts`
-  in that workspace (`apps/api/test/app.test.ts`, `apps/api/test/auth-http.test.ts`), alongside
-  `test/global-setup.ts` and the helpers in `test/support.ts`.
-- The ability matrix test (`packages/permissions/src/ability.test.ts`) is the permission spec.
+- Every `*.test.ts` lives in the workspace's `test/` folder, never in `src/`. The `test/` tree
+  mirrors `src/`: `apps/api/test/modules/user/user.service.test.ts` tests
+  `apps/api/src/modules/user/user.service.ts`;
+  `packages/database/test/repositories/user.repository.test.ts`,
+  `apps/api/test/trpc/routers/user.router.test.ts`, `packages/queue/test/queue.test.ts`,
+  `packages/validation/test/env.test.ts`.
+- Integration tests spanning a workspace (HTTP + database + Redis, migrations) sit at the root of
+  that `test/` folder (`apps/api/test/app.test.ts`, `apps/api/test/auth-http.test.ts`), alongside
+  `test/global-setup.ts`, the helpers in `test/support.ts` and a package's public test entry
+  (`packages/database/test/index.ts`, `packages/queue/test/index.ts`).
+- Imports inside a test are relative to its mirrored position
+  (`../../../src/modules/user/user.service`, `../../support`).
+- The ability matrix test (`packages/permissions/test/ability.test.ts`) is the permission spec.
 
 ## Never
 

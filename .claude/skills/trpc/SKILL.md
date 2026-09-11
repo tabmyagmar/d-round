@@ -94,7 +94,7 @@ service call**. Rules: `.claude/rules/module-template.md`, `.claude/rules/layers
    ).rejects.toMatchObject({ code: "FORBIDDEN" });
    ```
 
-   `apps/api/src/trpc/routers/user.router.test.ts` covers `UNAUTHORIZED` without a session,
+   `apps/api/test/trpc/routers/user.router.test.ts` covers `UNAUTHORIZED` without a session,
    `FORBIDDEN` from `requireAbility`, `BAD_REQUEST` from the zod schemas and `CONFLICT` mapped from
    a service `ConflictError`.
 

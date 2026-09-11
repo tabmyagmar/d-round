@@ -93,10 +93,11 @@ only, the worker is idempotent. Rules: `.claude/rules/queue.md`; decision:
 
    Every 2 minutes; `FAILED` rows are never touched.
 
-9. **Tests** — `apps/api/src/modules/email/email.service.test.ts` (row + job after commit,
-   nothing after rollback), `apps/worker/src/processors/email.processor.test.ts` (exactly once with
+9. **Tests** — `apps/api/test/modules/email/email.service.test.ts` (row + job after commit,
+   nothing after rollback), `apps/worker/test/processors/email.processor.test.ts` (exactly once with
    a duplicate enqueue, no-op on `SENT`, transient retries record attempts, `FAILED` after the last
-   attempt, permanent failures fail on the first attempt), `outbox-sweeper.test.ts` (recovers a
+   attempt, permanent failures fail on the first attempt),
+   `apps/worker/test/schedulers/outbox-sweeper.test.ts` (recovers a
    `PENDING` row after `FLUSHALL`, repeated runs do not duplicate). Helpers:
    `apps/worker/test/support.ts`.
 

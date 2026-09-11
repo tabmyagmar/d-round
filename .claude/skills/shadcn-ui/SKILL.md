@@ -20,25 +20,61 @@ composed components on top, and the Tailwind v4 theme. Rules: `.claude/rules/ui.
 3. Import it: `import { Button } from "@repo/ui/components/button"` (exports map
    `./components/*` → `src/components/*.tsx`).
 4. Run `yarn lint`. `packages/ui/eslint.config.mjs` relaxes a few style rules for
-   `src/components/*.tsx` so generated code passes untouched; if a type error remains
+   `src/components/*.tsx` only so generated code passes untouched — `src/components/form/` and
+   `src/components/composed/` follow the house style in full; if a type error remains
    (`exactOptionalPropertyTypes`), fix it with the smallest possible change and note it here.
 
 The workspace was initialised with shadcn CLI 4 (style `base-nova`, Base UI primitives — not
 Radix — and `lucide` icons); re-running `init` is not needed for new components.
 
-Installed: `alert`, `badge`, `button`, `card`, `dropdown-menu`, `field`, `input`, `label`,
-`select`, `separator`, `skeleton`, `sonner`, `table`. Known local patch: `sonner.tsx` uses
-`theme={(theme as ToasterProps["theme"]) ?? "system"}`; re-apply it after
-`npx shadcn@4.21.0 add sonner --overwrite`. Base UI `Select` takes `items` and `onValueChange`
-(see `apps/web/app/(app)/users/[id]/user-editor.tsx`).
+Installed: `alert`, `badge`, `button`, `card`, `checkbox`, `dialog`, `dropdown-menu`, `field`,
+`input`, `label`, `radio-group`, `select`, `separator`, `skeleton`, `sonner`, `table`, `textarea`.
+Known local patch: `sonner.tsx` uses `theme={(theme as ToasterProps["theme"]) ?? "system"}`;
+re-apply it after `npx shadcn@4.21.0 add sonner --overwrite`. Base UI `Select` takes `items` and
+`onValueChange` (see `apps/web/features/users/user-editor.tsx`).
+
+## Form fields (`@repo/ui/components/form`)
+
+`packages/ui/src/components/form/` (barrel `index.ts`, export `./components/form`) binds the
+shadcn `Field` primitives to react-hook-form with `useController`; `react-hook-form` is a peer
+dependency of `packages/ui`. Every field takes `control`, `name`, `label`, optional `description`,
+`disabled`, `className`, and renders `Field` + `FieldLabel` + input + `FieldError` itself:
+
+| Field           | Extras                                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `TextField`     | `type`, `placeholder`, `autoComplete`, `emptyAs?: "string" \| "null" \| "undefined"` (what a cleared input stores) |
+| `PasswordField` | show/hide toggle                                                                                                   |
+| `TextareaField` | wraps `Textarea`                                                                                                   |
+| `SelectField`   | wraps the standalone `Select`; `options: { value, label, disabled? }[]`, `placeholder?`, `nullable?`               |
+| `CheckboxField` | wraps `Checkbox`                                                                                                   |
+| `RadioField`    | `options`, `orientation`                                                                                           |
+
+Forms in `apps/web` use these and never hand-write `Field` / `FieldLabel` / `Input` / `FieldError`
+for a standard input; the standalone `Select` stays for filters and toolbars (`users-table.tsx`
+role filter). Fields destructure `ref` out of `field`
+(`const { field: { ref, ...field } } = useController(...)`) to satisfy `react-hooks/refs`. Adding a
+field: new `<name>-field.tsx`, export it from `index.ts`, house style throughout.
 
 ## How-to: create a composed component
 
-1. Start next to the page that needs it. When a second consumer appears, move it to
-   `packages/ui/src/components/composed/<name>.tsx`.
-2. Compose primitives (`Badge`, `Tooltip`, ...) and `cva` variants; no data fetching, no app
-   imports, no server-only packages.
+1. Start in the feature that needs it (`apps/web/features/<feature>/`). When it is domain-free and
+   reusable across apps, move it to `packages/ui/src/components/composed/<name>.tsx`.
+2. Compose primitives (`Badge`, `Dialog`, `Table`, ...) and `cva` variants; no data fetching, no
+   app imports, no server-only packages.
 3. Export a named component; import as `@repo/ui/components/composed/<name>`.
+
+Existing composed components:
+
+- `DataTable` (`data-table.tsx`) — `@tanstack/react-table` v9 (`useTable`, `tableFeatures`).
+  `DataTable({ columns, data, isLoading, emptyMessage, pagination?, getRowId?, className? })`;
+  columns via `createDataTableColumns<TData>()` →
+  `helper.columns([helper.accessor(...), helper.display(...)])`;
+  `DataTablePagination = { page, totalPages, total, hasPrev, hasNext, onPageChange, itemLabel? }`
+  (server-side, matches `PageResult`). Reference: `apps/web/features/users/users-table.tsx`.
+- `ConfirmDialog` (`confirm-dialog.tsx`) — shadcn `Dialog` with `open`, `onOpenChange`, `title`,
+  `description?`, `confirmLabel`, `cancelLabel?`, `destructive?`, `pending?`, `onConfirm`. Use it
+  instead of `window.confirm`. Reference: `apps/web/features/users/user-editor.tsx`.
+- `StatusBadge` (`status-badge.tsx`) — below.
 
 Example — `packages/ui/src/components/composed/status-badge.tsx`:
 
@@ -72,7 +108,7 @@ export const StatusBadge = ({
 );
 ```
 
-Domain code maps its states to a tone: `apps/web/components/role-badge.tsx` (`RoleBadge`) maps
+Domain code maps its states to a tone: `apps/web/features/users/role-badge.tsx` (`RoleBadge`) maps
 `admin → danger`, `hr_manager → info`, `dept_head → warning`, `member → neutral`. An outbox status
 badge would do the same with `PENDING → warning`, `SENT → success`, `FAILED → danger`.
 

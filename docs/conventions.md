@@ -156,18 +156,18 @@ with Prettier.
 
 ## File naming
 
-| Thing                 | Pattern                              | Example                              |
-| --------------------- | ------------------------------------ | ------------------------------------ |
-| Service               | `<name>.service.ts`                  | `user.service.ts`                    |
-| Repository            | `<name>.repository.ts`               | `user.repository.ts`                 |
-| tRPC router           | `<name>.router.ts`                   | `user.router.ts`                     |
-| zod schemas           | `<name>.schema.ts`                   | `user.schema.ts`                     |
-| Worker processor      | `<queue>.processor.ts`               | `email.processor.ts`                 |
-| Test                  | `<file>.test.ts` next to the file    | `user.service.test.ts`               |
-| React component       | `PascalCase.tsx` or `kebab-case.tsx` | `status-badge.tsx`, `button.tsx`     |
-| Next.js special files | framework names                      | `page.tsx`, `layout.tsx`, `proxy.ts` |
-| Config                | `<tool>.config.{ts,mjs}`             | `vitest.config.ts`                   |
-| ADR                   | `NNNN-<kebab-title>.md`              | `0001-stack.md`                      |
+| Thing                 | Pattern                              | Example                                  |
+| --------------------- | ------------------------------------ | ---------------------------------------- |
+| Service               | `<name>.service.ts`                  | `user.service.ts`                        |
+| Repository            | `<name>.repository.ts`               | `user.repository.ts`                     |
+| tRPC router           | `<name>.router.ts`                   | `user.router.ts`                         |
+| zod schemas           | `<name>.schema.ts`                   | `user.schema.ts`                         |
+| Worker processor      | `<queue>.processor.ts`               | `email.processor.ts`                     |
+| Test                  | `test/<src path>.test.ts`            | `test/modules/user/user.service.test.ts` |
+| React component       | `PascalCase.tsx` or `kebab-case.tsx` | `status-badge.tsx`, `button.tsx`         |
+| Next.js special files | framework names                      | `page.tsx`, `layout.tsx`, `proxy.ts`     |
+| Config                | `<tool>.config.{ts,mjs}`             | `vitest.config.ts`                       |
+| ADR                   | `NNNN-<kebab-title>.md`              | `0001-stack.md`                          |
 
 One exported unit per file where practical; named exports only (see above).
 
@@ -267,7 +267,10 @@ the web app is a plain client of it.
   docker-compose and CI). Mocks are allowed only for external providers (HTTP, mail, AI).
 - Tests assert behaviour (results, rows, jobs, thrown domain errors), not implementation (call
   order, private state).
-- Test files live next to the code (`*.test.ts`); integration tests in each workspace's `test/`.
+- Every `*.test.ts` lives in the workspace's `test/` folder, mirroring `src/`
+  (`apps/api/test/modules/user/user.service.test.ts` tests `src/modules/user/user.service.ts`);
+  workspace-wide integration tests sit at the root of `test/` next to `support.ts` and
+  `global-setup.ts`. `vitest.config.ts` includes only `test/**/*.test.ts`.
 - Weakening or skipping a test to go green is a review BLOCKER.
 
 Why: a mock of Prisma or Redis proves that the mock works. The containers cost seconds and prove

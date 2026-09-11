@@ -19,7 +19,7 @@ Everything that depends on the current state of a row stays in services. Rules:
 | `src/ability.ts` (`@repo/permissions`)       | `defineAbilityFor(user)` → `AppAbility` (`createMongoAbility`), `userSubject(record)`                                               |
 | `src/server.ts` (`@repo/permissions/server`) | `definePrismaAbilityFor(user)` → `ServerAbility`, `prismaUserSubject(row)`, `accessibleUsersWhere(ability, action)`, `accessibleBy` |
 | `src/react.tsx` (`@repo/permissions/react`)  | `AbilityProvider`, `Can`, `useAbility`                                                                                              |
-| `src/ability.test.ts`                        | the matrix spec                                                                                                                     |
+| `test/ability.test.ts`                       | the matrix spec                                                                                                                     |
 
 The rules are written once and built twice; conditions are plain equalities on `id` and
 `department` so the mongo and the Prisma engine agree.
@@ -69,7 +69,7 @@ export const accessibleUsersWhere = (
 
 ## How-to: write a rule
 
-1. Add the row to the `allowed` table in `src/ability.test.ts` first (role × action → relations
+1. Add the row to the `allowed` table in `test/ability.test.ts` first (role × action → relations
    `self | same-dept | other-dept`). The test is the spec; the failing row documents the change.
 2. Add the `can(...)` line in `defineRules`. Prefer whitelist rules; use `cannot` only to carve an
    exception out of a broad `can`. A new condition key goes into `UserConditions`.
@@ -128,7 +128,7 @@ return createUserRepository(ctx.db).findMany({ page, perPage }, { AND: filters }
 The service composes the `where`; the repository receives it as a Prisma type and adds
 `deletedAt: null`. Never filter in memory after loading everything.
 
-## Matrix test (`src/ability.test.ts`)
+## Matrix test (`test/ability.test.ts`)
 
 ```ts
 const allowed: Record<Role, Partial<Record<Action, Relation[]>>> = {

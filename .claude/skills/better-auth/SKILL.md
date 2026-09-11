@@ -28,7 +28,8 @@ writing any config — do not guess option names.** Decision record: `docs/adr/0
   `trustedOrigins: [env.WEB_ORIGIN]`, `cookieDomain: env.COOKIE_DOMAIN`); `apps/api/src/app.ts`
   mounts `auth.handler` on `GET|POST /api/auth/*` behind CORS and the sign-in rate limiter;
   `apps/api/src/core/context.ts` resolves the session into `ctx.user`.
-- Tables `users`, `sessions`, `accounts`, `verifications` in `packages/database/prisma/schema.prisma`.
+- Tables `users`, `sessions`, `accounts`, `verifications` — one model per file under
+  `packages/database/prisma/schema/auth/` (`user`, `session`, `account`, `verification`).
 
 ## Example: `createAuth` options (as the API and the tests call it)
 
@@ -109,8 +110,9 @@ returns `Set-Cookie` and `getSession` resolves it.
 1. Update the Better Auth config (plugins, additional fields).
 2. `npx auth@1.7.3 generate --config packages/auth/auth-cli.config.ts --output /tmp/better-auth.prisma -y`
    (the CLI package is `auth`, not `@better-auth/cli`).
-3. Diff against `packages/database/prisma/schema.prisma` by hand: keep `@@map` snake_case, UUID v7
-   ids, `created_at`, our extra fields. Never rename fields Better Auth relies on.
+3. Diff against the files under `packages/database/prisma/schema/auth/` by hand: keep `@@map`
+   snake_case, UUID v7 ids, `created_at`, our extra fields. Never rename fields Better Auth relies
+   on.
 4. Migration + ADR line as in the `prisma` skill (`yarn db:migrate:dev --name <name>`).
 
 ## Admin plugin and roles
