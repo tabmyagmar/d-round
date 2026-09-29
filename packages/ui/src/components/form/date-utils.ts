@@ -1,3 +1,5 @@
+import { DEFAULT_LOCALE } from "../../lib/locale";
+
 // Date helpers shared by DateField, DateTimeField and DateRangeField. Dates are handled in the
 // browser's local time zone; "iso-date" values are `yyyy-MM-dd` strings without a time part.
 
@@ -39,13 +41,13 @@ export const withTime = (date: Date, time: string): Date => {
 
 export type DateLocale = Intl.LocalesArgument;
 
-/** `2026/09/11` in ja-JP; the locale is explicit so server and client render the same text. */
-export const formatDate = (date: Date, locale: DateLocale = "ja-JP"): string =>
+/** `09/11/2026` in en, `2026/09/11` in ja-JP; explicit so server and client render the same. */
+export const formatDate = (date: Date, locale: DateLocale = DEFAULT_LOCALE): string =>
   new Intl.DateTimeFormat(locale, { year: "numeric", month: "2-digit", day: "2-digit" }).format(
     date,
   );
 
-export const formatDateTime = (date: Date, locale: DateLocale = "ja-JP"): string =>
+export const formatDateTime = (date: Date, locale: DateLocale = DEFAULT_LOCALE): string =>
   new Intl.DateTimeFormat(locale, {
     year: "numeric",
     month: "2-digit",

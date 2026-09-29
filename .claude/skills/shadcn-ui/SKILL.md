@@ -30,7 +30,7 @@ Radix — and `lucide` icons); re-running `init` is not needed for new component
 Installed: `alert`, `badge`, `button`, `calendar`, `card`, `checkbox`, `combobox`, `dialog`,
 `dropdown-menu`, `field`, `input`, `input-group`, `label`, `popover`, `radio-group`, `select`,
 `separator`, `skeleton`, `sonner`, `switch`, `table`, `textarea`, `tooltip`. `calendar` added
-`react-day-picker 10.0.1` and `date-fns 4.4.0` to `packages/ui` dependencies. Base UI `Select`
+`react-day-picker 10.0.1` to `packages/ui` dependencies (`date-fns` is not needed). Base UI `Select`
 takes `items` and `onValueChange` (see `apps/web/features/users/user-editor.tsx`). `tooltip` needs
 a `TooltipProvider` above its consumers; `apps/web/app/layout.tsx` provides it app-wide.
 
@@ -70,7 +70,7 @@ Shared building blocks: `useFormField({ control, name, disabled })` wraps `useCo
 `ref` out of `field` (`react-hooks/refs`) and forwards `disabled` only when set; `FormFieldShell`
 is the vertical frame (label with required/hint, control, description, optional counter, error);
 `FormFieldLabel` (`asLegend` for grouped controls); `date-utils.ts` (`toIsoDate`, `toDate`,
-`formatDate`, `formatDateTime` with an explicit `ja-JP` default, `compact` to strip `undefined`).
+`formatDate`, `formatDateTime` defaulting to `DEFAULT_LOCALE` (`src/lib/locale.ts`), `compact` to strip `undefined`).
 Forms in `apps/web` use these and never hand-write `Field` / `FieldLabel` / `Input` / `FieldError`
 for a standard input; the standalone `Select` stays for filters and toolbars (`users-table.tsx`
 role filter). Adding a field: new `<name>-field.tsx` built on `useFormField` + `FormFieldShell`,

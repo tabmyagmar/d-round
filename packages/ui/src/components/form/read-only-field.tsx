@@ -3,6 +3,8 @@
 import type { ReactNode } from "react";
 import type { FieldValues } from "react-hook-form";
 
+import { DEFAULT_LOCALE } from "../../lib/locale";
+
 import { FormFieldShell } from "./form-field-shell";
 import type { BaseFieldProps } from "./types";
 import { useFormField } from "./use-form-field";
@@ -24,10 +26,11 @@ const defaultFormat = (value: unknown): ReactNode => {
     return value;
   }
   if (typeof value === "boolean") {
-    return value ? "はい" : "いいえ";
+    // Pass `format` for translated labels.
+    return value ? "Yes" : "No";
   }
   if (value instanceof Date) {
-    return value.toLocaleString("ja-JP");
+    return value.toLocaleString(DEFAULT_LOCALE);
   }
   return JSON.stringify(value);
 };

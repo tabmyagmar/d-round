@@ -22,7 +22,9 @@
     "DOCKER_TLS_VERIFY",
     "TESTCONTAINERS_*",
     "HOME",
-    "TMPDIR"
+    "TMPDIR",
+    "TEST_POSTGRES_IMAGE",
+    "TEST_REDIS_IMAGE"
   ],
   "tasks": {
     "build": {

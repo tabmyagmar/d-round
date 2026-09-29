@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { applyReplacements, isRewritable, parseArgs, slugify } from "./init-template.mjs";
 
@@ -80,4 +83,50 @@ test("isRewritable skips the script itself, the audit and binaries but includes 
   assert.equal(isRewritable("apps/web/app/favicon.ico"), false);
   assert.equal(isRewritable("yarn.lock"), true);
   assert.equal(isRewritable("package.json"), true);
+});
+
+test("parseArgs rejects quotes and backslashes that would break TS and dotenv literals", () => {
+  assert.throws(() => parseArgs(["--name", 'Acme "Portal"']), /quote/);
+  assert.throws(() => parseArgs(["--name", "Acme", "--description", "a\\b"]), /backslash/);
+  assert.throws(() => parseArgs(["--name", "Acme", "--mail-from", '"Acme, Inc." <x@y>']), /quote/);
+});
+
+test("applyReplacements inserts values literally, even ones containing $ patterns", () => {
+  const options = parseArgs(["--name", "Cash $& Carry"]);
+  assert.equal(applyReplacements("x {{PROJECT_NAME}} y", options), "x Cash $& Carry y");
+});
+
+test("applyReplacements rewrites the ui DEFAULT_LOCALE from --lang", () => {
+  const options = parseArgs(["--name", "Acme", "--lang", "ja-JP"]);
+  assert.equal(
+    applyReplacements('export const DEFAULT_LOCALE = "en";', options),
+    'export const DEFAULT_LOCALE = "ja-JP";',
+  );
+});
+
+test("applyReplacements leaves no placeholder or identifier default in any tracked file", () => {
+  const options = parseArgs(["--name", "Acme Portal", "--lang", "de"]);
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" })
+    .split("\0")
+    .filter(isRewritable);
+  assert.ok(files.length > 50, "expected the tracked file list");
+  const leftovers = [];
+  for (const file of files) {
+    const after = applyReplacements(readFileSync(`${root}/${file}`, "utf8"), options);
+    for (const pattern of [
+      /\{\{[A-Z_]+\}\}/,
+      /\bapp-template\b/,
+      /POSTGRES_DB[=:]\s*app\b/,
+      /:-app\}/,
+      /\/app\?schema=/,
+      /-d app\b/,
+      /DEFAULT_LOCALE = "en"/,
+    ]) {
+      if (pattern.test(after)) {
+        leftovers.push(`${file}: ${String(pattern)}`);
+      }
+    }
+  }
+  assert.deepEqual(leftovers, []);
 });

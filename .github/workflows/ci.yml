@@ -14,11 +14,6 @@ env:
   TURBO_TELEMETRY_DISABLED: "1"
   DO_NOT_TRACK: "1"
   HUSKY: "0"
-  # Database name used by the steps below. The `services` block cannot read `env` (GitHub
-  # limitation), so its POSTGRES_DB / pg_isready values are literals kept in sync by
-  # scripts/init-template.mjs. The image can be overridden per repository with the
-  # `CI_POSTGRES_IMAGE` variable (Settings → Variables).
-  POSTGRES_DB: app
 
 jobs:
   verify:
@@ -27,6 +22,10 @@ jobs:
     timeout-minutes: 30
 
     services:
+      # Neither `services` nor job-level `env` can read the `env` context (GitHub limitation), so
+      # the database name `app` is a literal here and in DATABASE_URL below: the template
+      # initialiser rewrites both; afterwards keep them in sync by hand. The image can be
+      # overridden per repository with the `CI_POSTGRES_IMAGE` variable (Settings → Variables).
       postgres:
         image: ${{ vars.CI_POSTGRES_IMAGE || 'postgres:18-alpine' }}
         env:
@@ -52,7 +51,7 @@ jobs:
 
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/${{ env.POSTGRES_DB }}?schema=public
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app?schema=public
       REDIS_URL: redis://localhost:6379
 
     steps:

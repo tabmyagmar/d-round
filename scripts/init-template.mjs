@@ -8,7 +8,8 @@
  * Text placeholders ({{PROJECT_NAME}}, {{PROJECT_DESCRIPTION}}, {{HTML_LANG}}, {{MAIL_FROM}})
  * live wherever a literal string is fine (TSX, Markdown, .env.example). Machine-parsed
  * identifiers cannot carry braces, so they ship with valid defaults that this script rewrites:
- * the package / compose name `app-template` and the database name `app`.
+ * the package / compose name `app-template`, the database name `app` and the ui
+ * `DEFAULT_LOCALE = "en"` (packages/ui/src/lib/locale.ts, from --lang).
  *
  * Delete this script (and its test) once it has run.
  */
@@ -45,8 +46,22 @@ const readOption = (argv, flag) => {
   return value;
 };
 
+/** Values land inside TS string literals and a quoted dotenv value; keep them literal-safe. */
+const assertLiteralSafe = (flag, value) => {
+  if (value === undefined) {
+    return value;
+  }
+  if (value.includes('"')) {
+    throw new Error(`${flag} must not contain a double quote`);
+  }
+  if (value.includes("\\")) {
+    throw new Error(`${flag} must not contain a backslash`);
+  }
+  return value;
+};
+
 export const parseArgs = (argv) => {
-  const name = readOption(argv, "--name");
+  const name = assertLiteralSafe("--name", readOption(argv, "--name"));
   if (!name) {
     throw new Error('Missing --name "<project display name>"');
   }
@@ -59,27 +74,34 @@ export const parseArgs = (argv) => {
     slug,
     db: readOption(argv, "--db") ?? slug.replaceAll("-", "_"),
     lang: readOption(argv, "--lang") ?? "en",
-    description: readOption(argv, "--description") ?? name,
-    mailFrom: readOption(argv, "--mail-from") ?? `${name} <no-reply@${slug}.local>`,
+    description: assertLiteralSafe("--description", readOption(argv, "--description")) ?? name,
+    mailFrom:
+      assertLiteralSafe("--mail-from", readOption(argv, "--mail-from")) ??
+      `${name} <no-reply@${slug}.local>`,
     dryRun: argv.includes("--dry-run"),
   };
 };
 
 const escapeRegExp = (value) => value.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+/** Replacement callbacks keep `$&`-style sequences in user values literal. */
 export const applyReplacements = (content, options) => {
   const slug = new RegExp(`\\b${escapeRegExp(DEFAULT_SLUG)}\\b`, "g");
   const db = escapeRegExp(DEFAULT_DB);
   return content
-    .replaceAll("{{PROJECT_NAME}}", options.name)
-    .replaceAll("{{PROJECT_DESCRIPTION}}", options.description)
-    .replaceAll("{{HTML_LANG}}", options.lang)
-    .replaceAll("{{MAIL_FROM}}", options.mailFrom)
-    .replace(slug, options.slug)
-    .replace(new RegExp(`(POSTGRES_DB[=:]\\s*)${db}\\b`, "g"), `$1${options.db}`)
-    .replace(new RegExp(`(POSTGRES_DB:-)${db}\\}`, "g"), `$1${options.db}}`)
-    .replace(new RegExp(`(/)${db}(\\?schema=)`, "g"), `$1${options.db}$2`)
-    .replace(new RegExp(`(-d )${db}\\b`, "g"), `$1${options.db}`);
+    .replaceAll("{{PROJECT_NAME}}", () => options.name)
+    .replaceAll("{{PROJECT_DESCRIPTION}}", () => options.description)
+    .replaceAll("{{HTML_LANG}}", () => options.lang)
+    .replaceAll("{{MAIL_FROM}}", () => options.mailFrom)
+    .replace(slug, () => options.slug)
+    .replace(new RegExp(`(POSTGRES_DB[=:]\\s*)${db}\\b`, "g"), (_m, p1) => `${p1}${options.db}`)
+    .replace(new RegExp(`(POSTGRES_DB:-)${db}\\}`, "g"), (_m, p1) => `${p1}${options.db}}`)
+    .replace(new RegExp(`(/)${db}(\\?schema=)`, "g"), (_m, p1, p2) => `${p1}${options.db}${p2}`)
+    .replace(new RegExp(`(-d )${db}\\b`, "g"), (_m, p1) => `${p1}${options.db}`)
+    .replace(
+      /(export const DEFAULT_LOCALE = ")[^"]+(")/g,
+      (_m, p1, p2) => `${p1}${options.lang}${p2}`,
+    );
 };
 
 const trackedFiles = (root) =>

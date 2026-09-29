@@ -25,7 +25,7 @@ export type DateFieldProps<TValues extends FieldValues> = BaseFieldProps<TValues
   max?: Date | string;
   /** Extra days to disable, e.g. weekends: `{ dayOfWeek: [0, 6] }`. */
   disabledDays?: Matcher | Matcher[];
-  /** BCP 47 locale for the displayed value (default `ja-JP`). */
+  /** BCP 47 locale for the displayed value (default `DEFAULT_LOCALE`, `@repo/ui/lib/locale`). */
   locale?: DateLocale;
   /** react-day-picker locale for the calendar grid (`import { ja } from "react-day-picker/locale"`). */
   calendarLocale?: Locale;

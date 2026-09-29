@@ -17,11 +17,11 @@ gh repo create my-app --template <org>/<this-repo> --private --clone   # or clon
 cd my-app
 nvm use && corepack enable
 
-# 1. Rename: rewrites every placeholder ({{PROJECT_NAME}}, ...) and the identifier defaults
+# 1. Rename: rewrites every text placeholder and the identifier defaults (see scripts/init-template.mjs)
 node scripts/init-template.mjs --name "My App" --db my_app --lang en \
   --description "What the app does" --mail-from "My App <no-reply@my-app.local>"
 yarn                                       # refreshes yarn.lock for the new package name
-git rm scripts/init-template.mjs scripts/init-template.test.mjs
+git rm scripts/init-template.mjs scripts/init-template.test.mjs   # test:scripts then finds nothing and passes
 
 # 2. Environment
 cp .env.example .env                       # one root .env for the whole monorepo

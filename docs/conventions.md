@@ -227,7 +227,8 @@ up to 200 characters for this reason. Human-only commits carry no trailer.
   - api: `API_PORT`, `API_URL` (public origin, Better Auth cookies are set for this host),
     `WEB_ORIGIN` (CORS with credentials + `trustedOrigins`), `BETTER_AUTH_SECRET` (≥ 32 chars),
     optional `COOKIE_DOMAIN` (production parent domain);
-  - worker: `MAIL_SMTP_URL` (`smtp://localhost:1025` = Mailpit), `MAIL_FROM`;
+  - worker: `MAIL_SMTP_URL` (`smtp://localhost:1025` = Mailpit), `MAIL_FROM` (its display name is
+    the brand used in emails, `apps/worker/src/mail/mail-from.ts`);
   - web: `NEXT_PUBLIC_API_URL`.
 
 ## Authentication and sessions
@@ -270,7 +271,9 @@ the web app is a plain client of it.
 - Every `*.test.ts` lives in the workspace's `test/` folder, mirroring `src/`
   (`apps/api/test/modules/user/user.service.test.ts` tests `src/modules/user/user.service.ts`);
   workspace-wide integration tests sit at the root of `test/` next to `support.ts` and
-  `global-setup.ts`. `vitest.config.ts` includes only `test/**/*.test.ts`.
+  `global-setup.ts`. `vitest.config.ts` includes only `test/**/*.test.ts` (`.tsx` too where
+  components are tested in jsdom, see `.claude/rules/testing.md`); `scripts/` has a node:test suite
+  run by the root `test:scripts` task.
 - Weakening or skipping a test to go green is a review BLOCKER.
 
 Why: a mock of Prisma or Redis proves that the mock works. The containers cost seconds and prove

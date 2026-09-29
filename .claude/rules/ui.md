@@ -55,7 +55,7 @@ input does not trip the `react-hooks/refs` rule, and forwards `disabled` only wh
 Installed primitives: `alert`, `badge`, `button`, `calendar`, `card`, `checkbox`, `combobox`,
 `dialog`, `dropdown-menu`, `field`, `input`, `input-group`, `label`, `popover`, `radio-group`,
 `select`, `separator`, `skeleton`, `sonner`, `switch`, `table`, `textarea`, `tooltip`. `calendar`
-brings `react-day-picker 10.0.1` and `date-fns 4.4.0` into `packages/ui` dependencies.
+brings `react-day-picker 10.0.1` into `packages/ui` dependencies (`date-fns` is not needed).
 
 Known local patches (both for `exactOptionalPropertyTypes`, re-apply after `--overwrite`):
 
@@ -199,7 +199,7 @@ wraps the whole app in. Shared types: `SelectOption` (`{ value, label, disabled?
 | `SwitchField`        | `boolean`                                                          | setting style: label and description left, switch right                                                                                                                                                                                          |
 | `CheckboxGroupField` | `string[]`                                                         | `options`, `orientation: "vertical" \| "horizontal"`                                                                                                                                                                                             |
 | `RadioField`         | `string`                                                           | `options`, `orientation`                                                                                                                                                                                                                         |
-| `DateField`          | `yyyy-MM-dd` (`valueAs: "iso-date"`, default) or `Date` (`"date"`) | popover + `Calendar`; `nullable` clear button, `min`, `max`, `disabledDays` (react-day-picker `Matcher`), `locale` (display, default `ja-JP`), `calendarLocale` (`import { ja } from "react-day-picker/locale"`)                                 |
+| `DateField`          | `yyyy-MM-dd` (`valueAs: "iso-date"`, default) or `Date` (`"date"`) | popover + `Calendar`; `nullable` clear button, `min`, `max`, `disabledDays` (react-day-picker `Matcher`), `locale` (display, default `DEFAULT_LOCALE` from `lib/locale.ts`), `calendarLocale` (`import { ja } from "react-day-picker/locale"`)   |
 | `DateTimeField`      | UTC ISO string (`valueAs: "iso"`, default) or `Date`               | date popover + `<input type="time">`; `minuteStep` (default 5), `defaultTime` (default `09:00`), same date props                                                                                                                                 |
 | `DateRangeField`     | `DateRangeValue` = `{ from, to }` (`iso-date` or `Date`)           | `numberOfMonths: 1 \| 2`, same date props                                                                                                                                                                                                        |
 | `FileField`          | `FileFieldValue[]` (always an array)                               | drop zone + list; `accept`, `multiple`, `maxSize` (bytes per file), `maxFiles`, `dropLabel`, `upload(file) => { id, url }` — uploads immediately and swaps the `File` for the reference; on failure the entry is removed and an error line shown |
@@ -241,8 +241,9 @@ components through a renderer registry, so a new field type starts as a new comp
 - Nullable fields say what a cleared input stores with `emptyAs`: text fields default to `""`,
   `NumberField` to `null` — no `setValueAs` / `emptyToNull` helpers in the form.
 - Date helpers `toIsoDate`, `toDate`, `formatDate`, `formatDateTime` (`form/date-utils.ts`) are
-  exported from the barrel for showing stored dates outside a form; the explicit `ja-JP` default
-  keeps server and client rendering the same text.
+  exported from the barrel for showing stored dates outside a form; the explicit default
+  (`DEFAULT_LOCALE` in `src/lib/locale.ts`, set by the template initialiser's `--lang`) keeps
+  server and client rendering the same text.
 - The standalone `Select` from `@repo/ui/components/select` stays for filters, toolbars and
   controls that are not react-hook-form fields (`users-table.tsx` role filter, `user-editor.tsx`
   role select, which fires a mutation directly); inside a form use `SelectField`.
