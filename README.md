@@ -34,13 +34,12 @@ cp .env.example .env   # one root .env for the whole monorepo
 yarn                   # installs, runs prisma generate, installs the husky hooks
 yarn docker:up         # postgres + pgadmin + redis + mailpit, waits for the healthchecks
 yarn db:migrate        # prisma migrate deploy
-yarn db:seed           # five verified test accounts, password A123456 (idempotent)
+yarn db:seed           # two verified test accounts, password A12345678 (idempotent)
 yarn dev               # web + api + worker (all three; emails need the worker)
 ```
 
-Then sign in at http://localhost:3000/login as `admin@test.com` / `A123456` (or `hr@test.com`,
-`head@test.com`, `member@test.com`, `guest@test.com` — same password, roles `hr_manager`,
-`dept_head`, `member`, `member` without department). Or:
+Then sign in at http://localhost:3000/login as `admin@test.com` / `A12345678` (or
+`member@test.com`, same password, role `member`). Or:
 
 | Service      | URL                            | Notes                                                     |
 | ------------ | ------------------------------ | --------------------------------------------------------- |
@@ -76,7 +75,7 @@ Then sign in at http://localhost:3000/login as `admin@test.com` / `A123456` (or 
 4. Click the link. Better Auth verifies the email, signs you in and redirects to `/dashboard`.
    Signing in before verification is refused with a "resend the verification email" hint.
 5. Every self-registered account starts as `member`. Sign in as the seeded `admin@test.com` /
-   `A123456` (`yarn db:seed`) to get the `Users` navigation entry; from `/users` an admin can
+   `A12345678` (`yarn db:seed`) to get the `Users` navigation entry; from `/users` an admin can
    search, filter by role, edit profiles, change roles (the last active admin cannot be demoted)
    and deactivate users (soft delete + all sessions revoked). Without the seed, promote an account
    directly in the database and sign in again:
@@ -101,24 +100,24 @@ only hides what you may not do). Details: `.claude/rules/permissions.md`,
 
 ## Scripts (root)
 
-| Script                | What it does                                                                                             |
-| --------------------- | -------------------------------------------------------------------------------------------------------- |
-| `yarn dev`            | `turbo run dev` — web (`next dev`), api and worker (`tsx watch`); all three are needed for the full flow |
-| `yarn build`          | `turbo run build` — Next build plus `tsdown` bundles for api/worker                                      |
-| `yarn verify`         | lint + typecheck + test + build + format:check (the CI gate)                                             |
-| `yarn lint`           | ESLint in every workspace                                                                                |
-| `yarn typecheck`      | `tsc --noEmit` in every workspace                                                                        |
-| `yarn test`           | `vitest run` in every workspace (testcontainers need Docker)                                             |
-| `yarn format`         | `prettier --write .`                                                                                     |
-| `yarn format:check`   | `prettier --check .`                                                                                     |
-| `yarn db:generate`    | `prisma generate` (also runs on `postinstall`)                                                           |
-| `yarn db:migrate`     | `prisma migrate deploy` — apply the committed migrations                                                 |
-| `yarn db:migrate:dev` | `prisma migrate dev` — create a migration locally (needs `docker:up`)                                    |
-| `yarn db:studio`      | Prisma Studio                                                                                            |
-| `yarn db:seed`        | `prisma db seed` → `prisma/seed.ts`: upserts the five `*@test.com` accounts (password `A123456`)         |
-| `yarn docker:up`      | `docker compose up -d --wait`                                                                            |
-| `yarn docker:down`    | `docker compose down` (volumes are kept)                                                                 |
-| `yarn docker:logs`    | `docker compose logs -f`                                                                                 |
+| Script                | What it does                                                                                               |
+| --------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `yarn dev`            | `turbo run dev` — web (`next dev`), api and worker (`tsx watch`); all three are needed for the full flow   |
+| `yarn build`          | `turbo run build` — Next build plus `tsdown` bundles for api/worker                                        |
+| `yarn verify`         | lint + typecheck + test + build + format:check (the CI gate)                                               |
+| `yarn lint`           | ESLint in every workspace                                                                                  |
+| `yarn typecheck`      | `tsc --noEmit` in every workspace                                                                          |
+| `yarn test`           | `vitest run` in every workspace (testcontainers need Docker)                                               |
+| `yarn format`         | `prettier --write .`                                                                                       |
+| `yarn format:check`   | `prettier --check .`                                                                                       |
+| `yarn db:generate`    | `prisma generate` (also runs on `postinstall`)                                                             |
+| `yarn db:migrate`     | `prisma migrate deploy` — apply the committed migrations                                                   |
+| `yarn db:migrate:dev` | `prisma migrate dev` — create a migration locally (needs `docker:up`)                                      |
+| `yarn db:studio`      | Prisma Studio                                                                                              |
+| `yarn db:seed`        | `prisma db seed` → `prisma/seed.ts`: upserts `admin@test.com` and `member@test.com` (password `A12345678`) |
+| `yarn docker:up`      | `docker compose up -d --wait`                                                                              |
+| `yarn docker:down`    | `docker compose down` (volumes are kept)                                                                   |
+| `yarn docker:logs`    | `docker compose logs -f`                                                                                   |
 
 ## Folder map
 

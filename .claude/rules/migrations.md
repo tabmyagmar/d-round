@@ -62,12 +62,12 @@ paths:
 
 ## Existing migrations
 
-| Migration                           | Contents                                                                                                                                                                               |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `20260909060455_init`               | `health_checks`                                                                                                                                                                        |
-| `20260909113011_phase1_auth_outbox` | Better Auth tables `users`, `sessions`, `accounts`, `verifications` (+ admin plugin columns, `employee_code`, `department`, `deleted_at`), enum `outbox_status`, table `outbox_emails` |
+| Migration   | Contents                                                                                                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `0001_init` | `health_checks`; Better Auth tables `users`, `sessions`, `accounts`, `verifications` (+ admin plugin columns, `deleted_at`); enum `outbox_status`, table `outbox_emails` |
 
-Both are applied; never edit them.
+The template ships this single baseline. Once a project has applied it anywhere, never edit it —
+add a new migration.
 
 ## Better Auth models
 

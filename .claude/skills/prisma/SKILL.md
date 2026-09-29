@@ -49,7 +49,7 @@ file of the model that owns them): `system/health-check.prisma`,
 7. `yarn verify`. CI additionally runs
    `prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code`.
 
-Existing models (`20260909113011_phase1_auth_outbox`): `User`, `Session`, `Account`,
+Existing models (`0001_init`): `User`, `Session`, `Account`,
 `Verification` (Better Auth — field names fixed, tables/columns mapped to snake_case, plus our
 `deletedAt`) and `OutboxEmail` with enum `OutboxStatus`
 (`PENDING | SENT | FAILED`). Regenerating the Better Auth models: `.claude/rules/migrations.md`

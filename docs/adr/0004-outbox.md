@@ -12,7 +12,7 @@ so Redis cannot be the durable record.
 
 - **Table `outbox_emails`** (`OutboxEmail`: `to`, `template`, `payload Json`, `status
 PENDING | SENT | FAILED`, `attempts`, `sentAt`, `lastError`) is the source of truth. Migration
-  `20260909113011_phase1_auth_outbox`.
+  `0001_init`.
 - **Producer** (API `email.service`): insert the row inside the caller's transaction, enqueue
   `{ outboxEmailId, traceId }` with `jobIdFor("email", row.id)` **after commit**
   (`withTransaction` → `afterCommit`).

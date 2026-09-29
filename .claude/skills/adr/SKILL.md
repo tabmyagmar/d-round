@@ -58,7 +58,7 @@ Date: YYYY-MM-DD
   enqueue inside the transaction, BullMQ failed set as the record.
 
 Each one is one screen, uses the `Context / Decision / Alternatives / Consequences` headings and
-names the migration it belongs to (`20260909113011_phase1_auth_outbox`). A later schema change to
+names the migration it belongs to (`0001_init`). A later schema change to
 users or the outbox adds a dated line under `## Changes` in 0002 or 0004 rather than a new file.
 
 ## Gotchas
