@@ -21,7 +21,7 @@ const createClient = () =>
       httpBatchLink({
         url: `${publicEnv.apiUrl}/trpc`,
         transformer: superjson,
-        // Cookies (Better Auth session, Phase 1) must travel with every request. tRPC's init
+        // Cookies (Better Auth session) must travel with every request. tRPC's init
         // type allows `signal: undefined`, which exactOptionalPropertyTypes rejects for fetch.
         fetch: (input, init) => fetch(input, { ...init, credentials: "include" } as RequestInit),
       }),

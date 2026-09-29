@@ -25,7 +25,7 @@ apps/web/
   components/                   app-wide shell only: app-shell, theme-provider
   lib/auth/{client,server}.ts   authClient (browser) / getServerSession (server)
   lib/trpc/{react.tsx,query-client.ts}
-  lib/env.ts                    publicEnv.apiUrl (NEXT_PUBLIC_API_URL)
+  lib/env.ts                    publicEnv.apiUrl (NEXT_PUBLIC_API_URL, zod-validated at load)
 ```
 
 ## Server vs client components
@@ -156,7 +156,9 @@ fields so a cleared input stores `null`. Show server errors in an
 ## Env
 
 Only `NEXT_PUBLIC_*` variables reach the browser (`NEXT_PUBLIC_API_URL=http://localhost:4000`,
-read through `lib/env.ts`); they are inlined at build time. Everything else stays on the server.
+read through `lib/env.ts`, which validates them with `createEnv` like the api and worker and
+throws at build/load time on a malformed value); they are inlined at build time, so reference
+them as `process.env.NEXT_PUBLIC_X` literally. Everything else stays on the server.
 
 ## Gotchas
 

@@ -39,7 +39,9 @@ const DashboardPage = async () => {
         <Card>
           <CardHeader>
             <CardTitle>Next steps</CardTitle>
-            <CardDescription>Phase 1 ships user management; templates come next.</CardDescription>
+            <CardDescription>
+              Auth and user management are here; add your first module next.
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2 text-sm">
             <Link className="underline" href="/profile">
