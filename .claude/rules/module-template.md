@@ -42,7 +42,7 @@ import { z } from "zod";
 
 import { idSchema, paginationSchema } from "./common.schema";
 
-export const ROLES = ["admin", "hr_manager", "dept_head", "member"] as const;
+export const ROLES = ["admin", "member"] as const;
 export const roleSchema = z.enum(ROLES);
 export type Role = z.infer<typeof roleSchema>;
 
@@ -52,8 +52,6 @@ export const userIdSchema = z.object({ userId: idSchema });
 export const updateProfileSchema = z.object({
   userId: idSchema.optional(),
   name: nameSchema.optional(),
-  employeeCode: employeeCodeSchema.nullable().optional(),
-  department: departmentSchema.nullable().optional(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
@@ -315,7 +313,7 @@ it("maps layer-1 denials to FORBIDDEN before touching the service", async () => 
 
 - `createHarness()` builds `db`, `redis`, `auth`, `emailQueue`, a silent logger and collects the
   verification mails Better Auth asked for (`sentMails`).
-- `signedInUser(h, { role, department, name })` registers through Better Auth, marks the user
+- `signedInUser(h, { role, name })` registers through Better Auth, marks the user
   verified with the requested role directly in the database (test shortcut), signs in for real and
   returns `{ user, email, headers }` — `headers` carries the session cookie.
 - `contextFor(h, headers)` builds a `RequestContext` exactly as the transport would

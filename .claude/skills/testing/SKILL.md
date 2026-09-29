@@ -100,7 +100,7 @@ afterAll(async () => {
 
 it("is admin-only and refuses to demote the last admin", async () => {
   const admin = await signedInUser(h, { role: "admin" });
-  const member = await signedInUser(h, { department: "HR" });
+  const member = await signedInUser(h);
   const ctx = await contextFor(h, admin.headers);
 
   await expect(

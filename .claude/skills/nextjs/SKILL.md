@@ -112,10 +112,10 @@ the API validates with. Inputs are the bound fields from `@repo/ui/components/fo
 `NumberField`, `SelectField`, `ComboboxField`, `DateField`, `FileField`, `ArrayField`, ... — the
 full table and the zod-shape mapping are in `.claude/rules/ui.md`, Forms) inside a `FieldGroup`;
 never hand-write `Field` / `FieldLabel` / `Input` / `FieldError` for a standard input. Domain
-pickers live in the feature that owns the data: `UserPickerField`
-(`features/users/user-picker-field.tsx`) wraps `ComboboxField` with `trpc.user.list` search
-(debounced 250 ms, 20 results) and `user.byId` for the current value's label, and stores the user
-id. Field `hint` tooltips rely on the `TooltipProvider` that `app/layout.tsx` wraps the app in
+pickers live in the feature that owns the data: a user picker in `features/users/` wraps
+`ComboboxField` with `trpc.user.list` search (debounced, 20 results) and `user.byId` for the
+current value's label, and stores the user id. Field `hint` tooltips rely on the `TooltipProvider`
+that `app/layout.tsx` wraps the app in
 (next to `ThemeProvider` and `TRPCReactProvider`); do not add a second one per form. Auth forms
 submit through `authClient`, everything else through a tRPC mutation.
 
@@ -149,8 +149,8 @@ const onSubmit = form.handleSubmit(async (values) => {
 `callbackURL` = `<window.location.origin>/dashboard` (where Better Auth lands the user after the
 verification link) and then routing to `/verify-email?email=...`. `features/users/profile-form.tsx`
 (rendered by `/profile` via `profile-editor.tsx` and by `/users/[id]` via `user-editor.tsx`) uses
-`updateProfileSchema`, `trpc.user.updateProfile` and `emptyAs="null"` on the optional
-`employeeCode` / `department` fields so a cleared input stores `null`. Show server errors in an
+`updateProfileSchema` and `trpc.user.updateProfile`; use `emptyAs="null"` on optional nullable
+fields so a cleared input stores `null`. Show server errors in an
 `Alert`; use `toast` (sonner) for mutation results.
 
 ## Env

@@ -6,8 +6,9 @@ paths:
 
 # Permissions — two layers, both required
 
-Single tenant, one organization. Roles: `admin`, `hr_manager`, `dept_head`, `member` (Better Auth
-admin plugin, `role` column on `users`; the allowed set is `roleSchema` in `@repo/validation`).
+Single tenant, one organization. Roles: `admin`, `member` (Better Auth admin plugin, `role` column
+on `users`; the allowed set is `roleSchema` in `@repo/validation`). Add roles by extending
+`ROLES` in `@repo/validation`, `roles` in `@repo/auth`, `rules.ts` and the matrix test together.
 Model: `docs/adr/0003-permissions.md`.
 
 ## Layer 1 — CASL ability (`packages/permissions`)
@@ -22,8 +23,8 @@ in `packages/permissions/src/rules.ts` (`defineRules(can, user)`) and built twic
 | `@repo/permissions/react`  | `AbilityProvider`, `Can`, `useAbility` | `@casl/react`                            | `apps/web` components                      |
 
 Actions `manage | create | read | update | delete | changeRole`, subject `User` (plus `all`).
-Conditions are plain equalities on `id` and `department` so both engines interpret them
-identically.
+Conditions are plain equalities on subject attributes (today only `id`) so both engines interpret
+them identically.
 
 ### The rule set (`rules.ts`)
 
@@ -33,17 +34,6 @@ export const defineRules = (can: CanFn, user: AbilityUser): void => {
     case "admin":
       can("manage", "all");
       return;
-    case "hr_manager":
-      can("read", "User");
-      if (user.department) {
-        can("update", "User", { department: user.department });
-      }
-      break;
-    case "dept_head":
-      if (user.department) {
-        can("read", "User", { department: user.department });
-      }
-      break;
     case "member":
       break;
   }
@@ -52,25 +42,24 @@ export const defineRules = (can: CanFn, user: AbilityUser): void => {
 };
 ```
 
-| Role         | read            | update          | changeRole / delete / create |
-| ------------ | --------------- | --------------- | ---------------------------- |
-| `admin`      | everyone        | everyone        | yes (`manage all`)           |
-| `hr_manager` | everyone        | self + own dept | no                           |
-| `dept_head`  | self + own dept | self            | no                           |
-| `member`     | self            | self            | no                           |
+| Role     | read     | update   | changeRole / delete / create |
+| -------- | -------- | -------- | ---------------------------- |
+| `admin`  | everyone | everyone | yes (`manage all`)           |
+| `member` | self     | self     | no                           |
 
-A user without a `department` gets no department-scoped rule. An anonymous visitor
-(`defineAbilityFor(null)`) can do nothing.
+An anonymous visitor (`defineAbilityFor(null)`) can do nothing. A scoped role (for example a
+team lead who reads their own team) is one more `case` with an equality condition on a subject
+attribute (`can("read", "User", { teamId: user.teamId })`) plus a matrix row.
 
 - `ctx.ability` is a `ServerAbility` built once per request by `definePrismaAbilityFor(ctx.user)`
   in `apps/api/src/core/context.ts`.
-- **Never encode workflow state into CASL.** "May a dept_head update a User" is CASL. "May this
+- **Never encode workflow state into CASL.** "May a member update a User" is CASL. "May this
   submission be approved in its current step by this approver" is a service rule.
 
 ## Layer 2 — stateful checks in services
 
-Services own every rule that depends on data: ownership of a specific row, department match loaded
-from the database, state machines (PENDING → APPROVED), "cannot demote the last admin", "you cannot
+Services own every rule that depends on data: ownership of a specific row, relations loaded from
+the database, state machines (PENDING → APPROVED), "cannot demote the last admin", "you cannot
 deactivate your own account". They throw `ForbiddenError` / `ConflictError` from
 `apps/api/src/core/errors.ts`. A service never assumes the router already checked something — it
 re-checks what matters for its own invariants.
@@ -127,7 +116,7 @@ marker condition that Prisma rejects at query time — the guard turns that into
 ## The ability matrix test is the permission spec
 
 `packages/permissions/test/ability.test.ts` is table-driven: for each role × action × relation
-(`self | same-dept | other-dept`) it asserts `can` / `cannot`, checks that the Prisma ability
+(`self | other`) it asserts `can` / `cannot`, checks that the Prisma ability
 answers exactly like the browser ability, and covers `accessibleUsersWhere`. Changing permissions
 means changing the `allowed` table first (the failing row documents the change), then `rules.ts`,
 then an ADR line in `docs/adr/0003-permissions.md`.
@@ -136,15 +125,13 @@ then an ADR line in `docs/adr/0003-permissions.md`.
 
 ```tsx
 // apps/web/components/app-shell.tsx — once, around the signed-in app
-<AbilityProvider user={{ id: user.id, role: user.role, department: user.department }}>
-  {children}
-</AbilityProvider>
+<AbilityProvider user={{ id: user.id, role: user.role }}>{children}</AbilityProvider>
 ```
 
 ```tsx
 // apps/web/features/users/user-editor.tsx
 const ability = useAbility();
-const subject = userSubject({ id: user.data.id, department: user.data.department });
+const subject = userSubject({ id: user.data.id });
 const canEdit = ability.can("update", subject);
 
 <Can I="changeRole" a="User">

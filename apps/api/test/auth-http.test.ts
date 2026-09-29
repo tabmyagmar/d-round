@@ -48,12 +48,11 @@ describe("POST /api/auth/sign-up/email", () => {
       name: "Http User",
       email,
       password: TEST_PASSWORD,
-      department: "HR",
     });
 
     expect(response.status).toBe(200);
     const user = await h.db.user.findUnique({ where: { email } });
-    expect(user?.department).toBe("HR");
+    expect(user?.role).toBe("member");
 
     const outbox = await h.db.outboxEmail.findMany({ where: { to: email } });
     expect(outbox).toHaveLength(1);

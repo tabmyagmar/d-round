@@ -109,7 +109,7 @@ export type SignedInUser = {
  */
 export const signedInUser = async (
   harness: TestHarness,
-  options: { role?: Role; department?: string | null; name?: string } = {},
+  options: { role?: Role; name?: string } = {},
 ): Promise<SignedInUser> => {
   const email = `${crypto.randomUUID()}@example.com`;
   await harness.auth.api.signUpEmail({
@@ -117,7 +117,6 @@ export const signedInUser = async (
       name: options.name ?? "Test User",
       email,
       password: TEST_PASSWORD,
-      ...(options.department ? { department: options.department } : {}),
     },
   });
   const user = await harness.db.user.update({

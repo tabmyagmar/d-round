@@ -33,7 +33,7 @@ export const AppShell = ({ user, children }: { user: CurrentUser; children: Reac
   };
 
   return (
-    <AbilityProvider user={{ id: user.id, role: user.role, department: user.department }}>
+    <AbilityProvider user={{ id: user.id, role: user.role }}>
       <div className="flex min-h-svh flex-col">
         <header className="border-b border-border">
           <div className="mx-auto flex w-full max-w-5xl items-center gap-6 px-6 py-3">

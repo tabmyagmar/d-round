@@ -43,10 +43,6 @@ const columns = helper.columns([
     header: "Email",
     cell: ({ getValue }) => <span className="text-muted-foreground">{getValue()}</span>,
   }),
-  helper.accessor("department", {
-    header: "Department",
-    cell: ({ getValue }) => getValue() ?? "—",
-  }),
   helper.accessor("role", {
     header: "Role",
     cell: ({ getValue }) => <RoleBadge role={getValue()} />,
@@ -97,7 +93,7 @@ export const UsersTable = () => {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
         <Input
-          placeholder="Search name, email or employee code"
+          placeholder="Search name or email"
           className="max-w-xs"
           value={search}
           onChange={(event) => {

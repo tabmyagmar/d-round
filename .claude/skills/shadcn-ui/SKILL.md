@@ -74,8 +74,8 @@ is the vertical frame (label with required/hint, control, description, optional 
 Forms in `apps/web` use these and never hand-write `Field` / `FieldLabel` / `Input` / `FieldError`
 for a standard input; the standalone `Select` stays for filters and toolbars (`users-table.tsx`
 role filter). Adding a field: new `<name>-field.tsx` built on `useFormField` + `FormFieldShell`,
-export it (and its props type) from `index.ts`, house style throughout. Domain pickers such as
-`UserPickerField` (`apps/web/features/users/user-picker-field.tsx`) stay in the web app.
+export it (and its props type) from `index.ts`, house style throughout. Domain pickers (a user
+picker over `trpc.user.list`) stay in the web app under `features/`.
 
 ## How-to: create a composed component
 
@@ -131,7 +131,7 @@ export const StatusBadge = ({
 ```
 
 Domain code maps its states to a tone: `apps/web/features/users/role-badge.tsx` (`RoleBadge`) maps
-`admin → danger`, `hr_manager → info`, `dept_head → warning`, `member → neutral`. An outbox status
+`admin → danger`, `member → neutral`. An outbox status
 badge would do the same with `PENDING → warning`, `SENT → success`, `FAILED → danger`.
 
 ## How-to: change the theme

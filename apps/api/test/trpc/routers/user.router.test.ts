@@ -65,8 +65,8 @@ describe("user router", () => {
     const page = await caller.user.list({ page: 1, perPage: 100 });
     expect(page.items.map((u) => u.id)).toContain(member.user.id);
 
-    const changed = await caller.user.changeRole({ userId: member.user.id, role: "dept_head" });
-    expect(changed.role).toBe("dept_head");
+    const changed = await caller.user.changeRole({ userId: member.user.id, role: "admin" });
+    expect(changed.role).toBe("admin");
 
     await expect(caller.user.deactivate({ userId: admin.user.id })).rejects.toMatchObject({
       code: "CONFLICT",

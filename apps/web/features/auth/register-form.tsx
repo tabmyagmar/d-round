@@ -37,8 +37,6 @@ export const RegisterForm = () => {
       name: values.name,
       email: values.email,
       password: values.password,
-      ...(values.employeeCode ? { employeeCode: values.employeeCode } : {}),
-      ...(values.department ? { department: values.department } : {}),
       // Better Auth redirects here after the verification link is clicked.
       callbackURL: `${window.location.origin}/dashboard`,
     });
@@ -78,18 +76,6 @@ export const RegisterForm = () => {
               label="Password"
               autoComplete="new-password"
               description="At least 8 characters."
-            />
-            <TextField
-              control={form.control}
-              name="employeeCode"
-              label="Employee code (optional)"
-              emptyAs="undefined"
-            />
-            <TextField
-              control={form.control}
-              name="department"
-              label="Department (optional)"
-              emptyAs="undefined"
             />
           </FieldGroup>
         </CardContent>

@@ -14,8 +14,6 @@ export const ac = createAccessControl(statement);
 
 export const roles = {
   admin: ac.newRole({ ...adminAc.statements }),
-  hr_manager: ac.newRole({ user: ["list"], session: [] }),
-  dept_head: ac.newRole({ user: ["list"], session: [] }),
   member: ac.newRole({ ...userAc.statements }),
 } satisfies Record<Role, unknown>;
 

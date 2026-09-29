@@ -19,13 +19,11 @@ export type SubjectName = (typeof SUBJECT_NAMES)[number] | "all";
 export type AbilityUser = {
   id: string;
   role: Role;
-  department: string | null;
 };
 
 /** Attribute conditions used by the rules — equality only (mongo- and prisma-compatible). */
 export type UserConditions = {
   id?: string;
-  department?: string;
 };
 
 export type CanFn = (
@@ -39,17 +37,6 @@ export const defineRules = (can: CanFn, user: AbilityUser): void => {
     case "admin":
       can("manage", "all");
       return;
-    case "hr_manager":
-      can("read", "User");
-      if (user.department) {
-        can("update", "User", { department: user.department });
-      }
-      break;
-    case "dept_head":
-      if (user.department) {
-        can("read", "User", { department: user.department });
-      }
-      break;
     case "member":
       break;
   }

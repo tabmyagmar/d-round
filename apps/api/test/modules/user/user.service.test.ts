@@ -15,11 +15,11 @@ afterAll(async () => {
   await h.stop();
 });
 
-const dept = () => `dept-${crypto.randomUUID().slice(0, 8)}`;
+const tag = () => `tag-${crypto.randomUUID().slice(0, 8)}`;
 
 describe("getById", () => {
   it("lets everyone read themselves and admins read anyone", async () => {
-    const member = await signedInUser(h, { department: dept() });
+    const member = await signedInUser(h);
     const admin = await signedInUser(h, { role: "admin" });
 
     expect(
@@ -30,22 +30,13 @@ describe("getById", () => {
     );
   });
 
-  it("scopes reads by department for dept_head and forbids members from reading others", async () => {
-    const department = dept();
-    const head = await signedInUser(h, { role: "dept_head", department });
-    const colleague = await signedInUser(h, { department });
-    const outsider = await signedInUser(h, { department: dept() });
+  it("forbids members from reading other users", async () => {
+    const member = await signedInUser(h);
+    const other = await signedInUser(h);
 
-    const headCtx = await contextFor(h, head.headers);
-    expect((await userService.getById(headCtx, colleague.user.id)).id).toBe(colleague.user.id);
-    await expect(userService.getById(headCtx, outsider.user.id)).rejects.toBeInstanceOf(
-      ForbiddenError,
-    );
-
-    const memberCtx = await contextFor(h, colleague.headers);
-    await expect(userService.getById(memberCtx, head.user.id)).rejects.toBeInstanceOf(
-      ForbiddenError,
-    );
+    await expect(
+      userService.getById(await contextFor(h, member.headers), other.user.id),
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it("treats deactivated users as not found", async () => {
@@ -61,16 +52,16 @@ describe("getById", () => {
 
 describe("list", () => {
   it("returns only what the ability allows and filters by search/role", async () => {
-    const department = dept();
-    const hr = await signedInUser(h, { role: "hr_manager", department, name: "Hr Person" });
-    const member = await signedInUser(h, { department, name: `Zed ${department}` });
+    const marker = tag();
+    const admin = await signedInUser(h, { role: "admin", name: "Admin Person" });
+    const member = await signedInUser(h, { name: `Zed ${marker}` });
 
-    const asHr = await userService.list(await contextFor(h, hr.headers), {
+    const asAdmin = await userService.list(await contextFor(h, admin.headers), {
       page: 1,
       perPage: 50,
-      search: department,
+      search: marker,
     });
-    expect(asHr.items.map((u) => u.id)).toContain(member.user.id);
+    expect(asAdmin.items.map((u) => u.id)).toEqual([member.user.id]);
 
     const asMember = await userService.list(await contextFor(h, member.headers), {
       page: 1,
@@ -79,7 +70,7 @@ describe("list", () => {
     expect(asMember.total).toBe(1);
     expect(asMember.items[0]?.id).toBe(member.user.id);
 
-    const onlyAdmins = await userService.list(await contextFor(h, hr.headers), {
+    const onlyAdmins = await userService.list(await contextFor(h, admin.headers), {
       page: 1,
       perPage: 5,
       role: "admin",
@@ -89,47 +80,32 @@ describe("list", () => {
 });
 
 describe("updateProfile", () => {
-  it("lets users edit themselves and hr_manager edit their own department only", async () => {
-    const department = dept();
-    const hr = await signedInUser(h, { role: "hr_manager", department });
-    const colleague = await signedInUser(h, { department });
-    const outsider = await signedInUser(h, { department: dept() });
+  it("lets users edit themselves and admins edit anyone", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const member = await signedInUser(h);
 
-    const self = await userService.updateProfile(await contextFor(h, colleague.headers), {
+    const self = await userService.updateProfile(await contextFor(h, member.headers), {
       name: "Renamed Self",
     });
     expect(self.name).toBe("Renamed Self");
 
-    const byHr = await userService.updateProfile(await contextFor(h, hr.headers), {
-      userId: colleague.user.id,
-      employeeCode: `EMP-${crypto.randomUUID().slice(0, 8)}`,
+    const byAdmin = await userService.updateProfile(await contextFor(h, admin.headers), {
+      userId: member.user.id,
+      name: "Renamed By Admin",
     });
-    expect(byHr.employeeCode).toMatch(/^EMP-/);
-
-    await expect(
-      userService.updateProfile(await contextFor(h, hr.headers), {
-        userId: outsider.user.id,
-        name: "Nope",
-      }),
-    ).rejects.toBeInstanceOf(ForbiddenError);
-
-    await expect(
-      userService.updateProfile(await contextFor(h, colleague.headers), {
-        userId: hr.user.id,
-        name: "Nope",
-      }),
-    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(byAdmin.name).toBe("Renamed By Admin");
   });
 
-  it("reports a duplicate employee code as a conflict", async () => {
-    const code = `EMP-${crypto.randomUUID().slice(0, 8)}`;
-    const first = await signedInUser(h);
-    const second = await signedInUser(h);
-    await userService.updateProfile(await contextFor(h, first.headers), { employeeCode: code });
+  it("forbids members from editing other users", async () => {
+    const member = await signedInUser(h);
+    const other = await signedInUser(h);
 
     await expect(
-      userService.updateProfile(await contextFor(h, second.headers), { employeeCode: code }),
-    ).rejects.toBeInstanceOf(ConflictError);
+      userService.updateProfile(await contextFor(h, member.headers), {
+        userId: other.user.id,
+        name: "Nope",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 });
 
@@ -148,9 +124,14 @@ describe("changeRole", () => {
 
     const promoted = await userService.changeRole(adminCtx, {
       userId: member.user.id,
-      role: "hr_manager",
+      role: "admin",
     });
-    expect(promoted.role).toBe("hr_manager");
+    expect(promoted.role).toBe("admin");
+    const demoted = await userService.changeRole(adminCtx, {
+      userId: member.user.id,
+      role: "member",
+    });
+    expect(demoted.role).toBe("member");
 
     // Make `admin` the only active admin, then try to demote them.
     const otherAdmins = await h.db.user.findMany({

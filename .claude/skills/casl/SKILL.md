@@ -21,8 +21,8 @@ Everything that depends on the current state of a row stays in services. Rules:
 | `src/react.tsx` (`@repo/permissions/react`)  | `AbilityProvider`, `Can`, `useAbility`                                                                                              |
 | `test/ability.test.ts`                       | the matrix spec                                                                                                                     |
 
-The rules are written once and built twice; conditions are plain equalities on `id` and
-`department` so the mongo and the Prisma engine agree.
+The rules are written once and built twice; conditions are plain equalities on subject attributes
+(today only `id`) so the mongo and the Prisma engine agree.
 
 ```ts
 // src/rules.ts
@@ -31,17 +31,6 @@ export const defineRules = (can: CanFn, user: AbilityUser): void => {
     case "admin":
       can("manage", "all");
       return;
-    case "hr_manager":
-      can("read", "User");
-      if (user.department) {
-        can("update", "User", { department: user.department });
-      }
-      break;
-    case "dept_head":
-      if (user.department) {
-        can("read", "User", { department: user.department });
-      }
-      break;
     case "member":
       break;
   }
@@ -70,10 +59,11 @@ export const accessibleUsersWhere = (
 ## How-to: write a rule
 
 1. Add the row to the `allowed` table in `test/ability.test.ts` first (role × action → relations
-   `self | same-dept | other-dept`). The test is the spec; the failing row documents the change.
+   `self | other`). The test is the spec; the failing row documents the change. A scoped role
+   (e.g. a team lead reading their own team) adds a relation such as `same-team` to the table.
 2. Add the `can(...)` line in `defineRules`. Prefer whitelist rules; use `cannot` only to carve an
    exception out of a broad `can`. A new condition key goes into `UserConditions`.
-3. Keep conditions to attributes CASL can evaluate on the subject object (`id`, `department`). If
+3. Keep conditions to attributes CASL can evaluate on the subject object (`id`, `teamId`, ...). If
    you need to load something to decide, it is a service rule, not a CASL rule.
 4. ADR line in `docs/adr/0003-permissions.md`.
 
@@ -133,8 +123,6 @@ The service composes the `where`; the repository receives it as a Prisma type an
 ```ts
 const allowed: Record<Role, Partial<Record<Action, Relation[]>>> = {
   admin: { manage: ALL, create: ALL, read: ALL, update: ALL, delete: ALL, changeRole: ALL },
-  hr_manager: { read: ALL, update: ["self", "same-dept"] },
-  dept_head: { read: ["self", "same-dept"], update: ["self"] },
   member: { read: ["self"], update: ["self"] },
 };
 

@@ -16,8 +16,8 @@ writing any config — do not guess option names.** Decision record: `docs/adr/0
 - `packages/auth/src/server.ts` — `createAuth(options)` wraps `betterAuth({...})`: `prismaAdapter`
   (`provider: "postgresql"`), `basePath: "/api/auth"`, `emailAndPassword` with
   `requireEmailVerification`, `emailVerification` (`sendOnSignUp`, `autoSignInAfterVerification`,
-  1 h expiry), `session` 7 d / `updateAge` 1 d, `user.additionalFields` `employeeCode` and
-  `department`, `advanced.database.generateId: false` (Postgres makes UUID v7), optional
+  1 h expiry), `session` 7 d / `updateAge` 1 d, `advanced.database.generateId: false` (Postgres
+  makes UUID v7), optional
   `crossSubDomainCookies`, and the admin plugin.
 - `packages/auth/src/access-control.ts` — `createAccessControl(defaultStatements)` and the four
   roles for the admin plugin's own endpoints; `ADMIN_ROLES = ["admin"]`.
@@ -60,7 +60,7 @@ const user = session ? toAuthUser(session.user) : null;
 ```
 
 Call it once per request in `buildRequestContext`; services receive `ctx.user` (`AuthUser`: `id`,
-`email`, `name`, `role`, `department`, `employeeCode`, `emailVerified`) and never call Better Auth
+`email`, `name`, `role`, `emailVerified`) and never call Better Auth
 for identity. `toAuthUser` parses `role` with `roleSchema` and falls back to `DEFAULT_ROLE` for
 unknown strings.
 
@@ -117,7 +117,8 @@ returns `Set-Cookie` and `getSession` resolves it.
 
 ## Admin plugin and roles
 
-Roles `admin | hr_manager | dept_head | member` live on `users.role` (a string, default `member`).
+Roles `admin | member` live on `users.role` (a string, default `member`). Extra profile fields
+go through `user.additionalFields` in `createAuth` plus a schema migration (`.claude/rules/migrations.md`).
 The admin plugin's access control (`ac`, `roles`, `adminRoles`) gates only the plugin's own
 endpoints (set role, ban, revoke sessions); application authorization is CASL
 (`.claude/rules/permissions.md`). Changing a user's role in the app goes through

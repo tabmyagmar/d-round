@@ -36,16 +36,15 @@ describe("buildRequestContext", () => {
     expect(ctx.ability.can("read", "User")).toBe(false);
   });
 
-  it("resolves the session into a typed user with role and department", async () => {
-    const signedIn = await signedInUser(h, { role: "hr_manager", department: "Finance" });
+  it("resolves the session into a typed user with its role", async () => {
+    const signedIn = await signedInUser(h, { role: "member" });
 
     const ctx = await contextFor(h, signedIn.headers);
 
     expect(ctx.user).toMatchObject({
       id: signedIn.user.id,
       email: signedIn.email,
-      role: "hr_manager",
-      department: "Finance",
+      role: "member",
       emailVerified: true,
     });
     expect(ctx.ability.can("read", "User")).toBe(true);

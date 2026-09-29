@@ -16,8 +16,6 @@ export type AuthUser = {
   email: string;
   name: string;
   role: Role;
-  department: string | null;
-  employeeCode: string | null;
   emailVerified: boolean;
 };
 
@@ -57,8 +55,6 @@ export const toAuthUser = (user: SessionUser): AuthUser => {
     email: user.email,
     name: user.name,
     role: role.success ? role.data : DEFAULT_ROLE,
-    department: user.department ?? null,
-    employeeCode: user.employeeCode ?? null,
     emailVerified: user.emailVerified,
   };
 };

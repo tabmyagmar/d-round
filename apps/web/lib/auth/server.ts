@@ -35,7 +35,6 @@ export type CurrentUser = {
   name: string;
   email: string;
   role: Role;
-  department: string | null;
 };
 
 export const toCurrentUser = (session: Session): CurrentUser => {
@@ -45,6 +44,5 @@ export const toCurrentUser = (session: Session): CurrentUser => {
     name: session.user.name,
     email: session.user.email,
     role: role.success ? role.data : DEFAULT_ROLE,
-    department: session.user.department ?? null,
   };
 };

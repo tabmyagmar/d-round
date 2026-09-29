@@ -4,15 +4,11 @@ import type { Role } from "@repo/validation";
 
 export const ROLE_LABELS: Record<Role, string> = {
   admin: "Admin",
-  hr_manager: "HR manager",
-  dept_head: "Department head",
   member: "Member",
 };
 
 const ROLE_TONES: Record<Role, StatusTone> = {
   admin: "danger",
-  hr_manager: "info",
-  dept_head: "warning",
   member: "neutral",
 };
 

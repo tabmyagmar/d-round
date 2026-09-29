@@ -7,7 +7,6 @@ import type { AbilityUser, Action, SubjectName } from "./rules";
 /** Shape a User record must have for attribute conditions to be evaluated. */
 export type UserSubject = {
   id: string;
-  department: string | null;
 };
 
 export type AppSubjects = SubjectName | (UserSubject & ForcedSubject<"User">);

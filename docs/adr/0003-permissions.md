@@ -15,9 +15,9 @@ them produces rules nobody can test.
   `definePrismaAbilityFor` (`@casl/prisma/runtime`, API; `accessibleUsersWhere` turns the
   rules into a Prisma `where` for list endpoints). Actions
   `manage | create | read | update | delete | changeRole`, subject `User` (`all` for admins).
-  Conditions are plain equalities (`id`, `department`) so both engines agree. Rules: admin manages
-  all; hr_manager reads all users and updates users in the own department; dept_head reads the own
-  department; everyone reads/updates self.
+  Conditions are plain equalities (`id`) so both engines agree. Rules: admin manages all;
+  everyone reads/updates self. Scoped roles are added as one `case` with an equality condition on
+  a subject attribute plus a matrix row.
 - **Layer 2 — services** (`apps/api/src/modules`): row-level and stateful checks ("cannot demote
   the last admin", workflow state) throw `ForbiddenError` / `ConflictError`. Workflow state is
   never encoded into CASL.

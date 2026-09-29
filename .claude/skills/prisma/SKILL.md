@@ -51,19 +51,17 @@ file of the model that owns them): `system/health-check.prisma`,
 
 Existing models (`20260909113011_phase1_auth_outbox`): `User`, `Session`, `Account`,
 `Verification` (Better Auth — field names fixed, tables/columns mapped to snake_case, plus our
-`employeeCode`, `department`, `deletedAt`) and `OutboxEmail` with enum `OutboxStatus`
+`deletedAt`) and `OutboxEmail` with enum `OutboxStatus`
 (`PENDING | SENT | FAILED`). Regenerating the Better Auth models: `.claude/rules/migrations.md`
 (diff the CLI output against the files under `prisma/schema/auth/`).
 
 ## How-to: seed test accounts
 
 `yarn db:seed` runs `packages/database/prisma/seed.ts` (`prisma db seed` → `tsx prisma/seed.ts`).
-It upserts five verified accounts by email, so it is idempotent and safe to re-run; the password
-for all of them is `A123456`, hashed with `hashPassword` from `better-auth/crypto` and stored in a
+It upserts two verified accounts by email, so it is idempotent and safe to re-run; the password
+for both is `A12345678`, hashed with `hashPassword` from `better-auth/crypto` and stored in a
 credential `Account` row so the normal `/api/auth/sign-in/email` flow accepts it:
-`admin@test.com` (admin, HR, `EMP-0001`), `hr@test.com` (hr_manager, HR, `EMP-0002`),
-`head@test.com` (dept_head, Engineering, `EMP-0003`), `member@test.com` (member, Engineering,
-`EMP-0004`), `guest@test.com` (member, no department). Add new fixtures to the `SEED_USERS` array
+`admin@test.com` (admin) and `member@test.com` (member). Add new fixtures to the `SEED_USERS` array
 as upserts — never as plain `create` — and never point the seed at production data.
 
 ## How-to: write a repository
@@ -118,7 +116,7 @@ Only in a repository, only as a tagged template:
 
 ```ts
 const rows = await db.$queryRaw<{ id: string }[]>`
-  SELECT id FROM users WHERE department = ${department} AND deleted_at IS NULL
+  SELECT id FROM users WHERE role = ${role} AND deleted_at IS NULL
 `;
 ```
 

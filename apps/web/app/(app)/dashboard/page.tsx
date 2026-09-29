@@ -23,10 +23,7 @@ const DashboardPage = async () => {
     <>
       <header className="flex flex-col gap-1">
         <h1 className="font-heading text-2xl font-semibold tracking-tight">Hello, {user.name}</h1>
-        <p className="text-sm text-muted-foreground">
-          Signed in as {user.email}
-          {user.department ? ` · ${user.department}` : ""}
-        </p>
+        <p className="text-sm text-muted-foreground">Signed in as {user.email}</p>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">

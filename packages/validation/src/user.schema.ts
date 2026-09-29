@@ -3,7 +3,7 @@ import { z } from "zod";
 import { idSchema, paginationSchema } from "./common.schema";
 
 /** Single-tenant role set. Better Auth stores it as a string; this enum is the allowed set. */
-export const ROLES = ["admin", "hr_manager", "dept_head", "member"] as const;
+export const ROLES = ["admin", "member"] as const;
 export const roleSchema = z.enum(ROLES);
 export type Role = z.infer<typeof roleSchema>;
 export const DEFAULT_ROLE: Role = "member";
@@ -11,16 +11,12 @@ export const DEFAULT_ROLE: Role = "member";
 export const emailSchema = z.email().max(255);
 export const passwordSchema = z.string().min(8).max(128);
 export const nameSchema = z.string().trim().min(1).max(100);
-export const employeeCodeSchema = z.string().trim().min(1).max(50);
-export const departmentSchema = z.string().trim().min(1).max(100);
 
 /** Shared by the register form and the API. */
 export const signUpSchema = z.object({
   name: nameSchema,
   email: emailSchema,
   password: passwordSchema,
-  employeeCode: employeeCodeSchema.optional(),
-  department: departmentSchema.optional(),
 });
 export type SignUpInput = z.infer<typeof signUpSchema>;
 
@@ -36,8 +32,6 @@ export const userIdSchema = z.object({ userId: idSchema });
 export const updateProfileSchema = z.object({
   userId: idSchema.optional(),
   name: nameSchema.optional(),
-  employeeCode: employeeCodeSchema.nullable().optional(),
-  department: departmentSchema.nullable().optional(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 

@@ -65,12 +65,6 @@ export const createAuth = (options: CreateAuthOptions) =>
       expiresIn: 7 * DAY_SECONDS,
       updateAge: DAY_SECONDS,
     },
-    user: {
-      additionalFields: {
-        employeeCode: { type: "string", required: false, input: true },
-        department: { type: "string", required: false, input: true },
-      },
-    },
     advanced: {
       database: {
         // Postgres generates UUID v7 ids (prisma schema `@default(uuid(7))`).

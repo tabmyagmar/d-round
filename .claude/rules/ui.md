@@ -23,7 +23,7 @@ paths:
 the workspace root and are imported through the `@/` alias (`@/features/users/role-badge`). The web
 app is feature-based: everything with domain knowledge lives in `features/<feature>/`
 (`auth`: `login-form`, `register-form`, `resend-verification`; `users`: `users-table`,
-`user-editor`, `profile-form`, `profile-editor`, `role-badge`, `user-picker-field`). Route files
+`user-editor`, `profile-form`, `profile-editor`, `role-badge`). Route files
 under `app/` are thin: they import only from `@/features/<feature>/...` and `@/lib/...` and render
 one feature component.
 
@@ -86,8 +86,6 @@ code maps its states to a tone instead of picking colours:
 // apps/web/features/users/role-badge.tsx
 const ROLE_TONES: Record<Role, StatusTone> = {
   admin: "danger",
-  hr_manager: "info",
-  dept_head: "warning",
   member: "neutral",
 };
 
@@ -169,12 +167,11 @@ renders label, control, description and error itself:
 // apps/web/features/users/profile-form.tsx
 const form = useForm<UpdateProfileInput>({
   resolver: zodResolver(updateProfileSchema),
-  defaultValues: { name: initial.name, employeeCode: initial.employeeCode },
+  defaultValues: { name: initial.name },
 });
 
 <FieldGroup>
   <TextField control={form.control} name="name" label="Full name" required />
-  <TextField control={form.control} name="employeeCode" label="Employee code" emptyAs="null" />
 </FieldGroup>;
 ```
 
@@ -210,11 +207,10 @@ wraps the whole app in. Shared types: `SelectOption` (`{ value, label, disabled?
 | `ReadOnlyField`      | — (display only)                                                   | renders the value in an `<output>`; `format(value)`, `emptyText`                                                                                                                                                                                 |
 | `ArrayField`         | `object[]`                                                         | `useFieldArray` wrapper: `renderRow({ index, id, isFirst, isLast, remove })`, `newItem()`, `min`, `max`, `addLabel`, `sortable` (up/down buttons), `emptyMessage`; array-level (`root`) errors render below the rows                             |
 
-Domain pickers live in the web app, not in `packages/ui`: `UserPickerField`
-(`apps/web/features/users/user-picker-field.tsx`) is a `ComboboxField` backed by `trpc.user.list`
-(debounced 250 ms, first 20 matches) plus `user.byId` to label the current value when it is not
-among the results; it stores the user id. Follow it for future pickers (department, once a
-`Department` model exists).
+Domain pickers live in the web app, not in `packages/ui`: a `UserPickerField` in
+`apps/web/features/users/` would be a `ComboboxField` backed by `trpc.user.list` (debounced
+search, first 20 matches) plus `user.byId` to label the current value when it is not among the
+results, storing the user id. Build pickers this way, in the feature that owns the data.
 
 ### Which field for which zod shape
 
@@ -229,7 +225,7 @@ among the results; it stores the user id. Follow it for future pickers (departme
 | `z.iso.datetime()`                     | `DateTimeField`                                                                              |
 | `z.array(<file value schema>)`         | `FileField` — a zod object matching `FileFieldValue` (`name`, `size`, `type`, `id?`, `url?`) |
 | `z.array(z.object({...}))`             | `ArrayField`                                                                                 |
-| an id (`z.string()` pointing at a row) | `UserPickerField` and future domain pickers                                                  |
+| an id (`z.string()` pointing at a row) | a domain picker built on `ComboboxField` (see above)                                         |
 
 Phase 2 form-template field types map 1:1 onto these components through a renderer registry, so a
 new template field type starts as a new component here.

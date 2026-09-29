@@ -32,8 +32,6 @@ const member: AuthUser = {
   email: "a@b.c",
   name: "A",
   role: "member",
-  department: null,
-  employeeCode: null,
   emailVerified: true,
 };
 

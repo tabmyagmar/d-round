@@ -79,7 +79,7 @@ export const UserEditor = ({ userId }: { userId: string }) => {
     );
   }
 
-  const subject = userSubject({ id: user.data.id, department: user.data.department });
+  const subject = userSubject({ id: user.data.id });
   const canEdit = ability.can("update", subject);
 
   return (
@@ -105,11 +105,7 @@ export const UserEditor = ({ userId }: { userId: string }) => {
               key={user.data.updatedAt.toISOString()}
               userId={user.data.id}
               disabled={!canEdit}
-              initial={{
-                name: user.data.name,
-                employeeCode: user.data.employeeCode,
-                department: user.data.department,
-              }}
+              initial={{ name: user.data.name }}
             />
           </CardContent>
         </Card>

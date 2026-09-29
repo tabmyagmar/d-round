@@ -1,12 +1,9 @@
 // Development seed — `yarn db:seed` (prisma db seed → tsx prisma/seed.ts). Idempotent: users are
 // upserted by email, so running it again only refreshes them.
 //
-// Test accounts (all verified, password `A123456`):
-//   admin@test.com   admin        HR
-//   hr@test.com      hr_manager   HR
-//   head@test.com    dept_head    Engineering
-//   member@test.com  member       Engineering
-//   guest@test.com   member       (no department)
+// Test accounts (all verified, password `A12345678`):
+//   admin@test.com   admin
+//   member@test.com  member
 //
 // Passwords are hashed with Better Auth's own scrypt implementation so the accounts sign in
 // through the normal /api/auth/sign-in/email flow. Never run this against production data.
@@ -15,44 +12,11 @@ import { hashPassword } from "better-auth/crypto";
 import { createPrismaClient } from "../src/client";
 import type { PrismaClient } from "../src/client";
 
-export const SEED_PASSWORD = "A123456";
+export const SEED_PASSWORD = "A12345678";
 
 export const SEED_USERS = [
-  {
-    email: "admin@test.com",
-    name: "Admin Test",
-    role: "admin",
-    department: "HR",
-    employeeCode: "EMP-0001",
-  },
-  {
-    email: "hr@test.com",
-    name: "HR Manager Test",
-    role: "hr_manager",
-    department: "HR",
-    employeeCode: "EMP-0002",
-  },
-  {
-    email: "head@test.com",
-    name: "Department Head Test",
-    role: "dept_head",
-    department: "Engineering",
-    employeeCode: "EMP-0003",
-  },
-  {
-    email: "member@test.com",
-    name: "Member Test",
-    role: "member",
-    department: "Engineering",
-    employeeCode: "EMP-0004",
-  },
-  {
-    email: "guest@test.com",
-    name: "Guest Test",
-    role: "member",
-    department: null,
-    employeeCode: null,
-  },
+  { email: "admin@test.com", name: "Admin Test", role: "admin" },
+  { email: "member@test.com", name: "Member Test", role: "member" },
 ] as const;
 
 const CREDENTIAL_PROVIDER = "credential";
@@ -66,8 +30,6 @@ export const seedUsers = async (prisma: PrismaClient): Promise<void> => {
       update: {
         name: seed.name,
         role: seed.role,
-        department: seed.department,
-        employeeCode: seed.employeeCode,
         emailVerified: true,
         banned: false,
         banReason: null,
@@ -77,8 +39,6 @@ export const seedUsers = async (prisma: PrismaClient): Promise<void> => {
         email: seed.email,
         name: seed.name,
         role: seed.role,
-        department: seed.department,
-        employeeCode: seed.employeeCode,
         emailVerified: true,
       },
     });

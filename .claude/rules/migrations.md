@@ -20,17 +20,14 @@ paths:
     (Better Auth), `email/outbox-email.prisma` (`enum OutboxStatus` + `OutboxEmail`).
   - Prisma merges every `.prisma` file in the folder; relations may point at models in other
     files. A new module gets a new folder.
-- `yarn db:seed` runs `prisma/seed.ts`: an idempotent upsert (by email) of five verified test
-  accounts, all with password `A123456`, hashed with `hashPassword` from `better-auth/crypto` into
-  a credential `Account` row so the normal sign-in flow works:
+- `yarn db:seed` runs `prisma/seed.ts`: an idempotent upsert (by email) of two verified test
+  accounts, both with password `A12345678`, hashed with `hashPassword` from `better-auth/crypto`
+  into a credential `Account` row so the normal sign-in flow works:
 
-  | Email             | Role         | Department  | Employee code |
-  | ----------------- | ------------ | ----------- | ------------- |
-  | `admin@test.com`  | `admin`      | HR          | `EMP-0001`    |
-  | `hr@test.com`     | `hr_manager` | HR          | `EMP-0002`    |
-  | `head@test.com`   | `dept_head`  | Engineering | `EMP-0003`    |
-  | `member@test.com` | `member`     | Engineering | `EMP-0004`    |
-  | `guest@test.com`  | `member`     | —           | —             |
+  | Email             | Role     |
+  | ----------------- | -------- |
+  | `admin@test.com`  | `admin`  |
+  | `member@test.com` | `member` |
 
   Never run it against production data.
 
@@ -77,7 +74,7 @@ Both are applied; never edit them.
 `User`, `Session`, `Account`, `Verification` are Better Auth's models. **Field names must stay
 exactly as Better Auth expects** (`emailVerified`, `banExpires`, `impersonatedBy`, `providerId`,
 ...); only table and column names are mapped (`@@map("users")`, `@map("email_verified")`). Our own
-fields (`employeeCode`, `department`, `deletedAt`) and the UUID v7 ids (Better Auth runs with
+fields (`deletedAt`) and the UUID v7 ids (Better Auth runs with
 `generateId: false`) are merged in by hand.
 
 When the Better Auth config changes (new plugin, new additional field) or Better Auth is upgraded,
@@ -99,7 +96,7 @@ only the field-level changes, keeping the mappings. The CLI package is `auth` (m
 2. Edit or add the model file under `prisma/schema/<module>/<model-kebab>.prisma` following the
    conventions above (a new module gets a new folder).
 3. `yarn docker:up`, then `yarn db:migrate:dev --name <verb>_<what>` (for example
-   `add_user_department`). Read the generated SQL in
+   `add_user_avatar`). Read the generated SQL in
    `prisma/migrations/<timestamp>_<name>/migration.sql` before committing it.
 4. `prisma generate` runs as part of `migrate dev`; update repositories, services and tests; run
    `yarn workspace @repo/database test` (testcontainers apply the new migration) and `yarn verify`.

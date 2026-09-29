@@ -28,14 +28,7 @@ export const ProfileEditor = () => {
   return (
     <Card className="max-w-xl">
       <CardContent>
-        <ProfileForm
-          key={me.data.updatedAt.toISOString()}
-          initial={{
-            name: me.data.name,
-            employeeCode: me.data.employeeCode,
-            department: me.data.department,
-          }}
-        />
+        <ProfileForm key={me.data.updatedAt.toISOString()} initial={{ name: me.data.name }} />
       </CardContent>
     </Card>
   );

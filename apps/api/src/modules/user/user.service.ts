@@ -56,7 +56,6 @@ export const list = async (
       OR: [
         { name: { contains: query.search, mode: "insensitive" } },
         { email: { contains: query.search, mode: "insensitive" } },
-        { employeeCode: { contains: query.search, mode: "insensitive" } },
       ],
     });
   }
@@ -76,10 +75,10 @@ export const updateProfile = async (
 
   const data = {
     ...(input.name !== undefined ? { name: input.name } : {}),
-    ...(input.employeeCode !== undefined ? { employeeCode: input.employeeCode } : {}),
-    ...(input.department !== undefined ? { department: input.department } : {}),
   };
 
+  // Unique violations become ConflictError here, never in the repository or the router. The
+  // profile fields above carry no unique constraint today; keep the translation when you add one.
   try {
     return await createUserRepository(ctx.db).updateProfile(target.id, data);
   } catch (error) {

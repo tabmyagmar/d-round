@@ -6,8 +6,6 @@ import type { DbClient } from "../utils/transaction";
 /** Editable profile fields. Role and soft-delete have dedicated methods. */
 export type UserProfileUpdate = {
   name?: string;
-  employeeCode?: string | null;
-  department?: string | null;
 };
 
 /**

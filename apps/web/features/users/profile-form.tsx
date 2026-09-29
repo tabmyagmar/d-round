@@ -16,11 +16,11 @@ import { useTRPC } from "@/lib/trpc/react";
 export type ProfileFormProps = {
   /** The user being edited; omit to edit yourself. */
   userId?: string;
-  initial: { name: string; employeeCode: string | null; department: string | null };
+  initial: { name: string };
   disabled?: boolean;
 };
 
-/** Shared by /profile (self) and /users/[id] (admins, HR). Same zod schema as the API. */
+/** Shared by /profile (self) and /users/[id] (admins). Same zod schema as the API. */
 export const ProfileForm = ({ userId, initial, disabled = false }: ProfileFormProps) => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -29,8 +29,6 @@ export const ProfileForm = ({ userId, initial, disabled = false }: ProfileFormPr
     defaultValues: {
       ...(userId ? { userId } : {}),
       name: initial.name,
-      employeeCode: initial.employeeCode,
-      department: initial.department,
     },
   });
 
@@ -41,8 +39,6 @@ export const ProfileForm = ({ userId, initial, disabled = false }: ProfileFormPr
         form.reset({
           ...(userId ? { userId } : {}),
           name: user.name,
-          employeeCode: user.employeeCode,
-          department: user.department,
         });
         await queryClient.invalidateQueries(trpc.user.pathFilter());
       },
@@ -62,20 +58,6 @@ export const ProfileForm = ({ userId, initial, disabled = false }: ProfileFormPr
     >
       <FieldGroup>
         <TextField control={form.control} name="name" label="Full name" disabled={disabled} />
-        <TextField
-          control={form.control}
-          name="employeeCode"
-          label="Employee code"
-          disabled={disabled}
-          emptyAs="null"
-        />
-        <TextField
-          control={form.control}
-          name="department"
-          label="Department"
-          disabled={disabled}
-          emptyAs="null"
-        />
       </FieldGroup>
       {disabled ? null : (
         <div>
