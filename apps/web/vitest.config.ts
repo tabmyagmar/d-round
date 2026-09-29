@@ -10,7 +10,8 @@ import { defineProject } from "vitest/config";
 export default defineProject({
   // Same alias as tsconfig.json ("@/*" → workspace root).
   resolve: { alias: { "@": fileURLToPath(new URL(".", import.meta.url)) } },
-  esbuild: { jsx: "automatic" },
+  // Vite 8 transforms with oxc and reads tsconfig `jsx`; Next.js sets "preserve", so be explicit.
+  oxc: { jsx: { runtime: "automatic" } },
   test: {
     name: "@repo/web",
     environment: "node",

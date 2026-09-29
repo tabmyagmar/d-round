@@ -10,13 +10,28 @@ paths:
 ## Runner
 
 - Vitest 5. Each workspace has a `vitest.config.ts` (`defineProject`, `name: "@repo/<pkg>"`,
-  `include: ["test/**/*.test.ts"]`) and a `test` script `vitest run`; its `tsconfig.json`
-  includes `test/**/*.ts` so tests are type-checked with the code;
+  `include: ["test/**/*.test.ts"]`, or `*.test.{ts,tsx}` where components are tested) and a
+  `test` script `vitest run`; its `tsconfig.json` includes `test/**/*.ts` (and `.tsx`) so tests
+  are type-checked with the code;
   `yarn test` runs them through Turborepo (`test` depends on `^build` and `^db:generate`).
 - The root `vitest.config.ts` lists `packages/*/vitest.config.ts` and `apps/*/vitest.config.ts`
   as projects, so `yarn vitest run` from the root (and IDE integration) runs everything at once.
 - One workspace: `yarn workspace @repo/api test`. One file:
   `yarn workspace @repo/api vitest run test/core/context.test.ts`.
+
+## Web and UI components
+
+`apps/web` and `packages/ui` test in jsdom with Testing Library (`@testing-library/react`),
+never against Postgres or Redis — API behaviour is tested in `apps/api`. `packages/ui` runs every
+test in jsdom; `apps/web` defaults to node (pure modules such as `lib/env.ts`) and a component
+test opts in with a `// @vitest-environment jsdom` first line. Render the component with the
+smallest host it needs (a `useForm` harness for a field, no tRPC or session providers), assert
+through roles, labels and text (`screen.getByLabelText`, `getByText`), and call `cleanup` in
+`afterEach` (no `globals`, so Testing Library does not clean up by itself). Both configs set the
+JSX runtime through `oxc` (Next's tsconfig says `jsx: "preserve"`) and mirror the tsconfig path
+alias (`@/` in web, `@repo/ui/*` in ui). Examples:
+`apps/web/test/features/users/role-badge.test.tsx`,
+`packages/ui/test/components/form/text-field.test.tsx`.
 
 ## Real infrastructure, not mocks
 
