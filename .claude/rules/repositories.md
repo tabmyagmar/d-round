@@ -32,7 +32,7 @@ database utilities. It is the only workspace that talks to PostgreSQL.
 
 `$queryRaw` / `$executeRaw` are allowed only in repositories, only as tagged templates (parameters
 are bound, never interpolated), never `$queryRawUnsafe` with user input. Columns Prisma cannot
-model (PostGIS geometry, Phase 7) are declared with `Unsupported("...")` in the schema and accessed
+model (e.g. PostGIS geometry) are declared with `Unsupported("...")` in the schema and accessed
 through raw queries in a repository.
 
 ## Soft delete

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { applyReplacements, parseArgs, slugify } from "./init-template.mjs";
+import { applyReplacements, isRewritable, parseArgs, slugify } from "./init-template.mjs";
 
 test("slugify turns a display name into a package/compose-safe slug", () => {
   assert.equal(slugify("My App"), "my-app");
@@ -71,4 +71,13 @@ test("applyReplacements leaves unrelated words alone", () => {
   const options = parseArgs(["--name", "Thing"]);
   const input = "const app = createApp(); // app-templates apply here; happy path";
   assert.equal(applyReplacements(input, options), input);
+});
+
+test("isRewritable skips the script itself, the audit and binaries but includes yarn.lock", () => {
+  assert.equal(isRewritable("scripts/init-template.mjs"), false);
+  assert.equal(isRewritable("scripts/init-template.test.mjs"), false);
+  assert.equal(isRewritable("TEMPLATE_AUDIT.md"), false);
+  assert.equal(isRewritable("apps/web/app/favicon.ico"), false);
+  assert.equal(isRewritable("yarn.lock"), true);
+  assert.equal(isRewritable("package.json"), true);
 });

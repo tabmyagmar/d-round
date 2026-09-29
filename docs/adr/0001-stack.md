@@ -17,7 +17,7 @@ resolved explicitly rather than silently downgraded.
 | Runtime          | Node 24 LTS (`.nvmrc`, `engines >=24 <25`)                                                                                                                                                                                    |
 | Language         | TypeScript 6.0.3 — **not** 7.0                                                                                                                                                                                                |
 | Lint and format  | ESLint 10.10 flat config, `typescript-eslint` strict, `eslint-plugin-import-x`, `@eslint-react/eslint-plugin`, `eslint-plugin-boundaries` 7 (`dependencies` rule), `eslint-plugin-unicorn`, `eslint-plugin-turbo`, Prettier 3 |
-| Database         | PostgreSQL 18 via `postgis/postgis:18-3.6`; Prisma 7.10.0 with the `prisma-client` generator, `@prisma/adapter-pg` and `prisma.config.ts`                                                                                     |
+| Database         | PostgreSQL 18 via `postgres:18-alpine` (`POSTGRES_IMAGE` swaps in PostGIS etc.); Prisma 7.10.0 with the `prisma-client` generator, `@prisma/adapter-pg` and `prisma.config.ts`                                                |
 | IDs              | UUID v7 primary keys (`@default(uuid(7)) @db.Uuid`)                                                                                                                                                                           |
 | Queue            | BullMQ 6.3 + ioredis 6.0; Redis `redis:8-alpine`                                                                                                                                                                              |
 | API              | Hono 4 + `@hono/node-server` 2 + tRPC 11 (`@trpc/tanstack-react-query` on the client)                                                                                                                                         |
@@ -42,8 +42,9 @@ reasons.
 - **Yarn PnP**: Next.js, Prisma and several ESLint plugins still assume a `node_modules` tree.
 - **Compiling workspace packages to `dist/`**: unnecessary — `tsdown` bundles the `@repo/*`
   sources into the two Node apps and Next.js transpiles them for the web app.
-- **Plain `postgres` image**: PostGIS is needed in Phase 7; starting with `postgis/postgis` costs
-  nothing now and avoids a later image swap and data migration.
+- **A PostGIS image by default**: only projects with geodata need it; the image is a variable
+  (`POSTGRES_IMAGE`, `TEST_POSTGRES_IMAGE`, `CI_POSTGRES_IMAGE`) so such a project swaps it in
+  on day one without touching the compose file.
 - **Multi-tenant with the organization plugin**: not a requirement; it would put
   `organizationId` on every table and into every CASL condition.
 
@@ -56,9 +57,6 @@ reasons.
 - BullMQ 6: ioredis is now an optional peer and is passed explicitly (RESP3 by default), the
   legacy `repeat` option is replaced by job schedulers, `UnrecoverableError` marks permanent
   failures.
-- `postgis/postgis` is amd64-only: Apple Silicon runs it under Rosetta unless
-  `POSTGRES_IMAGE=imresamu/postgis:18-3.6` and `POSTGRES_PLATFORM=linux/arm64` are set
-  (`docs/conventions.md`).
 - Exact pins make upgrades deliberate: `npm view <pkg> version`, ADR line for majors.
 - To revisit: TypeScript 7 (when typescript-eslint supports it), Prisma 8 (when stable),
   Better Auth ↔ Prisma adapter compatibility at Phase 1.

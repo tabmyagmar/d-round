@@ -22,7 +22,7 @@ paths:
 
 Anything touching Postgres or Redis runs against testcontainers:
 
-- `@repo/database/test` → `startTestDatabase()` starts `postgis/postgis:18-3.6` (override with
+- `@repo/database/test` → `startTestDatabase()` starts `postgres:18-alpine` (override with
   `TEST_POSTGRES_IMAGE`), runs `prisma migrate deploy` against it and returns
   `{ container, connectionString, prisma, stop }`.
 - `@repo/queue/test` → `startTestRedis()` starts `redis:8-alpine` (override with

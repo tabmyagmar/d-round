@@ -12,15 +12,8 @@ import type { PrismaClient } from "../src/client";
  * against a real database with the real migrations — never against mocks.
  */
 
-/** Same image as docker-compose so tests see the same Postgres/PostGIS. */
-export const TEST_POSTGRES_IMAGE = process.env["TEST_POSTGRES_IMAGE"] ?? "postgis/postgis:18-3.6";
-
-/**
- * postgis/postgis is published for linux/amd64 only; Apple Silicon runs it emulated. Set
- * TEST_POSTGRES_IMAGE=imresamu/postgis:18-3.6 and TEST_POSTGRES_PLATFORM=linux/arm64 for a
- * native image (same Dockerfiles, multi-arch build).
- */
-export const TEST_POSTGRES_PLATFORM = process.env["TEST_POSTGRES_PLATFORM"] ?? "linux/amd64";
+/** Same image as docker-compose (POSTGRES_IMAGE) so tests see the same Postgres. */
+export const TEST_POSTGRES_IMAGE = process.env["TEST_POSTGRES_IMAGE"] ?? "postgres:18-alpine";
 
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
@@ -42,7 +35,6 @@ export const runMigrations = (connectionString: string): void => {
 
 export const startTestDatabase = async (): Promise<TestDatabase> => {
   const container = await new PostgreSqlContainer(TEST_POSTGRES_IMAGE)
-    .withPlatform(TEST_POSTGRES_PLATFORM)
     .withDatabase("test")
     .withUsername("test")
     .withPassword("test")

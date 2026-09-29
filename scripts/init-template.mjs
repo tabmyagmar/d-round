@@ -19,8 +19,12 @@ import { fileURLToPath } from "node:url";
 export const DEFAULT_SLUG = "app-template";
 export const DEFAULT_DB = "app";
 
-const SELF = ["scripts/init-template.mjs", "scripts/init-template.test.mjs"];
-const SKIP = [/^yarn\.lock$/, /\.(png|jpg|jpeg|gif|ico|woff2?|pdf)$/i];
+/** Never rewritten: this script, the audit that documents the placeholders, binaries. */
+const SELF = ["scripts/init-template.mjs", "scripts/init-template.test.mjs", "TEMPLATE_AUDIT.md"];
+const SKIP = [/\.(png|jpg|jpeg|gif|ico|woff2?|pdf)$/i];
+
+export const isRewritable = (file) =>
+  Boolean(file) && !SELF.includes(file) && !SKIP.some((pattern) => pattern.test(file));
 
 export const slugify = (value) =>
   value
@@ -81,7 +85,7 @@ export const applyReplacements = (content, options) => {
 const trackedFiles = (root) =>
   execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" })
     .split("\0")
-    .filter((file) => file && !SELF.includes(file) && !SKIP.some((pattern) => pattern.test(file)));
+    .filter(isRewritable);
 
 export const run = (argv, root) => {
   const options = parseArgs(argv);
@@ -109,6 +113,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
       changed.map((file) => `  ${file}\n`).join("") +
       (options.dryRun
         ? ""
-        : "next: cp .env.example .env, then `git rm scripts/init-template.mjs scripts/init-template.test.mjs`\n"),
+        : "next: `yarn` (refreshes yarn.lock for the new package name), `cp .env.example .env`, " +
+          "then `git rm scripts/init-template.mjs scripts/init-template.test.mjs`\n"),
   );
 }

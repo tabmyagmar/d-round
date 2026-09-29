@@ -2,18 +2,14 @@ name: app-template
 
 services:
   postgres:
-    # Official PostGIS image, so PostGIS is available from day one (Phase 7 needs it).
-    # It is published for linux/amd64 only; Apple Silicon runs it under Rosetta emulation.
-    # For native speed on arm64 put this in .env:
-    #   POSTGRES_IMAGE=imresamu/postgis:18-3.6   (multi-arch build of the same Dockerfiles)
-    #   POSTGRES_PLATFORM=linux/arm64
-    image: ${POSTGRES_IMAGE:-postgis/postgis:18-3.6}
-    platform: ${POSTGRES_PLATFORM:-linux/amd64}
+    # Override POSTGRES_IMAGE in .env for another flavour (e.g. postgis/postgis:18-3.6). Keep
+    # TEST_POSTGRES_IMAGE (testcontainers) and the CI service image on the same major.
+    image: ${POSTGRES_IMAGE:-postgres:18-alpine}
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-workflow}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -38,7 +34,7 @@ services:
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-workflow}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
     ports:
       - "${PGADMIN_PORT:-5050}:80"
     volumes:

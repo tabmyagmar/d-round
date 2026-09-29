@@ -263,7 +263,7 @@ the web app is a plain client of it.
 - Vitest 5, `vitest run` per workspace through Turborepo; the root `vitest.config.ts` lists every
   workspace as a project for one-shot local runs and IDE integration.
 - Anything that touches Postgres or Redis uses testcontainers (`@repo/database/test`,
-  `@repo/queue/test`; images `postgis/postgis:18-3.6` and `redis:8-alpine`, the same as
+  `@repo/queue/test`; images `postgres:18-alpine` and `redis:8-alpine`, the same as
   docker-compose and CI). Mocks are allowed only for external providers (HTTP, mail, AI).
 - Tests assert behaviour (results, rows, jobs, thrown domain errors), not implementation (call
   order, private state).
@@ -344,25 +344,19 @@ This is how `apps/worker/src/processors/email.processor.ts` uses it:
 
 Every later outbox (notifications, PDF rendering) follows the same shape.
 
-## Docker and Apple Silicon
+## Docker
 
-`docker-compose.yml` runs `postgis/postgis:18-3.6` (Postgres 18 + PostGIS, needed from Phase 7,
-zero cost now), `dpage/pgadmin4:9` preconfigured from the `POSTGRES_*` variables,
-`redis:8-alpine` with append-only persistence, `axllent/mailpit:v1.31` as the local mail sink
-(SMTP 1025, UI http://localhost:8025 — every outbox email lands there), and optionally
-`redis/redisinsight:3.8` (`docker compose --profile tools up -d`). Healthchecks gate
+`docker-compose.yml` runs `postgres:18-alpine` (override with `POSTGRES_IMAGE` in `.env`, e.g.
+`postgis/postgis:18-3.6` when a project needs PostGIS), `dpage/pgadmin4:9` preconfigured from the
+`POSTGRES_*` variables, `redis:8-alpine` with append-only persistence, `axllent/mailpit:v1.31` as
+the local mail sink (SMTP 1025, UI http://localhost:8025 — every outbox email lands there), and
+optionally `redis/redisinsight:3.8` (`docker compose --profile tools up -d`). Healthchecks gate
 `yarn docker:up` (`docker compose up -d --wait`); data lives in named volumes.
 
-`postgis/postgis` is published for `linux/amd64` only, so on Apple Silicon Docker Desktop runs it
-under Rosetta emulation — correct but slower. For native speed put this in `.env`:
-
-```text
-POSTGRES_IMAGE=imresamu/postgis:18-3.6
-POSTGRES_PLATFORM=linux/arm64
-```
-
-(`imresamu/postgis` is a multi-arch build of the same Dockerfiles.) Testcontainers use
-`postgis/postgis:18-3.6` as well; override with `TEST_POSTGRES_IMAGE` if pulls are slow.
+The same Postgres image is used in three places that must stay on one major: `POSTGRES_IMAGE`
+(compose), `TEST_POSTGRES_IMAGE` (testcontainers default in `packages/database/test/index.ts`)
+and the CI service container (`.github/workflows/ci.yml`, overridable through the repository
+variable `CI_POSTGRES_IMAGE`). All three default to `postgres:18-alpine`, which is multi-arch.
 
 ## Versions policy
 

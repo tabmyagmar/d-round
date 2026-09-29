@@ -23,9 +23,6 @@ Templates, routes and approvals come in later phases.
   `package.json#packageManager`).
 - **Docker Desktop** — for Postgres, Redis, Mailpit and pgAdmin, and for the testcontainers the
   tests use.
-- Apple Silicon: `postgis/postgis` is amd64-only and runs under Rosetta. For native speed add
-  `POSTGRES_IMAGE=imresamu/postgis:18-3.6` and `POSTGRES_PLATFORM=linux/arm64` to `.env` (see
-  `docs/conventions.md`).
 
 ## Quick start
 
@@ -81,7 +78,7 @@ Then sign in at http://localhost:3000/login as `admin@test.com` / `A12345678` (o
    directly in the database and sign in again:
 
    ```sh
-   docker compose exec postgres psql -U postgres -d workflow -c "update users set role='admin' where email='<you>'"
+   docker compose exec postgres psql -U postgres -d app -c "update users set role='admin' where email='<you>'"
    ```
 
 ### Roles
@@ -237,7 +234,8 @@ and their tests (`packages/database/test/repositories/user.repository.test.ts`,
 ## CI
 
 `.github/workflows/ci.yml` runs on pushes to `main` and on pull requests: Postgres
-(`postgis/postgis:18-3.6`) and Redis (`redis:8-alpine`) service containers → Node from `.nvmrc`
+(`postgres:18-alpine`, overridable with the `CI_POSTGRES_IMAGE` repository variable) and Redis
+(`redis:8-alpine`) service containers → Node from `.nvmrc`
 → Corepack → Yarn and Turborepo caches → `yarn install --immutable` (runs `prisma generate`) →
 `yarn db:migrate` → schema-drift check
 (`prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code`) →
