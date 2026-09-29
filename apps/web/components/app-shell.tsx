@@ -13,6 +13,7 @@ import type { Role } from "@repo/validation";
 import { RoleBadge } from "@/features/users/role-badge";
 import { authClient } from "@/lib/auth/client";
 import type { CurrentUser } from "@/lib/auth/server";
+import { brand } from "@/lib/brand";
 
 type NavItem = { href: string; label: string; hideFor?: readonly Role[] };
 
@@ -38,7 +39,7 @@ export const AppShell = ({ user, children }: { user: CurrentUser; children: Reac
         <header className="border-b border-border">
           <div className="mx-auto flex w-full max-w-5xl items-center gap-6 px-6 py-3">
             <Link href="/dashboard" className="font-heading font-semibold tracking-tight">
-              d-round
+              {brand.name}
             </Link>
             <nav className="flex items-center gap-1 text-sm">
               {NAV.filter((item) => !item.hideFor?.includes(user.role)).map((item) => (

@@ -8,7 +8,7 @@ const complete = {
   DATABASE_URL: "postgresql://localhost:5432/db",
   REDIS_URL: "redis://localhost:6379",
   MAIL_SMTP_URL: "smtp://localhost:1025",
-  MAIL_FROM: "d-round <no-reply@example.com>",
+  MAIL_FROM: "Acme <no-reply@example.com>",
 };
 
 describe("loadWorkerEnv", () => {

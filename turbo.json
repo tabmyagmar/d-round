@@ -64,6 +64,9 @@
     },
     "//#format:check": {
       "inputs": ["$TURBO_DEFAULT$", "!.turbo/**"]
+    },
+    "//#test:scripts": {
+      "inputs": ["scripts/**"]
     }
   }
 }

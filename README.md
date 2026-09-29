@@ -61,7 +61,7 @@ Then sign in at http://localhost:3000/login as `admin@test.com` / `A12345678` (o
 | `WEB_ORIGIN`          | api     | browser origin allowed with credentials (CORS, `trustedOrigins`; default `http://localhost:3000`)        |
 | `COOKIE_DOMAIN`       | api     | optional; production parent domain shared by web and api (see `docs/adr/0002-auth.md`)                   |
 | `MAIL_SMTP_URL`       | worker  | SMTP endpoint, `smtp://localhost:1025` for Mailpit                                                       |
-| `MAIL_FROM`           | worker  | sender, e.g. `d-round <no-reply@d-round.local>`                                                          |
+| `MAIL_FROM`           | worker  | sender, e.g. `My App <no-reply@example.com>`; the display name is the brand used in emails               |
 | `NEXT_PUBLIC_API_URL` | web     | API origin the browser and the server components call                                                    |
 
 ## Phase 1 walkthrough

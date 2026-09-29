@@ -22,6 +22,7 @@ import { signInSchema } from "@repo/validation";
 import type { SignInInput } from "@repo/validation";
 
 import { authClient } from "@/lib/auth/client";
+import { brand } from "@/lib/brand";
 
 export const LoginForm = ({ next }: { next: string }) => {
   const router = useRouter();
@@ -51,7 +52,7 @@ export const LoginForm = ({ next }: { next: string }) => {
     <Card>
       <CardHeader>
         <CardTitle>Sign in</CardTitle>
-        <CardDescription>Use the email and password of your d-round account.</CardDescription>
+        <CardDescription>Use the email and password of your {brand.name} account.</CardDescription>
       </CardHeader>
       <form onSubmit={onSubmit} noValidate>
         <CardContent>

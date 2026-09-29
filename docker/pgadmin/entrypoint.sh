@@ -9,7 +9,7 @@ cat > /tmp/servers.json <<EOF
 {
   "Servers": {
     "1": {
-      "Name": "d-round (docker)",
+      "Name": "app-template (docker)",
       "Group": "Servers",
       "Host": "postgres",
       "Port": 5432,

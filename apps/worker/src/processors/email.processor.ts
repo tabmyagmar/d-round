@@ -7,12 +7,15 @@ import type { EmailJob, Job, RedisConnection, TypedWorker } from "@repo/queue";
 import { PermanentMailError } from "../mail/mail-provider";
 import type { MailProvider } from "../mail/mail-provider";
 import { TemplateError, renderEmail } from "../mail/templates";
+import type { MailBrand } from "../mail/templates";
 
 export type EmailProcessorDeps = {
   connection: RedisConnection;
   db: PrismaClient;
   provider: MailProvider;
   logger: Logger;
+  /** Brand the templates name; derived from MAIL_FROM in src/index.ts. */
+  brand: MailBrand;
   /** Override for tests (isolated queues); production uses QUEUE_NAMES.email. */
   queueName?: string;
 };
@@ -31,7 +34,7 @@ const isLastAttempt = (job: Job<EmailJob>): boolean =>
  * SENT (or FAILED — manual retries go through the row, see docs/adr/0004-outbox.md).
  */
 export const processEmailJob = async (
-  deps: Pick<EmailProcessorDeps, "db" | "provider" | "logger">,
+  deps: Pick<EmailProcessorDeps, "db" | "provider" | "logger" | "brand">,
   job: Job<EmailJob>,
 ): Promise<void> => {
   const outbox = createOutboxEmailRepository(deps.db);
@@ -54,7 +57,7 @@ export const processEmailJob = async (
 
   let rendered;
   try {
-    rendered = renderEmail(row.template, row.payload);
+    rendered = renderEmail(row.template, row.payload, deps.brand);
   } catch (error) {
     const reason = describeError(error);
     await outbox.markFailed(row.id, reason);

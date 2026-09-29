@@ -9,6 +9,8 @@ import type { Logger } from "@repo/logger";
 import { createQueue, createRedisConnection, waitForRedis } from "@repo/queue";
 import type { EmailJob, EmailQueue, RedisConnection } from "@repo/queue";
 
+import type { MailBrand } from "../src/mail/templates";
+
 export const silentLogger = (): Logger =>
   createLogger(
     { name: "test", level: "silent" },
@@ -23,6 +25,7 @@ export type WorkerHarness = {
   db: PrismaClient;
   connection: RedisConnection;
   logger: Logger;
+  brand: MailBrand;
   stop: () => Promise<void>;
 };
 
@@ -34,6 +37,7 @@ export const createWorkerHarness = async (): Promise<WorkerHarness> => {
     db,
     connection,
     logger: silentLogger(),
+    brand: { appName: "Test App" },
     stop: async () => {
       await connection.quit();
       await db.$disconnect();

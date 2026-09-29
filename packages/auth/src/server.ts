@@ -37,7 +37,6 @@ export type CreateAuthOptions = {
 
 export const createAuth = (options: CreateAuthOptions) =>
   betterAuth({
-    appName: "d-round",
     baseURL: options.baseURL,
     basePath: "/api/auth",
     secret: options.secret,

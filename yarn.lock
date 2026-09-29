@@ -4324,6 +4324,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"app-template@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "app-template@workspace:."
+  dependencies:
+    "@commitlint/cli": "npm:21.2.2"
+    "@commitlint/config-conventional": "npm:21.2.2"
+    "@repo/eslint-config": "workspace:*"
+    "@repo/typescript-config": "workspace:*"
+    eslint: "npm:10.10.0"
+    husky: "npm:9.1.7"
+    lint-staged: "npm:17.5.0"
+    prettier: "npm:3.9.6"
+    prettier-plugin-tailwindcss: "npm:0.8.1"
+    turbo: "npm:2.10.12"
+    typescript: "npm:6.0.3"
+    vite: "npm:8.2.2"
+    vitest: "npm:5.0.0"
+  languageName: unknown
+  linkType: soft
+
 "archiver-utils@npm:^5.0.0, archiver-utils@npm:^5.0.2":
   version: 5.0.2
   resolution: "archiver-utils@npm:5.0.2"
@@ -5371,26 +5391,6 @@ __metadata:
   checksum: 10c0/cd29c51e70fa822f1cecd8641a1445bed7063697469d35633b516e60fe8c1bde04b08f6c5b6022136bb669b64c63d4173af54864510fbb4ee23281801841a3ce
   languageName: node
   linkType: hard
-
-"d-round@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "d-round@workspace:."
-  dependencies:
-    "@commitlint/cli": "npm:21.2.2"
-    "@commitlint/config-conventional": "npm:21.2.2"
-    "@repo/eslint-config": "workspace:*"
-    "@repo/typescript-config": "workspace:*"
-    eslint: "npm:10.10.0"
-    husky: "npm:9.1.7"
-    lint-staged: "npm:17.5.0"
-    prettier: "npm:3.9.6"
-    prettier-plugin-tailwindcss: "npm:0.8.1"
-    turbo: "npm:2.10.12"
-    typescript: "npm:6.0.3"
-    vite: "npm:8.2.2"
-    vitest: "npm:5.0.0"
-  languageName: unknown
-  linkType: soft
 
 "d3-array@npm:2 - 3, d3-array@npm:2.10.0 - 3, d3-array@npm:2.5.0 - 3, d3-array@npm:3.2.4":
   version: 3.2.4

@@ -8,19 +8,20 @@ import { TooltipProvider } from "@repo/ui/components/tooltip";
 import { cn } from "@repo/ui/lib/utils";
 
 import { ThemeProvider } from "@/components/theme-provider";
+import { brand } from "@/lib/brand";
 import { TRPCReactProvider } from "@/lib/trpc/react";
 
 const fontSans = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "d-round",
-  description: "Form templates and approval workflows",
+  title: brand.name,
+  description: brand.description,
 };
 
 const RootLayout = ({ children }: Readonly<{ children: ReactNode }>) => (
   <html
-    lang="ja"
+    lang={brand.htmlLang}
     suppressHydrationWarning
     className={cn("font-sans antialiased", fontSans.variable, fontMono.variable)}
   >

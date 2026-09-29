@@ -18,6 +18,9 @@ export class TemplateError extends Error {
 
 export type RenderedMail = Omit<MailMessage, "to">;
 
+/** What the templates call the application (the MAIL_FROM display name, see mail-from.ts). */
+export type MailBrand = { appName: string };
+
 const escapeHtml = (value: string): string =>
   value
     .replaceAll("&", "&amp;")
@@ -29,32 +32,33 @@ const verificationPayload = z.object({ name: z.string().min(1), url: z.url() });
 
 const renderVerification = (
   payload: EmailTemplatePayloads["verification-email"],
+  brand: MailBrand,
 ): RenderedMail => ({
-  subject: "Confirm your d-round account",
+  subject: `Confirm your ${brand.appName} account`,
   text: [
     `Hi ${payload.name},`,
     "",
-    "Confirm your email address to activate your d-round account:",
+    `Confirm your email address to activate your ${brand.appName} account:`,
     payload.url,
     "",
     "The link is valid for one hour. If you did not create an account, ignore this message.",
   ].join("\n"),
   html: [
     `<p>Hi ${escapeHtml(payload.name)},</p>`,
-    "<p>Confirm your email address to activate your d-round account:</p>",
+    `<p>Confirm your email address to activate your ${escapeHtml(brand.appName)} account:</p>`,
     `<p><a href="${escapeHtml(payload.url)}">Confirm email</a></p>`,
     "<p>The link is valid for one hour. If you did not create an account, ignore this message.</p>",
   ].join("\n"),
 });
 
-export const renderEmail = (template: string, payload: unknown): RenderedMail => {
+export const renderEmail = (template: string, payload: unknown, brand: MailBrand): RenderedMail => {
   switch (template) {
     case EMAIL_TEMPLATES.verification: {
       const parsed = verificationPayload.safeParse(payload);
       if (!parsed.success) {
         throw new TemplateError(`Invalid payload for ${template}: ${parsed.error.message}`);
       }
-      return renderVerification(parsed.data);
+      return renderVerification(parsed.data, brand);
     }
     default:
       throw new TemplateError(`Unknown email template: ${template}`);

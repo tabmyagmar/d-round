@@ -4,6 +4,7 @@ import { createEmailQueue, createRedisConnection, waitForRedis } from "@repo/que
 
 import { loadWorkerEnv } from "./env";
 import { registerGracefulShutdown } from "./lib/graceful-shutdown";
+import { mailDisplayName } from "./mail/mail-from";
 import { createSmtpMailProvider } from "./mail/smtp-mail-provider";
 import { createEmailWorker } from "./processors/email.processor";
 import {
@@ -31,12 +32,13 @@ connection.on("error", (error) => {
 });
 
 const mailProvider = createSmtpMailProvider({ smtpUrl: env.MAIL_SMTP_URL, from: env.MAIL_FROM });
+const brand = { appName: mailDisplayName(env.MAIL_FROM) };
 const emailQueue = createEmailQueue(connection);
 const sweeperQueue = createOutboxSweeperQueue(connection);
 
 // Registered in src/processors/*.processor.ts and src/schedulers/* and listed here.
 const workers: { close: () => Promise<void> }[] = [
-  createEmailWorker({ connection, db, provider: mailProvider, logger }),
+  createEmailWorker({ connection, db, provider: mailProvider, logger, brand }),
   createOutboxSweeperWorker({ connection, db, emailQueue, logger }),
 ];
 

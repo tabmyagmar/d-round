@@ -11,7 +11,7 @@ export const workerEnvShape = {
   REDIS_URL: urlSchema,
   /** smtp://host:port — Mailpit in development (docker-compose). */
   MAIL_SMTP_URL: urlSchema,
-  /** Sender shown to recipients, e.g. `d-round <no-reply@example.com>`. */
+  /** Sender shown to recipients, e.g. `My App <no-reply@example.com>`; the display name is the brand. */
   MAIL_FROM: z.string().min(3),
 };
 
