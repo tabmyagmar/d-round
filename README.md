@@ -234,7 +234,6 @@ and their tests (`packages/database/test/repositories/user.repository.test.ts`,
   versions policy.
 - `docs/adr/` — architecture decision records: `0001-stack.md`, `0002-auth.md` (Better Auth),
   `0003-permissions.md` (two-layer authorization), `0004-outbox.md` (transactional outbox).
-- `docs/plans/phase-1-plan.md` — the Phase 1 plan with its deviations.
 
 ## CI
 

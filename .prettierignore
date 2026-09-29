@@ -10,6 +10,3 @@ packages/database/prisma/migrations
 # Verbatim agent-orchestration documents (kept exactly as specified in the plan).
 CLAUDE.md
 protocol.md
-# Planning documents authored outside the repo tooling.
-phase-0-1-claude-code-prompts.md
-workflow-development-plan-v2.md
