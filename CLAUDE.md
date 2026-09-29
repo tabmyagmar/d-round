@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## What this is
-Form-template & approval-workflow system. Turborepo monorepo. See README for setup,
+{{PROJECT_DESCRIPTION}}. Turborepo monorepo. See README for setup,
 docs/conventions.md for rationale, protocol.md for how agents work here.
 
 ## Non-negotiable architecture

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":pinAllExceptPeerDependencies", ":semanticCommits"],
+  "rangeStrategy": "pin",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "description": "Minor and patch updates in one weekly PR",
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "all non-major dependencies"
+    },
+    {
+      "description": "Majors get their own PR and an ADR line (docs/conventions.md#versions-policy)",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Keep Prisma packages on one version",
+      "matchPackageNames": ["prisma", "@prisma/client", "@prisma/adapter-pg"],
+      "groupName": "prisma"
+    },
+    {
+      "description": "Keep tRPC packages on one version",
+      "matchPackageNames": ["@trpc/server", "@trpc/client", "@trpc/tanstack-react-query"],
+      "groupName": "trpc"
+    }
+  ]
+}

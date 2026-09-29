@@ -227,8 +227,8 @@ results, storing the user id. Build pickers this way, in the feature that owns t
 | `z.array(z.object({...}))`             | `ArrayField`                                                                                 |
 | an id (`z.string()` pointing at a row) | a domain picker built on `ComboboxField` (see above)                                         |
 
-Phase 2 form-template field types map 1:1 onto these components through a renderer registry, so a
-new template field type starts as a new component here.
+Dynamic forms (field definitions stored in the database) map their field types 1:1 onto these
+components through a renderer registry, so a new field type starts as a new component here.
 
 - Never hand-write `Field` / `FieldLabel` / `Input` / `FieldError` for a standard input in
   `apps/web`; add a field to `@repo/ui/components/form` if one is missing. Hand-written `Field`

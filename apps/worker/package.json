@@ -17,7 +17,6 @@
     "@repo/logger": "workspace:*",
     "@repo/queue": "workspace:*",
     "@repo/validation": "workspace:*",
-    "bullmq": "6.3.4",
     "dotenv": "17.4.2",
     "nodemailer": "10.0.1"
   },

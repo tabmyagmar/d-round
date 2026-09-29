@@ -4,10 +4,11 @@ Date: 2026-09-09
 
 ## Context
 
-Greenfield form-template and approval-workflow system, single developer, single tenant. Phase 0
-must deliver a runnable monorepo with tooling, conventions and agent orchestration before any
-feature. The requirement is "latest stable of everything", pinned exactly, with incompatible pairs
-resolved explicitly rather than silently downgraded.
+A reusable monorepo template for single-tenant web applications built by a small team with AI
+agents: it must ship a runnable monorepo with tooling, conventions and agent orchestration before
+any feature, so that a new project starts coding on day one. The requirement is "latest stable
+of everything", pinned exactly, with incompatible pairs resolved explicitly rather than silently
+downgraded.
 
 ## Decision
 
@@ -59,7 +60,7 @@ reasons.
   failures.
 - Exact pins make upgrades deliberate: `npm view <pkg> version`, ADR line for majors.
 - To revisit: TypeScript 7 (when typescript-eslint supports it), Prisma 8 (when stable),
-  Better Auth ↔ Prisma adapter compatibility at Phase 1.
+  Better Auth ↔ Prisma adapter compatibility on each Better Auth upgrade.
 
 ## Status
 

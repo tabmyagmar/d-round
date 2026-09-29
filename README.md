@@ -1,20 +1,48 @@
-# d-round — form templates & approval workflows
+# {{PROJECT_NAME}}
 
-## What
+{{PROJECT_DESCRIPTION}}
 
-d-round is a form-template and approval-workflow system: templates → routes → submissions →
-multi-step approval. This repository currently contains:
+Built from the Turborepo monorepo template: a Hono + tRPC API, a BullMQ worker and a Next.js 16
+app on top of Prisma 7 / PostgreSQL, Redis, Better Auth and CASL, with Docker services,
+testcontainers, CI and the Claude Code orchestration files already wired. Auth (sign-up with
+verified email, sessions), a `user` reference module (list, profile, roles `admin | member`,
+deactivate) and a transactional email outbox are included so a new project starts from a working
+vertical slice instead of an empty shell.
 
-- **Phase 0 — foundation**: a Turborepo monorepo with the API (Hono + tRPC), worker (BullMQ) and
-  web (Next.js 16) apps, the shared packages, Docker services, testing with testcontainers, CI and
-  the agent-orchestration files. Health check end to end.
-- **Phase 1 — auth, users, permissions, outbox email**: email + password sign-up with verified
-  emails (Better Auth), 7-day cookie sessions, four roles, a user module (profile, list, change
-  role, deactivate) behind two-layer authorization (CASL + service rules), and the first real
-  background job: verification emails written to a transactional outbox, delivered by the worker
-  through SMTP (Mailpit in development) with retries and a sweeper.
+## New project from this template
 
-Templates, routes and approvals come in later phases.
+```sh
+# 0. Prerequisites: Node 24 (.nvmrc), Corepack, Docker Desktop
+gh repo create my-app --template <org>/<this-repo> --private --clone   # or clone + `rm -rf .git && git init`
+cd my-app
+nvm use && corepack enable
+
+# 1. Rename: rewrites every placeholder ({{PROJECT_NAME}}, ...) and the identifier defaults
+node scripts/init-template.mjs --name "My App" --db my_app --lang en \
+  --description "What the app does" --mail-from "My App <no-reply@my-app.local>"
+yarn                                       # refreshes yarn.lock for the new package name
+git rm scripts/init-template.mjs scripts/init-template.test.mjs
+
+# 2. Environment
+cp .env.example .env                       # one root .env for the whole monorepo
+#    BETTER_AUTH_SECRET=$(openssl rand -base64 32)
+#    change POSTGRES_PORT / REDIS_PORT if 5433 / 6380 clash (keep DATABASE_URL / REDIS_URL in sync)
+
+# 3. Infrastructure, database, run
+yarn docker:up                             # postgres, redis, mailpit, pgadmin — waits for health checks
+yarn db:migrate                            # applies the single 0001_init migration
+yarn db:seed                               # admin@test.com + member@test.com, password A12345678
+yarn dev                                   # web :3000, api :4000, worker; Mailpit UI :8025
+
+# 4. Gate and first commit (Conventional Commits, enforced by the commit-msg hook)
+yarn verify
+git add -A && git commit -m "chore: bootstrap from template"
+git push -u origin main                    # CI: migrations, schema drift, verify, commitlint
+```
+
+Then follow `.claude/rules/module-template.md` for the first feature module. Mark the source
+repository as a _template repository_ in its GitHub settings so `gh repo create --template`
+works. Delete `TEMPLATE_AUDIT.md` once you no longer need the history of this template pass.
 
 ## Prerequisites
 
@@ -24,7 +52,7 @@ Templates, routes and approvals come in later phases.
 - **Docker Desktop** — for Postgres, Redis, Mailpit and pgAdmin, and for the testcontainers the
   tests use.
 
-## Quick start
+## Quick start (existing checkout)
 
 ```sh
 cp .env.example .env   # one root .env for the whole monorepo
@@ -49,51 +77,48 @@ Then sign in at http://localhost:3000/login as `admin@test.com` / `A12345678` (o
 
 ### Environment variables
 
-`.env.example` documents every variable; the ones added in Phase 1:
+`.env.example` documents every variable. Each app validates its own subset once at startup with
+zod (`apps/api/src/env.ts`, `apps/worker/src/env.ts`, `apps/web/lib/env.ts`) and refuses to start
+on a missing or malformed value.
 
-| Variable              | Used by | Meaning                                                                                                  |
-| --------------------- | ------- | -------------------------------------------------------------------------------------------------------- |
-| `BETTER_AUTH_SECRET`  | api     | signs sessions and tokens (`openssl rand -base64 32`, at least 32 chars); rotating it signs everyone out |
-| `API_URL`             | api     | public origin of the API; Better Auth sets its cookies for this host (default `http://localhost:4000`)   |
-| `WEB_ORIGIN`          | api     | browser origin allowed with credentials (CORS, `trustedOrigins`; default `http://localhost:3000`)        |
-| `COOKIE_DOMAIN`       | api     | optional; production parent domain shared by web and api (see `docs/adr/0002-auth.md`)                   |
-| `MAIL_SMTP_URL`       | worker  | SMTP endpoint, `smtp://localhost:1025` for Mailpit                                                       |
-| `MAIL_FROM`           | worker  | sender, e.g. `My App <no-reply@example.com>`; the display name is the brand used in emails               |
-| `NEXT_PUBLIC_API_URL` | web     | API origin the browser and the server components call                                                    |
+| Variable              | Used by    | Meaning                                                                                                  |
+| --------------------- | ---------- | -------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`        | all        | Postgres connection string (`POSTGRES_*` feed docker-compose; keep them in sync)                         |
+| `REDIS_URL`           | api/worker | Redis connection string                                                                                  |
+| `BETTER_AUTH_SECRET`  | api        | signs sessions and tokens (`openssl rand -base64 32`, at least 32 chars); rotating it signs everyone out |
+| `API_URL`             | api        | public origin of the API; Better Auth sets its cookies for this host (default `http://localhost:4000`)   |
+| `WEB_ORIGIN`          | api        | browser origin allowed with credentials (CORS, `trustedOrigins`; default `http://localhost:3000`)        |
+| `COOKIE_DOMAIN`       | api        | optional; production parent domain shared by web and api (see `docs/adr/0002-auth.md`)                   |
+| `MAIL_SMTP_URL`       | worker     | SMTP endpoint, `smtp://localhost:1025` for Mailpit                                                       |
+| `MAIL_FROM`           | worker     | sender, e.g. `My App <no-reply@example.com>`; the display name is the brand used in emails               |
+| `NEXT_PUBLIC_API_URL` | web        | API origin the browser and the server components call (must be http(s))                                  |
+| `POSTGRES_IMAGE`      | docker     | Postgres image for compose (default `postgres:18-alpine`; `TEST_POSTGRES_IMAGE` for tests)               |
 
-## Phase 1 walkthrough
+The web app's name, description and `<html lang>` live in `apps/web/lib/brand.ts`.
 
-1. Run `yarn dev` — the worker must be running, otherwise the outbox rows stay `PENDING` and no
-   mail is delivered.
-2. Open http://localhost:3000/register and create an account (name, email, password; employee
-   code and department are optional). You are redirected to `/verify-email`.
-3. Open Mailpit at http://localhost:8025: the verification mail is there (API wrote an
-   `outbox_emails` row and enqueued the job after commit; the worker rendered and sent it).
-4. Click the link. Better Auth verifies the email, signs you in and redirects to `/dashboard`.
-   Signing in before verification is refused with a "resend the verification email" hint.
-5. Every self-registered account starts as `member`. Sign in as the seeded `admin@test.com` /
-   `A12345678` (`yarn db:seed`) to get the `Users` navigation entry; from `/users` an admin can
-   search, filter by role, edit profiles, change roles (the last active admin cannot be demoted)
-   and deactivate users (soft delete + all sessions revoked). Without the seed, promote an account
-   directly in the database and sign in again:
+## What is included
 
-   ```sh
-   docker compose exec postgres psql -U postgres -d app -c "update users set role='admin' where email='<you>'"
-   ```
+- **Auth** (`packages/auth`, Better Auth): email + password sign-up with a verification link,
+  7-day cookie sessions, the admin plugin with roles `admin | member`. The API mounts it at
+  `/api/auth`; the web app has `/login`, `/register`, `/verify-email`.
+- **User module** (the reference module): `user.me / byId / list / updateProfile / changeRole /
+deactivate` behind two-layer authorization — CASL abilities (`packages/permissions`, the matrix
+  test is the spec) plus stateful service rules (the last active admin cannot be demoted or
+  deactivated; deactivation soft-deletes and revokes sessions). Web: `/dashboard`, `/users`,
+  `/users/[id]`, `/profile`.
+- **Transactional outbox** (`docs/adr/0004-outbox.md`): the API writes an `outbox_emails` row
+  inside the transaction and enqueues an ID-only BullMQ job after commit; the worker renders and
+  sends through SMTP (Mailpit locally) with retries, and a sweeper re-enqueues stale rows.
+- **Health**: `GET /health` (Postgres + Redis probes) and tRPC `health.ping`; ordered graceful
+  shutdown in api and worker; pino logging with redaction and request ids.
 
-### Roles
+| Role     | May read   | May update | Change roles / deactivate |
+| -------- | ---------- | ---------- | ------------------------- |
+| `admin`  | every user | every user | yes                       |
+| `member` | self       | self       | no                        |
 
-| Role         | May read              | May update            | Change roles / deactivate |
-| ------------ | --------------------- | --------------------- | ------------------------- |
-| `admin`      | every user            | every user            | yes                       |
-| `hr_manager` | every user            | self + own department | no                        |
-| `dept_head`  | self + own department | self                  | no                        |
-| `member`     | self                  | self                  | no                        |
-
-The rules live in `packages/permissions/src/rules.ts`; the matrix test
-`packages/permissions/test/ability.test.ts` is the spec; the API re-checks every request (the UI
-only hides what you may not do). Details: `.claude/rules/permissions.md`,
-`docs/adr/0003-permissions.md`.
+Adding a role: extend `ROLES` in `@repo/validation`, `roles` in `@repo/auth`, `rules.ts` and the
+matrix test together (`.claude/rules/permissions.md`).
 
 ## Scripts (root)
 
@@ -101,10 +126,11 @@ only hides what you may not do). Details: `.claude/rules/permissions.md`,
 | --------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `yarn dev`            | `turbo run dev` — web (`next dev`), api and worker (`tsx watch`); all three are needed for the full flow   |
 | `yarn build`          | `turbo run build` — Next build plus `tsdown` bundles for api/worker                                        |
-| `yarn verify`         | lint + typecheck + test + build + format:check (the CI gate)                                               |
+| `yarn verify`         | lint + typecheck + test + test:scripts + build + format:check (the CI gate)                                |
 | `yarn lint`           | ESLint in every workspace                                                                                  |
 | `yarn typecheck`      | `tsc --noEmit` in every workspace                                                                          |
-| `yarn test`           | `vitest run` in every workspace (testcontainers need Docker)                                               |
+| `yarn test`           | `vitest run` in every workspace (testcontainers need Docker; web/ui run in jsdom)                          |
+| `yarn test:scripts`   | node:test suite for `scripts/` (the template initialiser)                                                  |
 | `yarn format`         | `prettier --write .`                                                                                       |
 | `yarn format:check`   | `prettier --check .`                                                                                       |
 | `yarn db:generate`    | `prisma generate` (also runs on `postinstall`)                                                             |
@@ -126,13 +152,14 @@ apps/
               test/ (mirrors src/: test/modules, test/trpc, test/core; HTTP + auth integration
               tests at the root, support.ts harness, global-setup.ts)
   worker/     BullMQ worker process. src/processors/email.processor.ts, src/schedulers/
-              outbox-sweeper.ts, src/mail (MailProvider, SMTP, memory, templates), test/ (mirrors
-              src/, support.ts)
+              outbox-sweeper.ts, src/mail (MailProvider, SMTP, memory, templates, mail-from),
+              test/ (mirrors src/, support.ts)
   web/        Next.js 16 App Router, Tailwind v4, tRPC + React Query client. proxy.ts,
               app/(auth) (login, register, verify-email), app/(app) (dashboard, users, profile),
               features/auth (login-form, register-form, resend-verification), features/users
               (users-table, user-editor, profile-form, profile-editor, role-badge),
-              components/ (app-shell, theme-provider), lib/auth, lib/trpc
+              components/ (app-shell, theme-provider), lib/auth, lib/trpc, lib/env, lib/brand,
+              test/ (vitest + Testing Library, jsdom per file)
 packages/
   auth/       Better Auth: createAuth (server), createAuthReactClient (browser), admin-plugin
               access control, auth-cli.config.ts for `npx auth generate`
@@ -140,9 +167,9 @@ packages/
               filtering), react.tsx (AbilityProvider, Can, useAbility), test/ability.test.ts (the
               spec)
   database/   Prisma 7 multi-file schema (prisma/schema: schema.prisma + system/, auth/, email/),
-              migrations, seed.ts (test accounts), generated client (git-ignored), repositories
-              (user, outbox-email), utils (pagination, errors, transaction), test/ (testcontainers
-              helper, test/repositories, test/utils)
+              migrations (0001_init), seed.ts (test accounts), generated client (git-ignored),
+              repositories (user, outbox-email), utils (pagination, errors, transaction), test/
+              (testcontainers helper, test/repositories, test/utils)
   validation/ zod re-export, shared schemas (user.schema.ts: roles, sign-up/in, profile, list),
               createEnv() for env validation
   queue/      BullMQ + ioredis wrapper: connection, createQueue, createWorker, pub/sub, jobIdFor,
@@ -153,9 +180,11 @@ packages/
               CheckboxGroup/Radio, Date/DateTime/DateRange, File, Hidden/ReadOnly, Array +
               FormFieldShell/useFormField for custom ones),
               composed components (src/components/composed: StatusBadge, DataTable, ConfirmDialog),
-              theme tokens (src/styles/globals.css)
+              theme tokens (src/styles/globals.css), test/ (jsdom component tests)
   eslint-config/      ESLint 10 presets: base, node, react, next + boundaries.js (layer rules)
   typescript-config/  tsconfig presets: base, node, nextjs, react-library
+scripts/
+  init-template.mjs   one-shot placeholder rewrite for a new project (delete after use)
 docs/
   conventions.md      why every rule exists
   adr/                architecture decision records
@@ -221,7 +250,7 @@ and their tests (`packages/database/test/repositories/user.repository.test.ts`,
   automatically; `.claude/skills/` — library how-tos; `.claude/settings.json` — command allow and
   deny lists (no destructive git or database commands, no reading `.env`).
 - AI-assisted commits carry the attribution trailer described in
-  `docs/conventions.md#ai-attribution`.
+  `docs/conventions.md#ai-attribution`; pull requests follow `.github/PULL_REQUEST_TEMPLATE.md`.
 
 ## Documentation
 
@@ -233,10 +262,11 @@ and their tests (`packages/database/test/repositories/user.repository.test.ts`,
 
 ## CI
 
-`.github/workflows/ci.yml` runs on pushes to `main` and on pull requests: Postgres
-(`postgres:18-alpine`, overridable with the `CI_POSTGRES_IMAGE` repository variable) and Redis
-(`redis:8-alpine`) service containers → Node from `.nvmrc`
-→ Corepack → Yarn and Turborepo caches → `yarn install --immutable` (runs `prisma generate`) →
+`.github/workflows/ci.yml` runs on pushes to `main`, on pull requests and on demand
+(`workflow_dispatch`): Postgres (`postgres:18-alpine`, overridable with the `CI_POSTGRES_IMAGE`
+repository variable) and Redis (`redis:8-alpine`) service containers → Node from `.nvmrc` →
+Corepack → Yarn and Turborepo caches → `yarn install --immutable` (runs `prisma generate`) →
 `yarn db:migrate` → schema-drift check
 (`prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code`) →
-`yarn verify` → commitlint on the pull request's commits.
+`yarn verify` → commitlint on the pull request's commits. Dependency updates come from Renovate
+(`renovate.json`: grouped, exact pins, no major bumps without a PR review).
