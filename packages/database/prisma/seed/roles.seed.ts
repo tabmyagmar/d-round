@@ -1,7 +1,9 @@
 // Role catalog (access/role.prisma). Inline instead of a CSV: four rows whose keys also name the
 // role flag columns of data/permissions.csv (`RoleKey`). Keys are lower-case like Better Auth's
-// `users.role`; `member`, Better Auth's default, has no row until the role-set ticket. Diff-based
-// upsert by `key`: missing rows are created, changed rows updated, identical rows left untouched.
+// `users.role`, which references them (FK). Migration 20261005143913 also inserts the four rows
+// so a migrations-only database can insert users; this seed keeps the names in sync and never
+// deletes a role. Diff-based upsert by `key`: missing rows created, changed rows updated, the
+// rest untouched.
 import { diffByKey } from "./support";
 import type { SeedFn } from "./support";
 

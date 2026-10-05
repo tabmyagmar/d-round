@@ -1,25 +1,26 @@
 ---
 name: casl
-description: Use when defining or changing CASL abilities, adding an ability check to a procedure, filtering a list with accessibleBy, or extending the ability matrix test.
+description: Use when defining or changing CASL abilities, adding an ability check to a procedure, filtering a list with accessibleBy, or extending the permission spec.
 ---
 
 # CASL abilities (packages/permissions)
 
 ## Purpose
 
-CASL answers the coarse question "may this role do this kind of action on this kind of subject".
+CASL answers the coarse question "may this user do this kind of action on this kind of subject"
+(the user's grants come from the session).
 Everything that depends on the current state of a row stays in services. Rules:
 `.claude/rules/permissions.md`; decision: `docs/adr/0003-permissions.md`.
 
 ## Shape
 
-| File                                         | Exports                                                                                                                             |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `src/rules.ts`                               | `defineRules(can, user)`, `ACTIONS`, `SUBJECT_NAMES`, `AbilityUser`, `UserConditions`                                               |
-| `src/ability.ts` (`@repo/permissions`)       | `defineAbilityFor(user)` → `AppAbility` (`createMongoAbility`), `userSubject(record)`                                               |
-| `src/server.ts` (`@repo/permissions/server`) | `definePrismaAbilityFor(user)` → `ServerAbility`, `prismaUserSubject(row)`, `accessibleUsersWhere(ability, action)`, `accessibleBy` |
-| `src/react.tsx` (`@repo/permissions/react`)  | `AbilityProvider`, `Can`, `useAbility`                                                                                              |
-| `test/ability.test.ts`                       | the matrix spec                                                                                                                     |
+| File                                         | Exports                                                                                                                                        |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/rules.ts`                               | `defineRules(can, user)`, `ACTIONS`, `SUBJECT_NAMES`, `isAction`, `isSubjectName`, `AbilityUser`, `PermissionGrant`, `CanFn`, `UserConditions` |
+| `src/ability.ts` (`@repo/permissions`)       | `defineAbilityFor(user)` → `AppAbility` (`createMongoAbility`), `userSubject(record)`, `canUnscoped(ability, action, subject)`                 |
+| `src/server.ts` (`@repo/permissions/server`) | `definePrismaAbilityFor(user)` → `ServerAbility`, `prismaUserSubject(row)`, `accessibleUsersWhere(ability, action)`, `accessibleBy`            |
+| `src/react.tsx` (`@repo/permissions/react`)  | `AbilityProvider`, `Can`, `useAbility`                                                                                                         |
+| `test/ability.test.ts`                       | the grant-driven unit spec (roles live in `permissions.csv`)                                                                                   |
 
 The rules are written once and built twice; conditions are plain equalities on subject attributes
 (today only `id`) so the mongo and the Prisma engine agree.
@@ -27,13 +28,13 @@ The rules are written once and built twice; conditions are plain equalities on s
 ```ts
 // src/rules.ts
 export const defineRules = (can: CanFn, user: AbilityUser): void => {
-  switch (user.role) {
-    case "admin":
-      can("manage", "all");
-      return;
-    case "member":
-      break;
+  // Catalog grants from the session (role grants ∪ user ALLOW − user DENY), validated once.
+  for (const grant of user.permissions) {
+    if (isAction(grant.action) && isSubjectName(grant.subject)) {
+      can(grant.action, grant.subject);
+    }
   }
+  // Everyone may see and edit their own profile.
   can(["read", "update"], "User", { id: user.id });
 };
 ```
@@ -58,9 +59,12 @@ export const accessibleUsersWhere = (
 
 ## How-to: write a rule
 
-1. Add the row to the `allowed` table in `test/ability.test.ts` first (role × action → relations
-   `self | other`). The test is the spec; the failing row documents the change. A scoped role
-   (e.g. a team lead reading their own team) adds a relation such as `same-team` to the table.
+1. Who may do what is data: flip or add the row in
+   `packages/database/prisma/seed/data/permissions.csv` first (the seed-test counts and
+   `apps/api/test/permission-catalog.test.ts` document the change); no rule code changes for that.
+   A new rule shape (a scoped role, e.g. a team lead reading their own team) starts with a case in
+   `test/ability.test.ts` — the spec — then one `can(...)` with an equality condition after the
+   grant loop.
 2. Add the `can(...)` line in `defineRules`. Prefer whitelist rules; use `cannot` only to carve an
    exception out of a broad `can`. A new condition key goes into `UserConditions`.
 3. Keep conditions to attributes CASL can evaluate on the subject object (`id`, `teamId`, ...). If
@@ -118,30 +122,31 @@ return createUserRepository(ctx.db).findMany({ page, perPage }, { AND: filters }
 The service composes the `where`; the repository receives it as a Prisma type and adds
 `deletedAt: null`. Never filter in memory after loading everything.
 
-## Matrix test (`test/ability.test.ts`)
+## The spec (`test/ability.test.ts` + `apps/api/test/permission-catalog.test.ts`)
+
+The unit spec is grant-driven and knows nothing about roles: a user holding exactly one grant
+`{ action, subject }` can that cell on other rows and nothing else, plus the self rule on their own
+row; grants with `all` or an unknown subject are ignored. The DB-backed catalog test asserts, for
+every role × `permissions.csv` row, that `ctx.ability.can(action, modelName)` equals "a
+`role_permissions` row exists".
 
 ```ts
-const allowed: Record<Role, Partial<Record<Action, Relation[]>>> = {
-  admin: { manage: ALL, create: ALL, read: ALL, update: ALL, delete: ALL, changeRole: ALL },
-  member: { read: ["self"], update: ["self"] },
-};
+// One `it` per grant; the answer for every action × subject × relation is compared as a keyed
+// map, so a failure names the exact cell.
+const SINGLE_GRANTS = ACTIONS.flatMap((action) =>
+  SUBJECT_NAMES.map((subject) => ({ action, subject })),
+);
 
-for (const role of ROLES) {
-  for (const action of ACTIONS) {
-    for (const relation of RELATIONS) {
-      const expected = allowed[role][action]?.includes(relation) ?? false;
-      it(`${role} ${expected ? "CAN" : "CANNOT"} ${action} User (${relation})`, () => {
-        const ability = defineAbilityFor(me(role));
-        expect(ability.can(action, userSubject(targets[relation](me(role))))).toBe(expected);
-      });
-    }
-  }
-}
+it.each(SINGLE_GRANTS)("$action $subject", (grant) => {
+  expect(browserAnswers(defineAbilityFor(holder([grant])))).toEqual(expectedFor([grant]));
+});
 ```
 
-The same file asserts that `definePrismaAbilityFor` answers exactly like `defineAbilityFor` for
-every cell, that an anonymous visitor can do nothing, and what `accessibleUsersWhere` produces per
-role.
+The same file asserts that grants it does not know (`all`, `manage`, unknown subjects) allow
+nothing, the self rule alone, that `definePrismaAbilityFor` answers exactly like
+`defineAbilityFor` for every cell, that an anonymous visitor can do nothing, `canUnscoped`, and
+that `accessibleUsersWhere` restricts a user without the `read User` grant to their own row and
+leaves a holder of that grant unrestricted.
 
 ## Gotchas
 

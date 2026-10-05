@@ -17,12 +17,15 @@ writing any config — do not guess option names.** Decision record: `docs/adr/0
   (`provider: "postgresql"`), `basePath: "/api/auth"`, `emailAndPassword` with
   `requireEmailVerification`, `emailVerification` (`sendOnSignUp`, `autoSignInAfterVerification`,
   1 h expiry), `session` 7 d / `updateAge` 1 d, `advanced.database.generateId: false` (Postgres
-  makes UUID v7), optional
-  `crossSubDomainCookies`, and the admin plugin.
+  makes UUID v7), optional `crossSubDomainCookies`, the admin plugin, and `customSession(fn, base)`:
+  every session lookup runs one `findEffectiveGrants` query and adds `user.permissions`
+  (`{ action, subject }[]`, ADR 0003). Public sign-up is off (`disableSignUp`).
 - `packages/auth/src/access-control.ts` — `createAccessControl(defaultStatements)` and the four
-  roles for the admin plugin's own endpoints; `ADMIN_ROLES = ["admin"]`.
+  roles for the admin plugin's own endpoints; re-exports `ADMIN_ROLES` (`["super_admin", "admin"]`,
+  defined in `@repo/validation`).
 - `packages/auth/src/client.ts` — `createAuthReactClient(baseURL)`: `createAuthClient` (React)
-  with `inferAdditionalFields<Auth>()` and `adminClient({ ac, roles })`, `credentials: "include"`.
+  with `inferAdditionalFields<Auth>()`, `customSessionClient<Auth>()` (so `session.user.permissions`
+  is typed) and `adminClient({ ac, roles })`, `credentials: "include"`.
 - `packages/auth/auth-cli.config.ts` — exists only for `npx auth generate`.
 - `apps/api/src/index.ts` instantiates it (`secret: env.BETTER_AUTH_SECRET`, `baseURL: env.API_URL`,
   `trustedOrigins: [env.WEB_ORIGIN]`, `cookieDomain: env.COOKIE_DOMAIN`); `apps/api/src/app.ts`
@@ -60,7 +63,7 @@ const user = session ? toAuthUser(session.user) : null;
 ```
 
 Call it once per request in `buildRequestContext`; services receive `ctx.user` (`AuthUser`: `id`,
-`email`, `name`, `role`, `emailVerified`) and never call Better Auth
+`email`, `name`, `role`, `emailVerified`, `permissions`) and never call Better Auth
 for identity. `toAuthUser` parses `role` with `roleSchema` and falls back to `DEFAULT_ROLE` for
 unknown strings.
 
@@ -70,14 +73,12 @@ In `apps/web`, `getServerSession()` (`apps/web/lib/auth/server.ts`) forwards the
 
 ## How-to: call the admin API on behalf of the caller
 
-```ts
-// apps/api/src/modules/user/user.service.ts — deactivate()
-await ctx.auth.api.revokeUserSessions({ body: { userId }, headers: ctx.headers });
-```
-
-`ctx.headers` are the caller's request headers; the admin plugin checks that the caller's own
-session has an admin role. Deactivation itself is our soft delete (`deletedAt`, `banned`,
-`banReason: "deactivated"`) in the repository; the admin API only kills the sessions.
+No service calls the admin API today: `deactivate` soft-deletes the user (`deletedAt`, `banned`,
+`banReason: "deactivated"`) and deletes its `sessions` rows through the user repository in one
+transaction (ADR 0003), so it depends on the catalog grant `status User`, not on the caller's Better
+Auth role. If a service ever needs an admin endpoint on the caller's behalf, pass the request
+headers (`ctx.auth.api.<endpoint>({ body, headers: ctx.headers })`): the plugin then checks the
+caller's own role in its role map, which ignores catalog grants and `DENY` rows.
 
 ## How-to: a signed-in user in tests
 
@@ -86,13 +87,17 @@ session has an admin role. Deactivation itself is our soft delete (`deletedAt`, 
 ```ts
 export const signedInUser = async (harness, options = {}) => {
   const email = `${crypto.randomUUID()}@example.com`;
-  await harness.auth.api.signUpEmail({
-    body: { name: "Test User", email, password: TEST_PASSWORD },
+  // Server-side admin call (no headers → no session needed); `data` is spread into the row.
+  await harness.auth.api.createUser({
+    body: {
+      email,
+      password: TEST_PASSWORD,
+      name: "Test User",
+      role: options.role ?? DEFAULT_ROLE,
+      data: { emailVerified: true },
+    },
   });
-  const user = await harness.db.user.update({
-    where: { email },
-    data: { emailVerified: true, role: options.role ?? "member" }, // test shortcut
-  });
+  const user = await harness.db.user.findUniqueOrThrow({ where: { email } });
   const response = await harness.auth.api.signInEmail({
     body: { email, password: TEST_PASSWORD },
     asResponse: true,
@@ -101,9 +106,11 @@ export const signedInUser = async (harness, options = {}) => {
 };
 ```
 
-`packages/auth/test/auth.test.ts` covers the real flow: sign-up returns `token: null` until
-verified, `signInEmail` rejects with `status: "FORBIDDEN"` before verification, `verifyEmail`
-returns `Set-Cookie` and `getSession` resolves it.
+`packages/auth/test/auth.test.ts` covers the real flow: `signUpEmail` is rejected with
+`EMAIL_PASSWORD_SIGN_UP_DISABLED`; `createUser` applies `DEFAULT_ROLE`; `signInEmail` rejects with
+`EMAIL_NOT_VERIFIED` before verification; `sendVerificationEmail` → `verifyEmail` returns
+`Set-Cookie` and `getSession` resolves it, with `user.permissions` equal to the role's grants (a
+user `DENY` row removes one, an `ALLOW` row adds one).
 
 ## How-to: generate or update the Prisma models
 
@@ -117,7 +124,10 @@ returns `Set-Cookie` and `getSession` resolves it.
 
 ## Admin plugin and roles
 
-Roles `admin | member` live on `users.role` (a string, default `member`). Extra profile fields
+Roles `super_admin | admin | manager | staff` live on `users.role` (a string with a foreign key
+to the `roles` catalog, default `staff`; `ROLES` / `ADMIN_ROLES` in `@repo/validation`). Public
+sign-up is disabled (`emailAndPassword.disableSignUp`): users are created with
+`auth.api.createUser`, which rejects a role outside the `roles` map. Extra profile fields
 go through `user.additionalFields` in `createAuth` plus a schema migration (`.claude/rules/migrations.md`).
 The admin plugin's access control (`ac`, `roles`, `adminRoles`) gates only the plugin's own
 endpoints (set role, ban, revoke sessions); application authorization is CASL

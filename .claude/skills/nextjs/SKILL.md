@@ -82,8 +82,10 @@ const AppLayout = async ({ children }: { children: ReactNode }) => {
 
 `getServerSession` (`lib/auth/server.ts`) forwards the incoming `cookie` header to
 `${publicEnv.apiUrl}/api/auth/get-session` with `cache: "no-store"` and returns `null` on any
-failure; `toCurrentUser` narrows `role` with `roleSchema`. `AppShell` mounts `AbilityProvider` and
-the nav (`Users` hidden for `member`), and signs out with `authClient.signOut()` followed by
+failure; `toCurrentUser` narrows `role` with `roleSchema` and passes the session's `permissions`
+through. `AppShell` mounts `AbilityProvider user={user}` and the nav (`Users` shown when
+`canUnscoped(ability, "read", "User")`, see `visibleNavItems`), and signs out with
+`authClient.signOut()` followed by
 `router.push("/login"); router.refresh()`.
 
 ## tRPC + React Query (`@trpc/tanstack-react-query`)

@@ -100,13 +100,13 @@ afterAll(async () => {
 
 it("is admin-only and refuses to demote the last admin", async () => {
   const admin = await signedInUser(h, { role: "admin" });
-  const member = await signedInUser(h);
+  const staff = await signedInUser(h);
   const ctx = await contextFor(h, admin.headers);
 
   await expect(
-    userService.changeRole(await contextFor(h, member.headers), {
+    userService.changeRole(await contextFor(h, staff.headers), {
       userId: admin.user.id,
-      role: "member",
+      role: "staff",
     }),
   ).rejects.toBeInstanceOf(ForbiddenError);
   // ... then demote every other admin and assert the ConflictError on the last one

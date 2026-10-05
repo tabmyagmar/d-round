@@ -85,8 +85,10 @@ code maps its states to a tone instead of picking colours:
 ```tsx
 // apps/web/features/users/role-badge.tsx
 const ROLE_TONES: Record<Role, StatusTone> = {
-  admin: "danger",
-  member: "neutral",
+  super_admin: "danger",
+  admin: "warning",
+  manager: "info",
+  staff: "neutral",
 };
 
 export const RoleBadge = ({ role }: { role: string | null | undefined }) => {

@@ -106,10 +106,11 @@ The web app's name, description and `<html lang>` live in `apps/web/lib/brand.ts
   accounts) or from `POST /api/auth/admin/create-user` / `authClient.admin.createUser` with an
   admin session.
 - **User module** (the reference module): `user.me / byId / list / updateProfile / changeRole /
-deactivate` behind two-layer authorization — CASL abilities (`packages/permissions`, the matrix
-  test is the spec) plus stateful service rules (the last active admin cannot be demoted or
-  deactivated; deactivation soft-deletes and revokes sessions). Web: `/dashboard`, `/users`,
-  `/users/[id]`, `/profile`.
+deactivate` behind two-layer authorization — CASL abilities built from the catalog grants in the
+  session (`packages/permissions`; spec: `packages/permissions/test/ability.test.ts` and
+  `apps/api/test/permission-catalog.test.ts`) plus stateful service rules (the last active admin
+  cannot be demoted or deactivated; deactivation soft-deletes the user and deletes its sessions in
+  one transaction). Web: `/dashboard`, `/users`, `/users/[id]`, `/profile`.
 - **Transactional outbox** (`docs/adr/0004-outbox.md`): the API writes an `outbox_emails` row
   inside the transaction and enqueues an ID-only BullMQ job after commit; the worker renders and
   sends through SMTP (Mailpit locally) with retries, and a sweeper re-enqueues stale rows.
@@ -121,8 +122,9 @@ deactivate` behind two-layer authorization — CASL abilities (`packages/permiss
 | `super_admin`, `admin` | every user | every user | yes                       |
 | `manager`, `staff`     | self       | self       | no                        |
 
-Adding a role: extend `ROLES` in `@repo/validation`, `roles` in `@repo/auth`, `rules.ts` and the
-matrix test together (`.claude/rules/permissions.md`).
+The table follows `packages/database/prisma/seed/data/permissions.csv`: changing who may do what is
+a CSV change. Adding a role touches the role lists, the CSV flag column and a migration — see
+`.claude/rules/permissions.md`.
 
 ## Scripts (root)
 

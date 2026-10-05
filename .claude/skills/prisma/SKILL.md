@@ -33,8 +33,8 @@ file of the model that owns them): `system/health-check.prisma`,
 `OutboxEmail`), `source/{source-region,source-prefecture,source-address}.prisma` (`SourceArea` +
 `SourceRegion`, `SourcePrefecture`, `SourceAddress`),
 `access/{role,permission,role-permission,user-permission}.prisma` (`Role`, `Permission`,
-`RolePermission`, `UserPermission`). Prisma merges the folder; relations across files work as
-usual.
+`RolePermission`, `PermissionEffect` + `UserPermission`). Prisma merges the folder; relations
+across files work as usual.
 
 ## How-to: add or change a model
 
@@ -66,6 +66,8 @@ names fixed, tables/columns mapped to snake_case, plus our `deletedAt`) and `Out
 `RolePermission`, `UserPermission`, keyed by `roles.key` / `permissions.key`; `User` gains only
 the relation `permissions`. Since `20261005143913_align_users_role_with_roles`: `users.role` is
 NOT NULL, defaults to `staff` and references `roles.key` (the migration inserts the four rows).
+Since `20261005145534_add_permission_visible_and_user_permission_effect`: `permissions.visible`
+(UI filter) and `user_permissions.effect` (`ALLOW | DENY`).
 Regenerating the Better Auth models is described in `.claude/rules/migrations.md` (diff the CLI
 output against the files under `prisma/schema/auth/`).
 
@@ -78,12 +80,13 @@ and `runSeeds` prints one line per dataset (permissions add `grants +n/-m` for t
 synced to the CSV). Reference datasets are idempotent: a re-run reports `created 0, updated 0`
 (`grants +0/-0`) and leaves every `updated_at` unchanged.
 
-`users.seed.ts` upserts two verified accounts by email, so it converges and is safe to re-run (a
-re-run re-hashes the password and reports existing accounts as `updated`); the password for both is
-`A12345678`, hashed with `hashPassword` from `better-auth/crypto` and stored in a credential
-`Account` row so the normal `/api/auth/sign-in/email` flow accepts it: `admin@test.com` (admin) and
-`member@test.com` (member). It creates them only when `NODE_ENV` is `development` or `test`; any
-other value (unset, `production`, `staging`) skips both and reports them as `skipped`, so
+`users.seed.ts` upserts four verified accounts by email, so it converges and is safe to re-run (a
+re-run re-hashes the password and reports existing accounts as `updated`); the password for all
+four is `A12345678`, hashed with `hashPassword` from `better-auth/crypto` and stored in a credential
+`Account` row so the normal `/api/auth/sign-in/email` flow accepts it: one account per catalog
+role (`super_admin@test.com`, `admin@test.com`, `manager@test.com`, `staff@test.com`). It creates
+them only when `NODE_ENV` is `development` or `test`; any other value (unset, `production`,
+`staging`) skips all four and reports them as `skipped`, so
 `yarn db:seed` loads reference data in a real environment without creating known-password logins.
 Seed a real environment from its own environment, never from a developer checkout whose `.env`
 says `development`. Add new fixtures to the `SEED_USERS` array as upserts, never as plain
@@ -124,7 +127,12 @@ and add `deletedAt: null` themselves. Export from `packages/database/src/reposit
 return withTransaction(ctx.db, async ({ tx }) => {
   const users = createUserRepository(tx);
   const target = await users.findById(input.userId);
-  if (target?.role === "admin" && (await users.countActiveAdmins()) <= 1) {
+  if (
+    target &&
+    isAdminRole(target.role) &&
+    !isAdminRole(input.role) &&
+    (await users.countActiveAdmins(ADMIN_ROLES)) <= 1
+  ) {
     throw new ConflictError("Cannot demote the last admin");
   }
   return users.updateRole(input.userId, input.role);

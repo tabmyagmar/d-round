@@ -256,8 +256,8 @@ the web app is a plain client of it.
   connection).
 - **Per request.** `buildRequestContext` resolves the session once (`auth.api.getSession`) into
   `ctx.user` and builds `ctx.ability`; services never talk to Better Auth for identity. Deactivating
-  a user soft-deletes and bans the row and revokes its sessions through the admin API with the
-  caller's headers.
+  a user soft-deletes and bans the row and deletes its sessions through the user repository in the
+  same transaction (no Better Auth admin call, so it does not depend on the caller's role).
 - **Roles** are stored as strings on `users.role` (Better Auth admin plugin) with a foreign key to
   the `roles` catalog, so the database refuses unknown values; the allowed set is `roleSchema` in
   `@repo/validation` and the default is `staff`.

@@ -76,7 +76,7 @@ service call**. Rules: `.claude/rules/module-template.md`, `.claude/rules/layers
        .mutation(({ ctx, input }) => userService.changeRole(ctx, input)),
 
      deactivate: protectedProcedure
-       .use(requireAbility("delete", "User"))
+       .use(requireAbility("status", "User"))
        .input(userIdSchema)
        .mutation(({ ctx, input }) => userService.deactivate(ctx, input.userId)),
    });
@@ -87,10 +87,10 @@ service call**. Rules: `.claude/rules/module-template.md`, `.claude/rules/layers
 
    ```ts
    const createCaller = createCallerFactory(appRouter);
-   const member = await signedInUser(h);
-   const caller = createCaller(await contextFor(h, member.headers));
+   const staff = await signedInUser(h);
+   const caller = createCaller(await contextFor(h, staff.headers));
    await expect(
-     caller.user.changeRole({ userId: member.user.id, role: "admin" }),
+     caller.user.changeRole({ userId: staff.user.id, role: "admin" }),
    ).rejects.toMatchObject({ code: "FORBIDDEN" });
    ```
 

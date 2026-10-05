@@ -122,7 +122,9 @@ isolate through unique names instead.
   (`packages/database/test/index.ts`, `packages/queue/test/index.ts`).
 - Imports inside a test are relative to its mirrored position
   (`../../../src/modules/user/user.service`, `../../support`).
-- The ability matrix test (`packages/permissions/test/ability.test.ts`) is the permission spec.
+- The permission spec is two files: the grant-driven unit spec
+  (`packages/permissions/test/ability.test.ts`) and the DB-backed catalog test
+  (`apps/api/test/permission-catalog.test.ts`).
 
 ## Never
 
