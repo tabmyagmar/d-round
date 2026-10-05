@@ -23,6 +23,7 @@
     "db:migrate:dev": "yarn workspace @repo/database db:migrate:dev",
     "db:studio": "yarn workspace @repo/database db:studio",
     "db:seed": "yarn workspace @repo/database db:seed",
+    "db:seed:reference": "yarn workspace @repo/database db:seed:reference",
     "docker:up": "docker compose up -d --wait",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",

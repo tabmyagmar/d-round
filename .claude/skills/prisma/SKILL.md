@@ -13,17 +13,17 @@ in CI) and contained (Prisma only inside `packages/database`). Rules:
 
 ## Where things are
 
-| What                | Where                                                                      |
-| ------------------- | -------------------------------------------------------------------------- |
-| Schema (multi-file) | `packages/database/prisma/schema/` (`schema.prisma` + `<module>/*.prisma`) |
-| Migrations          | `packages/database/prisma/migrations/`                                     |
-| Config (URL, paths) | `packages/database/prisma.config.ts` (loads the root `.env`)               |
-| Generated client    | `packages/database/src/generated/prisma/` (git-ignored)                    |
-| Client factory      | `packages/database/src/client.ts` (`@prisma/adapter-pg`)                   |
-| Repositories        | `packages/database/src/repositories/<name>.repository.ts`                  |
-| Utilities           | `packages/database/src/utils/{pagination,errors,transaction}.ts`           |
-| Test helpers        | `packages/database/test/index.ts` (`startTestDatabase`)                    |
-| Seed                | `packages/database/prisma/seed.ts` (`yarn db:seed`)                        |
+| What                | Where                                                                       |
+| ------------------- | --------------------------------------------------------------------------- |
+| Schema (multi-file) | `packages/database/prisma/schema/` (`schema.prisma` + `<module>/*.prisma`)  |
+| Migrations          | `packages/database/prisma/migrations/`                                      |
+| Config (URL, paths) | `packages/database/prisma.config.ts` (loads the root `.env`)                |
+| Generated client    | `packages/database/src/generated/prisma/` (git-ignored)                     |
+| Client factory      | `packages/database/src/client.ts` (`@prisma/adapter-pg`)                    |
+| Repositories        | `packages/database/src/repositories/<name>.repository.ts`                   |
+| Utilities           | `packages/database/src/utils/{pagination,errors,transaction}.ts`            |
+| Test helpers        | `packages/database/test/index.ts` (`startTestDatabase`)                     |
+| Seed                | `packages/database/prisma/seed/` (`yarn db:seed`, `yarn db:seed:reference`) |
 
 `prisma.config.ts` points `schema` at the **folder** `prisma/schema`. `schema/schema.prisma` holds
 only the `generator` and `datasource` blocks; every model has its own file,
@@ -55,14 +55,28 @@ Existing models (`0001_init`): `User`, `Session`, `Account`,
 (`PENDING | SENT | FAILED`). Regenerating the Better Auth models: `.claude/rules/migrations.md`
 (diff the CLI output against the files under `prisma/schema/auth/`).
 
-## How-to: seed test accounts
+## How-to: seed data
 
-`yarn db:seed` runs `packages/database/prisma/seed.ts` (`prisma db seed` → `tsx prisma/seed.ts`).
-It upserts two verified accounts by email, so it is idempotent and safe to re-run; the password
-for both is `A12345678`, hashed with `hashPassword` from `better-auth/crypto` and stored in a
-credential `Account` row so the normal `/api/auth/sign-in/email` flow accepts it:
-`admin@test.com` (admin) and `member@test.com` (member). Add new fixtures to the `SEED_USERS` array
-as upserts — never as plain `create` — and never point the seed at production data.
+Seeds live in `packages/database/prisma/seed/`, one `<dataset>.seed.ts` per dataset exporting a
+`SeedFn` that returns a `SeedSummary` (`support.ts`). Two entrypoints:
+
+- `yarn db:seed:reference` runs `prisma/seed/reference.ts`: the `REFERENCE_SEEDS` registry in
+  `reference-data.ts`, reference data only, production-safe. The lint rule
+  `database/seed-production-safe` forbids every file in `prisma/seed/` except `index.ts` and
+  `users.seed.ts` from importing the test-user seed, the dev entrypoint or Better Auth (static
+  imports and literal `import("...")`).
+- `yarn db:seed` runs `prisma/seed/index.ts` (`prisma db seed` → `tsx prisma/seed/index.ts`):
+  reference data, then the test accounts. It refuses to run with `NODE_ENV=production`; the guard
+  is also enforced inside `seedUsers`, so it holds however the seed is started.
+
+`users.seed.ts` upserts two verified accounts by email, so it converges and is safe to re-run (a
+re-run re-hashes the password and reports existing accounts as `updated`); the password for both is
+`A12345678`, hashed with `hashPassword` from `better-auth/crypto` and stored in a credential
+`Account` row so the normal `/api/auth/sign-in/email` flow accepts it: `admin@test.com` (admin) and
+`member@test.com` (member). Add new fixtures to the `SEED_USERS` array as upserts — never as plain
+`create` — and never point the dev seed at production data. A new reference dataset is a new
+`<dataset>.seed.ts` registered in `REFERENCE_SEEDS`, idempotent, with its test in
+`packages/database/test/seed/`.
 
 ## How-to: write a repository
 

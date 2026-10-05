@@ -31,7 +31,7 @@ cp .env.example .env                       # one root .env for the whole monorep
 # 3. Infrastructure, database, run
 yarn docker:up                             # postgres, redis, mailpit, pgadmin — waits for health checks
 yarn db:migrate                            # applies the single 0001_init migration
-yarn db:seed                               # admin@test.com + member@test.com, password A12345678
+yarn db:seed                               # reference data + admin@test.com / member@test.com (A12345678)
 yarn dev                                   # web :3000, api :4000, worker; Mailpit UI :8025
 
 # 4. Gate and first commit (Conventional Commits, enforced by the commit-msg hook)
@@ -59,7 +59,7 @@ cp .env.example .env   # one root .env for the whole monorepo
 yarn                   # installs, runs prisma generate, installs the husky hooks
 yarn docker:up         # postgres + pgadmin + redis + mailpit, waits for the healthchecks
 yarn db:migrate        # prisma migrate deploy
-yarn db:seed           # two verified test accounts, password A12345678 (idempotent)
+yarn db:seed           # reference data + two verified test accounts, password A12345678 (re-runnable)
 yarn dev               # web + api + worker (all three; emails need the worker)
 ```
 
@@ -122,25 +122,26 @@ matrix test together (`.claude/rules/permissions.md`).
 
 ## Scripts (root)
 
-| Script                | What it does                                                                                               |
-| --------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `yarn dev`            | `turbo run dev` — web (`next dev`), api and worker (`tsx watch`); all three are needed for the full flow   |
-| `yarn build`          | `turbo run build` — Next build plus `tsdown` bundles for api/worker                                        |
-| `yarn verify`         | lint + typecheck + test + test:scripts + build + format:check (the CI gate)                                |
-| `yarn lint`           | ESLint in every workspace                                                                                  |
-| `yarn typecheck`      | `tsc --noEmit` in every workspace                                                                          |
-| `yarn test`           | `vitest run` in every workspace (testcontainers need Docker; web/ui run in jsdom)                          |
-| `yarn test:scripts`   | node:test suite for `scripts/` (the template initialiser)                                                  |
-| `yarn format`         | `prettier --write .`                                                                                       |
-| `yarn format:check`   | `prettier --check .`                                                                                       |
-| `yarn db:generate`    | `prisma generate` (also runs on `postinstall`)                                                             |
-| `yarn db:migrate`     | `prisma migrate deploy` — apply the committed migrations                                                   |
-| `yarn db:migrate:dev` | `prisma migrate dev` — create a migration locally (needs `docker:up`)                                      |
-| `yarn db:studio`      | Prisma Studio                                                                                              |
-| `yarn db:seed`        | `prisma db seed` → `prisma/seed.ts`: upserts `admin@test.com` and `member@test.com` (password `A12345678`) |
-| `yarn docker:up`      | `docker compose up -d --wait`                                                                              |
-| `yarn docker:down`    | `docker compose down` (volumes are kept)                                                                   |
-| `yarn docker:logs`    | `docker compose logs -f`                                                                                   |
+| Script                   | What it does                                                                                             |
+| ------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `yarn dev`               | `turbo run dev` — web (`next dev`), api and worker (`tsx watch`); all three are needed for the full flow |
+| `yarn build`             | `turbo run build` — Next build plus `tsdown` bundles for api/worker                                      |
+| `yarn verify`            | lint + typecheck + test + test:scripts + build + format:check (the CI gate)                              |
+| `yarn lint`              | ESLint in every workspace                                                                                |
+| `yarn typecheck`         | `tsc --noEmit` in every workspace                                                                        |
+| `yarn test`              | `vitest run` in every workspace (testcontainers need Docker; web/ui run in jsdom)                        |
+| `yarn test:scripts`      | node:test suite for `scripts/` (the template initialiser)                                                |
+| `yarn format`            | `prettier --write .`                                                                                     |
+| `yarn format:check`      | `prettier --check .`                                                                                     |
+| `yarn db:generate`       | `prisma generate` (also runs on `postinstall`)                                                           |
+| `yarn db:migrate`        | `prisma migrate deploy` — apply the committed migrations                                                 |
+| `yarn db:migrate:dev`    | `prisma migrate dev` — create a migration locally (needs `docker:up`)                                    |
+| `yarn db:studio`         | Prisma Studio                                                                                            |
+| `yarn db:seed`           | `prisma db seed` → `prisma/seed/index.ts`: reference data, then the two test accounts (dev only)         |
+| `yarn db:seed:reference` | `tsx prisma/seed/reference.ts`: reference data only, never test users — the production-safe seed         |
+| `yarn docker:up`         | `docker compose up -d --wait`                                                                            |
+| `yarn docker:down`       | `docker compose down` (volumes are kept)                                                                 |
+| `yarn docker:logs`       | `docker compose logs -f`                                                                                 |
 
 ## Folder map
 
@@ -167,9 +168,9 @@ packages/
               filtering), react.tsx (AbilityProvider, Can, useAbility), test/ability.test.ts (the
               spec)
   database/   Prisma 7 multi-file schema (prisma/schema: schema.prisma + system/, auth/, email/),
-              migrations (0001_init), seed.ts (test accounts), generated client (git-ignored),
-              repositories (user, outbox-email), utils (pagination, errors, transaction), test/
-              (testcontainers helper, test/repositories, test/utils)
+              migrations (0001_init), seed/ (reference data + dev test accounts), generated client
+              (git-ignored), repositories (user, outbox-email), utils (pagination, errors,
+              transaction), test/ (testcontainers helper, test/repositories, test/utils, test/seed)
   validation/ zod re-export, shared schemas (user.schema.ts: roles, sign-up/in, profile, list),
               createEnv() for env validation
   queue/      BullMQ + ioredis wrapper: connection, createQueue, createWorker, pub/sub, jobIdFor,
