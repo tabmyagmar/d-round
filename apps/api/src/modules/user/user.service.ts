@@ -33,9 +33,18 @@ const loadUser = async (ctx: RequestContext, userId: string): Promise<User> => {
 const isAdminRole = (role: string | null): boolean =>
   role !== null && (ADMIN_ROLES as readonly string[]).includes(role);
 
-const assertCan = (ctx: RequestContext, action: "read" | "update", user: User): void => {
+type RowAction = "read" | "update" | "status";
+
+/** How a denied row action reads in the error message the client sees. */
+const ROW_ACTION_PHRASES: Record<RowAction, string> = {
+  read: "read",
+  update: "update",
+  status: "change the status of",
+};
+
+const assertCan = (ctx: RequestContext, action: RowAction, user: User): void => {
   if (!ctx.ability.can(action, prismaUserSubject(user))) {
-    throw new ForbiddenError(`Not allowed to ${action} this user`);
+    throw new ForbiddenError(`Not allowed to ${ROW_ACTION_PHRASES[action]} this user`);
   }
 };
 
@@ -128,28 +137,28 @@ export const changeRole = async (ctx: RequestContext, input: ChangeRoleInput): P
 
 export const deactivate = async (ctx: RequestContext, userId: string): Promise<User> => {
   const { user: actor } = requireUser(ctx);
-  if (!ctx.ability.can("delete", "User")) {
-    throw new ForbiddenError("Not allowed to deactivate users");
+  // Deactivation is a status change (catalog action `status`), not a delete.
+  if (!ctx.ability.can("status", "User")) {
+    throw new ForbiddenError("Not allowed to change user status");
   }
   if (actor.id === userId) {
     throw new ConflictError("You cannot deactivate your own account");
   }
 
-  const deactivated = await withTransaction(ctx.db, async ({ tx }) => {
+  return withTransaction(ctx.db, async ({ tx }) => {
     const users = createUserRepository(tx);
     const target = await users.findById(userId);
     if (!target) {
       throw new NotFoundError("User", userId);
     }
+    assertCan(ctx, "status", target);
     if (isAdminRole(target.role) && (await users.countActiveAdmins(ADMIN_ROLES)) <= 1) {
       throw new ConflictError("Cannot deactivate the last admin");
     }
-    return users.softDelete(target.id);
+    const softDeleted = await users.softDelete(target.id);
+    // Existing sessions end in the same transaction, so a refused deactivation revokes nothing
+    // and no Better Auth admin call (which checks the caller's own role) is needed.
+    await users.deleteSessions(target.id);
+    return softDeleted;
   });
-
-  // Existing sessions die immediately; the Better Auth admin API checks the caller's own
-  // session (admin) from the request headers.
-  await ctx.auth.api.revokeUserSessions({ body: { userId }, headers: ctx.headers });
-
-  return deactivated;
 };

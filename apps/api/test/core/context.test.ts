@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { SessionUser } from "@repo/auth";
+import { prismaUserSubject } from "@repo/permissions/server";
 import { DEFAULT_ROLE } from "@repo/validation";
 
 import { REQUEST_ID_HEADER, buildRequestContext, toAuthUser } from "../../src/core/context";
@@ -91,6 +92,43 @@ describe("buildRequestContext", () => {
     const ctx = await contextFor(h, new Headers({ cookie: cookieHeaderFrom(response) }));
 
     expect(ctx.user?.role).toBe(DEFAULT_ROLE);
+  });
+});
+
+describe("ctx.ability is built from the session's grants", () => {
+  it("lets an admin create users, change their status and their role (rows 1101, 1105, 1106)", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+
+    const ctx = await contextFor(h, admin.headers);
+
+    expect(ctx.ability.can("create", "User")).toBe(true);
+    expect(ctx.ability.can("status", "User")).toBe(true);
+    expect(ctx.ability.can("changeRole", "User")).toBe(true);
+  });
+
+  it("refuses those to staff, who may still read clients (row 1202)", async () => {
+    const staff = await signedInUser(h, { role: "staff" });
+
+    const ctx = await contextFor(h, staff.headers);
+
+    expect(ctx.ability.can("create", "User")).toBe(false);
+    expect(ctx.ability.can("status", "User")).toBe(false);
+    expect(ctx.ability.can("changeRole", "User")).toBe(false);
+    expect(ctx.ability.can("read", "Client")).toBe(true);
+  });
+
+  it("keeps the self rule: staff read and update their own row, not another user's", async () => {
+    const staff = await signedInUser(h, { role: "staff" });
+    const other = await h.db.user.create({
+      data: { name: "Other", email: `${crypto.randomUUID()}@example.com` },
+    });
+
+    const ctx = await contextFor(h, staff.headers);
+
+    expect(ctx.ability.can("read", prismaUserSubject(staff.user))).toBe(true);
+    expect(ctx.ability.can("update", prismaUserSubject(staff.user))).toBe(true);
+    expect(ctx.ability.can("read", prismaUserSubject(other))).toBe(false);
+    expect(ctx.ability.can("update", prismaUserSubject(other))).toBe(false);
   });
 });
 

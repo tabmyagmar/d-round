@@ -5,32 +5,48 @@ import type { Role } from "@repo/validation";
  * conditions) and `definePrismaAbilityFor` (API, Prisma where-conditions). Conditions are
  * plain equalities so both engines interpret them identically.
  *
- * CASL answers "may this role do this kind of thing?". Stateful rules (last admin, workflow
- * state) live in services. See .claude/rules/permissions.md.
+ * CASL answers "may this user do this kind of thing?" from the catalog grants the session
+ * carries. Stateful rules (last admin, workflow state) live in services. See
+ * .claude/rules/permissions.md and docs/adr/0003-permissions.md.
  */
 
-export const ACTIONS = ["manage", "create", "read", "update", "delete", "changeRole"] as const;
+/** The catalog's child-row actions (`permissions.action`); parent rows carry `all` and never grant. */
+export const ACTIONS = ["create", "read", "update", "delete", "status", "changeRole"] as const;
 export type Action = (typeof ACTIONS)[number];
 
-export const SUBJECT_NAMES = ["User"] as const;
-export type SubjectName = (typeof SUBJECT_NAMES)[number] | "all";
+/** The catalog's `modelName` values. Only `User` has a Prisma model (and rows) today. */
+export const SUBJECT_NAMES = [
+  "User",
+  "Client",
+  "Staff",
+  "Branch",
+  "AuditLog",
+  "Workflow",
+  "WorkflowTemplate",
+  "SourceCsvHistory",
+] as const;
+export type SubjectName = (typeof SUBJECT_NAMES)[number];
+
+export const isAction = (value: string): value is Action =>
+  (ACTIONS as readonly string[]).includes(value);
+
+export const isSubjectName = (value: string): value is SubjectName =>
+  (SUBJECT_NAMES as readonly string[]).includes(value);
 
 /**
  * One effective grant from the session (`session.user.permissions`); `subject` is the catalog's
  * `modelName`. Plain strings on purpose: the payload crosses JSON from Better Auth and comes from
  * free-text catalog columns. `defineRules` validates each grant once against `ACTIONS` /
- * `SUBJECT_NAMES` (Commit E3) and ignores what it does not know — fail closed.
+ * `SUBJECT_NAMES` and ignores what it does not know — fail closed.
  */
 export type PermissionGrant = { action: string; subject: string };
 
 /** The minimum the rules need to know about the current user. */
 export type AbilityUser = {
   id: string;
+  /** Not an input to the grant loop; kept for row-scoped rules that depend on the role. */
   role: Role;
-  /**
-   * Effective grants (role grants ∪ user ALLOW − user DENY) carried by the session. The rules
-   * read them from Commit E3 on; until then the role switch below decides.
-   */
+  /** Effective grants (role grants ∪ user ALLOW − user DENY) carried by the session. */
   permissions: readonly PermissionGrant[];
 };
 
@@ -46,17 +62,17 @@ export type CanFn = (
 ) => void;
 
 export const defineRules = (can: CanFn, user: AbilityUser): void => {
-  // Interim until the catalog grants drive the rules (Commit E3, plan Step 17): both admin roles
-  // may do everything.
-  switch (user.role) {
-    case "super_admin":
-    case "admin":
-      can("manage", "all");
-      return;
-    case "manager":
-    case "staff":
-      break;
+  // Catalog grants from the session (role grants ∪ user ALLOW − user DENY), validated once: a
+  // grant outside ACTIONS / SUBJECT_NAMES (parent rows carry `all`) is ignored — fail closed.
+  for (const grant of user.permissions) {
+    if (isAction(grant.action) && isSubjectName(grant.subject)) {
+      can(grant.action, grant.subject);
+    }
   }
+
+  // Row-scoped rules go here, after the grant loop: one equality condition on a subject attribute
+  // guarded by `user.role` (for example a team lead: `can("read", "User", { teamId: user.teamId })`),
+  // plus the key in `UserConditions` and a spec row in test/ability.test.ts.
 
   // Everyone may see and edit their own profile.
   can(["read", "update"], "User", { id: user.id });

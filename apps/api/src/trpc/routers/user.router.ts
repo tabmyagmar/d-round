@@ -35,7 +35,7 @@ export const userRouter = router({
     .mutation(({ ctx, input }) => userService.changeRole(ctx, input)),
 
   deactivate: protectedProcedure
-    .use(requireAbility("delete", "User"))
+    .use(requireAbility("status", "User"))
     .input(userIdSchema)
     .mutation(({ ctx, input }) => userService.deactivate(ctx, input.userId)),
 });

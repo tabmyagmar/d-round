@@ -223,16 +223,47 @@ describe("deactivate", () => {
     ).rejects.toMatchObject({ status: "FORBIDDEN" });
   });
 
-  it("refuses self-deactivation and non-admins", async () => {
+  it("lets a non-admin holding `status User` deactivate a user and ends that user's sessions", async () => {
+    const actor = await signedInUser(h);
+    const target = await signedInUser(h);
+    // A user ALLOW row on 1105 gives this staff user `status User`; grants are read at session
+    // lookup, so the row goes in before the context is built.
+    await h.db.userPermission.create({
+      data: { userId: actor.user.id, permissionKey: "1105", effect: "ALLOW" },
+    });
+
+    const result = await userService.deactivate(await contextFor(h, actor.headers), target.user.id);
+
+    expect(result.deletedAt).toBeInstanceOf(Date);
+    expect(result.banned).toBe(true);
+    expect(await h.auth.api.getSession({ headers: target.headers })).toBeNull();
+    expect(await h.auth.api.getSession({ headers: actor.headers })).not.toBeNull();
+  });
+
+  it("refuses self-deactivation and callers without `status User`", async () => {
     const admin = await signedInUser(h, { role: "admin" });
     const staff = await signedInUser(h);
 
     await expect(
       userService.deactivate(await contextFor(h, admin.headers), admin.user.id),
     ).rejects.toBeInstanceOf(ConflictError);
+
+    const denied = userService.deactivate(await contextFor(h, staff.headers), admin.user.id);
+    await expect(denied).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(denied).rejects.toThrow("Not allowed to change user status");
+  });
+
+  it("refuses an admin whose `status User` grant a user DENY row removes", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const target = await signedInUser(h);
+    await h.db.userPermission.create({
+      data: { userId: admin.user.id, permissionKey: "1105", effect: "DENY" },
+    });
+
     await expect(
-      userService.deactivate(await contextFor(h, staff.headers), admin.user.id),
+      userService.deactivate(await contextFor(h, admin.headers), target.user.id),
     ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(await h.auth.api.getSession({ headers: target.headers })).not.toBeNull();
   });
 
   it("keeps at least one active user across both admin roles", async () => {
@@ -253,6 +284,8 @@ describe("deactivate", () => {
       await expect(userService.deactivate(adminCtx, superAdmin.user.id)).rejects.toThrow(
         "Cannot deactivate the last admin",
       );
+      // The refused deactivation rolled back, sessions included.
+      expect(await h.auth.api.getSession({ headers: superAdmin.headers })).not.toBeNull();
     } finally {
       await restore();
     }

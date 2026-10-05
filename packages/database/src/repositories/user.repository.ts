@@ -54,6 +54,10 @@ export const createUserRepository = (db: DbClient) => ({
       where: { id },
       data: { deletedAt: new Date(), banned: true, banReason: "deactivated" },
     }),
+
+  /** Ends every session of the user (Better Auth reads them from this table); returns the count. */
+  deleteSessions: async (userId: string): Promise<number> =>
+    (await db.session.deleteMany({ where: { userId } })).count,
 });
 
 export type UserRepository = ReturnType<typeof createUserRepository>;

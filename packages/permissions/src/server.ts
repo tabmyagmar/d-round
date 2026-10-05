@@ -6,7 +6,7 @@ import type { Model, PrismaQueryOf, Subjects } from "@casl/prisma/runtime";
 import type { Prisma, User } from "@repo/database";
 
 import { defineRules } from "./rules";
-import type { AbilityUser, Action } from "./rules";
+import type { AbilityUser, Action, SubjectName } from "./rules";
 
 /**
  * Server-side ability with Prisma where-conditions, so list endpoints can filter with
@@ -16,7 +16,8 @@ import type { AbilityUser, Action } from "./rules";
 
 export type PrismaQuery = PrismaQueryOf<Prisma.TypeMap>;
 
-export type ServerSubjects = "all" | Subjects<{ User: User }>;
+/** Every catalog subject by name; `User` additionally as a tagged Prisma row for row conditions. */
+export type ServerSubjects = SubjectName | Subjects<{ User: User }>;
 
 export type ServerAbility = Ability<[Action, ServerSubjects], PrismaQuery>;
 

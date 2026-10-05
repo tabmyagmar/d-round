@@ -144,7 +144,7 @@ export const UserEditor = ({ userId }: { userId: string }) => {
             </Card>
           </Can>
 
-          <Can I="delete" a="User">
+          <Can I="status" a="User">
             <Card>
               <CardHeader>
                 <CardTitle>Deactivate</CardTitle>

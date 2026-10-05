@@ -90,6 +90,25 @@ describe("user repository", () => {
     );
   });
 
+  it("deletes every session of one user and leaves other users' sessions alone", async () => {
+    const repo = createUserRepository(prisma);
+    const prefix = group();
+    const target = await createUser({ group: prefix });
+    const other = await createUser({ group: prefix });
+    const session = (userId: string) =>
+      prisma.session.create({
+        data: { userId, token: crypto.randomUUID(), expiresAt: new Date(Date.now() + 60_000) },
+      });
+    await session(target.id);
+    await session(target.id);
+    await session(other.id);
+
+    expect(await repo.deleteSessions(target.id)).toBe(2);
+
+    expect(await prisma.session.count({ where: { userId: target.id } })).toBe(0);
+    expect(await prisma.session.count({ where: { userId: other.id } })).toBe(1);
+  });
+
   it("updates profile fields and role independently", async () => {
     const repo = createUserRepository(prisma);
     const user = await createUser({ group: group() });

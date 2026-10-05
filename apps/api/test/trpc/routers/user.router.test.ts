@@ -24,25 +24,44 @@ describe("user router", () => {
   });
 
   it("returns the caller for user.me", async () => {
-    const member = await signedInUser(h, { name: "Me Myself" });
-    const caller = createCaller(await contextFor(h, member.headers));
+    const self = await signedInUser(h, { name: "Me Myself" });
+    const caller = createCaller(await contextFor(h, self.headers));
 
     const me = await caller.user.me();
 
-    expect(me.id).toBe(member.user.id);
+    expect(me.id).toBe(self.user.id);
     expect(me.name).toBe("Me Myself");
   });
 
   it("maps layer-1 denials to FORBIDDEN before touching the service", async () => {
-    const member = await signedInUser(h);
-    const caller = createCaller(await contextFor(h, member.headers));
+    const staff = await signedInUser(h);
+    const caller = createCaller(await contextFor(h, staff.headers));
 
     await expect(
-      caller.user.changeRole({ userId: member.user.id, role: "admin" }),
+      caller.user.changeRole({ userId: staff.user.id, role: "admin" }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(caller.user.deactivate({ userId: member.user.id })).rejects.toMatchObject({
+    // `requireAbility("status", "User")` words its message differently from the service, so the
+    // message proves the denial happened in the router.
+    await expect(caller.user.deactivate({ userId: staff.user.id })).rejects.toMatchObject({
       code: "FORBIDDEN",
+      message: "Not allowed to status User",
     });
+  });
+
+  it("denies deactivate at layer 1 to an admin whose `status User` grant a user DENY row removes", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const target = await signedInUser(h);
+    // Grants are read at session lookup, so the DENY row goes in before the context is built.
+    await h.db.userPermission.create({
+      data: { userId: admin.user.id, permissionKey: "1105", effect: "DENY" },
+    });
+    const caller = createCaller(await contextFor(h, admin.headers));
+
+    await expect(caller.user.deactivate({ userId: target.user.id })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "Not allowed to status User",
+    });
+    expect((await caller.user.byId({ userId: target.user.id })).deletedAt).toBeNull();
   });
 
   it("validates input with the shared schemas", async () => {
@@ -57,19 +76,23 @@ describe("user router", () => {
     });
   });
 
-  it("lets an admin list and change roles, and maps service conflicts to CONFLICT", async () => {
+  it("lets an admin list, change roles and deactivate, and maps conflicts to CONFLICT", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const member = await signedInUser(h);
+    const staff = await signedInUser(h);
     const caller = createCaller(await contextFor(h, admin.headers));
 
     const page = await caller.user.list({ page: 1, perPage: 100 });
-    expect(page.items.map((u) => u.id)).toContain(member.user.id);
+    expect(page.items.map((u) => u.id)).toContain(staff.user.id);
 
-    const changed = await caller.user.changeRole({ userId: member.user.id, role: "admin" });
+    const changed = await caller.user.changeRole({ userId: staff.user.id, role: "admin" });
     expect(changed.role).toBe("admin");
 
     await expect(caller.user.deactivate({ userId: admin.user.id })).rejects.toMatchObject({
       code: "CONFLICT",
     });
+
+    const victim = await signedInUser(h);
+    const gone = await caller.user.deactivate({ userId: victim.user.id });
+    expect(gone.deletedAt).toBeInstanceOf(Date);
   });
 });

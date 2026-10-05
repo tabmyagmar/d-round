@@ -42,7 +42,7 @@ import { z } from "zod";
 
 import { idSchema, paginationSchema } from "./common.schema";
 
-export const ROLES = ["admin", "member"] as const;
+export const ROLES = ["super_admin", "admin", "manager", "staff"] as const;
 export const roleSchema = z.enum(ROLES);
 export type Role = z.infer<typeof roleSchema>;
 
@@ -94,8 +94,9 @@ export const createUserRepository = (db: DbClient) => ({
     return buildPage(items, total, page);
   },
 
-  countActiveAdmins: (): Promise<number> =>
-    db.user.count({ where: { role: "admin", deletedAt: null } }),
+  // The role list is a parameter: the database element may not import @repo/validation.
+  countActiveAdmins: (roles: readonly string[]): Promise<number> =>
+    db.user.count({ where: { role: { in: [...roles] }, deletedAt: null } }),
 
   updateProfile: (id: string, data: UserProfileUpdate): Promise<User> =>
     db.user.update({ where: { id }, data }),
@@ -127,6 +128,7 @@ the reviewer rejects the rest (`.claude/rules/repositories.md`).
 import { createUserRepository, translateDatabaseError, withTransaction } from "@repo/database";
 import type { PageResult, Prisma, UniqueViolationError, User } from "@repo/database";
 import { accessibleUsersWhere, prismaUserSubject } from "@repo/permissions/server";
+import { ADMIN_ROLES } from "@repo/validation";
 import type { ChangeRoleInput, ListUsersQuery, UpdateProfileInput } from "@repo/validation";
 
 import type { RequestContext } from "../../core/context";
@@ -187,24 +189,36 @@ export const updateProfile = async (ctx: RequestContext, input: UpdateProfileInp
   }
 };
 
-export const changeRole = async (ctx: RequestContext, input: ChangeRoleInput): Promise<User> =>
-  withTransaction(ctx.db, async ({ tx }) => {
+const isAdminRole = (role: string | null): boolean =>
+  role !== null && (ADMIN_ROLES as readonly string[]).includes(role);
+
+export const changeRole = async (ctx: RequestContext, input: ChangeRoleInput): Promise<User> => {
+  // The service re-checks what the router checked (catalog row 1106, `changeRole User`).
+  if (!ctx.ability.can("changeRole", "User")) {
+    throw new ForbiddenError("Not allowed to change roles");
+  }
+  return withTransaction(ctx.db, async ({ tx }) => {
     const users = createUserRepository(tx);
     const target = await users.findById(input.userId);
     if (!target) {
       throw new NotFoundError("User", input.userId);
     }
-    // Stateful rule: the organisation must always keep at least one active admin.
-    if (target.role === "admin" && (await users.countActiveAdmins()) <= 1) {
+    // Stateful rule: the organisation must always keep one active admin-role user (ADMIN_ROLES).
+    if (
+      isAdminRole(target.role) &&
+      !isAdminRole(input.role) &&
+      (await users.countActiveAdmins(ADMIN_ROLES)) <= 1
+    ) {
       throw new ConflictError("Cannot demote the last admin");
     }
     return users.updateRole(target.id, input.role);
   });
+};
 ```
 
-(Abridged: the real file also has `requireUser`, the `search` filter and `deactivate`, which
-soft-deletes inside `withTransaction` and then calls
-`ctx.auth.api.revokeUserSessions({ body: { userId }, headers: ctx.headers })`.)
+(Abridged: the real file also has `requireUser`, the `search` filter and `deactivate`, which checks
+`status User` at type level and `assertCan(ctx, "status", target)` on the row, then soft-deletes the
+user and deletes its sessions inside one `withTransaction`.)
 
 Rules:
 
@@ -264,7 +278,7 @@ export const userRouter = router({
     .mutation(({ ctx, input }) => userService.changeRole(ctx, input)),
 
   deactivate: protectedProcedure
-    .use(requireAbility("delete", "User"))
+    .use(requireAbility("status", "User"))
     .input(userIdSchema)
     .mutation(({ ctx, input }) => userService.deactivate(ctx, input.userId)),
 });
@@ -303,10 +317,10 @@ afterAll(async () => {
 });
 
 it("maps layer-1 denials to FORBIDDEN before touching the service", async () => {
-  const member = await signedInUser(h);
-  const caller = createCaller(await contextFor(h, member.headers));
+  const staff = await signedInUser(h);
+  const caller = createCaller(await contextFor(h, staff.headers));
   await expect(
-    caller.user.changeRole({ userId: member.user.id, role: "admin" }),
+    caller.user.changeRole({ userId: staff.user.id, role: "admin" }),
   ).rejects.toMatchObject({ code: "FORBIDDEN" });
 });
 ```
