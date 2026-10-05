@@ -1,379 +1,377 @@
-# Plan: Port legacy reference data into @repo/database (source hierarchy, postal addresses, role/permission catalog)
-
-> **Amendment 2026-10-05 (user decision):** one seed command only. `yarn db:seed` (`prisma/seed/index.ts`) calls every dataset seed in order and then the test accounts, which `seedUsers` creates only when `NODE_ENV` is `development` or `test` (fail closed; any other value skips them). `reference.ts`, `reference-data.ts` (`REFERENCE_SEEDS`), `db:seed:reference` and the `database/seed-production-safe` lint rule were removed after A1. Where units B and C below said "register in `reference-data.ts`", call the seed from `index.ts` instead; smoke with `yarn db:seed`.
-
-> **Amendment 2026-10-05 (unit B review):** three deviations from Steps 7–9, accepted by the orchestrator in review and listed for the user's confirmation. (1) `seedSourceAddresses` first reads the post codes already in the table (`findMany({ select: { postCode: true } })`) and sends only the missing rows to `createMany` (`skipDuplicates` kept for concurrent runs); summary semantics unchanged, a re-run takes under 1 s instead of a full ~18 s pass. (2) `source-addresses.seed.test.ts` loads the master once in `beforeAll` (120 s timeout) rather than in each load test. (3) The docs for `source_addresses` (`.claude/rules/migrations.md`, `.claude/skills/prisma/SKILL.md`, `README.md`) were updated inside unit B, not at Close.
-
-> **Amendment 2026-10-05 (unit C review):** accepted by the orchestrator in review and listed for the user's confirmation. (1) The role-grant sync in `seedPermissions` touches only the pairs the CSV owns (roles in `ROLE_SEEDS`, permissions in the CSV), so runtime permissions keep their grants; grant changes print as `grants +n/-m` as planned. (2) Extra tests beyond the Tests table: a role drift test, a permission drift test, a grant-restore assertion and a runtime-permission test. (3) Unit C ships as a 15-file code commit plus a separate docs commit (`migrations.md`, the Prisma skill, `README.md`, the `schema.prisma` header, `verifier.md`, this file); the branch as one MR exceeds 15 files, so cut it into two MRs or record a waiver.
+# Plan: Align Better Auth's `users.role` with the role catalog, and build CASL abilities from the permission catalog
 
 ## Goal and acceptance criteria
 
-Add the first legacy d-round domain data to `@repo/database`: `SourceRegion`/`SourcePrefecture` (Japan regions and prefectures), `SourceAddress` (Japan Post postal-code master), and `Role`/`Permission` with `RolePermission`/`UserPermission` join tables that sit next to Better Auth's `User`, each with an idempotent CSV-driven seed. One command, `yarn db:seed`, loads every reference dataset and then the two test accounts, which are created only when `NODE_ENV` is `development` or `test` (see the amendment above). Delivered as four MR-sized units in order: A0 seed folder refactor, A1 regions/prefectures, B addresses, C roles/permissions.
+Replace the template's `admin | member` role pair with the catalog's `super_admin | admin | manager | staff`, make `users.role` a NOT NULL foreign key to `roles.key`, turn public sign-up off (users are created only through the admin plugin), ship one verified test account per role, and then stop hard-coding permissions in `packages/permissions/src/rules.ts`: effective grants (role grants ∪ user `ALLOW` − user `DENY`) are loaded once per session lookup through Better Auth's `customSession` plugin and become CASL rules (`create | read | update | delete | status | changeRole` on the catalog's eight `modelName` subjects), on the API and in the browser alike. One MR on `feature/D_ROUND-TBD_role-set`, seven commits (D1, D2, D3, E1, E2, E3, Docs), each green on its own.
 
-- `yarn db:migrate:dev` produces three new migrations after `0001_init` (`add_source_regions_and_prefectures`, `add_source_addresses`, `add_roles_and_permissions`); CI drift check (`prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code`) stays green after each unit.
-- `yarn db:seed` (`tsx prisma/seed/index.ts`) loads every reference dataset, then the test users `admin@test.com` / `member@test.com` (password `A12345678`); with any `NODE_ENV` other than `development` or `test` (unset, `production`, `staging`) it loads the reference data and skips the test users. Reference datasets are idempotent: a second run changes nothing (row counts and `updated_at` values identical).
-- Seeds are covered by testcontainers tests in `packages/database/test/seed/`: counts (9 regions, 47 prefectures, 120,663 addresses, 4 roles, 42 permissions, 86 role grants), FK integrity, legacy-parity spot checks, idempotency (`updated_at` unchanged on re-run).
-- Model types (`SourceRegion`, `SourcePrefecture`, `SourceAddress`, `Role`, `Permission`, `RolePermission`, `UserPermission`) and the `SourceArea` enum are exported from `packages/database/src/index.ts`.
-- Every schema change is recorded in new `docs/adr/0005-legacy-reference-data.md` (created in A1, dated lines under `## Changes` in B and C) and follows `.claude/rules/migrations.md` (uuid v7 ids, snake_case maps, `created_at`, explicit `onDelete`, indexed FKs).
-- `yarn verify` green at the end of every step.
+- `ROLES` (`@repo/validation`) = keys of `roles` (`@repo/auth/access-control`) = `roles.key` rows in Postgres; `DEFAULT_ROLE = "staff"`, `ADMIN_ROLES = ["super_admin", "admin"]`. A parity test proves it.
+- `users.role` is `String @default("staff")` NOT NULL with FK `users.role → roles.key` (`onDelete: Restrict`); the four role rows are inserted by the migration so a migrations-only database (testcontainers) can insert users; `member` users are backfilled to `staff`; `prisma migrate diff --exit-code` is clean.
+- `POST /api/auth/sign-up/email` answers 400 `EMAIL_PASSWORD_SIGN_UP_DISABLED`; `/register`, `register-form.tsx`, `signUpSchema` and every `/register` link are gone; `auth.api.createUser` is the only way to create a user and every test helper uses it.
+- `yarn db:seed` creates `super_admin@test.com`, `admin@test.com`, `manager@test.com`, `staff@test.com` (password `A12345678`), only when `NODE_ENV` is `development` or `test`.
+- `@repo/database` exports the Prisma model type as `RoleRecord`; `@repo/validation`'s `Role` keeps its name.
+- `permissions.visible` (`Boolean @default(true)`) and `user_permissions.effect` (`ALLOW | DENY`, default `ALLOW`) exist; the CSV carries a `visible` column and the new row `1106,User role,担当者の役割変更,1100,changeRole,Admin_User,User` granted to super_admin and admin; the seed writes/compares `visible`; the catalog is 43 permissions (8 parents + 35 children) and 88 grants (super_admin 35 / admin 35 / manager 10 / staff 8).
+- `createPermissionRepository(db).findEffectiveGrants(userId, roleKey)` returns role grants ∪ user ALLOW − user DENY (`visible` is not an authorization input).
+- `session.user.permissions` (`{ action, subject }[]`, `subject` = catalog `modelName`) reaches `apps/api/src/core/context.ts` and `apps/web/lib/auth/server.ts`; `defineRules` builds `can(action, subject)` per grant plus the unscoped self rule `can(["read","update"], "User", { id })`; the permission spec is grant-driven in `packages/permissions` and a DB-backed test in `apps/api/test` proves `role_permissions` = ability for every role × all 43 catalog rows.
+- `user.changeRole` keeps `requireAbility("changeRole","User")` (now fed by catalog row 1106: super_admin/admin only); `user.deactivate` requires `status`; every non-public procedure keeps `requireAbility`; no CASL fields anywhere.
+- Web navigation and the dashboard decide with the ability (`canUnscoped(ability, "read", "User")`), never with a role literal; `user-editor.tsx` keeps `<Can I="changeRole" a="User">` and uses `<Can I="status" a="User">` for the deactivate card.
+- Docs/ADR lines accompany every schema change (ADR 0002, 0003, 0005; `.claude/rules/migrations.md`, `permissions.md`).
+
+## Decisions confirmed by the user (2026-10-05)
+
+1. **One MR, one branch** (`feature/D_ROUND-TBD_role-set`); the 15-file limit is waived for this ticket. The sub-units D1, D2, D3, E1, E2, E3, Docs are commit boundaries; each commit ends green and the expand-contract order holds inside the branch (D2 code before D3 constraint; E1 columns before E2 code).
+2. **Option B for role changes**: `changeRole` stays a CASL action, fed by a new catalog row `1106,User role,担当者の役割変更,1100,changeRole,Admin_User,User` granted to super_admin and admin only (our row, not legacy data). `ACTIONS = ["create","read","update","delete","status","changeRole"]`; `manage` is dropped; `all` rows are skipped. The self rule stays unscoped `can(["read","update"], "User", { id })`; no CASL fields anywhere. Router: `changeRole` keeps `requireAbility("changeRole","User")`, `deactivate` → `requireAbility("status","User")`. Service `changeRole` keeps its type-level `changeRole` check and the last-admin rule.
+3. **`permissions.visible`** `Boolean @default(true)` for a future permission-editing UI / menu filter (that UI is out of scope); CSV column `visible` (position: after `modelName`, before the role flags, so the `ROLE_KEYS` spread stays last in `PERMISSION_COLUMNS`), parsed with `parseFlag`, written and compared by the seed; all rows including 1106 are `1`. Same E1 commit and migration as `effect`.
+4. **`effect` enum** uppercase: `enum PermissionEffect { ALLOW DENY @@map("permission_effect") }`, default `ALLOW`.
+5. **`gen_random_uuid()`** for the four migration-inserted role ids (production Postgres version unknown; `uuidv7()` is PG18-only; the ids are never referenced).
+6. **`manage` dropped**, super_admin and admin get identical CASL rules.
+7. **Spec split**: grant-driven unit spec in `packages/permissions` + DB-backed `role_permissions` = ability test in `apps/api/test`; CSV = `role_permissions` stays proven by `permissions.seed.test.ts`.
+8. **Reference seeds** (`seedRoles` + `seedPermissions`, never users/addresses) in the `apps/api` and `packages/auth` test global setups through `startTestDatabase({ seedReferenceData: true })`.
+9. **Badge tones**: super_admin `danger`, admin `warning`, manager `info`, staff `neutral`.
+
+Design defaults kept (not reopened): `SUBJECT_NAMES` = the catalog's eight `modelName` values and `SubjectName` without `"all"`; `PermissionGrant = { action: string; subject: string }` validated once inside `defineRules` through `isAction` / `isSubjectName` (fail closed); no empty row-scope table in `rules.ts` (a comment marks where the first scoped role goes; `AbilityUser.role` stays for it); effective-grant semantics are one Prisma query in `permission.repository.ts`, documented in ADR 0003; the parity test lands in D3 with the migration; `emailVerification` config stays for the resend flow (`apps/web/features/auth/resend-verification.tsx`).
 
 ## Files to touch (max 15)
 
-Four MR units; each table is ≤ 15 files. "Layer" uses the element names of `.claude/rules/layers.md` (`database` = packages/database outside repositories; `docs`/`root` for non-code).
+**Waiver**: the user waived the 15-file limit for this ticket (one MR). Honest total: about 68 distinct files (7 created, 2 deleted), touched 93 times across the seven commits below; the per-commit counts are exact.
 
-### Unit A0 — seed folder refactor (14 files, no schema change)
+### Commit D1 — Public sign-up off (13 files)
 
-| #   | File                                            | Action | Layer    | Purpose                                                                                                                                                                            |
-| --- | ----------------------------------------------- | ------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | packages/database/prisma/seed.ts                | delete | database | Replaced by the `prisma/seed/` folder                                                                                                                                              |
-| 2   | packages/database/prisma/seed/support.ts        | create | database | `SeedFn`/`SeedSummary` types, `runSeeds` (root `.env` via dotenv, `DATABASE_URL` guard, `createPrismaClient`, sequential run, summary lines, `$disconnect`), `assertNotProduction` |
-| 3   | packages/database/prisma/seed/users.seed.ts     | create | database | `SEED_PASSWORD`, `SEED_USERS`, `seedUsers: SeedFn` moved verbatim from seed.ts (behaviour unchanged)                                                                               |
-| 4   | packages/database/prisma/seed/reference-data.ts | create | database | `REFERENCE_SEEDS` registry (empty in A0) + `seedReferenceData(prisma)` running it in order                                                                                         |
-| 5   | packages/database/prisma/seed/reference.ts      | create | database | Production-safe entrypoint: `await runSeeds("reference", seedReferenceData)`; never imports users.seed                                                                             |
-| 6   | packages/database/prisma/seed/index.ts          | create | database | Dev entrypoint: `assertNotProduction(process.env)`, then reference data, then `seedUsers`                                                                                          |
-| 7   | packages/database/prisma.config.ts              | modify | database | `seed: "tsx prisma/seed/index.ts"`                                                                                                                                                 |
-| 8   | packages/database/package.json                  | modify | database | script `"db:seed:reference": "tsx prisma/seed/reference.ts"`                                                                                                                       |
-| 9   | package.json                                    | modify | root     | script `"db:seed:reference": "yarn workspace @repo/database db:seed:reference"`                                                                                                    |
-| 10  | packages/database/eslint.config.mjs             | modify | database | `no-restricted-imports` for `prisma/seed/**` except `index.ts`/`users.seed.ts`: forbid `./users.seed` and `better-auth*`                                                           |
-| 11  | packages/database/test/seed/users.seed.test.ts  | create | test     | Behaviour of the test-user seed (first test coverage it gets)                                                                                                                      |
-| 12  | packages/database/test/seed/support.test.ts     | create | test     | `assertNotProduction` behaviour                                                                                                                                                    |
-| 13  | .claude/rules/migrations.md                     | modify | docs     | Seed section: `prisma/seed/` layout, `db:seed` vs `db:seed:reference`                                                                                                              |
-| 14  | README.md                                       | modify | docs     | `db:seed` row + new `db:seed:reference` row (lines 33–34, 61–62, 140)                                                                                                              |
+| #   | File                                     | Action | Layer      | Purpose                                                                                                                                            |
+| --- | ---------------------------------------- | ------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | packages/auth/src/server.ts              | modify | auth       | `emailAndPassword.disableSignUp: true`                                                                                                             |
+| 2   | packages/auth/test/auth.test.ts          | modify | auth test  | sign-up rejected; `createUser` flow; verification via `sendVerificationEmail`; role asserted with `DEFAULT_ROLE`, never a literal                  |
+| 3   | apps/api/test/support.ts                 | modify | api test   | `signedInUser` via `auth.api.createUser({ body: { …, role: options.role ?? DEFAULT_ROLE, data: { emailVerified: true } } })` + `findUniqueOrThrow` |
+| 4   | apps/api/test/auth-http.test.ts          | modify | api test   | sign-up → 400; outbox chain through `POST /api/auth/send-verification-email`; sign-in for an admin-created user                                    |
+| 5   | packages/validation/src/user.schema.ts   | modify | validation | delete `signUpSchema` / `SignUpInput` (only `register-form.tsx` used them)                                                                         |
+| 6   | apps/web/app/(auth)/register/page.tsx    | delete | web        | route removed                                                                                                                                      |
+| 7   | apps/web/features/auth/register-form.tsx | delete | web        | form removed                                                                                                                                       |
+| 8   | apps/web/app/page.tsx                    | modify | web        | drop the "Create account" button                                                                                                                   |
+| 9   | apps/web/features/auth/login-form.tsx    | modify | web        | drop the "No account yet? Create one" footer                                                                                                       |
+| 10  | docs/adr/0002-auth.md                    | modify | docs       | Changes line: sign-up disabled, users created via `createUser`                                                                                     |
+| 11  | README.md                                | modify | docs       | remove `/register` (lines 71, 103), "email + password sign-up" wording                                                                             |
+| 12  | .claude/rules/ui.md                      | modify | docs       | feature list (`register-form`), `authClient.signUp.email` mention                                                                                  |
+| 13  | .claude/rules/module-template.md         | modify | docs       | the `signUpSchema` sentence (line 68-70)                                                                                                           |
 
-### Unit A1 — SourceRegion / SourcePrefecture (15 files)
+### Commit D2 — Role set in code (15 files, no schema change)
 
-| #   | File                                                                                      | Action | Layer    | Purpose                                                                                                              |
-| --- | ----------------------------------------------------------------------------------------- | ------ | -------- | -------------------------------------------------------------------------------------------------------------------- |
-| 1   | docs/adr/0005-legacy-reference-data.md                                                    | create | docs     | ADR for the whole port; A1 decision lines written first                                                              |
-| 2   | packages/database/prisma/schema/source/source-region.prisma                               | create | database | `enum SourceArea` (`source_area`) + `SourceRegion` (`source_regions`)                                                |
-| 3   | packages/database/prisma/schema/source/source-prefecture.prisma                           | create | database | `SourcePrefecture` (`source_prefectures`), FK `region_code → source_regions.code`                                    |
-| 4   | packages/database/prisma/migrations/<ts>_add_source_regions_and_prefectures/migration.sql | create | database | Generated by `migrate dev`; read before commit                                                                       |
-| 5   | packages/database/src/index.ts                                                            | modify | database | export `SourceArea` value, types `SourceRegion`, `SourcePrefecture`                                                  |
-| 6   | packages/database/package.json                                                            | modify | database | devDependency `csv-parse` `7.0.3`                                                                                    |
-| 7   | yarn.lock                                                                                 | modify | root     | lockfile for csv-parse                                                                                               |
-| 8   | packages/database/prisma/seed/support.ts                                                  | modify | database | add `readCsv<T>(url)` (csv-parse sync, `columns: true`, `bom: true`) and `diffByKey`                                 |
-| 9   | packages/database/prisma/seed/data/source-regions.csv                                     | create | database | Legacy `sourceRegion.csv`, CRLF normalized to LF + final newline (header `code,name,nameEn,area`, 9 rows)            |
-| 10  | packages/database/prisma/seed/data/source-prefectures.csv                                 | create | database | Legacy `sourcePrefecture.csv`, CRLF normalized to LF + final newline (header `code,name,nameEn,regionCode`, 47 rows) |
-| 11  | packages/database/prisma/seed/source-regions.seed.ts                                      | create | database | `seedSourceRegions: SeedFn` (diff-based upsert by `code`)                                                            |
-| 12  | packages/database/prisma/seed/source-prefectures.seed.ts                                  | create | database | `seedSourcePrefectures: SeedFn` (diff-based upsert by `code`, scalar `regionCode`)                                   |
-| 13  | packages/database/prisma/seed/reference-data.ts                                           | modify | database | register `[seedSourceRegions, seedSourcePrefectures]`                                                                |
-| 14  | packages/database/test/seed/source-regions.seed.test.ts                                   | create | test     | counts, areas, idempotency                                                                                           |
-| 15  | packages/database/test/seed/source-prefectures.seed.test.ts                               | create | test     | counts, FK integrity, per-region distribution, idempotency                                                           |
+| #   | File                                                        | Action | Layer       | Purpose                                                                                                                         |
+| --- | ----------------------------------------------------------- | ------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | packages/validation/src/user.schema.ts                      | modify | validation  | `ROLES = ["super_admin","admin","manager","staff"]`, `DEFAULT_ROLE = "staff"`                                                   |
+| 2   | packages/auth/src/access-control.ts                         | modify | auth        | `roles`: super_admin/admin = `adminAc.statements`, manager/staff = `userAc.statements`; `ADMIN_ROLES = ["super_admin","admin"]` |
+| 3   | packages/permissions/src/rules.ts                           | modify | permissions | `switch`: super_admin/admin → `manage all`; manager/staff → self rule (interim until E3)                                        |
+| 4   | packages/permissions/test/ability.test.ts                   | modify | permissions | `allowed` table for four roles (table first)                                                                                    |
+| 5   | packages/database/src/repositories/user.repository.ts       | modify | repository  | `countActiveAdmins(roles: readonly string[])` — the database element may not import `@repo/validation`                          |
+| 6   | packages/database/test/repositories/user.repository.test.ts | modify | database    | test for the new signature; `"member"` → `"staff"` literals                                                                     |
+| 7   | apps/api/src/modules/user/user.service.ts                   | modify | api-service | last-admin rule over `ADMIN_ROLES` (`@repo/auth`) in `changeRole` and `deactivate`                                              |
+| 8   | apps/api/test/modules/user/user.service.test.ts             | modify | api test    | last-admin counts both admin roles; literals                                                                                    |
+| 9   | apps/api/test/core/context.test.ts                          | modify | api test    | literals → `staff`; fallback expectation → `DEFAULT_ROLE`                                                                       |
+| 10  | apps/api/test/trpc/router.test.ts                           | modify | api test    | `AuthUser` literal role → `staff`                                                                                               |
+| 11  | apps/web/features/users/role-badge.tsx                      | modify | web         | `ROLE_LABELS` / `ROLE_TONES` for four roles (`Record<Role, …>` must be complete)                                                |
+| 12  | apps/web/components/app-shell.tsx                           | modify | web         | interim `hideFor: ["manager", "staff"]` exported as `BROWSE_USERS_HIDDEN_ROLES` (ability check arrives in E2)                   |
+| 13  | apps/web/app/(app)/dashboard/page.tsx                       | modify | web         | interim: link hidden for `BROWSE_USERS_HIDDEN_ROLES`                                                                            |
+| 14  | packages/database/prisma/seed/users.seed.ts                 | modify | database    | four accounts (`SEED_USERS`), `role` typed with `RoleKey` from `roles.seed.ts`                                                  |
+| 15  | packages/database/test/seed/users.seed.test.ts              | modify | database    | "one verified account per catalog role" (`SEED_USERS` roles = `ROLE_SEEDS` keys)                                                |
 
-### Unit B — SourceAddress (10 files)
+ADR 0002's role-set line is written in D3 together with the FK line (one ADR edit); D2 has no schema change.
 
-| #   | File                                                                        | Action | Layer    | Purpose                                                                                                              |
-| --- | --------------------------------------------------------------------------- | ------ | -------- | -------------------------------------------------------------------------------------------------------------------- |
-| 1   | docs/adr/0005-legacy-reference-data.md                                      | modify | docs     | dated line under `## Changes` for `source_addresses`                                                                 |
-| 2   | packages/database/prisma/schema/source/source-address.prisma                | create | database | `SourceAddress` (`source_addresses`), `postCode @unique`, 4 Boolean flags                                            |
-| 3   | packages/database/prisma/migrations/<ts>_add_source_addresses/migration.sql | create | database | Generated; read before commit                                                                                        |
-| 4   | packages/database/src/index.ts                                              | modify | database | export type `SourceAddress`                                                                                          |
-| 5   | packages/database/prisma/seed/support.ts                                    | modify | database | `readCsv` gunzips `*.gz` (node:zlib `gunzipSync`); add `chunk<T>(items, size)`                                       |
-| 6   | packages/database/prisma/seed/data/source-addresses.csv.gz                  | create | database | `gzip -9 -n` of legacy `sourceAddress.csv` (2.4 MB, 124,809 rows, legacy header incl. `id`)                          |
-| 7   | packages/database/prisma/seed/source-addresses.seed.ts                      | create | database | `seedSourceAddresses: SeedFn`: dedup by `postCode` (first wins), `createMany({ skipDuplicates })` in chunks of 1,000 |
-| 8   | packages/database/prisma/seed/index.ts                                      | modify | database | call `seedSourceAddresses` after the prefectures (slowest dataset)                                                   |
-| 9   | packages/database/test/seed/source-addresses.seed.test.ts                   | create | test     | 120,663 rows, flag/int conversion, first-wins duplicates, idempotency (120 s timeout)                                |
-| 10  | packages/database/test/seed/support.test.ts                                 | modify | test     | `readCsv` reads a `.gz` file; `chunk` splits into even slices                                                        |
+### Commit D3 — FK migration, type alias, parity (13 files + 1 verify-only)
 
-### Unit C — Role / Permission (14 files)
+| #   | File                                                                                | Action | Layer    | Purpose                                                                                                                                           |
+| --- | ----------------------------------------------------------------------------------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | docs/adr/0002-auth.md                                                               | modify | docs     | Changes line: role set, `defaultRole`, `adminRoles`, `users.role` NOT NULL + FK                                                                   |
+| 2   | docs/adr/0005-legacy-reference-data.md                                              | modify | docs     | Changes line reversing "There is no foreign key `users.role → roles.key`" (why: sign-up off, catalog complete, Better Auth rejects unknowns)      |
+| 3   | packages/database/prisma/schema/auth/user.prisma                                    | modify | database | `role String @default("staff")`, `roleRef Role @relation(fields: [role], references: [key], onDelete: Restrict)`, `@@index([role])`               |
+| 4   | packages/database/prisma/schema/access/role.prisma                                  | modify | database | `users User[]` back-relation; header comment (FK now exists)                                                                                      |
+| 5   | packages/database/prisma/migrations/<ts>\_align_users_role_with_roles/migration.sql | create | database | hand-written: insert roles → backfill → default → NOT NULL → index → FK                                                                           |
+| 6   | packages/database/src/index.ts                                                      | modify | database | `export type { Role as RoleRecord }` (plus the other model types unchanged)                                                                       |
+| 7   | packages/database/prisma/seed/index.ts                                              | modify | database | header comment: four accounts                                                                                                                     |
+| 8   | apps/api/test/role-catalog.test.ts                                                  | create | api test | parity `ROLES` = `Object.keys(roles)` = `roles.key`; FK refusals                                                                                  |
+| 9   | apps/api/test/core/context.test.ts                                                  | modify | api test | replace "unknown role falls back" (unreachable with the FK) by a pure `toAuthUser` fallback test + "a new user gets `staff` from the DB default"  |
+| 10  | .claude/rules/migrations.md                                                         | modify | docs     | migrations table row; `User.role` convention (line 86-88); seed accounts table (line 47-51); Better Auth models section (FK kept when diffing)    |
+| 11  | .claude/rules/permissions.md                                                        | modify | docs     | roles line 9-11, rule set / table (lines 29-49)                                                                                                   |
+| 12  | README.md                                                                           | modify | docs     | lines 34, 62, 66-67, 101-102: accounts and roles                                                                                                  |
+| 13  | docs/conventions.md                                                                 | modify | docs     | line 259-260: unknown values are refused by the FK; `staff` is the default                                                                        |
+| —   | packages/database/test/seed/roles.seed.test.ts                                      | verify | database | no edit expected: it never deletes a role and does not assert `created` on the first run; confirm it stays green with the migration-inserted rows |
 
-| #   | File                                                                             | Action | Layer    | Purpose                                                                                                            |
-| --- | -------------------------------------------------------------------------------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------ |
-| 1   | docs/adr/0005-legacy-reference-data.md                                           | modify | docs     | dated line under `## Changes` for the access catalog + the uuid/natural-key exceptions                             |
-| 2   | packages/database/prisma/schema/access/role.prisma                               | create | database | `Role` (`roles`), `key @unique`                                                                                    |
-| 3   | packages/database/prisma/schema/access/permission.prisma                         | create | database | `Permission` (`permissions`), self-relation on `key`, `@@unique([action, subject])`                                |
-| 4   | packages/database/prisma/schema/access/role-permission.prisma                    | create | database | `RolePermission` (`role_permissions`), `@@id([roleKey, permissionKey])`                                            |
-| 5   | packages/database/prisma/schema/access/user-permission.prisma                    | create | database | `UserPermission` (`user_permissions`), `@@id([userId, permissionKey])`, `userId → users.id Cascade`                |
-| 6   | packages/database/prisma/schema/auth/user.prisma                                 | modify | database | add relation field `permissions UserPermission[]` only (no column, Better Auth fields untouched)                   |
-| 7   | packages/database/prisma/migrations/<ts>_add_roles_and_permissions/migration.sql | create | database | Generated; read before commit                                                                                      |
-| 8   | packages/database/src/index.ts                                                   | modify | database | export types `Role`, `Permission`, `RolePermission`, `UserPermission`                                              |
-| 9   | packages/database/prisma/seed/roles.seed.ts                                      | create | database | `ROLE_SEEDS` const (`super_admin`, `admin`, `manager`, `staff` + name/nameJp), `RoleKey` type, `seedRoles: SeedFn` |
-| 10  | packages/database/prisma/seed/data/permissions.csv                               | create | database | Legacy `permissions.csv`; header role columns renamed to `super_admin,admin,manager,staff` (values unchanged)      |
-| 11  | packages/database/prisma/seed/permissions.seed.ts                                | create | database | `seedPermissions: SeedFn`: parents then children, diff-based upsert; role grants synced to the CSV                 |
-| 12  | packages/database/prisma/seed/index.ts                                           | modify | database | call `seedRoles`, `seedPermissions` before the source datasets                                                     |
-| 13  | packages/database/test/seed/roles.seed.test.ts                                   | create | test     | 4 roles, keys, idempotency                                                                                         |
-| 14  | packages/database/test/seed/permissions.seed.test.ts                             | create | test     | 42 permissions, parent links, 86 grants per CSV, sync semantics, user grants untouched, idempotency                |
+### Commit E1 — `visible` + `effect` columns, catalog row 1106, permission repository (14 files)
 
-Docs to refresh at Close for A1/B/C (protocol Step 6, orchestrator; not counted above): `.claude/rules/migrations.md` ("Existing migrations" table rows, multi-file layout list gains `source/` and `access/`, note that `User` gains a `permissions` relation), `.claude/skills/prisma/SKILL.md` lines 26 and 52–65 (seed path, existing models, `db:seed:reference`), `.claude/agents/verifier.md` line 44 (already says `prisma/schema.prisma`; should be `prisma/schema`).
+| #   | File                                                                                                      | Action | Layer      | Purpose                                                                                                                                 |
+| --- | --------------------------------------------------------------------------------------------------------- | ------ | ---------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | docs/adr/0005-legacy-reference-data.md                                                                    | modify | docs       | Changes line: `permissions.visible`, `user_permissions.effect`, CSV `visible` column, row 1106 is ours (amends "values unchanged")      |
+| 2   | docs/adr/0003-permissions.md                                                                              | modify | docs       | Changes line: effective grants = role ∪ ALLOW − DENY (legacy override semantics not copied); `visible` is not an authorization input    |
+| 3   | packages/database/prisma/schema/access/permission.prisma                                                  | modify | database   | `visible Boolean @default(true) @map("visible")`                                                                                        |
+| 4   | packages/database/prisma/schema/access/user-permission.prisma                                             | modify | database   | `enum PermissionEffect { ALLOW DENY @@map("permission_effect") }`, `effect PermissionEffect @default(ALLOW)`                            |
+| 5   | packages/database/prisma/migrations/<ts>\_add_permission_visible_and_user_permission_effect/migration.sql | create | database   | generated by `migrate dev` (CREATE TYPE + two defaulted ADD COLUMNs)                                                                    |
+| 6   | packages/database/src/index.ts                                                                            | modify | database   | `export { PermissionEffect }` value                                                                                                     |
+| 7   | packages/database/prisma/seed/data/permissions.csv                                                        | modify | database   | header gains `visible` after `modelName`; every row `1`; new row 1106                                                                   |
+| 8   | packages/database/prisma/seed/permissions.seed.ts                                                         | modify | database   | `PERMISSION_COLUMNS` with `visible`; `toPermissionRow` parses it with `parseFlag`; `isSamePermission` and the `select` compare it       |
+| 9   | packages/database/test/seed/permissions.seed.test.ts                                                      | modify | database   | 43 / 8+35 / 88 / per-role 35-35-10-8; 1106 shape; all visible; drifted `visible: false` restored                                        |
+| 10  | packages/database/src/repositories/permission.repository.ts                                               | create | repository | `createPermissionRepository(db)` → `findEffectiveGrants(userId, roleKey)`                                                               |
+| 11  | packages/database/src/repositories/index.ts                                                               | modify | repository | barrel export                                                                                                                           |
+| 12  | packages/database/test/repositories/permission.repository.test.ts                                         | create | database   | union/deny semantics inside a rolled-back transaction                                                                                   |
+| 13  | packages/database/test/index.ts                                                                           | modify | database   | `startTestDatabase({ seedReferenceData?: boolean })` runs `seedRoles` + `seedPermissions` after migrate deploy                          |
+| 14  | .claude/rules/migrations.md                                                                               | modify | docs       | migrations table row; `access/` description (`visible`, `effect`, 43 rows); seed section (`visible` synced); `startTestDatabase` option |
+
+### Commit E2 — Session carries effective grants (15 files)
+
+| #   | File                                      | Action | Layer       | Purpose                                                                                                                     |
+| --- | ----------------------------------------- | ------ | ----------- | --------------------------------------------------------------------------------------------------------------------------- |
+| 1   | packages/permissions/src/rules.ts         | modify | permissions | `export type PermissionGrant`; `AbilityUser.permissions: readonly PermissionGrant[]` (rules still the D2 switch)            |
+| 2   | packages/permissions/src/ability.ts       | modify | permissions | `canUnscoped(ability, action, subject)` = a non-inverted rule without conditions exists                                     |
+| 3   | packages/permissions/src/index.ts         | modify | permissions | export `canUnscoped`, `PermissionGrant`                                                                                     |
+| 4   | packages/permissions/test/ability.test.ts | modify | permissions | `me()` carries `permissions: []`; `canUnscoped` cases                                                                       |
+| 5   | packages/auth/src/server.ts               | modify | auth        | base options `satisfies BetterAuthOptions` + `customSession(fn, base)`; `fn` calls `findEffectiveGrants`                    |
+| 6   | packages/auth/src/client.ts               | modify | auth        | `customSessionClient<Auth>()` plugin                                                                                        |
+| 7   | packages/auth/test/global-setup.ts        | modify | auth test   | `startTestDatabase({ seedReferenceData: true })`                                                                            |
+| 8   | packages/auth/test/auth.test.ts           | modify | auth test   | `getSession` returns `user.permissions` (role grants; DENY removes; ALLOW adds)                                             |
+| 9   | apps/api/src/core/context.ts              | modify | api-core    | `AuthUser.permissions`; `toAuthUser` copies `{ action, subject }`                                                           |
+| 10  | apps/api/test/global-setup.ts             | modify | api test    | `startTestDatabase({ seedReferenceData: true })`                                                                            |
+| 11  | apps/api/test/core/context.test.ts        | modify | api test    | `ctx.user.permissions` mirrors the DB grants                                                                                |
+| 12  | apps/api/test/trpc/router.test.ts         | modify | api test    | `AuthUser` literal gets `permissions: []`                                                                                   |
+| 13  | apps/web/lib/auth/server.ts               | modify | web         | `CurrentUser.permissions`; `toCurrentUser` passes `session.user.permissions`                                                |
+| 14  | apps/web/components/app-shell.tsx         | modify | web         | `AbilityProvider user={{ id, role, permissions }}`; nav moves into an `AppNav` child that uses `useAbility` + `canUnscoped` |
+| 15  | apps/web/app/(app)/dashboard/page.tsx     | modify | web         | `defineAbilityFor(user)` + `canUnscoped(ability, "read", "User")` instead of a role literal                                 |
+
+### Commit E3 — CASL from the catalog (12 files)
+
+| #   | File                                      | Action | Layer         | Purpose                                                                                                         |
+| --- | ----------------------------------------- | ------ | ------------- | --------------------------------------------------------------------------------------------------------------- |
+| 1   | packages/permissions/src/rules.ts         | modify | permissions   | `ACTIONS` (+`status`, −`manage`), `SUBJECT_NAMES`, `isAction`, `isSubjectName`, grant loop + unscoped self rule |
+| 2   | packages/permissions/src/server.ts        | modify | permissions   | `ServerSubjects = SubjectName \| Subjects<{ User: User }>`                                                      |
+| 3   | packages/permissions/src/index.ts         | modify | permissions   | export the guards                                                                                               |
+| 4   | packages/permissions/test/ability.test.ts | modify | permissions   | grant-driven spec (rewrite)                                                                                     |
+| 5   | apps/api/src/trpc/routers/user.router.ts  | modify | api-transport | `deactivate` → `requireAbility("status","User")` (`changeRole` unchanged)                                       |
+| 6   | apps/api/src/modules/user/user.service.ts | modify | api-service   | `deactivate`: `status` type-level and row-level (`changeRole` check unchanged)                                  |
+| 7   | apps/api/test/core/context.test.ts        | modify | api test      | abilities come from grants: `changeRole`/`create`/`status` admin true, staff false; `read Client` staff true    |
+| 8   | apps/api/test/permission-catalog.test.ts  | create | api test      | `role_permissions` = ability for every role × 43 rows; `all` never; user ALLOW/DENY; catalog ⊆ typed lists      |
+| 9   | apps/web/features/users/user-editor.tsx   | modify | web           | deactivate card `<Can I="status" a="User">` (role card keeps `<Can I="changeRole" a="User">`)                   |
+| 10  | docs/adr/0003-permissions.md              | modify | docs          | Changes line: catalog-driven CASL, actions/subjects, row 1106, `deactivate` → `status`, `customSession`         |
+| 11  | .claude/rules/permissions.md              | modify | docs          | rewrite Layer 1 section: grants, actions, subjects, spec split, web `canUnscoped`                               |
+| 12  | .claude/rules/module-template.md          | modify | docs          | router snippet (`deactivate` → `status`), service snippet (`countActiveAdmins(ADMIN_ROLES)`)                    |
+
+`apps/api/test/modules/user/user.service.test.ts` and `apps/api/test/trpc/routers/user.router.test.ts` need no edit in E3 (both denials stay layer 1 under option B); they are run as part of the commit check.
+
+### Commit Docs — docs/comments only (10 files + 1 optional, no behaviour)
+
+`.claude/skills/better-auth/SKILL.md` (lines 22-23, 87-101, 120-125), `.claude/skills/casl/SKILL.md` (whole rule/matrix examples), `.claude/skills/trpc/SKILL.md` (73-76, 93), `.claude/skills/testing/SKILL.md` (107-109), `.claude/skills/nextjs/SKILL.md` (148), `.claude/skills/prisma/SKILL.md` (80-90, 126), `.claude/skills/adr/SKILL.md` (51), `.claude/rules/ui.md` (`ROLE_TONES` example 86-89), `packages/database/prisma/seed/roles.seed.ts` (header comment: rows now inserted by the migration, seed keeps names in sync), `packages/database/prisma/seed/permissions.seed.ts` (header comment: `visible`, row 1106), `TEMPLATE_AUDIT.md` (optional).
 
 ## Schema changes
 
-FLAG — three additive expand-stage migrations (new tables and one enum; no column changes to existing tables; `User.permissions` is a relation field without a column). No backfill/constrain/contract stages are needed. ADR: new `docs/adr/0005-legacy-reference-data.md`.
+**FLAG — two migrations.**
 
-A1 — `yarn db:migrate:dev --name add_source_regions_and_prefectures` (ADR 0005 Decision):
+1. **`users.role`** (`packages/database/prisma/schema/auth/user.prisma`), migration `<timestamp>_align_users_role_with_roles` (Commit D3). Field becomes `role String @default("staff")` with `roleRef Role @relation(fields: [role], references: [key], onDelete: Restrict)` and `@@index([role])`; `access/role.prisma` gains `users User[]`. `prisma migrate dev --create-only` cannot generate the data steps: the SQL is hand-written/edited, generated against a throwaway Postgres (ADR 0005 note), and must leave `yarn workspace @repo/database prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code` clean. Order inside the file (expand → backfill → constrain; `users` is small, so the backfill may live in the migration):
 
-```prisma
-// prisma/schema/source/source-region.prisma
-enum SourceArea {
-  EAST
-  WEST
+   ```sql
+   INSERT INTO "roles" ("id","key","name","name_jp","created_at","updated_at") VALUES
+     (gen_random_uuid(),'super_admin','Super admin','スーパーアドミン',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
+     (gen_random_uuid(),'admin','Admin','アドミン',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
+     (gen_random_uuid(),'manager','Manager','マネジャー',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
+     (gen_random_uuid(),'staff','Staff','スタッフ',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+   ON CONFLICT ("key") DO NOTHING;
+   UPDATE "users" SET "role" = 'staff' WHERE "role" IS NULL OR "role" NOT IN (SELECT "key" FROM "roles");
+   ALTER TABLE "users" ALTER COLUMN "role" SET DEFAULT 'staff';
+   ALTER TABLE "users" ALTER COLUMN "role" SET NOT NULL;
+   CREATE INDEX "users_role_idx" ON "users"("role");
+   ALTER TABLE "users" ADD CONSTRAINT "users_role_fkey" FOREIGN KEY ("role") REFERENCES "roles"("key") ON DELETE RESTRICT ON UPDATE CASCADE;
+   ```
 
-  @@map("source_area")
-}
+   Names (`users_role_idx`, `users_role_fkey`, `ON UPDATE CASCADE`) are what Prisma expects, so `migrate diff` stays clean. Expand-contract inside the branch: Commit D2 (code writes only catalog keys) precedes Commit D3 (constrain). `yarn db:generate` after `migrate dev` (Prisma 7). NOT NULL verified safe: no Better Auth path writes `role: null` (`admin.mjs:27-32` default hook, `routes.mjs:76`/`:198` always strings); `admin/update-user` could, but we never call it and the DB now refuses it. ADR lines: ADR 0002 (role set, NOT NULL/FK) and ADR 0005 (reverses the "no FK" sentence, explains the migration-inserted rows and `gen_random_uuid()`).
 
-model SourceRegion {
-  id        String     @id @default(uuid(7)) @db.Uuid
-  code      Int        @unique
-  name      String
-  nameEn    String     @map("name_en")
-  area      SourceArea
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
-
-  prefectures SourcePrefecture[]
-
-  @@map("source_regions")
-}
-
-// prisma/schema/source/source-prefecture.prisma
-model SourcePrefecture {
-  id         String       @id @default(uuid(7)) @db.Uuid
-  code       Int          @unique
-  name       String
-  nameEn     String       @map("name_en")
-  regionCode Int          @map("region_code")
-  region     SourceRegion @relation(fields: [regionCode], references: [code], onDelete: Restrict)
-  createdAt  DateTime     @default(now()) @map("created_at")
-  updatedAt  DateTime     @updatedAt @map("updated_at")
-
-  @@index([regionCode])
-  @@map("source_prefectures")
-}
-```
-
-B — `yarn db:migrate:dev --name add_source_addresses` (ADR 0005 `## Changes` line):
-
-```prisma
-// prisma/schema/source/source-address.prisma
-model SourceAddress {
-  id          String  @id @default(uuid(7)) @db.Uuid
-  jisCode     Int     @map("jis_code")
-  oldPostCode String? @map("old_post_code")
-  postCode    String  @unique @map("post_code")
-  prefKana    String? @map("pref_kana")
-  cityKana    String? @map("city_kana")
-  townKana    String? @map("town_kana")
-  pref        String
-  city        String
-  town        String
-  isTownRepresentedByMultiplePostalCodes Boolean @default(false) @map("is_town_represented_by_multiple_postal_codes")
-  isHamletNumberingStart                 Boolean @default(false) @map("is_hamlet_numbering_start")
-  hasChome                               Boolean @default(false) @map("has_chome")
-  isPostalCodeForMultipleTownAreas       Boolean @default(false) @map("is_postal_code_for_multiple_town_areas")
-  updateStatus Int      @default(0) @map("update_status")
-  changeReason Int      @default(0) @map("change_reason")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  @@map("source_addresses")
-}
-```
-
-(The legacy extra `@@index([postCode])` is dropped: `@unique` already creates the index.)
-
-C — `yarn db:migrate:dev --name add_roles_and_permissions` (ADR 0005 `## Changes` line recording the exceptions: natural keys `roles.key` / `permissions.key` as relation targets, composite `@@id` join tables without uuid, no FK `users.role → roles.key`):
-
-```prisma
-// prisma/schema/access/role.prisma
-model Role {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  key       String   @unique
-  name      String
-  nameJp    String   @map("name_jp")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  permissions RolePermission[]
-
-  @@map("roles")
-}
-
-// prisma/schema/access/permission.prisma
-model Permission {
-  id        String       @id @default(uuid(7)) @db.Uuid
-  key       String       @unique
-  name      String
-  nameJp    String       @map("name_jp")
-  parentKey String?      @map("parent_key")
-  parent    Permission?  @relation("PermissionParent", fields: [parentKey], references: [key], onDelete: Restrict)
-  children  Permission[] @relation("PermissionParent")
-  action    String
-  subject   String
-  modelName String       @map("model_name")
-  createdAt DateTime     @default(now()) @map("created_at")
-  updatedAt DateTime     @updatedAt @map("updated_at")
-
-  roles RolePermission[]
-  users UserPermission[]
-
-  @@unique([action, subject])
-  @@index([parentKey])
-  @@map("permissions")
-}
-
-// prisma/schema/access/role-permission.prisma
-model RolePermission {
-  roleKey       String     @map("role_key")
-  permissionKey String     @map("permission_key")
-  role          Role       @relation(fields: [roleKey], references: [key], onDelete: Cascade)
-  permission    Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
-  createdAt     DateTime   @default(now()) @map("created_at")
-  assignedBy    String?    @map("assigned_by") @db.Uuid
-
-  @@id([roleKey, permissionKey])
-  @@index([permissionKey])
-  @@map("role_permissions")
-}
-
-// prisma/schema/access/user-permission.prisma
-model UserPermission {
-  userId        String     @map("user_id") @db.Uuid
-  permissionKey String     @map("permission_key")
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  permission    Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
-  createdAt     DateTime   @default(now()) @map("created_at")
-  assignedBy    String?    @map("assigned_by") @db.Uuid
-
-  @@id([userId, permissionKey])
-  @@index([permissionKey])
-  @@map("user_permissions")
-}
-```
-
-`auth/user.prisma`: add `permissions UserPermission[]` next to `sessions`/`accounts`; nothing else.
-
-Expected generated SQL (check before committing): `CREATE TYPE "source_area"`, `CREATE TABLE` with `"id" UUID NOT NULL`, `CREATE UNIQUE INDEX "source_regions_code_key"`, FKs `ON DELETE RESTRICT ON UPDATE CASCADE` (prefecture→region, permission→parent) and `ON DELETE CASCADE ON UPDATE CASCADE` (join tables), `CREATE UNIQUE INDEX "permissions_action_subject_key"`. No `ALTER TABLE "users"` statements in C.
+2. **`permissions.visible` + `user_permissions.effect`** (`packages/database/prisma/schema/access/permission.prisma`, `access/user-permission.prisma`), one migration `<timestamp>_add_permission_visible_and_user_permission_effect` (Commit E1), generated by `migrate dev`: `CREATE TYPE "permission_effect" AS ENUM ('ALLOW','DENY'); ALTER TABLE "permissions" ADD COLUMN "visible" BOOLEAN NOT NULL DEFAULT true; ALTER TABLE "user_permissions" ADD COLUMN "effect" "permission_effect" NOT NULL DEFAULT 'ALLOW';` — both columns defaulted, expand-safe in one stage; no new index (the composite PK already leads with `user_id`; `visible` is a UI filter, not a list predicate yet). Data change in the same commit: `permissions.csv` gains the `visible` column (all `1`) and row 1106; the seed syncs them (`created 1` for 1106 on an already-seeded database, `grants +2`). ADR lines: ADR 0005 (both columns, CSV column, row 1106 is ours) and ADR 0003 (union + deny semantics; `visible` is not an authorization input).
 
 ## Tests to add or update
 
-All tests use `createPrismaClient({ connectionString: inject("databaseUrl") })` in `beforeAll` (pattern of `packages/database/test/repositories/user.repository.test.ts`) against the shared testcontainers Postgres; the seed modules are imported from `../../prisma/seed/<name>`. Every `createMany` in the seeds uses `skipDuplicates: true`, so the test files may run in parallel on one database.
-
-| Test file                                                        | Kind        | Asserts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ---------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| packages/database/test/seed/support.test.ts (A0)                 | unit        | Superseded by the amendment: `readCsv` (BOM, CRLF, padding; header must match the expected columns), `parseInteger` (rejects `""`, `1.5`, `12a`), `diffByKey` (create/update split; throws on a repeated key)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| packages/database/test/seed/users.seed.test.ts (A0)              | integration | amended: created only for `NODE_ENV` development/test, and with `NODE_ENV` unset, `production` or `staging` no seed user exists afterwards; after `seedUsers(prisma)`: both `SEED_USERS` exist, `emailVerified` true, role as configured, exactly one `Account` with `providerId "credential"` whose `password` passes `verifyPassword({ hash, password: SEED_PASSWORD })` from `better-auth/crypto`; re-run after `prisma.user.update({ deletedAt: new Date(), banned: true })` on `admin@test.com` restores `deletedAt null`/`banned false` and still leaves exactly one credential account; summary `dataset "users"`, `rows 2`                                                                         |
-| packages/database/test/seed/source-regions.seed.test.ts (A1)     | integration | 9 rows, codes 1–9, `area EAST` for 1–4 and `WEST` for 5–9, code 1 = 北海道 / Hokkaido; second run: count 9, every row's `updatedAt` unchanged, summary `created 0, updated 0`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| packages/database/test/seed/source-prefectures.seed.test.ts (A1) | integration | after `seedSourceRegions` + `seedSourcePrefectures`: 47 rows; `findMany({ include: { region: true } })` has no null region; per-region counts `{1:1, 2:6, 3:4, 4:3, 5:4, 6:6, 7:6, 8:8, 9:9}`; code 13 = 東京都 in region 4; second run: `updatedAt` unchanged, summary zeros                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| packages/database/test/seed/source-addresses.seed.test.ts (B)    | integration | `count()` = 120,663; summary `rows 120_663`, `skipped 4_146`; `0600000` → pref 北海道, city 札幌市中央区, all four flags false, `updateStatus 0`, `changeReason 0`; `0640941` → `hasChome true`; first occurrence wins: `0040000` → city 札幌市厚別区 (not 札幌市清田区) and `0680546` → town 南部青葉町 (not 南部菊水町), both `isPostalCodeForMultipleTownAreas true`; second run: count unchanged, summary `created 0`, `updatedAt` of `0600000` unchanged. Per-test timeout 120_000 ms on the load tests                                                                                                                                                                                               |
-| packages/database/test/seed/support.test.ts (B)                  | unit        | `readCsv` on a gzip-compressed CSV returns the same rows as the plain file; `chunk([1..5], 2)` is `[[1,2],[3,4],[5]]`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| packages/database/test/seed/roles.seed.test.ts (C)               | integration | 4 rows with keys exactly `super_admin, admin, manager, staff`; `super_admin.nameJp` = スーパーアドミン; second run: `updatedAt` unchanged, summary zeros                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| packages/database/test/seed/permissions.seed.test.ts (C)         | integration | after `seedRoles` + `seedPermissions`: 42 permissions; 8 parents (`parentKey null`, `action "all"`); 34 children each with a resolvable `parent`; `"1101".parentKey === "1100"`; `roleName`-free: `rolePermission.count()` = 86, per role super_admin 34 / admin 34 / manager 10 / staff 8; `"1202"` granted to all four, `"1101"` to super_admin+admin only, `"1100"` to none, `"1401"` to super_admin/admin/manager not staff; a manually inserted stale grant `(staff, "1101")` is removed by the next run; a `UserPermission` for a fresh random user on `"1202"` survives the run (seed never touches user grants); second run: permission `updatedAt` and grant `createdAt` unchanged, summary zeros |
+| Test file                                                              | Kind        | Asserts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| packages/auth/test/auth.test.ts (D1)                                   | integration | `signUpEmail` rejects with `EMAIL_PASSWORD_SIGN_UP_DISABLED`; `createUser` (no headers) stores name, `DEFAULT_ROLE`, uuid v7, one `credential` account; `createUser` with role `ceo` rejects `YOU_ARE_NOT_ALLOWED_TO_SET_NON_EXISTENT_VALUE`; sign-in refused before verification; `sendVerificationEmail` → our callback gets exactly one mail → `verifyEmail` → cookie → `getSession` with `role === DEFAULT_ROLE`                                                                                                                                                         |
+| apps/api/test/auth-http.test.ts (D1)                                   | integration | `POST /api/auth/sign-up/email` → 400 with that code and no user row; `POST /api/auth/send-verification-email` for an admin-created unverified user → one `PENDING` outbox row + enqueued job; sign-in cookie resolves on `/trpc/user.me`; rate limit unchanged                                                                                                                                                                                                                                                                                                               |
+| apps/api/test/support.ts (D1)                                          | harness     | `signedInUser` via `createUser` (behaviour: returned user is verified, has the requested role, headers resolve a session)                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| packages/permissions/test/ability.test.ts (D2)                         | matrix      | four-role table: super_admin/admin every action self+other; manager/staff read/update self only; anonymous nothing; prisma ≡ browser; `accessibleUsersWhere` self vs unrestricted                                                                                                                                                                                                                                                                                                                                                                                            |
+| packages/database/test/repositories/user.repository.test.ts (D2)       | integration | `countActiveAdmins(["super_admin","admin"])` counts both roles, excludes `staff` and soft-deleted rows; `countActiveAdmins(["admin"])` excludes super_admin                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| apps/api/test/modules/user/user.service.test.ts (D2)                   | integration | demoting the only `admin` while a `super_admin` is active succeeds; demoting the last active user of both roles → `ConflictError`; same for `deactivate`; literals                                                                                                                                                                                                                                                                                                                                                                                                           |
+| packages/database/test/seed/users.seed.test.ts (D2)                    | integration | `SEED_USERS` roles = `ROLE_SEEDS` keys (one verified account per role); existing cases unchanged (they are generic over `SEED_USERS`)                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| apps/api/test/role-catalog.test.ts (D3)                                | integration | `[...ROLES].sort()` = `Object.keys(roles).sort()` = `roles.key` rows; `DEFAULT_ROLE ∈ ROLES`; `ADMIN_ROLES ⊆ ROLES`; `user.update({ role: "ceo" })` rejects with `isForeignKeyViolation`; `role.delete({ key: "staff" })` rejects (Restrict) while a staff user exists; `user.create` without `role` yields `staff`                                                                                                                                                                                                                                                          |
+| apps/api/test/core/context.test.ts (D2, D3, E2, E3)                    | integration | D2: literals; D3: `toAuthUser({ …, role: "ceo" }).role === DEFAULT_ROLE` (pure) replaces the DB-backed fallback; E2: `ctx.user.permissions` equals the role's `role_permissions` join mapped to `{ action, subject: modelName }`; E3: `can("changeRole","User")` admin true / staff false, `can("create","User")` admin true / staff false, `can("status","User")` admin true / staff false, `can("read","Client")` staff true, `can("read","User")` and `can("update","User")` staff true (self rule), `can("read", prismaUserSubject(other))` staff false                  |
+| packages/database/test/seed/permissions.seed.test.ts (E1)              | integration | 43 permissions (8 parents, 35 children), 1106 → `{ name: "User role", nameJp: "担当者の役割変更", parentKey: "1100", action: "changeRole", subject: "Admin_User", modelName: "User", visible: true }`; 88 grants, per role `{ super_admin: 35, admin: 35, manager: 10, staff: 8 }`; `rolesGranted("1106")` = `["admin","super_admin"]`; every row `visible === true` after the seed; a row drifted to `visible: false` is restored with `updated: 1` and no new rows; `UNCHANGED.rows` = 43; stale/missing grant sync, runtime permission, user grants, second run unchanged |
+| packages/database/test/repositories/permission.repository.test.ts (E1) | integration | inside `prisma.$transaction` that throws a sentinel at the end (rollback, so the parallel seed tests never see the rows): role grants → those rows; + user ALLOW → added; + user DENY of a role grant → removed; DENY of a non-granted key → no-op; `userPermission.create` without `effect` → counts as ALLOW; a `visible: false` permission is still returned (not an authorization input); unknown role / no rows → `[]`; rows carry `action`, `modelName`, `key`                                                                                                         |
+| packages/auth/test/auth.test.ts (E2)                                   | integration | a `staff` session's `user.permissions` equals the seeded `role_permissions` join for `staff` (8 rows); after `userPermission` DENY `1702` the `read Workflow` grant disappears; after ALLOW `1101` `create User` appears; a `super_admin` session has 35                                                                                                                                                                                                                                                                                                                     |
+| packages/permissions/test/ability.test.ts (E2, E3)                     | matrix      | E2: `canUnscoped` true for admin `read User`, false for staff; E3 rewrite: for every grant (action × subject) a user with only that grant `can` exactly that cell on `other` rows plus `read`/`update` on their own row; grants with action `all` or an unknown subject are ignored; a `changeRole User` grant does not allow `update` on other rows and vice versa; empty grants → self only; anonymous nothing; prisma ≡ browser for every action × subject × relation; `accessibleUsersWhere` self-only vs unrestricted with a `read User` grant; `canUnscoped`           |
+| apps/api/test/permission-catalog.test.ts (E3)                          | integration | for each `ROLES` role: `signedInUser` → for each of the 43 `permission` rows: `ctx.ability.can(action, modelName)` (type-level for non-User, `prismaUserSubject(otherUser)` for `User`) equals "a `role_permissions` row exists" and is always false for `action === "all"`; every catalog `action` is `all` or `isAction`, every `modelName` `isSubjectName`; staff + ALLOW 1101 can create User; admin + DENY 1102 cannot read another user but still reads self; manager/staff `can("changeRole","User")` false                                                           |
+| apps/api/test/modules/user/user.service.test.ts (E3, run only)         | integration | unchanged: staff `changeRole` → `ForbiddenError` (type-level check, now fed by row 1106); non-admin `deactivate` → `ForbiddenError`                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| apps/api/test/trpc/routers/user.router.test.ts (E3, run only)          | integration | unchanged: staff `changeRole` and `deactivate` → `FORBIDDEN` at layer 1; admin `changeRole` updates the role                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 ## Steps (executed in order, one at a time)
 
-Conventions for every step: Conventional Commit per unit (`refactor(database): …` for A0, `feat(database): …` for A1/B/C with `Refs: docs/adr/0005-legacy-reference-data.md` in the migration commit). Shell for migrations: `yarn docker:up` first (compose Postgres on host port 5433, Redis 6380, URL from root `.env`); if `node` is missing in a non-interactive shell, `export PATH="$HOME/.nvm/versions/node/v24.14.0/bin:$PATH"`. Never `migrate reset`.
+### Commit D1
 
-### Unit A0 — seed folder refactor (no schema change)
+### Step 1 — Disable sign-up in `@repo/auth`
 
-### Step 1 — Move the test-user seed into `prisma/seed/` with a shared support module
+- Files: packages/auth/src/server.ts, packages/auth/test/auth.test.ts
+- Test first: rewrite `auth.test.ts` per the table (import `DEFAULT_ROLE` from `@repo/validation`; `createUser` body `{ email, password, name, role: DEFAULT_ROLE }`, `data: { emailVerified: true }` only in the session case; verification through `auth.api.sendVerificationEmail({ body: { email } })` then `verifyEmail`).
+- Then implement: `emailAndPassword: { enabled: true, disableSignUp: true, … }` (`@better-auth/core` init-options line 676).
+- Check: `yarn workspace @repo/auth test`, `yarn lint`, `yarn typecheck`
 
-- Files: `packages/database/prisma/seed/support.ts`, `packages/database/prisma/seed/users.seed.ts`, `packages/database/test/seed/support.test.ts`, `packages/database/test/seed/users.seed.test.ts` (seed.ts is deleted in Step 2 so lint stays green between steps).
-- Test first: `support.test.ts` for `assertNotProduction`; `users.seed.test.ts` as listed above (imports `seedUsers`, `SEED_USERS`, `SEED_PASSWORD` from `../../prisma/seed/users.seed`, `verifyPassword` from `better-auth/crypto`).
-- Then implement: `support.ts` exports `type SeedSummary = { dataset: string; rows: number; created: number; updated: number; skipped: number }`, `type SeedFn = (prisma: PrismaClient) => Promise<SeedSummary>` (`import type { PrismaClient } from "../../src/client"`), `assertNotProduction = (env: NodeJS.ProcessEnv): void`, and `runSeeds = async (label: string, run: (prisma: PrismaClient) => Promise<readonly SeedSummary[]>): Promise<void>` which loads the root `.env` with `loadEnv({ path: new URL("../../../../.env", import.meta.url), quiet: true })` (process env wins, same as prisma.config.ts), throws when `DATABASE_URL` is unset, builds the client with `createPrismaClient`, runs `run`, writes one `process.stdout.write` line per summary (`no-console` is an error), disconnects in `finally`. `users.seed.ts` moves `SEED_PASSWORD`, `SEED_USERS`, the credential-account logic verbatim from `prisma/seed.ts` and returns a `SeedSummary` (`created` = users that did not exist before the upsert).
-- Check: `yarn workspace @repo/database vitest run test/seed`, `yarn lint`, `yarn typecheck`.
+### Step 2 — API harness and HTTP tests move to `createUser`
 
-### Step 2 — Entry points, scripts and the production-safety lint rule
+- Files: apps/api/test/support.ts, apps/api/test/auth-http.test.ts
+- Test first: `auth-http.test.ts` per the table (sign-up → 400, outbox chain via `send-verification-email`, sign-in of an admin-created user).
+- Then implement: `signedInUser` calls `harness.auth.api.createUser({ body: { email, password: TEST_PASSWORD, name, role: options.role ?? DEFAULT_ROLE, data: { emailVerified: true } } })` (no headers → no session required, `routes.mjs:152-153`), then `findUniqueOrThrow({ where: { email } })` and `signInEmail` as today. Keep `TEST_PASSWORD`, `cookieHeaderFrom`, `contextFor`.
+- Check: `yarn workspace @repo/api test`, `yarn lint`, `yarn typecheck`
 
-- Files: delete `packages/database/prisma/seed.ts`; create `prisma/seed/reference-data.ts`, `prisma/seed/reference.ts`, `prisma/seed/index.ts`; modify `packages/database/prisma.config.ts`, `packages/database/package.json`, root `package.json`, `packages/database/eslint.config.mjs`.
-- Test first: none beyond Step 1 (entrypoints are glue; the lint rule is verified by provoking it).
-- Then implement: `reference-data.ts` exports `REFERENCE_SEEDS: readonly SeedFn[] = []` and `seedReferenceData = async (prisma) => { const out = []; for (const seed of REFERENCE_SEEDS) out.push(await seed(prisma)); return out; }`. `reference.ts`: `await runSeeds("reference", seedReferenceData)`. `index.ts`: `assertNotProduction(process.env)` then `await runSeeds("dev", async (prisma) => [...(await seedReferenceData(prisma)), await seedUsers(prisma)])` and keep the header comment listing the two accounts. `prisma.config.ts` seed → `tsx prisma/seed/index.ts`. Scripts: package `db:seed:reference` = `tsx prisma/seed/reference.ts`; root `db:seed:reference` = `yarn workspace @repo/database db:seed:reference`. ESLint: add a config object `{ name: "database/seed-production-safe", files: ["prisma/seed/**/*.ts"], ignores: ["prisma/seed/index.ts", "prisma/seed/users.seed.ts"], rules: { "no-restricted-imports": ["error", { patterns: [{ group: ["./users.seed", "**/users.seed", "better-auth", "better-auth/*"], message: "Only prisma/seed/index.ts may seed test users; reference seeds must stay production-safe." }] }] } }`.
-- Check: temporarily add `import "./users.seed";` to `reference-data.ts` → `yarn workspace @repo/database lint` must fail, then revert; `yarn lint`, `yarn typecheck`, `yarn workspace @repo/database test`; smoke against docker: `yarn db:seed` prints the users summary, `yarn db:seed:reference` prints zero dataset lines and creates no users (verifier).
+### Step 3 — Remove the register UI and `signUpSchema`
 
-### Step 3 — Docs for the new seed layout
+- Files: apps/web/app/(auth)/register/page.tsx (delete), apps/web/features/auth/register-form.tsx (delete), apps/web/app/page.tsx, apps/web/features/auth/login-form.tsx, packages/validation/src/user.schema.ts
+- Test first: none (no behaviour under test; `apps/web/test` has no register test). `yarn typecheck` proves nothing else imports `signUpSchema`/`SignUpInput`.
+- Then implement: delete the two files; remove the button in `page.tsx` (lines 26-29 collapse to the sign-in button) and the footer paragraph in `login-form.tsx` (lines 100-105); delete `signUpSchema`/`SignUpInput` (keep `emailSchema`, `passwordSchema`, `nameSchema`, `signInSchema`).
+- Check: `yarn workspace @repo/web test`, `yarn workspace @repo/validation test`, `yarn lint`, `yarn typecheck`
 
-- Files: `.claude/rules/migrations.md` (lines 13 and 23–32: `prisma/seed/index.ts` dev entrypoint, `prisma/seed/reference.ts` production-safe entrypoint, `db:seed:reference`, "Never run `db:seed` against production data; `db:seed:reference` is the production seed"), `README.md` (lines 33–34, 61–62, 140 + a `yarn db:seed:reference` row).
-- Test first: n/a.
-- Then implement: text only.
-- Check: `yarn format:check`, `yarn verify`. Commit unit A0.
+### Step 4 — D1 docs
 
-### Unit A1 — SourceRegion and SourcePrefecture
+- Files: docs/adr/0002-auth.md, README.md, .claude/rules/ui.md, .claude/rules/module-template.md
+- Then implement: ADR 0002 "Changes" entry (sign-up disabled, `createUser` is the only creation path, `/register` removed, resend flow kept); README lines 71/103 and the "email + password sign-up" sentence; ui.md feature list and the `authClient.signUp.email` mention; module-template.md line 68-70.
+- Check: `yarn lint` (prettier on markdown), `yarn verify`; commit `feat(auth): disable public sign-up`.
 
-### Step 4 — ADR, schema, migration, exports
+### Commit D2
 
-- Files: `docs/adr/0005-legacy-reference-data.md`, `prisma/schema/source/source-region.prisma`, `prisma/schema/source/source-prefecture.prisma`, generated `prisma/migrations/<ts>_add_source_regions_and_prefectures/migration.sql`, `packages/database/src/index.ts`.
-- Test first: the existing `test/integration.test.ts` and repository tests are the regression net (they apply the new migration via `startTestDatabase`).
-- Then implement: write the ADR first (adr skill template, Date 2026-10-05, Status accepted): Context = porting legacy d-round reference data whose CSVs and schema reference natural codes/keys; Decision = tables above, uuid v7 ids plus natural-key `code Int @unique` as the relation target because the CSVs and legacy data reference codes, `onDelete: Restrict` on prefecture→region (reference data is never deleted implicitly), `enum SourceArea` mapped `source_area`, seeds split into dev (`index.ts`) and production-safe (`reference.ts`) entrypoints with the lint guard, diff-based seeds so a re-run changes nothing, `csv-parse` 7.0.3 as dev dependency for all CSV seeds; Alternatives = autoincrement Int ids (legacy; rejected for the uuid convention), referencing uuid ids from child tables (rejected: CSVs carry codes), one combined seed file (rejected: test users must be physically separate from production data); Consequences = reference tables carry both `id` and `code`; a master refresh is a seed re-run. Then the two schema files exactly as in "Schema changes", `yarn docker:up`, `yarn db:migrate:dev --name add_source_regions_and_prefectures`, read the SQL, add `SourceArea` to the value export line and the two types to `packages/database/src/index.ts`.
-- Check: in `packages/database`: `yarn prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code` (exit 0), `yarn workspace @repo/database test`, `yarn lint`, `yarn typecheck`.
+### Step 5 — The role set becomes the catalog's four keys
 
-### Step 5 — CSV reader, diff helper and the regions seed
+- Files: packages/validation/src/user.schema.ts, packages/auth/src/access-control.ts, packages/permissions/src/rules.ts, packages/permissions/test/ability.test.ts, apps/web/features/users/role-badge.tsx, apps/web/components/app-shell.tsx, apps/web/app/(app)/dashboard/page.tsx, apps/api/test/core/context.test.ts, apps/api/test/trpc/router.test.ts, apps/api/test/modules/user/user.service.test.ts (literal part only), packages/database/prisma/seed/users.seed.ts, packages/database/test/seed/users.seed.test.ts
+- Test first: the matrix `allowed` table and `ROLES` list for four roles; `users.seed.test.ts` "one verified account per catalog role"; literal updates in the API tests.
+- Then implement: `ROLES`/`DEFAULT_ROLE`; `roles` map (`satisfies Record<Role, unknown>` forces completeness) and `ADMIN_ROLES`; `defineRules` switch (`super_admin`/`admin` → `manage all`, `manager`/`staff` → self); `ROLE_LABELS`/`ROLE_TONES` (super_admin `danger`, admin `warning`, manager `info`, staff `neutral`); shell `hideFor: ["manager","staff"]` exported as `BROWSE_USERS_HIDDEN_ROLES` and reused by the dashboard; `SEED_USERS` four entries typed `satisfies readonly { email: string; name: string; role: RoleKey }[]`.
+- Note: this step is larger than ideal because the `Role` union is compile-coupled; it cannot be split and stay green.
+- Check: `yarn workspace @repo/permissions test`, `yarn workspace @repo/database vitest run test/seed/users.seed.test.ts`, `yarn workspace @repo/api test`, `yarn workspace @repo/web test`, `yarn lint`, `yarn typecheck`
 
-- Files: `packages/database/package.json` + `yarn.lock` (`yarn workspace @repo/database add -D csv-parse@7.0.3` after re-checking `npm view csv-parse version`), `prisma/seed/support.ts`, `prisma/seed/data/source-regions.csv`, `prisma/seed/source-regions.seed.ts`, `prisma/seed/reference-data.ts`, `test/seed/source-regions.seed.test.ts`.
-- Test first: `source-regions.seed.test.ts` as listed.
-- Then implement: copy legacy `seed/data/sourceRegion.csv` to `data/source-regions.csv`, normalizing CRLF to LF and adding the missing final newline (`tr -d "\r"`; values unchanged). `support.ts`: `readCsv = <T extends Record<string, string>>(file: URL): T[] => parse(readFileSync(file), { columns: true, skip_empty_lines: true, bom: true, trim: true }) as T[]` (`import { parse } from "csv-parse/sync"`), and `diffByKey = <T>(existing: readonly T[], desired: readonly T[], keyOf: (row: T) => string | number, isSame: (a: T, b: T) => boolean): { toCreate: T[]; toUpdate: T[] }`. `source-regions.seed.ts`: read `new URL("./data/source-regions.csv", import.meta.url)`, map `code: Number.parseInt(code, 10)` (throw on NaN), `area` validated against `SourceArea` values (throw otherwise), load existing with `findMany`, `createMany({ data: toCreate, skipDuplicates: true })`, `update({ where: { code } })` for changed rows only, return `{ dataset: "source_regions", rows: 9, created, updated, skipped: 0 }`. Register in `REFERENCE_SEEDS`.
-- Check: `yarn workspace @repo/database vitest run test/seed/source-regions.seed.test.ts`, `yarn lint`, `yarn typecheck`.
+### Step 6 — Last-admin rule counts `ADMIN_ROLES`
 
-### Step 6 — Prefectures seed
+- Files: packages/database/src/repositories/user.repository.ts, packages/database/test/repositories/user.repository.test.ts, apps/api/src/modules/user/user.service.ts, apps/api/test/modules/user/user.service.test.ts
+- Test first: repository `countActiveAdmins(roles)` cases; service cases (only-admin-with-super_admin succeeds; last-of-both refused; same for `deactivate`). The existing "park other admins" fixture must park every `ADMIN_ROLES` row, not only `admin`.
+- Then implement: `countActiveAdmins: (roles: readonly string[]) => db.user.count({ where: { role: { in: [...roles] }, deletedAt: null } })`; service `const isAdminRole = (role: string | null) => role !== null && (ADMIN_ROLES as readonly string[]).includes(role)` and `countActiveAdmins(ADMIN_ROLES)` in `changeRole` and `deactivate` (`ADMIN_ROLES` from `@repo/auth`, a shared package the service may import).
+- Check: `yarn workspace @repo/database test`, `yarn workspace @repo/api test`, `yarn lint`, `yarn typecheck`, `yarn verify`; commit `feat(auth): replace admin|member with the catalog role set`.
 
-- Files: `prisma/seed/data/source-prefectures.csv`, `prisma/seed/source-prefectures.seed.ts`, `prisma/seed/reference-data.ts`, `test/seed/source-prefectures.seed.test.ts`.
-- Test first: `source-prefectures.seed.test.ts` as listed (it calls `seedSourceRegions` then `seedSourcePrefectures`).
-- Then implement: copy legacy `sourcePrefecture.csv` with the same CRLF→LF + final-newline normalization; seed mirrors Step 5 with the scalar `regionCode` (no nested `connect`, so Prisma can use native upserts and the FK enforces integrity), dataset `"source_prefectures"`. Register after regions.
-- Check: `yarn workspace @repo/database test`, `yarn lint`, `yarn typecheck`, `yarn format:check`; smoke `yarn db:seed:reference` twice (second run prints `created 0 updated 0`). Commit unit A1 (`feat(database): add source regions and prefectures with reference seed`).
+### Commit D3
 
-### Unit B — SourceAddress
+### Step 7 — ADR lines, schema, hand-written migration, `RoleRecord`
 
-### Step 7 — ADR line, schema, migration, export
+- Files: docs/adr/0002-auth.md, docs/adr/0005-legacy-reference-data.md, packages/database/prisma/schema/auth/user.prisma, packages/database/prisma/schema/access/role.prisma, packages/database/prisma/migrations/<ts>\_align_users_role_with_roles/migration.sql, packages/database/src/index.ts, apps/api/test/role-catalog.test.ts, apps/api/test/core/context.test.ts
+- Test first: `role-catalog.test.ts` and the `context.test.ts` replacement per the table (they fail until the migration exists).
+- Then implement: ADR lines first (no line, no migration); edit the two `.prisma` files; run `yarn db:migrate:dev --name align_users_role_with_roles --create-only` against a throwaway Postgres (ADR 0005 "Migrations" note; never the shared dev DB), replace the generated body with the SQL in "Schema changes", apply with `yarn db:migrate`, run `yarn db:generate`, then `yarn workspace @repo/database prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code` must print nothing. Rename the export in `index.ts` (`Role as RoleRecord`); grep confirms no consumer imported the Prisma `Role` type.
+- Check: `yarn workspace @repo/database test` (testcontainers apply the migration; `roles.seed.test.ts` stays green since it never deletes a role and does not assert `created` on the first run), `yarn workspace @repo/api test`, `yarn lint`, `yarn typecheck`
 
-- Files: `docs/adr/0005-legacy-reference-data.md`, `prisma/schema/source/source-address.prisma`, generated `prisma/migrations/<ts>_add_source_addresses/migration.sql`, `packages/database/src/index.ts`.
-- Test first: existing suite as regression net.
-- Then implement: ADR `## Changes` line dated 2026-10-05: `source_addresses` = Japan Post master, `post_code` unique as the lookup/relation key (legacy `StaffAddress.postCode → SourceAddress.postCode`), four 0/1 flags become Boolean, `update_status`/`change_reason` stay Int codes, seed is insert-only (`createMany skipDuplicates`, first CSV occurrence wins = legacy MySQL `LOAD DATA LOCAL` behaviour, 124,809 rows → 120,663), data stored gzip-compressed, a master refresh is a separate ticket. Then the model, `yarn db:migrate:dev --name add_source_addresses`, read the SQL, export the type.
-- Check: drift diff exit 0, `yarn workspace @repo/database test`, `yarn lint`, `yarn typecheck`.
+### Step 8 — Seed comment and D3 docs
 
-### Step 8 — Compressed data file and the address seed
+- Files: packages/database/prisma/seed/index.ts, .claude/rules/migrations.md, .claude/rules/permissions.md, README.md, docs/conventions.md
+- Then implement: header comment lists the four accounts; migrations.md (table row, `User.role` convention, accounts table, Better Auth models section: keep `roleRef`/`@@index([role])`/NOT NULL when diffing regenerated output); permissions.md roles + rule set; README accounts/roles; conventions.md line 259-260. Mention that an existing dev DB keeps its old `member@test.com` row (backfilled to `staff`; the seed never deletes).
+- Check: `yarn verify`; commit `feat(database): users.role references the role catalog`.
 
-- Files: `prisma/seed/data/source-addresses.csv.gz`, `prisma/seed/support.ts`, `prisma/seed/source-addresses.seed.ts`, `prisma/seed/index.ts`, `test/seed/source-addresses.seed.test.ts`, `test/seed/support.test.ts`.
-- Test first: `source-addresses.seed.test.ts` as listed, `120_000` ms timeout on the load tests.
-- Then implement: `gzip -9 -n -c <legacy>/seed/data/sourceAddress.csv > packages/database/prisma/seed/data/source-addresses.csv.gz` (`-n` = reproducible bytes). `support.ts`: `readCsv` gunzips when `file.pathname.endsWith(".gz")` (`gunzipSync` from `node:zlib`); add `chunk`. Seed: parse rows (ignore the legacy `id` column), map `"1"/"0"` → boolean (throw on anything else), ints via `Number.parseInt` (throw on NaN), `""` → `null` for the four optional string columns, dedup with a `Set` of seen `postCode` keeping the first occurrence, `createMany({ data, skipDuplicates: true })` per chunk of 1,000 (≈18 bind parameters per row, well under Postgres's 65,535 limit; no transaction across chunks so a crash is resumable), summary `{ dataset: "source_addresses", rows: distinct, created: sum of counts, updated: 0, skipped: duplicates }`. Call it from `index.ts` after the prefectures.
-- Check: `yarn workspace @repo/database vitest run test/seed/source-addresses.seed.test.ts` (note wall time; target ≤ 15 s), `yarn lint`, `yarn typecheck`.
+### Commit E1
 
-### Step 9 — Verify and smoke
+### Step 9 — `visible` and `effect` columns
 
-- Files: none.
-- Check: `yarn verify`; smoke `yarn db:seed` twice (second run: reference datasets `created 0, updated 0`). Commit unit B (`feat(database): add the Japan postal-code master with an insert-only seed`).
+- Files: docs/adr/0005-legacy-reference-data.md, docs/adr/0003-permissions.md, packages/database/prisma/schema/access/permission.prisma, packages/database/prisma/schema/access/user-permission.prisma, packages/database/prisma/migrations/<ts>\_add_permission_visible_and_user_permission_effect/migration.sql, packages/database/src/index.ts
+- Test first: none beyond the generated client compiling; the semantics are tested in Steps 10 and 11.
+- Then implement: ADR lines (0005: both columns, CSV `visible` column, row 1106 is ours — amend the "values unchanged" sentence; 0003: union + deny, `visible` not an authorization input); `visible Boolean @default(true) @map("visible")` on `Permission`; enum + `effect` field on `UserPermission`; `yarn db:migrate:dev --name add_permission_visible_and_user_permission_effect` (throwaway DB), read the SQL (one CREATE TYPE, two defaulted ADD COLUMNs), `yarn db:generate`, `migrate diff --exit-code`; export `PermissionEffect`.
+- Check: `yarn workspace @repo/database test`, `yarn lint`, `yarn typecheck`
 
-### Unit C — Role and Permission catalog
+### Step 10 — CSV `visible` column, row 1106, seed sync
 
-### Step 10 — ADR line, schema, migration, exports
+- Files: packages/database/prisma/seed/data/permissions.csv, packages/database/prisma/seed/permissions.seed.ts, packages/database/test/seed/permissions.seed.test.ts
+- Test first: `permissions.seed.test.ts` per the table (43 / 8+35 / 88 / per-role counts, 1106 shape with `visible: true`, all visible after seed, drifted `visible: false` restored with `updated: 1`, `rolesGranted("1106")`). Grep `docs/` and `.claude/` for `42`/`86`/`34` before committing (today the counts live only in this test file).
+- Then implement: header `key,name,nameJp,parentKey,action,subject,modelName,visible,super_admin,admin,manager,staff`; every existing row gets `1` in `visible`; insert `1106,User role,担当者の役割変更,1100,changeRole,Admin_User,User,1,1,1,0,0` after 1105 (LF line endings, final newline); `PERMISSION_COLUMNS` adds `"visible"` before `...ROLE_KEYS`; `PermissionRow.visible: boolean` from `parseFlag(row.visible, "visible")`; `isSamePermission` compares it; the `select` in `seedPermissions` includes `visible`; `writePermissions` writes it through `createMany`/`update` unchanged.
+- Check: `yarn workspace @repo/database test`, `yarn lint`, `yarn typecheck`
 
-- Files: `docs/adr/0005-legacy-reference-data.md`, the four `prisma/schema/access/*.prisma`, `prisma/schema/auth/user.prisma`, generated `prisma/migrations/<ts>_add_roles_and_permissions/migration.sql`, `packages/database/src/index.ts`.
-- Test first: existing suite (Better Auth-facing tests in `apps/api` must stay green: `yarn workspace @repo/api test`).
-- Then implement: ADR `## Changes` line dated 2026-10-05 recording: new `access/` schema folder (our authorization catalog; `auth/` stays Better-Auth-owned); `roles.key` lower-case to match how Better Auth stores `users.role`; exceptions to the uuid rule (join tables use composite `@@id`; relations target the natural keys `roles.key`/`permissions.key` because the CSV and future legacy data migrations carry keys); no FK from `users.role` to `roles.key` because Better Auth owns that column and its allowed set stays `roleSchema` (ADR 0002) — `member`, Better Auth's default, has no catalog row until the role-set ticket; parent self-relation `onDelete: Restrict` (deleting a menu group must be deliberate, never silently flattening children); `assigned_by` kept as a plain uuid column without FK (audit value, seeds write null); join tables use `created_at` per the repo rule instead of legacy `assignedAt`; the seed syncs role grants to the CSV, never touches `user_permissions`, never deletes permissions. Then the schema files, `user.prisma` relation field, `yarn db:migrate:dev --name add_roles_and_permissions`, read the SQL (no `ALTER TABLE "users"`), export the four types.
-- Check: drift diff exit 0, `yarn workspace @repo/database test`, `yarn workspace @repo/api test`, `yarn lint`, `yarn typecheck`.
+### Step 11 — `permission.repository.ts`
 
-### Step 11 — Roles seed
+- Files: packages/database/src/repositories/permission.repository.ts, packages/database/src/repositories/index.ts, packages/database/test/repositories/permission.repository.test.ts
+- Test first: the rolled-back-transaction test per the table (create runtime permissions with unique `key`/`subject`, grants for an existing catalog role such as `manager`, a user, user rows with/without `effect`; call `createPermissionRepository(tx).findEffectiveGrants(...)`; throw a sentinel to roll back so `permissions.seed.test.ts`'s exact counts and `roles.seed.test.ts`'s `count() === 4` are never disturbed).
+- Then implement: `findEffectiveGrants(userId, roleKey)` as one `db.permission.findMany({ where: { AND: [{ OR: [{ roles: { some: { roleKey } } }, { users: { some: { userId, effect: "ALLOW" } } }] }, { users: { none: { userId, effect: "DENY" } } }] }, select: { key, action, modelName }, orderBy: { key: "asc" } })` (no `visible` filter); `export type PermissionRepository = ReturnType<…>`; barrel.
+- Check: `yarn workspace @repo/database test`, `yarn lint`, `yarn typecheck`
 
-- Files: `prisma/seed/roles.seed.ts`, `prisma/seed/index.ts`, `test/seed/roles.seed.test.ts`.
-- Test first: `roles.seed.test.ts` as listed.
-- Then implement: `export const ROLE_SEEDS = [{ key: "super_admin", name: "Super admin", nameJp: "スーパーアドミン" }, { key: "admin", name: "Admin", nameJp: "アドミン" }, { key: "manager", name: "Manager", nameJp: "マネジャー" }, { key: "staff", name: "Staff", nameJp: "スタッフ" }] as const; export type RoleKey = (typeof ROLE_SEEDS)[number]["key"];` and `seedRoles: SeedFn` (diff-based by `key`, dataset `"roles"`). Call it first in `index.ts`.
-- Check: `yarn workspace @repo/database vitest run test/seed/roles.seed.test.ts`, `yarn lint`, `yarn typecheck`.
+### Step 12 — Reference seeds available to test setups
 
-### Step 12 — Permissions seed with role-grant sync
+- Files: packages/database/test/index.ts, .claude/rules/migrations.md
+- Test first: none (harness); Steps 14/15 consume it.
+- Then implement: `startTestDatabase(options: { seedReferenceData?: boolean } = {})` → after `runMigrations`, when true `await seedRoles(prisma); await seedPermissions(prisma);` (relative imports `../prisma/seed/roles.seed`, `../prisma/seed/permissions.seed` — element `database` → `database`, allowed). Document in migrations.md next to the seed section together with the `visible`/`effect` rows and the 43-row catalog.
+- Check: `yarn workspace @repo/database test`, `yarn lint`, `yarn typecheck`, `yarn verify`; commit `feat(database): permission visibility, user grant effect and the effective-grants repository`.
 
-- Files: `prisma/seed/data/permissions.csv`, `prisma/seed/permissions.seed.ts`, `prisma/seed/index.ts`, `test/seed/permissions.seed.test.ts`.
-- Test first: `permissions.seed.test.ts` as listed.
-- Then implement: copy legacy `permissions.csv` (CRLF→LF + final newline), change only the header to `key,name,nameJp,parentKey,action,subject,modelName,super_admin,admin,manager,staff`. Seed: `readCsv<PermissionRow>`; validate that every `ROLE_SEEDS` key is a column (throw otherwise); split rows into parents (`parentKey === ""` → `null`) and children; inside `prisma.$transaction(async (tx) => …)`: diff-based upsert of parents then children by `key` (compare name, nameJp, parentKey, action, subject, modelName); build the desired grant set `{ roleKey, permissionKey }` from `"1"` flags (86 pairs); `tx.rolePermission.findMany()` → `createMany({ skipDuplicates: true })` for missing pairs and `deleteMany({ where: { OR: stalePairs } })` only when stale pairs exist; never touch `userPermission`. Summary `{ dataset: "permissions", rows: 42, created, updated, skipped: 0 }` (grants reported in the stdout line as `grants +n/-m`). Call it after `seedRoles` in `index.ts`.
-- Check: `yarn workspace @repo/database test`, `yarn lint`, `yarn typecheck`, `yarn format:check`, `yarn verify`; smoke `yarn db:seed` twice. Commit unit C (`feat(database): add role and permission catalog with CSV seed`).
+### Commit E2
+
+### Step 13 — `PermissionGrant` type and `canUnscoped` (additive)
+
+- Files: packages/permissions/src/rules.ts, packages/permissions/src/ability.ts, packages/permissions/src/index.ts, packages/permissions/test/ability.test.ts
+- Test first: `canUnscoped` true for admin `read User` (the `manage all` rule has no conditions), false for staff.
+- Then implement: `export type PermissionGrant = { action: string; subject: string }` (AbilityUser unchanged in this step so every consumer still compiles); `canUnscoped = (ability: AppAbility, action, subject) => ability.rulesFor(action, subject).some((rule) => !rule.inverted && !rule.conditions)`; exports.
+- Check: `yarn workspace @repo/permissions test`, `yarn lint`, `yarn typecheck`
+
+### Step 14 — `customSession` in `@repo/auth`
+
+- Files: packages/auth/src/server.ts, packages/auth/src/client.ts, packages/auth/test/global-setup.ts, packages/auth/test/auth.test.ts
+- Test first: the E2 auth cases (seeded roles/permissions via `startTestDatabase({ seedReferenceData: true })`; expected rows derived from `prisma.rolePermission.findMany({ where: { roleKey }, include: { permission: true } })`).
+- Then implement: hoist today's `betterAuth({...})` argument into `const base = { … , plugins: [admin({...})] } satisfies BetterAuthOptions;` and return `betterAuth({ ...base, plugins: [...base.plugins, customSession(async ({ user, session }) => { const grants = await permissions.findEffectiveGrants(user.id, user.role ?? DEFAULT_ROLE); return { user: { ...user, permissions: grants.map(({ action, modelName }) => ({ action, subject: modelName })) }, session }; }, base)] })` with `const permissions = createPermissionRepository(options.prisma)` (value import from `@repo/database`; shared → shared is allowed; `client.ts` keeps its type-only `Auth` import). Import `customSession` from `better-auth/plugins/custom-session` (`dist/plugins/custom-session/index.mjs`; use `better-auth/plugins` if that subpath is not in the package exports). `client.ts`: add `customSessionClient<Auth>()` from `better-auth/client/plugins`. `SessionUser` now carries `permissions`.
+- Check: `yarn workspace @repo/auth test`, `yarn lint`, `yarn typecheck`
+
+### Step 15 — Session grants reach the API context and the web
+
+- Files: packages/permissions/src/rules.ts, packages/permissions/test/ability.test.ts, apps/api/src/core/context.ts, apps/api/test/global-setup.ts, apps/api/test/core/context.test.ts, apps/api/test/trpc/router.test.ts, apps/web/lib/auth/server.ts, apps/web/components/app-shell.tsx, apps/web/app/(app)/dashboard/page.tsx
+- Test first: `context.test.ts` "ctx.user.permissions mirrors the role's grants" (needs `seedReferenceData: true` in the API global setup); `me()` in the matrix test gets `permissions: []`; `router.test.ts` literal gets `permissions: []`.
+- Then implement: `AbilityUser.permissions: readonly PermissionGrant[]` (required); `AuthUser.permissions: PermissionGrant[]`, `toAuthUser` maps `user.permissions` to `{ action, subject }`; web `CurrentUser.permissions`, `toCurrentUser` passes them through; `app-shell.tsx`: `AbilityProvider user={{ id, role, permissions }}`, nav rendered by a sibling `AppNav` component (hooks inside the provider) filtering `NAV` items by `visibleWhen?: (ability: AppAbility) => boolean` with `canUnscoped(ability, "read", "User")` for `/users`; `dashboard/page.tsx` (server component): `const ability = defineAbilityFor(user)` from `@repo/permissions` (browser-safe entry, allowed for `web`) and `canUnscoped(ability, "read", "User")` for the "Browse users" link; delete `BROWSE_USERS_HIDDEN_ROLES`. No web file imports `@repo/permissions/server`.
+- Check: `yarn workspace @repo/permissions test`, `yarn workspace @repo/api test`, `yarn workspace @repo/web test`, `yarn lint`, `yarn typecheck`, `yarn verify`; commit `feat(auth): session carries the user's effective permission grants`.
+
+### Commit E3
+
+### Step 16 — `status` action and `deactivate` wiring
+
+- Files: packages/permissions/src/rules.ts, packages/permissions/test/ability.test.ts, apps/api/src/trpc/routers/user.router.ts, apps/api/src/modules/user/user.service.ts, apps/api/test/core/context.test.ts, apps/web/features/users/user-editor.tsx
+- Test first: matrix rows for `status` (super_admin/admin self+other, manager/staff none); `context.test.ts`: `can("status","User")` admin true / staff false.
+- Then implement: `ACTIONS` adds `"status"` (keep `manage`/`changeRole` for this step; the interim `manage all` covers it); router `deactivate` → `requireAbility("status","User")`; service `deactivate` → `can("status","User")` before the transaction and `can("status", prismaUserSubject(target))` inside it (`changeRole` untouched); `user-editor.tsx` deactivate card → `<Can I="status" a="User">` (role card keeps `changeRole`).
+- Check: `yarn workspace @repo/permissions test`, `yarn workspace @repo/api test`, `yarn workspace @repo/web test`, `yarn lint`, `yarn typecheck`
+
+### Step 17 — Rules from the catalog grants
+
+- Files: packages/permissions/src/rules.ts, packages/permissions/src/server.ts, packages/permissions/src/index.ts, packages/permissions/test/ability.test.ts, apps/api/test/core/context.test.ts, apps/api/test/permission-catalog.test.ts
+- Test first: the grant-driven spec rewrite and `permission-catalog.test.ts` per the table (both fail: `isAction` does not exist, admin has no `manage` after the change); `context.test.ts` E3 rows (`changeRole`/`create` admin true, staff false; `read Client` staff true; self rule rows).
+- Then implement: `ACTIONS = ["create","read","update","delete","status","changeRole"]`, `SUBJECT_NAMES` = the eight model names, `SubjectName` without `"all"`, `isAction`/`isSubjectName` guards; `defineRules`: `for (const grant of user.permissions) if (isAction(grant.action) && isSubjectName(grant.subject)) can(grant.action, grant.subject);` then the unscoped self rule `can(["read","update"], "User", { id: user.id })`; comment documenting where a row-scoped rule goes; `ServerSubjects = SubjectName | Subjects<{ User: User }>`; `index.ts` exports the guards. `CanFn` keeps its `(action, subject, conditions?)` shape — no fields.
+- Check: `yarn workspace @repo/permissions test`, `yarn workspace @repo/api test` (includes the unchanged `user.service.test.ts` / `user.router.test.ts`), `yarn lint`, `yarn typecheck`
+
+### Step 18 — E3 docs
+
+- Files: docs/adr/0003-permissions.md, .claude/rules/permissions.md, .claude/rules/module-template.md
+- Then implement: ADR 0003 Changes entry (catalog-driven CASL, actions/subjects, row 1106 feeds `changeRole`, `deactivate`→`status`, session via `customSession`, spec split, one query per `getSession`); permissions.md Layer 1 rewrite with the role × subject table derived from `permissions.csv` (super_admin/admin: everything except `all`, including `changeRole User`; manager: Client/Staff/Branch read, SourceCsvHistory create+read, Workflow all five; staff: Client/Staff/Branch read, Workflow all five) and the web `canUnscoped` pattern; module-template.md router/service snippets.
+- Check: `yarn verify`; commit `feat(permissions): build CASL abilities from the permission catalog`.
+
+### Commit Docs
+
+### Step 19 — Skills and comments
+
+- Files: the ten (+1 optional) listed under "Commit Docs".
+- Then implement: replace every `admin | member`, `signUpEmail`, `delete`-for-deactivate, `manage all` example with the new shapes; `roles.seed.ts` and `permissions.seed.ts` header comments.
+- Check: `yarn lint`, `yarn verify`; commit `docs: role catalog and catalog-driven permissions`.
 
 ## Risks and open questions
 
-- Ticket data facts corrected from the files: 9 regions (codes 1–9), 42 permissions (8 parents + 34 children), 86 grants; `"1102"` is super_admin+admin only, `"1202"` is the all-four example. Tests use the verified numbers. Observation for the product owner, not changed: legacy data puts 山口県 (code 35) in region 9 (九州), not region 8.
-- New devDependency `csv-parse` `7.0.3` (zero deps, used only by `prisma/seed/support.ts`; `import { parse } from "csv-parse/sync"`). Re-check with `npm view csv-parse version` before `yarn add`. Alternative rejected: a split-based reader — the verified data has no quotes, but Japan Post's KEN_ALL master is quoted, so the first refresh would break it. Note that the production seed already needs a dev dependency (`tsx`), so deployments must install devDependencies for seeding.
-- Decision: `access/` folder instead of `auth/` for Role/Permission so `auth/` stays "Better Auth owns these; regenerate and diff". Recorded in ADR 0005.
-- Decision: join tables use `created_at` (repo rule "every table has created_at") rather than the orchestrator's `assignedAt`; `assigned_by` kept as uuid without FK.
-- Decision: roles come from an inline `ROLE_SEEDS` const (4 rows; its `RoleKey` type names the permissions CSV flag columns) instead of `roles.csv`; keeps unit C at 14 files. Switch to CSV later costs one file.
-- Decision: permission self-relation `onDelete: Restrict` (not SetNull): deleting a parent must not silently flatten children into top-level menu entries.
-- Decision: gzip for the address file. Git compresses blobs anyway, so the saving is working-tree/checkout size (17 MB → 2.4 MB) and reviewability of PRs; cost is a non-diffable data file. `gzip -n` keeps the bytes reproducible. `.csv`/`.csv.gz` are untouched by Prettier and lint-staged (verified `lint-staged.config.mjs`).
-- Address seed is insert-only (`skipDuplicates`): idempotent, but a changed master row is not updated by a re-run. Master refresh (diff or truncate-and-reload inside a transaction) is a follow-up ticket; recorded in ADR.
-- Prisma Client is expected to fill `id` (uuid v7), `created_at` and `@updatedAt` client-side in `createMany`. If a `NOT NULL` violation on `updated_at` shows up in Step 8, pass `updatedAt: new Date()` explicitly per row — no schema change.
-- Prisma may or may not chunk large `createMany` with the pg adapter; the seed chunks at 1,000 rows regardless. Expected load time 5–15 s; the address and whole-entrypoint tests carry a 120 s timeout. Package test wall time grows by roughly 20–30 s.
-- Test files share one Postgres and run in parallel. Safety comes from `skipDuplicates: true` on every `createMany` and from updates that only touch rows whose data differs, so concurrent identical seeds never bump `updated_at`. The "no test users in a real environment" guarantee is the fail-closed `NODE_ENV` check in `seedUsers` (amendment), covered by `users.seed.test.ts` for unset, `production` and `staging`; only that file touches the seed emails, so its counts do not race.
-- `users.role` values `admin`/`member` (Better Auth defaults) do not match the catalog keys except `admin`; nothing joins on them yet. Resolved by the NEXT plan below.
-- Legacy `sourceRegion.csv`, `sourcePrefecture.csv` and `permissions.csv` use CRLF line endings and lack a final newline (`sourceAddress.csv` is LF). The copies are normalized to LF to match `.editorconfig`; `readCsv` keeps `trim: true` so a stray `\r` can never leak into a value or a numeric parse.
-- Migration folder names: Prisma generates `<timestamp>_<name>`; the existing `0001_init` sorts first, as required.
+- **One MR of ~68 files** (waived by the user): review cost is the real risk; the seven commits are the review units, each green, and the reviewer can read them one by one.
+- **Privilege escalation is closed at layer 1**: `changeRole` is its own CASL action (catalog row 1106, super_admin/admin only), so the unscoped self rule (`read`/`update` own row) can never reach it; the router's `requireAbility("changeRole","User")` and the service's type-level check both refuse manager/staff before any row is touched, and `permission-catalog.test.ts` asserts manager/staff lack the grant. A user-level `ALLOW 1106` row is the only way to extend it — by design.
+- **`customSession` typing**: `user` inside `fn` is typed with the admin plugin fields only when the base options are passed as the second argument (`customSession(fn, base)`); `Auth["$Infer"]["Session"]` then picks up the custom shape (`dist/types/auth.d.mts:22-29`). If inference breaks under `exactOptionalPropertyTypes`, export an explicit `Session` type from `server.ts` instead of `Auth["$Infer"]["Session"]`; never cast in consumers.
+- **Performance**: one extra query per `getSession` (every API request via `buildRequestContext`, every `(app)` layout render via `/api/auth/get-session`). Redis caching of grants is a follow-up, out of scope. Grants change only through DB writes, so a later cache can key on `userId` and invalidate on `user_permissions`/`role_permissions` writes.
+- **Order inside the branch / deploy**: D2 (code writes only catalog keys) before D3 (NOT NULL + FK) — expand-contract; E1 (defaulted columns, CSV row) before E2; the whole branch deploys as one release, so API and web pick up `session.user.permissions` together (if a mixed window ever exists, `toCurrentUser` would need `?? []`).
+- **Hand-written migration** (D3): must be generated/applied against a throwaway Postgres (ADR 0005 note; `migrate dev` against the shared dev DB demands a reset, which is denied). `migrate diff --exit-code` is the gate; CI runs it. E1's migration is generated as-is.
+- **`gen_random_uuid()` ids** on the four migration-inserted role rows are v4, unlike every other `uuid(7)` id; accepted because nothing references them.
+- **Seed tests on one shared container**: the new repository test must not create roles or role grants that survive (the seed tests assert exact counts: 4 roles, 43 permissions, 88 grants); the rolled-back transaction in Step 11 guarantees that. `roles.seed.test.ts` needs no change (it never deletes a role; the ticket's note was based on an older version).
+- **CSV edit** (E1): `readCsv` performs an exact header check, so the `visible` column and `PERMISSION_COLUMNS` must change together; a running database that was seeded before E1 reports `created 1, grants +2` once, then `0`. The `@@unique([action, subject])` index accepts 1106 (`changeRole`/`Admin_User` is new).
+- **Reference seeds in test setups** (`apps/api`, `packages/auth`) add ~1 s per run and couple those packages' tests to the CSV through `@repo/database/test`; `csv-parse` resolves from `packages/database` (relative import) so no new dependency is needed.
+- **Better Auth prisma adapter and the new relation field**: Better Auth writes `role` as an unchecked scalar; our code must never pass `roleRef: { connect }` together with `role` in one Prisma call.
+- **`admin/update-user`** could try `role: null`; the NOT NULL column refuses it — acceptable, we do not use that endpoint.
+- **Interim UI in D2** (`hideFor` lists) exists for one commit until E2 replaces it with the ability.
+- **Existing dev databases** keep a `member@test.com` row (backfilled to `staff`); the seed never deletes it. Harmless; documented.
+- **No new dependency**: `customSession`/`customSessionClient` ship with `better-auth` 1.7.3; nothing to `npm view`.
+- **Open questions**: none — see "Decisions confirmed by the user".
 
 ## Out of scope
 
-- Repositories, services, tRPC routers, validation schemas and UI for any of the new models (module-template work for later tickets; no procedures are added here, so no ability checks are needed).
-- Legacy `Staff`, `Client`, `Branch`, `Department` models and their join/address tables (`SourceRegionOnStaffs`, `SourcePrefectureOnStaffs`, `SourceRegionsOnClients`, `StaffAddress`, `ClientAddress`, `BranchAddress`, `DepartmentAddress`) and `RolesOnUsers` (legacy email-keyed; superseded by `users.role`).
-- Building CASL abilities from the DB permission catalog (`action` values `all`/`status` and `subject`/`modelName` strings are stored as-is, not mapped to `@repo/permissions` actions).
-- Address master refresh tooling.
-- Changing the runtime role set — recommended NEXT plan ("Replace admin|member with super_admin|admin|manager|staff"), files it would touch: `packages/validation/src/user.schema.ts` (`ROLES`, `roleSchema`), `packages/auth/src/access-control.ts` (`ADMIN_ROLES`, `roles`), `packages/permissions/src/rules.ts` + `packages/permissions/test/ability.test.ts` (matrix rows per role), `apps/web/features/users/role-badge.tsx`, `apps/api/src/modules/user/user.service.ts` and `packages/database/src/repositories/user.repository.ts` (`countActiveAdmins` must count `super_admin`+`admin`), `apps/api/test/support.ts` (`signedInUser` roles), `packages/database/prisma/seed/users.seed.ts` (test users' roles), `docs/adr/0002-auth.md` + `docs/adr/0003-permissions.md` (dated `## Changes` lines), and optionally a data migration mapping existing `member` rows.
+- Any behavioural difference between `super_admin` and `admin` (legacy row rules) — both get the same CASL rules.
+- An admin "create user" UI, a permission-editing UI or menu filter using `permissions.visible`, or any UI to edit `user_permissions` (`ALLOW`/`DENY` rows are written directly in the DB for now).
+- Row-scope conditions per role × subject (legacy `*-permissions.ts` `chargers.some`, `createdBy`, `status: DELETED` rules) — the table is added with the first scoped role.
+- Redis caching of effective grants / session grant invalidation.
+- Modules for `Client`, `Staff`, `Branch`, `Workflow`, `WorkflowTemplate`, `AuditLog`, `SourceCsvHistory` — only their subject names exist for CASL.
+- Menu keys (`Admin_User`, …) as subjects — they stay UI labels in `permissions.subject`.
+- Changing the password/verification policies, OAuth, or Better Auth upgrades; the `npx auth generate` baseline (no new Better Auth fields are introduced).
+- Deleting the stale `member@test.com` row from existing dev databases.
