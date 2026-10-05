@@ -30,7 +30,8 @@ only the `generator` and `datasource` blocks; every model has its own file,
 `schema/<module>/<model-kebab>.prisma` (one folder per module, one model per file, enums in the
 file of the model that owns them): `system/health-check.prisma`,
 `auth/{user,session,account,verification}.prisma`, `email/outbox-email.prisma` (`OutboxStatus` +
-`OutboxEmail`). Prisma merges the folder; relations across files work as usual.
+`OutboxEmail`), `source/{source-region,source-prefecture}.prisma` (`SourceArea` + `SourceRegion`,
+`SourcePrefecture`). Prisma merges the folder; relations across files work as usual.
 
 ## How-to: add or change a model
 
@@ -42,17 +43,21 @@ file of the model that owns them): `system/health-check.prisma`,
    `createdAt DateTime @default(now()) @map("created_at")`. A new module gets a new folder.
 3. Make it expand-contract safe: new columns nullable or defaulted; constraints only after a
    backfill.
-4. `yarn docker:up`, then `yarn db:migrate:dev --name add_<thing>`; read the SQL it generated.
+4. `yarn docker:up`, then `yarn db:migrate:dev --name add_<thing>`; read the SQL it generated, then
+   `yarn db:generate` (Prisma 7's `migrate dev` no longer regenerates the client).
 5. Export the model type from `packages/database/src/index.ts`; add or extend the repository.
 6. Write the repository test (`packages/database/test/repositories/<name>.repository.test.ts`)
    against `inject("databaseUrl")`.
 7. `yarn verify`. CI additionally runs
    `prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code`.
 
-Existing models (`0001_init`): `User`, `Session`, `Account`,
+Existing models from `0001_init`: `User`, `Session`, `Account`,
 `Verification` (Better Auth — field names fixed, tables/columns mapped to snake_case, plus our
 `deletedAt`) and `OutboxEmail` with enum `OutboxStatus`
-(`PENDING | SENT | FAILED`). Regenerating the Better Auth models: `.claude/rules/migrations.md`
+(`PENDING | SENT | FAILED`). Since `20261005070927_add_source_regions_and_prefectures`:
+`SourceRegion` (enum `SourceArea`) and `SourcePrefecture`, related by the natural key `code`
+(`docs/adr/0005-legacy-reference-data.md`). Regenerating the Better Auth models:
+`.claude/rules/migrations.md`
 (diff the CLI output against the files under `prisma/schema/auth/`).
 
 ## How-to: seed data
@@ -67,10 +72,12 @@ and `runSeeds` prints one line per dataset. Reference datasets are idempotent: a
 re-run re-hashes the password and reports existing accounts as `updated`); the password for both is
 `A12345678`, hashed with `hashPassword` from `better-auth/crypto` and stored in a credential
 `Account` row so the normal `/api/auth/sign-in/email` flow accepts it: `admin@test.com` (admin) and
-`member@test.com` (member). With `NODE_ENV=production` it skips both accounts and reports them as
-`skipped`, so `yarn db:seed` loads reference data in production without creating known-password
-logins. Add new fixtures to the `SEED_USERS` array as upserts, never as plain `create`. A new
-dataset is a new `<dataset>.seed.ts` called from `index.ts`, with its test in
+`member@test.com` (member). It creates them only when `NODE_ENV` is `development` or `test`; any
+other value (unset, `production`, `staging`) skips both and reports them as `skipped`, so
+`yarn db:seed` loads reference data in a real environment without creating known-password logins.
+Seed a real environment from its own environment, never from a developer checkout whose `.env`
+says `development`. Add new fixtures to the `SEED_USERS` array as upserts, never as plain
+`create`. A new dataset is a new `<dataset>.seed.ts` called from `index.ts`, with its test in
 `packages/database/test/seed/`.
 
 ## How-to: write a repository

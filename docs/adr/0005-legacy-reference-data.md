@@ -21,8 +21,9 @@ dev test accounts, and loading it twice must change nothing.
 - **`onDelete: Restrict`** on prefecture → region: reference data is never deleted implicitly.
 - **`enum SourceArea { EAST WEST }`** mapped to `source_area` (legacy `EnumArea`), a closed set.
 - **Seeds** live in `prisma/seed/` behind one command, `yarn db:seed` (`index.ts`): every
-  reference dataset in order, then the test users, which are skipped with `NODE_ENV=production`
-  so production gets the same reference data without known-password logins. Reference seeds are
+  reference dataset in order, then the test users. The test users fail closed: they are created
+  only when `NODE_ENV` is `development` or `test`, so any real environment (unset, `production`,
+  `staging`) gets the same reference data without known-password logins. Reference seeds are
   diff-based: they create missing rows and update changed rows only, so a re-run reports
   `created 0, updated 0` and leaves every `updated_at` unchanged.
 - **`csv-parse` 7.0.3** (dev dependency of `@repo/database`, no dependencies of its own, sync
@@ -36,13 +37,17 @@ dev test accounts, and loading it twice must change nothing.
 Autoincrement `Int` ids as in the legacy schema (breaks the UUID v7 convention); child tables
 referencing the parent's uuid `id` (the CSVs carry codes, so every seed and later legacy data
 migration would need a lookup); a separate production-only seed command with a lint guard against
-importing the test-user seed (rejected as more machinery than a `NODE_ENV` check in one place); a
-split-based CSV reader (breaks on quoted fields such as Japan
-Post's KEN_ALL master).
+importing the test-user seed (rejected as more machinery than a fail-closed `NODE_ENV` check in
+one place); a split-based CSV reader (breaks on quoted fields such as Japan Post's KEN_ALL
+master).
 
 ## Consequences
 
 Reference tables carry both `id` and `code`; relations and lookups use `code`. A master refresh
 is a CSV change plus a seed re-run, not a migration. Legacy values are ported unchanged
-(山口県, code 35, stays in region 9 九州); corrections are a data ticket. Seeding production
-needs the package's devDependencies installed (`tsx`, `csv-parse`).
+(山口県, code 35, stays in region 9 九州); corrections are a data ticket. `readCsv` checks every
+header against the expected columns, so a renamed column fails the seed instead of being ignored.
+Seeding a real environment needs the package's devDependencies installed (`tsx`, `csv-parse`,
+and `better-auth`, which `users.seed.ts` imports even when it skips the accounts), and must use
+that environment's own variables: a developer `.env` (`NODE_ENV=development`) pointed at a real
+`DATABASE_URL` would still create the test accounts.
