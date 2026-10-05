@@ -2,6 +2,9 @@
 paths:
   - "packages/permissions/**"
   - "apps/api/src/trpc/**"
+  - "apps/web/config/**"
+  - "apps/web/lib/auth/**"
+  - "apps/web/app/admin/**"
 ---
 
 # Permissions — two layers, both required
@@ -158,16 +161,46 @@ means changing the unit spec first, then `rules.ts`, then an ADR line in
 
 ## Web
 
+The web asks three questions, each with its own verb; none of them is a role literal.
+
+| Question                                     | Verb                                                        | Where                                  |
+| -------------------------------------------- | ----------------------------------------------------------- | -------------------------------------- |
+| May this user open this page / see this menu | `canAccessRoute(ability, route)` → `canUnscoped` underneath | `apps/web/lib/auth/route-access.ts`    |
+| May this user do X to this row               | `ability.can(action, userSubject(row))`                     | feature components (`user-editor.tsx`) |
+| Show this button / card at all               | `<Can I="changeRole" a="User">`                             | feature components                     |
+
+Every page has one entry in the route catalog `apps/web/config/routes.ts`: `{ path, title, access }`
+with `access` = `"public"`, `"signed-in"` or `{ action, subject }` (an `Action` and a `SubjectName`
+from `@repo/permissions`, so a catalog subject that does not exist is a type error). A list or
+detail page needs `read`, a create page `create`, an update page `update` on its subject.
+
 ```tsx
-// apps/web/components/app-shell.tsx — once, around the signed-in app; CurrentUser carries
-// id, role and the session's permissions, so it satisfies AbilityUser as is.
-<AbilityProvider user={user}>{children}</AbilityProvider>
+// apps/web/app/admin/client/create/page.tsx — every page under app/admin, with ITS OWN route
+<PageGuard route={routes.client.create}>
+  <PlaceholderPage route={routes.client.create} />
+</PageGuard>
 ```
 
-Navigation and list links use `canUnscoped(ability, "read", "User")` (`visibleNavItems` in
-`app-shell.tsx`, tested in `apps/web/test/components/app-shell.test.ts`), never a role list.
+- `PageGuard` (`apps/web/components/page-guard.tsx`, server) reads the user once per request
+  (`getCurrentUser`, React `cache()`), asks `routeDecision(user, route)` and renders the page, the
+  in-place `AccessDenied` (403) or a redirect to login, before any HTML reaches the browser.
+- The sidebar (`visibleNavGroups` in `apps/web/config/nav.ts`) filters with the same
+  `canAccessRoute`, so the menu and the 403 cannot disagree. A branch (マスター管理) is shown when
+  at least one child is.
+- Route access is **unscoped**: `canUnscoped`, never `ability.can(action, "User")`, which the self
+  rule makes true for everyone. A staff user does not see 担当者管理 and gets the 403 on
+  `/admin/master/user/[id]` even for their own row — `/admin/profile` is their page.
+- `apps/web/test/app/route-tree.test.ts` fails when a catalog route has no `page.tsx`, a page has no
+  catalog entry, or a page under `app/admin` is not wrapped in `PageGuard` with its own route — the
+  web counterpart of "every non-public procedure has `requireAbility`". The decision itself is
+  covered in `apps/web/test/lib/auth/route-access.test.ts` and `test/config/nav.test.ts` (seeded
+  staff grants, a `DENY`, the self rule).
 
 ```tsx
+// apps/web/components/layout/app-shell.tsx — once, around the signed-in app; CurrentUser carries
+// id, role and the session's permissions, so it satisfies AbilityUser as is.
+<AbilityProvider user={user}>{children}</AbilityProvider>;
+
 // apps/web/features/users/user-editor.tsx
 const ability = useAbility();
 const subject = userSubject({ id: user.data.id });
@@ -178,8 +211,9 @@ const canEdit = ability.can("update", subject);
 </Can>;
 ```
 
-`AbilityProvider`, `Can`, `useAbility` come from `@repo/permissions/react`; `userSubject` from
-`@repo/permissions`. They hide buttons and routes for a better UX and are never the only guard: the
-API check runs on every request regardless of what the UI showed. The browser must never import
-`@repo/permissions/server` (it pulls in `@prisma/client/extension`) — `boundaries/dependencies`
-rejects it from `apps/web` and `packages/ui`.
+`AbilityProvider`, `Can`, `useAbility` come from `@repo/permissions/react`; `defineAbilityFor`,
+`canUnscoped` and `userSubject` from `@repo/permissions`. The page guard, the menu and hidden
+buttons are UX and are never the only guard: the API check runs on every request regardless of what
+the UI showed. The browser must never import `@repo/permissions/server` (it pulls in
+`@prisma/client/extension`) — `boundaries/dependencies` rejects it from `apps/web` and
+`packages/ui`.

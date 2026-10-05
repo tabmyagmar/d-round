@@ -57,9 +57,11 @@ or subject is a new catalog value plus an entry in `ACTIONS` / `SUBJECT_NAMES` (
 - List: guard with `ctx.ability.can("read", "User")`, then compose
   `accessibleUsersWhere(ctx.ability, "read")` with the service's own filters and hand the Prisma
   `where` to the repository (`list` in `user.service.ts`). Never filter in memory.
-- Web: `AbilityProvider user={user}` once in the shell, `<Can I="..." a="...">` to hide UI,
-  `canUnscoped(ability, "read", "User")` for navigation and list links (`visibleNavItems` in
-  `apps/web/components/app-shell.tsx`). UI hiding is never the only guard.
+- Web: `AbilityProvider user={user}` once in the shell (`apps/web/components/layout/app-shell.tsx`),
+  `<Can I="..." a="...">` to hide UI, and pages and the sidebar through the route catalog:
+  `canAccessRoute(ability, route)` (`apps/web/lib/auth/route-access.ts`, `canUnscoped` underneath)
+  for `PageGuard` and `visibleNavGroups`. A new subject reaches the web as `{ action, subject }` in
+  `apps/web/config/routes.ts`. UI hiding is never the only guard.
 
 ## The spec is two tests
 

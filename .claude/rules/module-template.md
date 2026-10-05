@@ -34,6 +34,9 @@ Plus:
   `packages/database/src/repositories/index.ts`.
 - Export the module's Prisma model types from `packages/database/src/index.ts` — consumers never
   import from `src/generated`.
+- Screens: the module's pages already exist as guarded placeholders in `apps/web/app/admin/` (routes
+  in `apps/web/config/routes.ts`); replace each `PlaceholderPage` with a component from
+  `apps/web/features/<name>/` and keep the `PageGuard` (skill `nextjs`, "Adding a page").
 
 ## 1. Schema — `packages/validation/src/user.schema.ts`
 
