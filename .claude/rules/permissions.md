@@ -6,9 +6,14 @@ paths:
 
 # Permissions — two layers, both required
 
-Single tenant, one organization. Roles: `admin`, `member` (Better Auth admin plugin, `role` column
-on `users`; the allowed set is `roleSchema` in `@repo/validation`). Add roles by extending
-`ROLES` in `@repo/validation`, `roles` in `@repo/auth`, `rules.ts` and the matrix test together.
+Single tenant, one organization. Roles: `super_admin`, `admin`, `manager`, `staff` (Better Auth
+admin plugin, `role` column on `users` with a foreign key to the `roles` catalog; the allowed set
+is `ROLES` / `roleSchema` in `@repo/validation`, `ADMIN_ROLES` = the two admin roles). Add a role
+by extending `ROLES` in `@repo/validation`, `roles` in `@repo/auth`, the `roles` seed, `rules.ts`
+and the matrix test together, plus a migration inserting the `roles` row
+(`INSERT … ON CONFLICT ("key") DO NOTHING`, as `20261005143913_align_users_role_with_roles` does):
+a migrations-only database has only the rows a migration inserted, and `users.role` references
+them (ADR 0005). The parity test in `apps/api/test/role-catalog.test.ts` fails when they disagree.
 Model: `docs/adr/0003-permissions.md`.
 
 ## Layer 1 — CASL ability (`packages/permissions`)
@@ -31,10 +36,12 @@ them identically.
 ```ts
 export const defineRules = (can: CanFn, user: AbilityUser): void => {
   switch (user.role) {
+    case "super_admin":
     case "admin":
       can("manage", "all");
       return;
-    case "member":
+    case "manager":
+    case "staff":
       break;
   }
   // Everyone may see and edit their own profile.
@@ -42,10 +49,10 @@ export const defineRules = (can: CanFn, user: AbilityUser): void => {
 };
 ```
 
-| Role     | read     | update   | changeRole / delete / create |
-| -------- | -------- | -------- | ---------------------------- |
-| `admin`  | everyone | everyone | yes (`manage all`)           |
-| `member` | self     | self     | no                           |
+| Role                   | read     | update   | changeRole / delete / create |
+| ---------------------- | -------- | -------- | ---------------------------- |
+| `super_admin`, `admin` | everyone | everyone | yes (`manage all`)           |
+| `manager`, `staff`     | self     | self     | no                           |
 
 An anonymous visitor (`defineAbilityFor(null)`) can do nothing. A scoped role (for example a
 team lead who reads their own team) is one more `case` with an equality condition on a subject
@@ -53,7 +60,7 @@ attribute (`can("read", "User", { teamId: user.teamId })`) plus a matrix row.
 
 - `ctx.ability` is a `ServerAbility` built once per request by `definePrismaAbilityFor(ctx.user)`
   in `apps/api/src/core/context.ts`.
-- **Never encode workflow state into CASL.** "May a member update a User" is CASL. "May this
+- **Never encode workflow state into CASL.** "May a staff user update a User" is CASL. "May this
   submission be approved in its current step by this approver" is a service rule.
 
 ## Layer 2 — stateful checks in services

@@ -64,7 +64,8 @@ names fixed, tables/columns mapped to snake_case, plus our `deletedAt`) and `Out
 `SourceAddress`, the Japan Post postal-code master, looked up by the unique `postCode`. Since
 `20261005090103_add_roles_and_permissions`: the role and permission catalog `Role`, `Permission`,
 `RolePermission`, `UserPermission`, keyed by `roles.key` / `permissions.key`; `User` gains only
-the relation `permissions`, and `users.role` stays a Better Auth string with no foreign key.
+the relation `permissions`. Since `20261005143913_align_users_role_with_roles`: `users.role` is
+NOT NULL, defaults to `staff` and references `roles.key` (the migration inserts the four rows).
 Regenerating the Better Auth models is described in `.claude/rules/migrations.md` (diff the CLI
 output against the files under `prisma/schema/auth/`).
 

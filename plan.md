@@ -160,7 +160,7 @@ ADR 0002's role-set line is written in D3 together with the FK line (one ADR edi
 
 ### Commit Docs — docs/comments only (10 files + 1 optional, no behaviour)
 
-`.claude/skills/better-auth/SKILL.md` (lines 22-23, 87-101, 120-125), `.claude/skills/casl/SKILL.md` (whole rule/matrix examples), `.claude/skills/trpc/SKILL.md` (73-76, 93), `.claude/skills/testing/SKILL.md` (107-109), `.claude/skills/nextjs/SKILL.md` (148), `.claude/skills/prisma/SKILL.md` (80-90, 126), `.claude/skills/adr/SKILL.md` (51), `.claude/rules/ui.md` (`ROLE_TONES` example 86-89), `packages/database/prisma/seed/roles.seed.ts` (header comment: rows now inserted by the migration, seed keeps names in sync), `packages/database/prisma/seed/permissions.seed.ts` (header comment: `visible`, row 1106), `TEMPLATE_AUDIT.md` (optional).
+`.claude/skills/better-auth/SKILL.md` (lines 22-23, 87-101, 120-125), `.claude/skills/casl/SKILL.md` (whole rule/matrix examples), `.claude/skills/trpc/SKILL.md` (73-76, 93), `.claude/skills/testing/SKILL.md` (107-109), `.claude/skills/nextjs/SKILL.md` (148), `.claude/skills/prisma/SKILL.md` (80-90, 126; line 67 was fixed in D3), `.claude/rules/module-template.md` (45: `ROLES`; 306-309: `member` fixture — added in D3 review), `.claude/skills/adr/SKILL.md` (51), `.claude/rules/ui.md` (`ROLE_TONES` example 86-89), `packages/database/prisma/seed/roles.seed.ts` (header comment: rows now inserted by the migration, seed keeps names in sync), `packages/database/prisma/seed/permissions.seed.ts` (header comment: `visible`, row 1106), `TEMPLATE_AUDIT.md` (optional).
 
 ## Schema changes
 

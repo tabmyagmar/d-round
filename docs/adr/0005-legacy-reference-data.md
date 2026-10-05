@@ -97,3 +97,19 @@ that environment's own variables: a developer `.env` (`NODE_ENV=development`) po
   × CSV permissions) to its flags: it adds missing grants, removes stale ones and prints the
   changes as `grants +n/-m`. Grants of a role or permission outside the CSV (for example one added
   at runtime) and `user_permissions` are never touched, and the seed never deletes a permission.
+- **2026-10-05** — `users.role → roles.key` is now a foreign key (migration
+  `20261005143913_align_users_role_with_roles`: `roleRef Role` on `User` over the existing `role`
+  column, `users User[]` on `Role`, `onDelete: Restrict`, `@@index([role])`), reversing the
+  "no foreign key" decision above. It is safe now because public sign-up is off (ADR 0002), the
+  catalog is complete (the four keys are the whole role set; `member` has no row and no users),
+  and Better Auth rejects a role outside its `roles` map before it reaches the column, so
+  nothing legitimate can write a key the catalog does not have. The migration inserts the four
+  role rows itself (`ON CONFLICT ("key") DO NOTHING`, so an already-seeded database is left as it
+  is) because a migrations-only database — testcontainers, CI, a fresh deploy before
+  `yarn db:seed` — must be able to insert users; their ids use `gen_random_uuid()` (uuid v4)
+  rather than uuid v7 because `uuidv7()` exists only from PostgreSQL 18 and the production
+  version is not pinned, and the ids are never referenced. Rows with a role outside the catalog
+  (`member`, `NULL`) are backfilled to `staff` in the same migration: `users` is small, so the
+  expand → backfill → constrain steps may share one file. The seed stays the owner of the names
+  (`seedRoles` restores a drifted name in place) and never deletes a role, which Restrict would
+  refuse anyway while a user holds it.

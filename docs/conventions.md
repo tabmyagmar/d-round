@@ -258,8 +258,9 @@ the web app is a plain client of it.
   `ctx.user` and builds `ctx.ability`; services never talk to Better Auth for identity. Deactivating
   a user soft-deletes and bans the row and revokes its sessions through the admin API with the
   caller's headers.
-- **Roles** are stored as strings on `users.role` (Better Auth admin plugin); the allowed set is
-  `roleSchema` in `@repo/validation`, and unknown values fall back to `member`.
+- **Roles** are stored as strings on `users.role` (Better Auth admin plugin) with a foreign key to
+  the `roles` catalog, so the database refuses unknown values; the allowed set is `roleSchema` in
+  `@repo/validation` and the default is `staff`.
 
 ## Testing policy
 

@@ -23,7 +23,9 @@ paths:
     (`SourceAddress`), `access/role.prisma` (`Role`), `access/permission.prisma` (`Permission`),
     `access/role-permission.prisma` (`RolePermission`), `access/user-permission.prisma`
     (`UserPermission`). `access/` is our authorization catalog; `auth/` stays Better Auth's, and
-    `auth/user.prisma` only gains the relation field `permissions UserPermission[]` (no column).
+    `auth/user.prisma` only gains relation fields (`permissions UserPermission[]`, no column, and
+    `roleRef Role` over the existing `role` column), `@@index([role])` and `role`'s NOT NULL /
+    default — see "Better Auth models" below.
   - Prisma merges every `.prisma` file in the folder; relations may point at models in other
     files. A new module gets a new folder.
 - Seeds live in `packages/database/prisma/seed/`: one `<dataset>.seed.ts` per dataset exporting a
@@ -40,19 +42,21 @@ paths:
   - The permissions seed syncs only the grants the CSV owns (roles in `ROLE_SEEDS` × the CSV's
     permission keys); grants of a permission added at runtime and `user_permissions` are never
     touched, and no permission is ever deleted.
-  - `users.seed.ts` upserts (by email) two verified test accounts, both with password
+  - `users.seed.ts` upserts (by email) four verified test accounts, all with password
     `A12345678`, hashed with `hashPassword` from `better-auth/crypto` into a credential `Account`
     row so the normal sign-in flow works:
 
-    | Email             | Role     |
-    | ----------------- | -------- |
-    | `admin@test.com`  | `admin`  |
-    | `member@test.com` | `member` |
+    | Email                  | Role          |
+    | ---------------------- | ------------- |
+    | `super_admin@test.com` | `super_admin` |
+    | `admin@test.com`       | `admin`       |
+    | `manager@test.com`     | `manager`     |
+    | `staff@test.com`       | `staff`       |
 
     It converges rather than being idempotent: a re-run re-applies the fixtures (a fresh password
     hash, a soft-deleted or banned account restored) and always reports existing accounts as
     `updated`. It creates the accounts only when `NODE_ENV` is `development` or `test`; any other
-    value (unset, `production`, `staging`) skips both (`skipped 2`), so the same command loads
+    value (unset, `production`, `staging`) skips all four (`skipped 4`), so the same command loads
     reference data in a real environment without creating known-password logins. Remaining risk:
     `runSeeds` loads the root `.env`, so a developer `.env` (`NODE_ENV=development`) combined with
     a production `DATABASE_URL` would still create them. Seed a real environment from its own
@@ -84,20 +88,23 @@ paths:
 - Enums for closed sets (`OutboxStatus { PENDING SENT FAILED }`, mapped to `outbox_status`);
   `Json` for provider payloads only (`OutboxEmail.payload`); `Unsupported("...")` for types Prisma
   cannot model (PostGIS), accessed via raw SQL in a repository. Exception: `User.role` is a
-  `String? @default("member")`, not an enum, because Better Auth writes roles as strings — the
-  allowed set is `roleSchema` in `@repo/validation` (`docs/adr/0002-auth.md`).
+  `String @default("staff")` with a foreign key to `roles.key` (`onDelete: Restrict`), not an enum,
+  because Better Auth writes roles as strings — the allowed set is `roleSchema` in
+  `@repo/validation`, and the catalog rows are inserted by the migration so a migrations-only
+  database can insert users (`docs/adr/0002-auth.md`, `docs/adr/0005-legacy-reference-data.md`).
 - Relations declare `onDelete` explicitly. Index every foreign key and every column used in the
   `where` of a list endpoint.
 - Export the new model's type from `packages/database/src/index.ts`.
 
 ## Existing migrations
 
-| Migration                                           | Contents                                                                                                                                                                 |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `0001_init`                                         | `health_checks`; Better Auth tables `users`, `sessions`, `accounts`, `verifications` (+ admin plugin columns, `deleted_at`); enum `outbox_status`, table `outbox_emails` |
-| `20261005070927_add_source_regions_and_prefectures` | enum `source_area`; tables `source_regions`, `source_prefectures` (FK `region_code` → `source_regions.code`, Restrict)                                                   |
-| `20261005081809_add_source_addresses`               | table `source_addresses` (Japan Post postal-code master; `post_code` unique, four Boolean flags)                                                                         |
-| `20261005090103_add_roles_and_permissions`          | tables `roles`, `permissions` (self-relation on `parent_key`, Restrict), `role_permissions`, `user_permissions` (composite primary keys; Cascade)                        |
+| Migration                                           | Contents                                                                                                                                                                                       |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0001_init`                                         | `health_checks`; Better Auth tables `users`, `sessions`, `accounts`, `verifications` (+ admin plugin columns, `deleted_at`); enum `outbox_status`, table `outbox_emails`                       |
+| `20261005070927_add_source_regions_and_prefectures` | enum `source_area`; tables `source_regions`, `source_prefectures` (FK `region_code` → `source_regions.code`, Restrict)                                                                         |
+| `20261005081809_add_source_addresses`               | table `source_addresses` (Japan Post postal-code master; `post_code` unique, four Boolean flags)                                                                                               |
+| `20261005090103_add_roles_and_permissions`          | tables `roles`, `permissions` (self-relation on `parent_key`, Restrict), `role_permissions`, `user_permissions` (composite primary keys; Cascade)                                              |
+| `20261005143913_align_users_role_with_roles`        | inserts the four `roles` rows (`ON CONFLICT DO NOTHING`), backfills `users.role` (`member`/NULL → `staff`), then default `'staff'`, NOT NULL, index and FK `users.role → roles.key` (Restrict) |
 
 The template shipped `0001_init` as its single baseline. Once a migration has been applied
 anywhere, never edit it; add a new one.
@@ -107,9 +114,10 @@ anywhere, never edit it; add a new one.
 `User`, `Session`, `Account`, `Verification` are Better Auth's models. **Field names must stay
 exactly as Better Auth expects** (`emailVerified`, `banExpires`, `impersonatedBy`, `providerId`,
 ...); only table and column names are mapped (`@@map("users")`, `@map("email_verified")`). Our own
-fields (`deletedAt`), the relation field `permissions UserPermission[]` on `User` (to `access/`,
-no column) and the UUID v7 ids (Better Auth runs with `generateId: false`) are merged in by hand;
-keep them when diffing regenerated output.
+fields (`deletedAt`), the relation fields on `User` (`permissions UserPermission[]`, no column, and
+`roleRef Role` over the existing `role` column with `@@index([role])`), `role`'s NOT NULL and
+`@default("staff")`, and the UUID v7 ids (Better Auth runs with `generateId: false`) are merged in
+by hand; keep them when diffing regenerated output.
 
 When the Better Auth config changes (new plugin, new additional field) or Better Auth is upgraded,
 regenerate and diff instead of guessing:

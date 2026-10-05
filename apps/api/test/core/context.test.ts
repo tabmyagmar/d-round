@@ -1,9 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import type { SessionUser } from "@repo/auth";
 import { DEFAULT_ROLE } from "@repo/validation";
 
-import { REQUEST_ID_HEADER, buildRequestContext } from "../../src/core/context";
-import { contextFor, createHarness, signedInUser } from "../support";
+import { REQUEST_ID_HEADER, buildRequestContext, toAuthUser } from "../../src/core/context";
+import {
+  TEST_PASSWORD,
+  contextFor,
+  cookieHeaderFrom,
+  createHarness,
+  signedInUser,
+} from "../support";
 import type { TestHarness } from "../support";
 
 let h: TestHarness;
@@ -53,12 +60,38 @@ describe("buildRequestContext", () => {
     expect(ctx.ability.can("changeRole", "User")).toBe(false);
   });
 
-  it("falls back to the default role when the stored role is unknown", async () => {
-    const signedIn = await signedInUser(h);
-    await h.db.user.update({ where: { id: signedIn.user.id }, data: { role: "ceo" } });
+  it("resolves a user created without a role to the default role", async () => {
+    const email = `${crypto.randomUUID()}@example.com`;
+    await h.auth.api.createUser({
+      body: { email, password: TEST_PASSWORD, name: "No role", data: { emailVerified: true } },
+    });
+    const response = await h.auth.api.signInEmail({
+      body: { email, password: TEST_PASSWORD },
+      asResponse: true,
+    });
 
-    const ctx = await contextFor(h, signedIn.headers);
+    const ctx = await contextFor(h, new Headers({ cookie: cookieHeaderFrom(response) }));
 
     expect(ctx.user?.role).toBe(DEFAULT_ROLE);
+  });
+});
+
+describe("toAuthUser", () => {
+  // The database refuses a role outside the catalog (users.role → roles.key), so this fallback
+  // is a type guard for the session shape, not a reachable database state.
+  it("falls back to the default role when the session carries a role outside the set", () => {
+    const sessionUser: SessionUser = {
+      id: crypto.randomUUID(),
+      name: "Test User",
+      email: "ceo@example.com",
+      emailVerified: true,
+      image: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      role: "ceo",
+      banned: null,
+    };
+
+    expect(toAuthUser(sessionUser).role).toBe(DEFAULT_ROLE);
   });
 });

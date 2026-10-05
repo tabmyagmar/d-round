@@ -1,7 +1,7 @@
 // Better Auth core model + admin plugin fields + app fields. Generated with
 // `npx auth generate` (packages/auth/auth-cli.config.ts) and merged by hand: snake_case mapping,
-// UUID v7 ids (Better Auth runs with generateId: false). Field names must stay as Better Auth
-// expects. See docs/adr/0002-auth.md.
+// UUID v7 ids (Better Auth runs with generateId: false), the relation `roleRef` over `role`.
+// Field names must stay as Better Auth expects. See docs/adr/0002-auth.md.
 model User {
   id            String   @id @default(uuid(7)) @db.Uuid
   name          String
@@ -11,8 +11,9 @@ model User {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  /// admin plugin: admin | member (allowed set: @repo/validation roleSchema)
-  role       String?   @default("member")
+  /// admin plugin: super_admin | admin | manager | staff (allowed set: @repo/validation roleSchema).
+  /// References the role catalog (access/role.prisma): the database refuses any other value.
+  role       String    @default("staff")
   banned     Boolean?  @default(false)
   banReason  String?   @map("ban_reason")
   banExpires DateTime? @map("ban_expires")
@@ -20,9 +21,11 @@ model User {
   /// Soft delete (deactivate). Deactivated users cannot sign in; rows are never deleted.
   deletedAt DateTime? @map("deleted_at")
 
+  roleRef     Role             @relation(fields: [role], references: [key], onDelete: Restrict)
   sessions    Session[]
   accounts    Account[]
   permissions UserPermission[]
 
+  @@index([role])
   @@map("users")
 }

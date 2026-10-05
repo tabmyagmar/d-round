@@ -5,7 +5,7 @@ export type {
   HealthCheck,
   OutboxEmail,
   Permission,
-  Role,
+  Role as RoleRecord,
   RolePermission,
   Session,
   SourceAddress,

@@ -3,9 +3,8 @@
 // The first run spends about 19 s loading the postal-code master (120,663 rows); re-runs ~1 s.
 // The test accounts are created only when NODE_ENV is `development` or `test`.
 //
-// Test accounts (all verified, password `A12345678`):
-//   admin@test.com   admin
-//   member@test.com  member
+// Test accounts (all verified, password `A12345678`): one per catalog role —
+//   super_admin@test.com, admin@test.com, manager@test.com, staff@test.com.
 import { seedPermissions } from "./permissions.seed";
 import { seedRoles } from "./roles.seed";
 import { seedSourceAddresses } from "./source-addresses.seed";
