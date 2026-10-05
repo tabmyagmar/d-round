@@ -40,8 +40,9 @@ skip or weaken tests (`--passWithNoTests`, `.only`, `--no-verify`, changing `CI`
    test in `test/`).
 3. Docker smoke when asked: `yarn docker:up` (or `docker compose ps` if already running), then the
    health GET; `docker compose logs postgres redis --tail 50` if something is unhealthy.
-4. Schema drift when the ticket changed `schema.prisma`:
-   `yarn workspace @repo/database prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code`.
+4. Schema drift when the ticket changed any file under `packages/database/prisma/schema/`:
+   `yarn workspace @repo/database prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code`
+   (`prisma/schema` is the multi-file schema folder, not a single file).
 
 Testcontainers need Docker running. If a test fails with a Docker connection error, report
 `FAIL (environment)` — never skip the test.

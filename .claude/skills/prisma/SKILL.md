@@ -31,8 +31,10 @@ only the `generator` and `datasource` blocks; every model has its own file,
 file of the model that owns them): `system/health-check.prisma`,
 `auth/{user,session,account,verification}.prisma`, `email/outbox-email.prisma` (`OutboxStatus` +
 `OutboxEmail`), `source/{source-region,source-prefecture,source-address}.prisma` (`SourceArea` +
-`SourceRegion`, `SourcePrefecture`, `SourceAddress`). Prisma merges the folder; relations across
-files work as usual.
+`SourceRegion`, `SourcePrefecture`, `SourceAddress`),
+`access/{role,permission,role-permission,user-permission}.prisma` (`Role`, `Permission`,
+`RolePermission`, `UserPermission`). Prisma merges the folder; relations across files work as
+usual.
 
 ## How-to: add or change a model
 
@@ -41,7 +43,8 @@ files work as usual.
 2. Add `prisma/schema/<module>/<model-kebab>.prisma` (or edit the existing file): PascalCase
    model, `@@map("snake_case")`, `@map` on multi-word columns,
    `id String @id @default(uuid(7)) @db.Uuid`,
-   `createdAt DateTime @default(now()) @map("created_at")`. A new module gets a new folder.
+   `createdAt DateTime @default(now()) @map("created_at")`. A new module gets a new folder. A pure
+   join table instead uses a composite `@@id` over its two foreign keys (ADR 0005).
 3. Make it expand-contract safe: new columns nullable or defaulted; constraints only after a
    backfill.
 4. `yarn docker:up`, then `yarn db:migrate:dev --name add_<thing>`; read the SQL it generated, then
@@ -58,7 +61,10 @@ names fixed, tables/columns mapped to snake_case, plus our `deletedAt`) and `Out
 `20261005070927_add_source_regions_and_prefectures`: `SourceRegion` (enum `SourceArea`) and
 `SourcePrefecture`, related by the natural key `code`
 (`docs/adr/0005-legacy-reference-data.md`). Since `20261005081809_add_source_addresses`:
-`SourceAddress`, the Japan Post postal-code master, looked up by the unique `postCode`.
+`SourceAddress`, the Japan Post postal-code master, looked up by the unique `postCode`. Since
+`20261005090103_add_roles_and_permissions`: the role and permission catalog `Role`, `Permission`,
+`RolePermission`, `UserPermission`, keyed by `roles.key` / `permissions.key`; `User` gains only
+the relation `permissions`, and `users.role` stays a Better Auth string with no foreign key.
 Regenerating the Better Auth models is described in `.claude/rules/migrations.md` (diff the CLI
 output against the files under `prisma/schema/auth/`).
 
@@ -67,8 +73,9 @@ output against the files under `prisma/schema/auth/`).
 `yarn db:seed` (`prisma db seed` → `tsx prisma/seed/index.ts`) is the only seed command. Seeds live
 in `packages/database/prisma/seed/`, one `<dataset>.seed.ts` per dataset exporting a `SeedFn` that
 returns a `SeedSummary` (`support.ts`); `index.ts` calls them in order, parents before children,
-and `runSeeds` prints one line per dataset. Reference datasets are idempotent: a re-run reports
-`created 0, updated 0` and leaves every `updated_at` unchanged.
+and `runSeeds` prints one line per dataset (permissions add `grants +n/-m` for the role grants
+synced to the CSV). Reference datasets are idempotent: a re-run reports `created 0, updated 0`
+(`grants +0/-0`) and leaves every `updated_at` unchanged.
 
 `users.seed.ts` upserts two verified accounts by email, so it converges and is safe to re-run (a
 re-run re-hashes the password and reports existing accounts as `updated`); the password for both is

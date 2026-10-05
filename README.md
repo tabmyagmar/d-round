@@ -167,10 +167,11 @@ packages/
               filtering), react.tsx (AbilityProvider, Can, useAbility), test/ability.test.ts (the
               spec)
   database/   Prisma 7 multi-file schema (prisma/schema: schema.prisma + system/, auth/, email/,
-              source/), migrations (0001_init, add_source_regions_and_prefectures,
-              add_source_addresses), seed/ (reference data + dev test accounts), generated client
-              (git-ignored), repositories (user, outbox-email), utils (pagination, errors,
-              transaction), test/ (testcontainers helper, test/repositories, test/utils, test/seed)
+              source/, access/), migrations (0001_init, add_source_regions_and_prefectures,
+              add_source_addresses, add_roles_and_permissions), seed/ (reference data + dev test
+              accounts), generated client (git-ignored), repositories (user, outbox-email), utils
+              (pagination, errors, transaction), test/ (testcontainers helper, test/repositories,
+              test/utils, test/seed)
   validation/ zod re-export, shared schemas (user.schema.ts: roles, sign-up/in, profile, list),
               createEnv() for env validation
   queue/      BullMQ + ioredis wrapper: connection, createQueue, createWorker, pub/sub, jobIdFor,

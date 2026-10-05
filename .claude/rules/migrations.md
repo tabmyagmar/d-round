@@ -20,19 +20,26 @@ paths:
     (Better Auth), `email/outbox-email.prisma` (`enum OutboxStatus` + `OutboxEmail`),
     `source/source-region.prisma` (`enum SourceArea` + `SourceRegion`),
     `source/source-prefecture.prisma` (`SourcePrefecture`), `source/source-address.prisma`
-    (`SourceAddress`).
+    (`SourceAddress`), `access/role.prisma` (`Role`), `access/permission.prisma` (`Permission`),
+    `access/role-permission.prisma` (`RolePermission`), `access/user-permission.prisma`
+    (`UserPermission`). `access/` is our authorization catalog; `auth/` stays Better Auth's, and
+    `auth/user.prisma` only gains the relation field `permissions UserPermission[]` (no column).
   - Prisma merges every `.prisma` file in the folder; relations may point at models in other
     files. A new module gets a new folder.
 - Seeds live in `packages/database/prisma/seed/`: one `<dataset>.seed.ts` per dataset exporting a
-  `SeedFn` that returns a `SeedSummary` (`rows`, `created`, `updated`, `skipped`); `support.ts`
-  holds the types, the CSV helpers (`readCsv`, which also reads gzip-compressed `*.csv.gz` files,
-  `parseInteger`, `diffByKey`, `chunk`) and `runSeeds` (loads the root `.env`, connects, prints
-  one line per summary, disconnects). Seed tests live in
-  `packages/database/test/seed/`. `yarn db:seed` (`prisma db seed` → `prisma/seed/index.ts`) is
-  the only seed command: `index.ts` calls every dataset in order, parents before children, then
-  `users.seed.ts`.
-  - Reference datasets are idempotent: a re-run reports `created 0, updated 0` and leaves every
-    `updated_at` unchanged.
+  `SeedFn` that returns a `SeedSummary` (`rows`, `created`, `updated`, `skipped`, and an optional
+  `grants` for join rows synced next to the dataset); `support.ts` holds the types, the CSV
+  helpers (`readCsv`, which also reads gzip-compressed `*.csv.gz` files, `parseInteger`,
+  `diffByKey`, `chunk`) and `runSeeds` (loads the root `.env`, connects, prints one line per
+  summary, disconnects). Seed tests live in `packages/database/test/seed/`. `yarn db:seed`
+  (`prisma db seed` → `prisma/seed/index.ts`) is the only seed command: `index.ts` calls every
+  dataset in order, parents before children (roles, permissions with their role grants, regions,
+  prefectures, addresses), then `users.seed.ts`.
+  - Reference datasets are idempotent: a re-run reports `created 0, updated 0` (and
+    `grants +0/-0` for permissions) and leaves every `updated_at` unchanged.
+  - The permissions seed syncs only the grants the CSV owns (roles in `ROLE_SEEDS` × the CSV's
+    permission keys); grants of a permission added at runtime and `user_permissions` are never
+    touched, and no permission is ever deleted.
   - `users.seed.ts` upserts (by email) two verified test accounts, both with password
     `A12345678`, hashed with `hashPassword` from `better-auth/crypto` into a credential `Account`
     row so the normal sign-in flow works:
@@ -67,7 +74,10 @@ paths:
 
 - Models PascalCase, mapped to snake_case tables and columns: `@@map("health_checks")`,
   `@map("created_at")`.
-- Primary keys are UUID v7: `id String @id @default(uuid(7)) @db.Uuid`.
+- Primary keys are UUID v7: `id String @id @default(uuid(7)) @db.Uuid`. Exception (ADR 0005): a
+  pure join table uses a composite `@@id` over its two foreign keys (`role_permissions`,
+  `user_permissions`). Reference data keeps its uuid `id` but may be related through a unique
+  natural key (`source_regions.code`, `roles.key`, `permissions.key`).
 - Every table has `createdAt DateTime @default(now()) @map("created_at")`; mutable tables add
   `updatedAt DateTime @updatedAt @map("updated_at")`; soft-deletable tables add
   `deletedAt DateTime? @map("deleted_at")`.
@@ -87,6 +97,7 @@ paths:
 | `0001_init`                                         | `health_checks`; Better Auth tables `users`, `sessions`, `accounts`, `verifications` (+ admin plugin columns, `deleted_at`); enum `outbox_status`, table `outbox_emails` |
 | `20261005070927_add_source_regions_and_prefectures` | enum `source_area`; tables `source_regions`, `source_prefectures` (FK `region_code` → `source_regions.code`, Restrict)                                                   |
 | `20261005081809_add_source_addresses`               | table `source_addresses` (Japan Post postal-code master; `post_code` unique, four Boolean flags)                                                                         |
+| `20261005090103_add_roles_and_permissions`          | tables `roles`, `permissions` (self-relation on `parent_key`, Restrict), `role_permissions`, `user_permissions` (composite primary keys; Cascade)                        |
 
 The template shipped `0001_init` as its single baseline. Once a migration has been applied
 anywhere, never edit it; add a new one.
@@ -96,8 +107,9 @@ anywhere, never edit it; add a new one.
 `User`, `Session`, `Account`, `Verification` are Better Auth's models. **Field names must stay
 exactly as Better Auth expects** (`emailVerified`, `banExpires`, `impersonatedBy`, `providerId`,
 ...); only table and column names are mapped (`@@map("users")`, `@map("email_verified")`). Our own
-fields (`deletedAt`) and the UUID v7 ids (Better Auth runs with
-`generateId: false`) are merged in by hand.
+fields (`deletedAt`), the relation field `permissions UserPermission[]` on `User` (to `access/`,
+no column) and the UUID v7 ids (Better Auth runs with `generateId: false`) are merged in by hand;
+keep them when diffing regenerated output.
 
 When the Better Auth config changes (new plugin, new additional field) or Better Auth is upgraded,
 regenerate and diff instead of guessing:
