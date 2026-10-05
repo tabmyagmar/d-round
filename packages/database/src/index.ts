@@ -5,6 +5,7 @@ export type {
   HealthCheck,
   OutboxEmail,
   Session,
+  SourceAddress,
   SourcePrefecture,
   SourceRegion,
   User,

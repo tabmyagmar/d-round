@@ -51,3 +51,21 @@ Seeding a real environment needs the package's devDependencies installed (`tsx`,
 and `better-auth`, which `users.seed.ts` imports even when it skips the accounts), and must use
 that environment's own variables: a developer `.env` (`NODE_ENV=development`) pointed at a real
 `DATABASE_URL` would still create the test accounts.
+
+## Changes
+
+- **2026-10-05** — `source_addresses` (`SourceAddress` in `source/source-address.prisma`,
+  migration `20261005081809_add_source_addresses`): the Japan Post postal-code master.
+  `post_code` is unique and is the lookup and future relation key (legacy
+  `StaffAddress.postCode → SourceAddress.postCode`); its unique index replaces the legacy extra
+  `@@index([postCode])`. The four legacy 0/1 `Int` flags become `Boolean` (default `false`);
+  `update_status` and `change_reason` stay `Int` codes as Japan Post defines them. The seed is
+  insert-only (`createMany` with `skipDuplicates`): the legacy CSV has 124,809 rows but 120,663
+  distinct post codes, and the first occurrence of a post code wins, which is what the legacy
+  MySQL `LOAD DATA LOCAL` did against its unique index. The seed's `skipped` count is those
+  4,146 repeated CSV rows (constant), not failures. The legacy data lost leading zeros:
+  `old_post_code` reads `"60"` for `060` and `"6805"` for `06805`, and the `Int` `jis_code` reads
+  `1101` for `01101` (prefectures 01–09). Values are ported unchanged; consumers left-pad (old
+  post codes of up to 3 digits to 3, longer ones to 5; JIS codes to 5). The data file is stored
+  gzip-compressed (`source-addresses.csv.gz`). Unlike regions and prefectures, a re-run never
+  updates a changed master row; a master refresh is a separate ticket.

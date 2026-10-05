@@ -30,8 +30,9 @@ only the `generator` and `datasource` blocks; every model has its own file,
 `schema/<module>/<model-kebab>.prisma` (one folder per module, one model per file, enums in the
 file of the model that owns them): `system/health-check.prisma`,
 `auth/{user,session,account,verification}.prisma`, `email/outbox-email.prisma` (`OutboxStatus` +
-`OutboxEmail`), `source/{source-region,source-prefecture}.prisma` (`SourceArea` + `SourceRegion`,
-`SourcePrefecture`). Prisma merges the folder; relations across files work as usual.
+`OutboxEmail`), `source/{source-region,source-prefecture,source-address}.prisma` (`SourceArea` +
+`SourceRegion`, `SourcePrefecture`, `SourceAddress`). Prisma merges the folder; relations across
+files work as usual.
 
 ## How-to: add or change a model
 
@@ -56,8 +57,10 @@ names fixed, tables/columns mapped to snake_case, plus our `deletedAt`) and `Out
 `OutboxStatus` (`PENDING | SENT | FAILED`). Since
 `20261005070927_add_source_regions_and_prefectures`: `SourceRegion` (enum `SourceArea`) and
 `SourcePrefecture`, related by the natural key `code`
-(`docs/adr/0005-legacy-reference-data.md`). Regenerating the Better Auth models is described in
-`.claude/rules/migrations.md` (diff the CLI output against the files under `prisma/schema/auth/`).
+(`docs/adr/0005-legacy-reference-data.md`). Since `20261005081809_add_source_addresses`:
+`SourceAddress`, the Japan Post postal-code master, looked up by the unique `postCode`.
+Regenerating the Better Auth models is described in `.claude/rules/migrations.md` (diff the CLI
+output against the files under `prisma/schema/auth/`).
 
 ## How-to: seed data
 

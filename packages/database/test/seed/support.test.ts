@@ -2,10 +2,18 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { gzipSync } from "node:zlib";
 
 import { afterAll, describe, expect, it } from "vitest";
 
-import { diffByKey, parseInteger, readCsv } from "../../prisma/seed/support";
+import {
+  chunk,
+  diffByKey,
+  emptyToNull,
+  parseFlag,
+  parseInteger,
+  readCsv,
+} from "../../prisma/seed/support";
 
 const dir = mkdtempSync(join(tmpdir(), "seed-support-"));
 
@@ -30,6 +38,36 @@ describe("readCsv", () => {
 
     expect(() => readCsv(pathToFileURL(file), ["code", "name"])).toThrow(/renamed\.csv.*code,name/);
   });
+
+  it("reads a gzip-compressed file (*.gz) exactly like the plain file", () => {
+    const content = "code,name\n1,北海道\n2,東北\n";
+    const plain = join(dir, "addresses.csv");
+    const compressed = join(dir, "addresses.csv.gz");
+    writeFileSync(plain, content);
+    writeFileSync(compressed, gzipSync(content));
+
+    const rows = readCsv(pathToFileURL(compressed), ["code", "name"]);
+
+    expect(rows).toEqual(readCsv(pathToFileURL(plain), ["code", "name"]));
+    expect(rows).toEqual([
+      { code: "1", name: "北海道" },
+      { code: "2", name: "東北" },
+    ]);
+  });
+});
+
+describe("chunk", () => {
+  it("splits items into consecutive slices of the given size, the last one shorter", () => {
+    expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+  });
+
+  it("returns no slices for no items", () => {
+    expect(chunk([], 1_000)).toEqual([]);
+  });
+
+  it.each([0, -1, 1.5, Number.NaN])("refuses size %s", (size) => {
+    expect(() => chunk([1, 2, 3], size)).toThrow(/positive integer/);
+  });
 });
 
 describe("parseInteger", () => {
@@ -40,6 +78,24 @@ describe("parseInteger", () => {
 
   it.each(["", "1.5", "12a", "abc"])("rejects %j and names the column", (value) => {
     expect(() => parseInteger(value, "regionCode")).toThrow(/regionCode/);
+  });
+});
+
+describe("parseFlag", () => {
+  it("parses the legacy 0/1 flags", () => {
+    expect(parseFlag("1", "hasChome")).toBe(true);
+    expect(parseFlag("0", "hasChome")).toBe(false);
+  });
+
+  it.each(["", "2", "true", " 1"])("rejects %j and names the column", (value) => {
+    expect(() => parseFlag(value, "hasChome")).toThrow(/hasChome/);
+  });
+});
+
+describe("emptyToNull", () => {
+  it("turns an empty cell into null and keeps any other value", () => {
+    expect(emptyToNull("")).toBeNull();
+    expect(emptyToNull("x")).toBe("x");
   });
 });
 

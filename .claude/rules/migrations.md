@@ -19,13 +19,15 @@ paths:
     `auth/user.prisma`, `auth/session.prisma`, `auth/account.prisma`, `auth/verification.prisma`
     (Better Auth), `email/outbox-email.prisma` (`enum OutboxStatus` + `OutboxEmail`),
     `source/source-region.prisma` (`enum SourceArea` + `SourceRegion`),
-    `source/source-prefecture.prisma` (`SourcePrefecture`).
+    `source/source-prefecture.prisma` (`SourcePrefecture`), `source/source-address.prisma`
+    (`SourceAddress`).
   - Prisma merges every `.prisma` file in the folder; relations may point at models in other
     files. A new module gets a new folder.
 - Seeds live in `packages/database/prisma/seed/`: one `<dataset>.seed.ts` per dataset exporting a
   `SeedFn` that returns a `SeedSummary` (`rows`, `created`, `updated`, `skipped`); `support.ts`
-  holds the types, the CSV helpers (`readCsv`, `parseInteger`, `diffByKey`) and `runSeeds` (loads
-  the root `.env`, connects, prints one line per summary, disconnects). Seed tests live in
+  holds the types, the CSV helpers (`readCsv`, which also reads gzip-compressed `*.csv.gz` files,
+  `parseInteger`, `diffByKey`, `chunk`) and `runSeeds` (loads the root `.env`, connects, prints
+  one line per summary, disconnects). Seed tests live in
   `packages/database/test/seed/`. `yarn db:seed` (`prisma db seed` → `prisma/seed/index.ts`) is
   the only seed command: `index.ts` calls every dataset in order, parents before children, then
   `users.seed.ts`.
@@ -84,6 +86,7 @@ paths:
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `0001_init`                                         | `health_checks`; Better Auth tables `users`, `sessions`, `accounts`, `verifications` (+ admin plugin columns, `deleted_at`); enum `outbox_status`, table `outbox_emails` |
 | `20261005070927_add_source_regions_and_prefectures` | enum `source_area`; tables `source_regions`, `source_prefectures` (FK `region_code` → `source_regions.code`, Restrict)                                                   |
+| `20261005081809_add_source_addresses`               | table `source_addresses` (Japan Post postal-code master; `post_code` unique, four Boolean flags)                                                                         |
 
 The template shipped `0001_init` as its single baseline. Once a migration has been applied
 anywhere, never edit it; add a new one.

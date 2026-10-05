@@ -1,8 +1,9 @@
 // Shared plumbing for prisma/seed/index.ts (`yarn db:seed`). Each dataset is a SeedFn that returns
 // a SeedSummary; runSeeds owns the connection and the output. CSV datasets build on readCsv,
-// parseInteger and diffByKey.
+// parseInteger and diffByKey; large ones insert in slices from chunk.
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
+import { gunzipSync } from "node:zlib";
 
 import { parse } from "csv-parse/sync";
 import { config as loadEnv } from "dotenv";
@@ -20,16 +21,23 @@ export type SeedSummary = {
 
 export type SeedFn = (prisma: PrismaClient) => Promise<SeedSummary>;
 
+/** File contents, gunzipped when the name ends in `.gz` (large datasets are stored compressed). */
+const readCsvBytes = (file: URL): Buffer => {
+  const bytes = readFileSync(file);
+  return file.pathname.endsWith(".gz") ? gunzipSync(bytes) : bytes;
+};
+
 /**
- * Reads a CSV whose header must be exactly `columns` (same names, same order) into one object per
- * row; cells are trimmed. A renamed or missing column throws instead of yielding undefined cells.
+ * Reads a CSV (plain, or gzip-compressed when the name ends in `.gz`) whose header must be exactly
+ * `columns` (same names, same order) into one object per row; cells are trimmed. A renamed or
+ * missing column throws instead of yielding undefined cells.
  */
 export const readCsv = <const C extends readonly string[]>(
   file: URL,
   columns: C,
 ): Record<C[number], string>[] =>
   // The header check below guarantees every row has exactly the keys in `columns`.
-  parse<Record<string, string>>(readFileSync(file), {
+  parse<Record<string, string>>(readCsvBytes(file), {
     columns: (header: string[]) => {
       if (header.join(",") !== columns.join(",")) {
         throw new Error(
@@ -49,6 +57,32 @@ export const parseInteger = (value: string, column: string): number => {
     throw new Error(`Expected an integer in column "${column}", got "${value}"`);
   }
   return Number.parseInt(value, 10);
+};
+
+/** Strict 0/1 flag cell: "1" → true, "0" → false, while "", "2" or "true" throw. */
+export const parseFlag = (value: string, column: string): boolean => {
+  if (value === "1") {
+    return true;
+  }
+  if (value === "0") {
+    return false;
+  }
+  throw new Error(`Expected "0" or "1" in column "${column}", got "${value}"`);
+};
+
+/** Optional text cell: "" → null, any other value unchanged. */
+export const emptyToNull = (value: string): string | null => (value === "" ? null : value);
+
+/** Consecutive slices of `size` items, the last one possibly shorter; `size` >= 1, an integer. */
+export const chunk = <T>(items: readonly T[], size: number): T[][] => {
+  if (!Number.isInteger(size) || size < 1) {
+    throw new Error(`chunk: size must be a positive integer, got ${String(size)}`);
+  }
+  const slices: T[][] = [];
+  for (let start = 0; start < items.length; start += size) {
+    slices.push(items.slice(start, start + size));
+  }
+  return slices;
 };
 
 /**

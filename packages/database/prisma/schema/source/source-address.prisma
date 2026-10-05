@@ -1,0 +1,36 @@
+// Japan Post postal-code master (reference data, seeded insert-only from
+// prisma/seed/data/source-addresses.csv.gz). Looked up by the natural key `postCode`; the legacy
+// 0/1 flags are Booleans, `updateStatus`/`changeReason` keep Japan Post's Int codes.
+// See docs/adr/0005-legacy-reference-data.md.
+
+model SourceAddress {
+  id          String  @id @default(uuid(7)) @db.Uuid
+  jisCode     Int     @map("jis_code")
+  oldPostCode String? @map("old_post_code")
+  postCode    String  @unique @map("post_code")
+  prefKana    String? @map("pref_kana")
+  cityKana    String? @map("city_kana")
+  townKana    String? @map("town_kana")
+  pref        String
+  city        String
+  town        String
+
+  /// One town area is represented by two or more postal codes (legacy "1").
+  isTownRepresentedByMultiplePostalCodes Boolean @default(false) @map("is_town_represented_by_multiple_postal_codes")
+  /// A town area where numbering starts for each hamlet (legacy "1").
+  isHamletNumberingStart                 Boolean @default(false) @map("is_hamlet_numbering_start")
+  /// A town area with chome (legacy "1").
+  hasChome                               Boolean @default(false) @map("has_chome")
+  /// One postal code represents two or more town areas (legacy "1").
+  isPostalCodeForMultipleTownAreas       Boolean @default(false) @map("is_postal_code_for_multiple_town_areas")
+
+  /// Update status: 0 no change, 1 changed, 2 abolished.
+  updateStatus Int      @default(0) @map("update_status")
+  /// Reason for the change: 0 no change, 1 city/ward/town/district change, 2 residential address
+  /// system, 3 land readjustment, 4 postal district adjustment, 5 correction, 6 abolition.
+  changeReason Int      @default(0) @map("change_reason")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("source_addresses")
+}
