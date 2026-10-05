@@ -12,6 +12,11 @@ export default defineConfig(reactConfig({ tsconfigRootDir: import.meta.dirname }
     "@eslint-react/no-leaked-conditional-rendering": "off",
     "@eslint-react/no-array-index-key": "off",
     "@eslint-react/no-nested-component-definitions": "off",
+    // React 19 idioms the upstream sidebar does not use yet (useContext, <Context.Provider>,
+    // the `_setOpen` setter name); warnings, but lint-staged runs with --max-warnings 0.
+    "@eslint-react/no-use-context": "off",
+    "@eslint-react/no-context-provider": "off",
+    "@eslint-react/use-state": "off",
     eqeqeq: "off",
   },
 });
