@@ -214,3 +214,17 @@ export const breadcrumbTrail = (pathname: string): Breadcrumb[] => {
     return route ? [{ title: route.title, path }] : [];
   });
 };
+
+// Tab, LF and CR are removed anywhere in a URL by the WHATWG parser, so `/<tab>/host` is `//host`.
+const URL_STRIPPED = /[\t\n\r]/;
+
+/**
+ * `next` when it is a same-origin path, otherwise `fallback` — the guard against open redirects
+ * after sign-in. A same-origin path starts with exactly one `/`; a second `/` or `\` makes it
+ * protocol-relative (browsers treat `/\host` like `//host`), and a tab or newline the URL parser
+ * strips could produce one. Absolute URLs (`https:`, `javascript:`) and relative paths fall back.
+ */
+export const safeNextPath = (next: string | null | undefined, fallback: string): string =>
+  next?.startsWith("/") && next[1] !== "/" && next[1] !== "\\" && !URL_STRIPPED.test(next)
+    ? next
+    : fallback;

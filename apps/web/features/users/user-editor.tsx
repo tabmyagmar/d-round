@@ -17,6 +17,7 @@ import {
   CardTitle,
 } from "@repo/ui/components/card";
 import { ConfirmDialog } from "@repo/ui/components/composed/confirm-dialog";
+import { PageHeader } from "@repo/ui/components/composed/page-header";
 import {
   Select,
   SelectContent,
@@ -27,6 +28,7 @@ import {
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { ROLES, roleSchema } from "@repo/validation";
 
+import { href, routes } from "@/config/routes";
 import { ProfileForm } from "@/features/users/profile-form";
 import { ROLE_LABELS, RoleBadge } from "@/features/users/role-badge";
 import { useTRPC } from "@/lib/trpc/react";
@@ -59,7 +61,7 @@ export const UserEditor = ({ userId }: { userId: string }) => {
         toast.success("User deactivated");
         setConfirmOpen(false);
         await queryClient.invalidateQueries(trpc.user.pathFilter());
-        router.push("/users");
+        router.push(href(routes.user.list));
       },
       onError: (error) => {
         toast.error(error.message);
@@ -84,11 +86,11 @@ export const UserEditor = ({ userId }: { userId: string }) => {
 
   return (
     <>
-      <header className="flex flex-wrap items-center gap-3">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">{user.data.name}</h1>
-        <RoleBadge role={user.data.role} />
-        <span className="text-sm text-muted-foreground">{user.data.email}</span>
-      </header>
+      <PageHeader
+        title={user.data.name}
+        description={user.data.email}
+        actions={<RoleBadge role={user.data.role} />}
+      />
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
         <Card>

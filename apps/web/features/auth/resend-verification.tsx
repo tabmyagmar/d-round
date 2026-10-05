@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { Button } from "@repo/ui/components/button";
 
+import { href, routes } from "@/config/routes";
 import { authClient } from "@/lib/auth/client";
 
 export const ResendVerification = ({ email }: { email: string }) => {
@@ -14,7 +15,7 @@ export const ResendVerification = ({ email }: { email: string }) => {
     setPending(true);
     const { error } = await authClient.sendVerificationEmail({
       email,
-      callbackURL: `${window.location.origin}/dashboard`,
+      callbackURL: `${window.location.origin}${href(routes.home)}`,
     });
     setPending(false);
     if (error) {

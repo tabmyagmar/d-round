@@ -300,6 +300,18 @@ gate; UI only, the API stays the guard).
   (`PageGuard` cannot be unit-tested: it needs a Next request context), with cases in
   `test/lib/auth/route-access.test.ts`; `app/admin/not-found.tsx` moves to step 6 to stay at 15.
 
+- 2026-10-06, steps 4–6 re-cut to stay at ≤15 files: step 4 adds a tested
+  `safeNextPath(next, fallback)` to `config/routes.ts` (rejects `//host`, `/\host`, absolute URLs)
+  for the login redirect and moves `/dashboard`, `/users`, `/profile` under `/admin` (15 files). A
+  new step **4b** `feat(web): auth placeholders and catalog links in the auth pages` takes
+  `(auth)/{forgot-password,new-password}/page.tsx` out of step 5 plus the literal links in
+  `(auth)/verify-email/page.tsx` and `features/auth/login-form.tsx` (4 files). Step 5 = workflow,
+  templates, audit log, settings, `admin/error.tsx`, `admin/not-found.tsx` (13); step 6 = client,
+  branch, staff, user create/update (14). Every `Button` rendering a `Link` gets
+  `nativeButton={false}` (vendored `rules/base-vs-radix.md`). Accepted in step 4: `safeNextPath`
+  also rejects a `next` containing a tab, LF or CR — URL parsing strips them, so `/%09/evil.example`
+  would become `//evil.example`.
+
 ## Risks and open points
 
 - shadcn `sidebar` (base-nova) may need small `exactOptionalPropertyTypes` patches → record them, do

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { ALL_ROUTES, breadcrumbTrail, findRoute, href, routes } from "@/config/routes";
+import {
+  ALL_ROUTES,
+  breadcrumbTrail,
+  findRoute,
+  href,
+  routes,
+  safeNextPath,
+} from "@/config/routes";
 import type { AppRoute } from "@/config/routes";
 
 const isAdminPath = (path: string): boolean => path === "/admin" || path.startsWith("/admin/");
@@ -131,5 +138,28 @@ describe("breadcrumbTrail", () => {
       crumb(routes.home),
       crumb(routes.client.list),
     ]);
+  });
+});
+
+describe("safeNextPath", () => {
+  const FALLBACK = "/admin";
+
+  it("passes a same-origin path through unchanged, query string included", () => {
+    expect(safeNextPath("/admin/client?page=2", FALLBACK)).toBe("/admin/client?page=2");
+  });
+
+  it.each([
+    ["undefined", undefined],
+    ["null", null],
+    ["empty", ""],
+    ["protocol-relative", "//evil.example"],
+    ["backslash host (browsers read /\\ as //)", "/\\evil.example"],
+    ["absolute URL", "https://evil.example"],
+    ["javascript: URL", "javascript:alert(1)"],
+    ["relative path", "admin"],
+    ["tab the URL parser strips (/<tab>/ becomes //)", "/\t/evil.example"],
+    ["newline the URL parser strips", "/\n/evil.example"],
+  ])("falls back for %s", (_label, next) => {
+    expect(safeNextPath(next, FALLBACK)).toBe(FALLBACK);
   });
 });

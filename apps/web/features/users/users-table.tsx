@@ -19,6 +19,7 @@ import {
 import { ROLES } from "@repo/validation";
 import type { Role } from "@repo/validation";
 
+import { href, routes } from "@/config/routes";
 import { ROLE_LABELS, RoleBadge } from "@/features/users/role-badge";
 import { useTRPC } from "@/lib/trpc/react";
 
@@ -51,7 +52,12 @@ const columns = helper.columns([
     id: "actions",
     header: "",
     cell: ({ row }) => (
-      <Button variant="ghost" size="sm" render={<Link href={`/users/${row.original.id}`} />}>
+      <Button
+        variant="ghost"
+        size="sm"
+        render={<Link href={href(routes.user.detail, { id: row.original.id })} />}
+        nativeButton={false}
+      >
         Open
       </Button>
     ),
