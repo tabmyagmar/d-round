@@ -6,8 +6,9 @@ import { createPrismaClient } from "../../src/client";
 import type { PrismaClient } from "../../src/client";
 
 // The roles test runs seedRoles on the shared container in parallel and briefly renames
-// `manager`, so role names and seedRoles's summary are not asserted here. Only this file writes
-// permissions and grants, so their counts and seedPermissions's summary are exact.
+// `manager`, so role names and seedRoles's summary are not asserted here. No other file commits
+// permissions or grants (permission.repository.test.ts writes them only inside rolled-back
+// transactions), so their counts and seedPermissions's summary are exact.
 
 let prisma: PrismaClient;
 
@@ -26,7 +27,7 @@ const seedRolesAndPermissions = async () => {
 
 const UNCHANGED = {
   dataset: "permissions",
-  rows: 42,
+  rows: 43,
   created: 0,
   updated: 0,
   skipped: 0,
@@ -53,12 +54,12 @@ const grantOf = (roleKey: string, permissionKey: string) =>
   });
 
 describe("seedPermissions", () => {
-  it("loads the 42 legacy permissions: 8 parents and 34 children linked by key", async () => {
+  it("loads the 43 catalog permissions: 8 parents and 35 children linked by key", async () => {
     const summary = await seedRolesAndPermissions();
 
-    expect(summary).toMatchObject({ dataset: "permissions", rows: 42, skipped: 0 });
+    expect(summary).toMatchObject({ dataset: "permissions", rows: 43, skipped: 0 });
     const permissions = await findPermissions();
-    expect(permissions).toHaveLength(42);
+    expect(permissions).toHaveLength(43);
     const parents = permissions.filter((permission) => permission.parentKey === null);
     expect(parents.map((parent) => parent.key)).toEqual([
       "1100",
@@ -72,7 +73,7 @@ describe("seedPermissions", () => {
     ]);
     expect(parents.filter((parent) => parent.action !== "all")).toEqual([]);
     const children = permissions.filter((permission) => permission.parentKey !== null);
-    expect(children).toHaveLength(34);
+    expect(children).toHaveLength(35);
     expect(children.filter((child) => child.parent?.key !== child.parentKey)).toEqual([]);
     expect(permissions.find((permission) => permission.key === "1101")).toMatchObject({
       name: "User create",
@@ -81,21 +82,34 @@ describe("seedPermissions", () => {
       action: "create",
       subject: "Admin_User",
       modelName: "User",
+      visible: true,
     });
+    // Our own row (not legacy data): the `changeRole` CASL action, see ADR 0005.
+    expect(permissions.find((permission) => permission.key === "1106")).toMatchObject({
+      name: "User role",
+      nameJp: "担当者の役割変更",
+      parentKey: "1100",
+      action: "changeRole",
+      subject: "Admin_User",
+      modelName: "User",
+      visible: true,
+    });
+    expect(permissions.filter((permission) => !permission.visible)).toEqual([]);
   });
 
   it("grants each role exactly the permissions flagged in its CSV column", async () => {
     await seedRolesAndPermissions();
 
-    expect(await prisma.rolePermission.count()).toBe(86);
+    expect(await prisma.rolePermission.count()).toBe(88);
     const grants = await findGrants();
     const perRole: Record<string, number> = {};
     for (const { roleKey } of grants) {
       perRole[roleKey] = (perRole[roleKey] ?? 0) + 1;
     }
-    expect(perRole).toEqual({ super_admin: 34, admin: 34, manager: 10, staff: 8 });
+    expect(perRole).toEqual({ super_admin: 35, admin: 35, manager: 10, staff: 8 });
     expect(await rolesGranted("1202")).toEqual(["admin", "manager", "staff", "super_admin"]);
     expect(await rolesGranted("1101")).toEqual(["admin", "super_admin"]);
+    expect(await rolesGranted("1106")).toEqual(["admin", "super_admin"]);
     expect(await rolesGranted("1100")).toEqual([]);
     expect(await rolesGranted("1401")).toEqual(["admin", "manager", "super_admin"]);
   });
@@ -112,7 +126,7 @@ describe("seedPermissions", () => {
     expect(summary).toEqual({ ...UNCHANGED, grants: { created: 1, deleted: 1 } });
     expect(await grantOf("staff", "1101")).toBeNull();
     expect(await grantOf("manager", "1202")).not.toBeNull();
-    expect(await prisma.rolePermission.count()).toBe(86);
+    expect(await prisma.rolePermission.count()).toBe(88);
   });
 
   it("never touches a user's own permission grants", async () => {
@@ -156,7 +170,7 @@ describe("seedPermissions", () => {
       expect(await prisma.permission.findUnique({ where: { key: runtimeKey } })).not.toBeNull();
       expect(await grantOf("staff", runtimeKey)).not.toBeNull();
     } finally {
-      // Other tests count exactly 42 permissions; the delete cascades to the runtime grant.
+      // Other tests count exactly 43 permissions; the delete cascades to the runtime grant.
       await prisma.permission.deleteMany({ where: { key: runtimeKey } });
     }
   });
@@ -171,12 +185,25 @@ describe("seedPermissions", () => {
     const summary = await seedPermissions(prisma);
 
     expect(summary).toEqual({ ...UNCHANGED, updated: 1 });
-    expect(await prisma.permission.count()).toBe(42);
+    expect(await prisma.permission.count()).toBe(43);
     expect(await prisma.permission.findUniqueOrThrow({ where: { key: "1101" } })).toMatchObject({
       name: "User create",
       nameJp: "担当者新規登録",
       parentKey: "1100",
       action: "create",
+    });
+  });
+
+  it("restores a permission whose visible flag drifted from the CSV", async () => {
+    await seedRolesAndPermissions();
+    await prisma.permission.update({ where: { key: "1106" }, data: { visible: false } });
+
+    const summary = await seedPermissions(prisma);
+
+    expect(summary).toEqual({ ...UNCHANGED, updated: 1 });
+    expect(await prisma.permission.count()).toBe(43);
+    expect(await prisma.permission.findUniqueOrThrow({ where: { key: "1106" } })).toMatchObject({
+      visible: true,
     });
   });
 

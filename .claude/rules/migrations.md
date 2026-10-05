@@ -20,9 +20,11 @@ paths:
     (Better Auth), `email/outbox-email.prisma` (`enum OutboxStatus` + `OutboxEmail`),
     `source/source-region.prisma` (`enum SourceArea` + `SourceRegion`),
     `source/source-prefecture.prisma` (`SourcePrefecture`), `source/source-address.prisma`
-    (`SourceAddress`), `access/role.prisma` (`Role`), `access/permission.prisma` (`Permission`),
+    (`SourceAddress`), `access/role.prisma` (`Role`), `access/permission.prisma` (`Permission`, with
+    `visible` for a future permission-editing UI, never an authorization input),
     `access/role-permission.prisma` (`RolePermission`), `access/user-permission.prisma`
-    (`UserPermission`). `access/` is our authorization catalog; `auth/` stays Better Auth's, and
+    (`enum PermissionEffect ALLOW | DENY` + `UserPermission`: a user's `ALLOW` row adds a permission
+    on top of the role grants, a `DENY` row removes one). `access/` is our authorization catalog; `auth/` stays Better Auth's, and
     `auth/user.prisma` only gains relation fields (`permissions UserPermission[]`, no column, and
     `roleRef Role` over the existing `role` column), `@@index([role])` and `role`'s NOT NULL /
     default — see "Better Auth models" below.
@@ -41,7 +43,8 @@ paths:
     `grants +0/-0` for permissions) and leaves every `updated_at` unchanged.
   - The permissions seed syncs only the grants the CSV owns (roles in `ROLE_SEEDS` × the CSV's
     permission keys); grants of a permission added at runtime and `user_permissions` are never
-    touched, and no permission is ever deleted.
+    touched, and no permission is ever deleted. The CSV (43 rows: the legacy 42 plus our `1106`
+    `changeRole` row) also carries each row's `visible` flag, which the seed writes and restores.
   - `users.seed.ts` upserts (by email) four verified test accounts, all with password
     `A12345678`, hashed with `hashPassword` from `better-auth/crypto` into a credential `Account`
     row so the normal sign-in flow works:
@@ -68,7 +71,8 @@ paths:
 - The client needs the `@prisma/adapter-pg` driver adapter — see `packages/database/src/client.ts`.
 - Commands (root `package.json`): `yarn db:migrate:dev` = `prisma migrate dev` (creates a migration
   locally; needs `yarn docker:up`), `yarn db:migrate` = `prisma migrate deploy` (applies committed
-  migrations; used by CI, by `startTestDatabase()` and by deployments), `yarn db:generate`,
+  migrations; used by CI, by `startTestDatabase()` — which with `{ seedReferenceData: true }` also
+  runs the roles and permissions seeds — and by deployments), `yarn db:generate`,
   `yarn db:studio`, `yarn db:seed`.
 - CI fails on drift: after `yarn db:migrate` it runs, in `packages/database`,
   `yarn prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code`. If the
@@ -98,13 +102,14 @@ paths:
 
 ## Existing migrations
 
-| Migration                                           | Contents                                                                                                                                                                                       |
-| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0001_init`                                         | `health_checks`; Better Auth tables `users`, `sessions`, `accounts`, `verifications` (+ admin plugin columns, `deleted_at`); enum `outbox_status`, table `outbox_emails`                       |
-| `20261005070927_add_source_regions_and_prefectures` | enum `source_area`; tables `source_regions`, `source_prefectures` (FK `region_code` → `source_regions.code`, Restrict)                                                                         |
-| `20261005081809_add_source_addresses`               | table `source_addresses` (Japan Post postal-code master; `post_code` unique, four Boolean flags)                                                                                               |
-| `20261005090103_add_roles_and_permissions`          | tables `roles`, `permissions` (self-relation on `parent_key`, Restrict), `role_permissions`, `user_permissions` (composite primary keys; Cascade)                                              |
-| `20261005143913_align_users_role_with_roles`        | inserts the four `roles` rows (`ON CONFLICT DO NOTHING`), backfills `users.role` (`member`/NULL → `staff`), then default `'staff'`, NOT NULL, index and FK `users.role → roles.key` (Restrict) |
+| Migration                                                          | Contents                                                                                                                                                                                       |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0001_init`                                                        | `health_checks`; Better Auth tables `users`, `sessions`, `accounts`, `verifications` (+ admin plugin columns, `deleted_at`); enum `outbox_status`, table `outbox_emails`                       |
+| `20261005070927_add_source_regions_and_prefectures`                | enum `source_area`; tables `source_regions`, `source_prefectures` (FK `region_code` → `source_regions.code`, Restrict)                                                                         |
+| `20261005081809_add_source_addresses`                              | table `source_addresses` (Japan Post postal-code master; `post_code` unique, four Boolean flags)                                                                                               |
+| `20261005090103_add_roles_and_permissions`                         | tables `roles`, `permissions` (self-relation on `parent_key`, Restrict), `role_permissions`, `user_permissions` (composite primary keys; Cascade)                                              |
+| `20261005143913_align_users_role_with_roles`                       | inserts the four `roles` rows (`ON CONFLICT DO NOTHING`), backfills `users.role` (`member`/NULL → `staff`), then default `'staff'`, NOT NULL, index and FK `users.role → roles.key` (Restrict) |
+| `20261005145534_add_permission_visible_and_user_permission_effect` | enum `permission_effect`; defaulted columns `permissions.visible` (true) and `user_permissions.effect` (`ALLOW`)                                                                               |
 
 The template shipped `0001_init` as its single baseline. Once a migration has been applied
 anywhere, never edit it; add a new one.

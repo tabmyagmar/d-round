@@ -172,10 +172,11 @@ packages/
               spec)
   database/   Prisma 7 multi-file schema (prisma/schema: schema.prisma + system/, auth/, email/,
               source/, access/), migrations (0001_init, add_source_regions_and_prefectures,
-              add_source_addresses, add_roles_and_permissions, align_users_role_with_roles), seed/
-              (reference data + dev test accounts), generated client (git-ignored), repositories
-              (user, outbox-email), utils (pagination, errors, transaction), test/ (testcontainers
-              helper, test/repositories, test/utils, test/seed)
+              add_source_addresses, add_roles_and_permissions, align_users_role_with_roles,
+              add_permission_visible_and_user_permission_effect), seed/ (reference data + dev test
+              accounts), generated client (git-ignored), repositories (user, outbox-email,
+              permission), utils (pagination, errors, transaction), test/ (testcontainers helper,
+              test/repositories, test/utils, test/seed)
   validation/ zod re-export, shared schemas (user.schema.ts: roles, sign-in, profile, list),
               createEnv() for env validation
   queue/      BullMQ + ioredis wrapper: connection, createQueue, createWorker, pub/sub, jobIdFor,

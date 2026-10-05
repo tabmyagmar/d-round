@@ -1,5 +1,5 @@
 // Public surface of @repo/database. Consumers never import from src/generated directly.
-export { OutboxStatus, Prisma, SourceArea } from "./generated/prisma/client";
+export { OutboxStatus, PermissionEffect, Prisma, SourceArea } from "./generated/prisma/client";
 export type {
   Account,
   HealthCheck,

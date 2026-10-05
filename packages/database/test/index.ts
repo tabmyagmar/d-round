@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { PostgreSqlContainer } from "@testcontainers/postgresql";
 import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 
+import { seedPermissions } from "../prisma/seed/permissions.seed";
+import { seedRoles } from "../prisma/seed/roles.seed";
 import { createPrismaClient } from "../src/client";
 import type { PrismaClient } from "../src/client";
 
@@ -33,7 +35,23 @@ export const runMigrations = (connectionString: string): void => {
   });
 };
 
-export const startTestDatabase = async (): Promise<TestDatabase> => {
+export type StartTestDatabaseOptions = {
+  /**
+   * Also load the role and permission catalog (`seedRoles` + `seedPermissions`, ~1 s; never users
+   * or addresses) once the migrations are applied, for packages whose tests need real grants
+   * (`@repo/auth`, `@repo/api`). Defaults to `false`: the `database` package's seed tests seed
+   * themselves and assert exact row counts.
+   */
+  seedReferenceData?: boolean;
+};
+
+/**
+ * Starts a Postgres container, applies the committed migrations and returns a connected Prisma
+ * client; `stop()` disconnects and removes the container.
+ */
+export const startTestDatabase = async (
+  options: StartTestDatabaseOptions = {},
+): Promise<TestDatabase> => {
   const container = await new PostgreSqlContainer(TEST_POSTGRES_IMAGE)
     .withDatabase("test")
     .withUsername("test")
@@ -42,6 +60,10 @@ export const startTestDatabase = async (): Promise<TestDatabase> => {
   const connectionString = container.getConnectionUri();
   runMigrations(connectionString);
   const prisma = createPrismaClient({ connectionString, maxConnections: 5 });
+  if (options.seedReferenceData === true) {
+    await seedRoles(prisma);
+    await seedPermissions(prisma);
+  }
 
   return {
     container,

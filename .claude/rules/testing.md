@@ -39,7 +39,9 @@ Anything touching Postgres or Redis runs against testcontainers:
 
 - `@repo/database/test` → `startTestDatabase()` starts `postgres:18-alpine` (override with
   `TEST_POSTGRES_IMAGE`), runs `prisma migrate deploy` against it and returns
-  `{ container, connectionString, prisma, stop }`.
+  `{ container, connectionString, prisma, stop }`. `startTestDatabase({ seedReferenceData: true })`
+  also loads the role and permission catalog (`seedRoles`, `seedPermissions`, ~1 s; never users or
+  addresses) for packages whose tests need real grants (`@repo/auth`, `@repo/api`).
 - `@repo/queue/test` → `startTestRedis()` starts `redis:8-alpine` (override with
   `TEST_REDIS_IMAGE`) and returns `{ container, url, stop }`.
 - A workspace that needs them has a `test/global-setup.ts` that starts the containers once per run

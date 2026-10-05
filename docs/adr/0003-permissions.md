@@ -34,3 +34,16 @@ conditions, not usable for list filtering); Cerbos/OpenFGA (extra service for on
 `@casl/prisma/runtime` imports `@prisma/client/extension`, so the web app must import the
 browser-safe entry `@repo/permissions`; importing `@repo/permissions/server` from `apps/web` is a
 lint error. Changing a permission means changing the matrix test first.
+
+## Changes
+
+- **2026-10-05** — Role grants come from the catalog (`role_permissions`) and per-user rows carry
+  an `effect` (`PermissionEffect ALLOW | DENY`, ADR 0005). A user's effective grants are the role's
+  `role_permissions` ∪ the user's `user_permissions` rows with `effect = ALLOW` − the user's rows
+  with `effect = DENY`, computed in one Prisma query (`findEffectiveGrants` in
+  `packages/database/src/repositories/permission.repository.ts`). A user row therefore adds or
+  removes exactly one permission on top of the role, and a DENY wins over the role's grant of the
+  same key; the legacy override semantics, where a user's rows replaced the role's rows entirely,
+  are not copied. `permissions.visible` is a UI/menu filter for a future permission-editing screen
+  and is never an authorization input: a hidden permission still grants, and the effective-grants
+  query does not filter on it.

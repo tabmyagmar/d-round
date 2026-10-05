@@ -1,8 +1,10 @@
-// Permission catalog from the legacy d-round master (data/permissions.csv): parents (menu groups,
-// `parentKey` empty) and their children, plus one 0/1 flag column per catalog role, named by the
-// ROLE_SEEDS keys, so a role without a column fails the header check. Runs after the roles seed,
-// in one transaction: a diff-based upsert by `key`, parents before children so every `parentKey`
-// exists when its child is written, then the grants the CSV owns (catalog roles x CSV
+// Permission catalog (data/permissions.csv, 43 rows): the legacy d-round master's rows plus our
+// own `1106` (changeRole, ADR 0005). Parents (menu groups, `parentKey` empty) and their children,
+// a 0/1 `visible` flag (UI/menu filter, never an authorization input — ADR 0003) and one 0/1 flag
+// column per catalog role, named by the ROLE_SEEDS keys, so a role without a column fails the
+// header check. Runs after the roles seed, in one transaction: a diff-based upsert by `key`
+// (`visible` included, so a drifted flag is restored), parents before children so every
+// `parentKey` exists when its child is written, then the grants the CSV owns (catalog roles x CSV
 // permissions) synced to the flags: missing ones created, stale ones deleted, both counted in
 // `grants` (printed as `grants +n/-m`). Never deletes a permission, and never touches
 // user_permissions or the grants of a role or permission outside the CSV (e.g. added at runtime).
@@ -22,6 +24,7 @@ const PERMISSION_COLUMNS = [
   "action",
   "subject",
   "modelName",
+  "visible",
   ...ROLE_KEYS,
 ] as const;
 type PermissionCsvRow = Record<(typeof PERMISSION_COLUMNS)[number], string>;
@@ -33,6 +36,7 @@ type PermissionRow = {
   action: string;
   subject: string;
   modelName: string;
+  visible: boolean;
 };
 type GrantRow = { roleKey: RoleKey; permissionKey: string };
 type GrantChanges = NonNullable<SeedSummary["grants"]>;
@@ -47,6 +51,7 @@ const toPermissionRow = (row: PermissionCsvRow): PermissionRow => ({
   action: row.action,
   subject: row.subject,
   modelName: row.modelName,
+  visible: parseFlag(row.visible, "visible"),
 });
 
 const toGrantRows = (row: PermissionCsvRow): GrantRow[] =>
@@ -61,7 +66,8 @@ const isSamePermission = (a: PermissionRow, b: PermissionRow): boolean =>
   a.parentKey === b.parentKey &&
   a.action === b.action &&
   a.subject === b.subject &&
-  a.modelName === b.modelName;
+  a.modelName === b.modelName &&
+  a.visible === b.visible;
 
 // Takes any role_permissions pair: rows read back from the table carry a plain string roleKey.
 const grantId = (grant: { roleKey: string; permissionKey: string }): string =>
@@ -121,6 +127,7 @@ export const seedPermissions: SeedFn = async (prisma) => {
         action: true,
         subject: true,
         modelName: true,
+        visible: true,
       },
     });
     const { toCreate, toUpdate } = diffByKey(existing, desired, (row) => row.key, isSamePermission);

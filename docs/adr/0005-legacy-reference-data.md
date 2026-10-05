@@ -113,3 +113,16 @@ that environment's own variables: a developer `.env` (`NODE_ENV=development`) po
   expand → backfill → constrain steps may share one file. The seed stays the owner of the names
   (`seedRoles` restores a drifted name in place) and never deletes a role, which Restrict would
   refuse anyway while a user holds it.
+- **2026-10-05** — `permissions.visible` (`Boolean @default(true)`) and `user_permissions.effect`
+  (`enum PermissionEffect { ALLOW DENY }` mapped to `permission_effect`, default `ALLOW`), migration
+  `20261005145534_add_permission_visible_and_user_permission_effect`. Both columns carry a
+  default, so the change is a single expand stage: every existing row stays visible and every
+  existing user grant stays an ALLOW. `visible` exists for a future admin permission-editing UI /
+  menu filter (that UI is out of scope), which shows only visible rows; it is never an
+  authorization input, and the union/deny semantics of `effect` are decided in ADR 0003. The CSV
+  gains a `visible` column after `modelName` (every row `1`, parsed with `parseFlag`, written and
+  compared by the seed, so a drifted `false` is restored) and the row
+  `1106,User role,担当者の役割変更,1100,changeRole,Admin_User,User`, granted to `super_admin` and
+  `admin` only — our row for the CASL `changeRole` action, not legacy data. This amends "its values
+  are unchanged" above: the legacy rows are still ported unchanged; `visible` and 1106 are
+  additions.

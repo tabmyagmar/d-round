@@ -1,14 +1,27 @@
 // Per-user permission grant on top of the role (join table; the seed never touches it). Composite
 // primary key instead of a uuid `id`; removed with the user or the permission. `assignedBy` is an
 // audit user id without a foreign key. See docs/adr/0005-legacy-reference-data.md.
+//
+// `effect`: a row adds (ALLOW) or removes (DENY) one permission on top of the role's grants —
+// effective grants = role grants ∪ ALLOW rows − DENY rows. A user's rows never replace the role's
+// (the legacy override semantics are not copied). See docs/adr/0003-permissions.md.
+
+enum PermissionEffect {
+  ALLOW
+  DENY
+
+  @@map("permission_effect")
+}
 
 model UserPermission {
-  userId        String     @map("user_id") @db.Uuid
-  permissionKey String     @map("permission_key")
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  permission    Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
-  createdAt     DateTime   @default(now()) @map("created_at")
-  assignedBy    String?    @map("assigned_by") @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  permissionKey String           @map("permission_key")
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission    Permission       @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+  /// ALLOW adds the permission to the role's grants, DENY removes it; the role's grants stay as they are.
+  effect        PermissionEffect @default(ALLOW)
+  createdAt     DateTime         @default(now()) @map("created_at")
+  assignedBy    String?          @map("assigned_by") @db.Uuid
 
   @@id([userId, permissionKey])
   @@index([permissionKey])
