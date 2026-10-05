@@ -1,6 +1,7 @@
 import { createUserRepository, translateDatabaseError, withTransaction } from "@repo/database";
 import type { PageResult, Prisma, UniqueViolationError, User } from "@repo/database";
 import { accessibleUsersWhere, prismaUserSubject } from "@repo/permissions/server";
+import { ADMIN_ROLES } from "@repo/validation";
 import type { ChangeRoleInput, ListUsersQuery, UpdateProfileInput } from "@repo/validation";
 
 import type { RequestContext } from "../../core/context";
@@ -27,6 +28,10 @@ const loadUser = async (ctx: RequestContext, userId: string): Promise<User> => {
   }
   return user;
 };
+
+/** `users.role` is a plain string column; the admin role set is `ADMIN_ROLES`. */
+const isAdminRole = (role: string | null): boolean =>
+  role !== null && (ADMIN_ROLES as readonly string[]).includes(role);
 
 const assertCan = (ctx: RequestContext, action: "read" | "update", user: User): void => {
   if (!ctx.ability.can(action, prismaUserSubject(user))) {
@@ -108,8 +113,13 @@ export const changeRole = async (ctx: RequestContext, input: ChangeRoleInput): P
     if (target.role === input.role) {
       return target;
     }
-    // Stateful rule: the organisation must always keep at least one active admin.
-    if (target.role === "admin" && (await users.countActiveAdmins()) <= 1) {
+    // Stateful rule: the organisation must always keep at least one active admin-role user.
+    // Moving between admin roles (admin -> super_admin) keeps the count and is allowed.
+    if (
+      isAdminRole(target.role) &&
+      !isAdminRole(input.role) &&
+      (await users.countActiveAdmins(ADMIN_ROLES)) <= 1
+    ) {
       throw new ConflictError("Cannot demote the last admin");
     }
     return users.updateRole(target.id, input.role);
@@ -131,7 +141,7 @@ export const deactivate = async (ctx: RequestContext, userId: string): Promise<U
     if (!target) {
       throw new NotFoundError("User", userId);
     }
-    if (target.role === "admin" && (await users.countActiveAdmins()) <= 1) {
+    if (isAdminRole(target.role) && (await users.countActiveAdmins(ADMIN_ROLES)) <= 1) {
       throw new ConflictError("Cannot deactivate the last admin");
     }
     return users.softDelete(target.id);

@@ -3,6 +3,8 @@ import { adminAc, defaultStatements, userAc } from "better-auth/plugins/admin/ac
 
 import type { Role } from "@repo/validation";
 
+export { ADMIN_ROLES } from "@repo/validation";
+
 /**
  * Better Auth admin-plugin access control. It only governs the admin plugin's own endpoints
  * (list users, set role, ban, revoke sessions...). Business permissions live in CASL
@@ -13,9 +15,8 @@ export const statement = { ...defaultStatements } as const;
 export const ac = createAccessControl(statement);
 
 export const roles = {
+  super_admin: ac.newRole({ ...adminAc.statements }),
   admin: ac.newRole({ ...adminAc.statements }),
-  member: ac.newRole({ ...userAc.statements }),
+  manager: ac.newRole({ ...userAc.statements }),
+  staff: ac.newRole({ ...userAc.statements }),
 } satisfies Record<Role, unknown>;
-
-/** Roles allowed to call privileged admin-plugin endpoints. */
-export const ADMIN_ROLES: Role[] = ["admin"];

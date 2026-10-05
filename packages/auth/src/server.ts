@@ -81,7 +81,7 @@ export const createAuth = (options: CreateAuthOptions) =>
         ac,
         roles,
         defaultRole: DEFAULT_ROLE,
-        adminRoles: ADMIN_ROLES,
+        adminRoles: [...ADMIN_ROLES],
       }),
     ],
   });

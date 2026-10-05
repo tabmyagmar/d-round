@@ -10,7 +10,7 @@ import { Separator } from "@repo/ui/components/separator";
 import { cn } from "@repo/ui/lib/utils";
 import type { Role } from "@repo/validation";
 
-import { RoleBadge } from "@/features/users/role-badge";
+import { BROWSE_USERS_HIDDEN_ROLES, RoleBadge } from "@/features/users/role-badge";
 import { authClient } from "@/lib/auth/client";
 import type { CurrentUser } from "@/lib/auth/server";
 import { brand } from "@/lib/brand";
@@ -19,7 +19,7 @@ type NavItem = { href: string; label: string; hideFor?: readonly Role[] };
 
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/users", label: "Users", hideFor: ["member"] },
+  { href: "/users", label: "Users", hideFor: BROWSE_USERS_HIDDEN_ROLES },
   { href: "/profile", label: "Profile" },
 ];
 

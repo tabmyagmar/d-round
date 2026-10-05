@@ -1,6 +1,7 @@
 import { verifyPassword } from "better-auth/crypto";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
+import { ROLE_SEEDS } from "../../prisma/seed/roles.seed";
 import { SEED_PASSWORD, SEED_USERS, seedUsers } from "../../prisma/seed/users.seed";
 import { createPrismaClient } from "../../src/client";
 import type { PrismaClient } from "../../src/client";
@@ -66,6 +67,20 @@ const withNodeEnv = async <T>(value: string | undefined, run: () => Promise<T>):
 };
 
 describe("seedUsers", () => {
+  it("creates exactly one verified account for every catalog role", async () => {
+    await prisma.user.deleteMany({ where: { email: { in: SEED_EMAILS } } });
+
+    await seedUsers(prisma);
+
+    const users = await prisma.user.findMany({
+      where: { email: { in: SEED_EMAILS } },
+      select: { role: true, emailVerified: true },
+    });
+    const catalogRoles = ROLE_SEEDS.map((role) => role.key);
+    expect(users.map((user) => user.role).sort()).toEqual([...catalogRoles].sort());
+    expect(users.every((user) => user.emailVerified)).toBe(true);
+  });
+
   it("creates every test account verified, with its role and one working credential login", async () => {
     await prisma.user.deleteMany({ where: { email: { in: SEED_EMAILS } } });
 

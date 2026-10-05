@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { createPrismaClient } from "../../src/client";
 import type { PrismaClient } from "../../src/client";
 import { createUserRepository } from "../../src/repositories/user.repository";
+import type { DbClient } from "../../src/utils/transaction";
 
 let prisma: PrismaClient;
 
@@ -17,12 +18,15 @@ afterAll(async () => {
 /** Each test gets its own name prefix so it can scope queries to the rows it created. */
 const group = () => `group-${crypto.randomUUID()}`;
 
-const createUser = (data: { group: string; role?: string; index?: number }) =>
-  prisma.user.create({
+const createUser = (
+  data: { group: string; role?: string; index?: number },
+  db: DbClient = prisma,
+) =>
+  db.user.create({
     data: {
       name: `${data.group} ${String(data.index ?? 0)}`,
       email: `${crypto.randomUUID()}@example.com`,
-      role: data.role ?? "member",
+      role: data.role ?? "staff",
     },
   });
 
@@ -63,13 +67,36 @@ describe("user repository", () => {
     expect(first.items[0]?.name).toBe(`${prefix} 2`);
   });
 
+  it("counts active users of the given admin roles only", async () => {
+    // The count is global and other test files create admins in parallel: a RepeatableRead
+    // snapshot makes the before/after delta see only the rows this transaction writes.
+    await prisma.$transaction(
+      async (tx) => {
+        const repo = createUserRepository(tx);
+        const prefix = group();
+        const bothBefore = await repo.countActiveAdmins(["super_admin", "admin"]);
+        const adminBefore = await repo.countActiveAdmins(["admin"]);
+
+        await createUser({ group: prefix, role: "super_admin" }, tx);
+        await createUser({ group: prefix, role: "admin" }, tx);
+        await createUser({ group: prefix, role: "staff" }, tx);
+        const gone = await createUser({ group: prefix, role: "admin" }, tx);
+        await repo.softDelete(gone.id);
+
+        expect(await repo.countActiveAdmins(["super_admin", "admin"])).toBe(bothBefore + 2);
+        expect(await repo.countActiveAdmins(["admin"])).toBe(adminBefore + 1);
+      },
+      { isolationLevel: "RepeatableRead" },
+    );
+  });
+
   it("updates profile fields and role independently", async () => {
     const repo = createUserRepository(prisma);
     const user = await createUser({ group: group() });
 
     const updated = await repo.updateProfile(user.id, { name: "Renamed" });
     expect(updated.name).toBe("Renamed");
-    expect(updated.role).toBe("member");
+    expect(updated.role).toBe("staff");
 
     const promoted = await repo.updateRole(user.id, "admin");
     expect(promoted.role).toBe("admin");

@@ -7,6 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 
+import { ROLES } from "@repo/validation";
 import type { Role } from "@repo/validation";
 
 import { defineAbilityFor, userSubject } from "../src/ability";
@@ -26,24 +27,33 @@ const targets: Record<Relation, (user: AbilityUser) => { id: string }> = {
   other: () => ({ id: OTHER_ID }),
 };
 
+type Allowed = Partial<Record<Action, Relation[]>>;
+
+/** Every action on everyone (interim `manage all` until the catalog grants arrive in E3). */
+const FULL_ACCESS: Allowed = {
+  manage: ["self", "other"],
+  create: ["self", "other"],
+  read: ["self", "other"],
+  update: ["self", "other"],
+  delete: ["self", "other"],
+  changeRole: ["self", "other"],
+};
+
+/** Only the own profile: read and update, nothing on other users. */
+const SELF_ONLY: Allowed = {
+  read: ["self"],
+  update: ["self"],
+};
+
 /** allowed[role][action] = relations for which the action is allowed. */
-const allowed: Record<Role, Partial<Record<Action, Relation[]>>> = {
-  admin: {
-    manage: ["self", "other"],
-    create: ["self", "other"],
-    read: ["self", "other"],
-    update: ["self", "other"],
-    delete: ["self", "other"],
-    changeRole: ["self", "other"],
-  },
-  member: {
-    read: ["self"],
-    update: ["self"],
-  },
+const allowed: Record<Role, Allowed> = {
+  super_admin: FULL_ACCESS,
+  admin: FULL_ACCESS,
+  manager: SELF_ONLY,
+  staff: SELF_ONLY,
 };
 
 const RELATIONS: Relation[] = ["self", "other"];
-const ROLES: Role[] = ["admin", "member"];
 
 describe("ability matrix (role × action × relation)", () => {
   for (const role of ROLES) {
@@ -85,15 +95,18 @@ describe("edge cases", () => {
 });
 
 describe("accessibleUsersWhere", () => {
-  it("restricts members to their own row", () => {
-    const user = me("member");
+  it.each(["manager", "staff"] as const)("restricts a %s to their own row", (role) => {
+    const user = me(role);
     const where = accessibleUsersWhere(definePrismaAbilityFor(user));
     expect(JSON.stringify(where)).toContain(user.id);
     expect(JSON.stringify(where)).not.toContain(OTHER_ID);
   });
 
-  it("lets an admin read everyone (no id restriction)", () => {
-    const where = accessibleUsersWhere(definePrismaAbilityFor(me("admin")));
-    expect(JSON.stringify(where)).not.toContain(ME_ID);
-  });
+  it.each(["super_admin", "admin"] as const)(
+    "lets a %s read everyone (no id restriction)",
+    (role) => {
+      const where = accessibleUsersWhere(definePrismaAbilityFor(me(role)));
+      expect(JSON.stringify(where)).not.toContain(ME_ID);
+    },
+  );
 });

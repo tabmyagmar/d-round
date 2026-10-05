@@ -4,22 +4,27 @@
 // Converges rather than no-ops: users are upserted by email, so a re-run re-applies the fixtures
 // (fresh password hash) without duplicating them.
 //
-// Test accounts (all verified, password `A12345678`):
-//   admin@test.com   admin
-//   member@test.com  member
+// Test accounts (all verified, password `A12345678`), one per role of roles.seed.ts:
+//   super_admin@test.com  super_admin
+//   admin@test.com        admin
+//   manager@test.com      manager
+//   staff@test.com        staff
 //
 // Passwords are hashed with Better Auth's own scrypt implementation so the accounts sign in
 // through the normal /api/auth/sign-in/email flow.
 import { hashPassword } from "better-auth/crypto";
 
+import type { RoleKey } from "./roles.seed";
 import type { SeedFn } from "./support";
 
 export const SEED_PASSWORD = "A12345678";
 
 export const SEED_USERS = [
+  { email: "super_admin@test.com", name: "Super Admin Test", role: "super_admin" },
   { email: "admin@test.com", name: "Admin Test", role: "admin" },
-  { email: "member@test.com", name: "Member Test", role: "member" },
-] as const;
+  { email: "manager@test.com", name: "Manager Test", role: "manager" },
+  { email: "staff@test.com", name: "Staff Test", role: "staff" },
+] as const satisfies readonly { email: string; name: string; role: RoleKey }[];
 
 const CREDENTIAL_PROVIDER = "credential";
 

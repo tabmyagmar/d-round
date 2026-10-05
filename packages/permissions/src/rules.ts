@@ -33,11 +33,15 @@ export type CanFn = (
 ) => void;
 
 export const defineRules = (can: CanFn, user: AbilityUser): void => {
+  // Interim until the catalog grants drive the rules (Commit E3, plan Step 17): both admin roles
+  // may do everything.
   switch (user.role) {
+    case "super_admin":
     case "admin":
       can("manage", "all");
       return;
-    case "member":
+    case "manager":
+    case "staff":
       break;
   }
 

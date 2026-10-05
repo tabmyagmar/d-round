@@ -57,6 +57,10 @@ Design defaults kept (not reopened): `SUBJECT_NAMES` = the catalog's eight `mode
 
 ### Commit D2 — Role set in code (15 files, no schema change)
 
+> **Amendment (Step 6, orchestrator-accepted):** `ADMIN_ROLES` is defined once in `@repo/validation` (`as const satisfies readonly Role[]`, next to `ROLES`), re-exported by `@repo/auth/access-control` and imported by the service from `@repo/validation`, not from `@repo/auth` as rows 2/7 and Step 6 say; `packages/auth/src/server.ts` spreads it into Better Auth's mutable `adminRoles`. Same layer rules, one definition, no Better Auth import in the service.
+
+> **Amendment (Step 5, orchestrator-accepted):** `BROWSE_USERS_HIDDEN_ROLES` lives in `apps/web/features/users/role-badge.tsx` (no `"use client"`), not in `app-shell.tsx`: a value imported from a client module into the server-rendered dashboard page is a client reference and crashes on `.includes`. Both consumers import it from there; E2 deletes it as planned.
+
 | #   | File                                                        | Action | Layer       | Purpose                                                                                                                         |
 | --- | ----------------------------------------------------------- | ------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | packages/validation/src/user.schema.ts                      | modify | validation  | `ROLES = ["super_admin","admin","manager","staff"]`, `DEFAULT_ROLE = "staff"`                                                   |

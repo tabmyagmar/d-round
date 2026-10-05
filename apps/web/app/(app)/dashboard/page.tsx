@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@repo/ui/components/card";
 
-import { RoleBadge } from "@/features/users/role-badge";
+import { BROWSE_USERS_HIDDEN_ROLES, RoleBadge } from "@/features/users/role-badge";
 import { getServerSession, toCurrentUser } from "@/lib/auth/server";
 
 const DashboardPage = async () => {
@@ -47,7 +47,7 @@ const DashboardPage = async () => {
             <Link className="underline" href="/profile">
               Edit your profile
             </Link>
-            {user.role === "member" ? null : (
+            {BROWSE_USERS_HIDDEN_ROLES.includes(user.role) ? null : (
               <Link className="underline" href="/users">
                 Browse users
               </Link>

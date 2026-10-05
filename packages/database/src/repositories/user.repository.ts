@@ -38,8 +38,9 @@ export const createUserRepository = (db: DbClient) => ({
   count: (where: Prisma.UserWhereInput = {}): Promise<number> =>
     db.user.count({ where: { AND: [where, { deletedAt: null }] } }),
 
-  countActiveAdmins: (): Promise<number> =>
-    db.user.count({ where: { role: "admin", deletedAt: null } }),
+  /** Active users holding any of `roles`; the caller passes the admin role set (`ADMIN_ROLES`). */
+  countActiveAdmins: (roles: readonly string[]): Promise<number> =>
+    db.user.count({ where: { role: { in: [...roles] }, deletedAt: null } }),
 
   updateProfile: (id: string, data: UserProfileUpdate): Promise<User> =>
     db.user.update({ where: { id }, data }),

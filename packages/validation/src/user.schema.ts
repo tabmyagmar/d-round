@@ -2,11 +2,21 @@ import { z } from "zod";
 
 import { idSchema, paginationSchema } from "./common.schema";
 
-/** Single-tenant role set. Better Auth stores it as a string; this enum is the allowed set. */
-export const ROLES = ["admin", "member"] as const;
+/**
+ * Single-tenant role set: the keys of the role catalog (`roles` table, seeded from
+ * packages/database/prisma/seed/roles.seed.ts). Better Auth stores it as a string; this enum is
+ * the allowed set.
+ */
+export const ROLES = ["super_admin", "admin", "manager", "staff"] as const;
 export const roleSchema = z.enum(ROLES);
 export type Role = z.infer<typeof roleSchema>;
-export const DEFAULT_ROLE: Role = "member";
+export const DEFAULT_ROLE: Role = "staff";
+/**
+ * The admin role set, used for two authorization decisions: Better Auth `adminRoles` (who may
+ * call privileged admin-plugin endpoints) and the roles the last-admin rule counts
+ * (`countActiveAdmins` in the user service). Read-only; spread it where a mutable array is needed.
+ */
+export const ADMIN_ROLES = ["super_admin", "admin"] as const satisfies readonly Role[];
 
 export const emailSchema = z.email().max(255);
 export const passwordSchema = z.string().min(8).max(128);

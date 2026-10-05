@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { DEFAULT_ROLE } from "@repo/validation";
+
 import { REQUEST_ID_HEADER, buildRequestContext } from "../../src/core/context";
 import { contextFor, createHarness, signedInUser } from "../support";
 import type { TestHarness } from "../support";
@@ -37,14 +39,14 @@ describe("buildRequestContext", () => {
   });
 
   it("resolves the session into a typed user with its role", async () => {
-    const signedIn = await signedInUser(h, { role: "member" });
+    const signedIn = await signedInUser(h, { role: "staff" });
 
     const ctx = await contextFor(h, signedIn.headers);
 
     expect(ctx.user).toMatchObject({
       id: signedIn.user.id,
       email: signedIn.email,
-      role: "member",
+      role: "staff",
       emailVerified: true,
     });
     expect(ctx.ability.can("read", "User")).toBe(true);
@@ -57,6 +59,6 @@ describe("buildRequestContext", () => {
 
     const ctx = await contextFor(h, signedIn.headers);
 
-    expect(ctx.user?.role).toBe("member");
+    expect(ctx.user?.role).toBe(DEFAULT_ROLE);
   });
 });
