@@ -1,16 +1,39 @@
 import { describe, expect, it } from "vitest";
 
-import { defineAbilityFor } from "@repo/permissions";
-import type { AppAbility, PermissionGrant } from "@repo/permissions";
+import { ACTIONS, defineAbilityFor, SUBJECT_NAMES } from "@repo/permissions";
+import type { AbilityUser, AppAbility, PermissionGrant } from "@repo/permissions";
 
 import { ALL_ROUTES, routes } from "@/config/routes";
-import { canAccessRoute } from "@/lib/auth/route-access";
+import { canAccessRoute, routeDecision } from "@/lib/auth/route-access";
 
 const ME_ID = "019187d5-0d76-7d1a-9a4c-4f7d2a1f3b6e";
 
-/** The ability of a user holding exactly these grants; the role never decides. */
+/** A signed-in user holding exactly these grants; the role never decides. */
+const userWith = (permissions: PermissionGrant[]): AbilityUser => ({
+  id: ME_ID,
+  role: "staff",
+  permissions,
+});
+
+/** The ability of that user. */
 const abilityWith = (permissions: PermissionGrant[]): AppAbility =>
-  defineAbilityFor({ id: ME_ID, role: "staff", permissions });
+  defineAbilityFor(userWith(permissions));
+
+/** What `permissions.csv` grants the seeded staff role today. */
+const STAFF_GRANTS: PermissionGrant[] = [
+  { action: "read", subject: "Client" },
+  { action: "read", subject: "Staff" },
+  { action: "read", subject: "Branch" },
+  { action: "create", subject: "Workflow" },
+  { action: "read", subject: "Workflow" },
+  { action: "update", subject: "Workflow" },
+  { action: "delete", subject: "Workflow" },
+  { action: "status", subject: "Workflow" },
+];
+
+const EVERY_GRANT: PermissionGrant[] = ACTIONS.flatMap((action) =>
+  SUBJECT_NAMES.map((subject) => ({ action, subject })),
+);
 
 describe("canAccessRoute", () => {
   it("opens a public route to anonymous visitors", () => {
@@ -65,5 +88,41 @@ describe("canAccessRoute", () => {
       expect(canAccessRoute(abilityWith([route.access]), route), route.path).toBe(true);
       expect(canAccessRoute(abilityWith([]), route), route.path).toBe(false);
     }
+  });
+});
+
+describe("routeDecision", () => {
+  it("allows anonymous visitors on a public route", () => {
+    expect(routeDecision(null, routes.auth.login)).toBe("allow");
+  });
+
+  it("sends anonymous visitors to sign-in on signed-in and permission routes", () => {
+    expect(routeDecision(null, routes.home)).toBe("sign-in");
+    expect(routeDecision(null, routes.client.list)).toBe("sign-in");
+  });
+
+  it("allows the seeded staff grants their pages and the signed-in pages", () => {
+    const staff = userWith(STAFF_GRANTS);
+    expect(routeDecision(staff, routes.client.list)).toBe("allow");
+    expect(routeDecision(staff, routes.workflow.create)).toBe("allow");
+    expect(routeDecision(staff, routes.home)).toBe("allow");
+    expect(routeDecision(staff, routes.settings.privacy)).toBe("allow");
+  });
+
+  it("forbids the seeded staff grants the pages they hold no grant for", () => {
+    const staff = userWith(STAFF_GRANTS);
+    // The self rule alone does not open the user pages (canUnscoped, not ability.can).
+    expect(routeDecision(staff, routes.user.list)).toBe("forbidden");
+    expect(routeDecision(staff, routes.user.detail)).toBe("forbidden");
+    expect(routeDecision(staff, routes.auditLog.list)).toBe("forbidden");
+    expect(routeDecision(staff, routes.client.create)).toBe("forbidden");
+  });
+
+  it("forbids client.list once `read Client` is gone, as a user DENY row leaves the grants", () => {
+    const denied = userWith(
+      EVERY_GRANT.filter((grant) => !(grant.action === "read" && grant.subject === "Client")),
+    );
+    expect(routeDecision(denied, routes.client.list)).toBe("forbidden");
+    expect(routeDecision(denied, routes.client.create)).toBe("allow");
   });
 });

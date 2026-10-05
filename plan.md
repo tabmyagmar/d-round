@@ -290,6 +290,16 @@ Files (6): `.claude/rules/ui.md` (component table: `components/layout/`, `config
 map), `docs/adr/0003-permissions.md` (`## Changes` line: web route catalog + unscoped server-side
 gate; UI only, the API stays the guard).
 
+## Amendments
+
+- 2026-10-06, step 1: `empty` added (`EmptyState` wraps the shadcn `Empty`, as the vendored
+  `rules/composition.md` requires); the relaxed lint list for generated primitives gains
+  `no-use-context`, `no-context-provider`, `use-state` (lint-staged allows no warnings). 14 files.
+- 2026-10-06, step 3: the guard's decision becomes a pure, tested function
+  `routeDecision(user, route): "allow" | "forbidden" | "sign-in"` in `lib/auth/route-access.ts`
+  (`PageGuard` cannot be unit-tested: it needs a Next request context), with cases in
+  `test/lib/auth/route-access.test.ts`; `app/admin/not-found.tsx` moves to step 6 to stay at 15.
+
 ## Risks and open points
 
 - shadcn `sidebar` (base-nova) may need small `exactOptionalPropertyTypes` patches → record them, do
