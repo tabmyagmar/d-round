@@ -10,8 +10,8 @@ paths:
 - `packages/database/prisma.config.ts` owns the datasource URL (it loads the root `.env` and falls
   back to a sentinel host so `prisma generate` works without a database), the schema path
   (`prisma/schema` — a **folder**, Prisma's multi-file schema), the migrations path
-  (`prisma/migrations`) and the seed command (`tsx prisma/seed/index.ts`). The datasource block
-  has no `url` — that is Prisma 7.
+  (`prisma/migrations`) and the seed command (`tsx prisma/seed/index.ts`). The datasource block has
+  no `url` — that is Prisma 7.
 - Multi-file schema layout under `packages/database/prisma/schema/`:
   - `schema.prisma` — the `generator` and `datasource` blocks only, no models.
   - `<module>/<model-kebab>.prisma` — one folder per module, one model per file; an enum lives in
@@ -24,32 +24,32 @@ paths:
     `visible` for a future permission-editing UI, never an authorization input),
     `access/role-permission.prisma` (`RolePermission`), `access/user-permission.prisma`
     (`enum PermissionEffect ALLOW | DENY` + `UserPermission`: a user's `ALLOW` row adds a permission
-    on top of the role grants, a `DENY` row removes one). `access/` is our authorization catalog; `auth/` stays Better Auth's, and
-    `auth/user.prisma` only gains relation fields (`permissions UserPermission[]`, no column, and
-    `roleRef Role` over the existing `role` column), `@@index([role])` and `role`'s NOT NULL /
-    default — see "Better Auth models" below.
-  - Prisma merges every `.prisma` file in the folder; relations may point at models in other
-    files. A new module gets a new folder.
+    on top of the role grants, a `DENY` row removes one). `access/` is our authorization catalog;
+    `auth/` stays Better Auth's, and `auth/user.prisma` only gains relation fields
+    (`permissions UserPermission[]`, no column, and `roleRef Role` over the existing `role` column),
+    `@@index([role])` and `role`'s NOT NULL / default — see "Better Auth models" below.
+  - Prisma merges every `.prisma` file in the folder; relations may point at models in other files.
+    A new module gets a new folder.
 - Seeds live in `packages/database/prisma/seed/`: one `<dataset>.seed.ts` per dataset exporting a
   `SeedFn` that returns a `SeedSummary` (`rows`, `created`, `updated`, `skipped`, and an optional
-  `grants` for join rows synced next to the dataset); `support.ts` holds the types, the CSV
-  helpers (`readCsv`, which also reads gzip-compressed `*.csv.gz` files, `parseInteger`,
-  `diffByKey`, `chunk`) and `runSeeds` (loads the root `.env`, connects, prints one line per
-  summary, disconnects). Seed tests live in `packages/database/test/seed/`. `yarn db:seed`
-  (`prisma db seed` → `prisma/seed/index.ts`) is the only seed command: `index.ts` calls every
-  dataset in order, parents before children (roles, permissions with their role grants, regions,
-  prefectures, addresses), then `users.seed.ts`.
-  - Reference datasets are idempotent: a re-run reports `created 0, updated 0` (and
-    `grants +0/-0` for permissions) and leaves every `updated_at` unchanged.
-  - `yarn db:seed` runs through `tsx` and `csv-parse`, both devDependencies of `@repo/database`:
-    a deployment that seeds installs devDependencies.
+  `grants` for join rows synced next to the dataset); `support.ts` holds the types, the CSV helpers
+  (`readCsv`, which also reads gzip-compressed `*.csv.gz` files, `parseInteger`, `diffByKey`,
+  `chunk`) and `runSeeds` (loads the root `.env`, connects, prints one line per summary,
+  disconnects). Seed tests live in `packages/database/test/seed/`. `yarn db:seed` (`prisma db seed`
+  → `prisma/seed/index.ts`) is the only seed command: `index.ts` calls every dataset in order,
+  parents before children (roles, permissions with their role grants, regions, prefectures,
+  addresses), then `users.seed.ts`.
+  - Reference datasets are idempotent: a re-run reports `created 0, updated 0` (and `grants +0/-0`
+    for permissions) and leaves every `updated_at` unchanged.
+  - `yarn db:seed` runs through `tsx` and `csv-parse`, both devDependencies of `@repo/database`: a
+    deployment that seeds installs devDependencies.
   - The permissions seed syncs only the grants the CSV owns (roles in `ROLE_SEEDS` × the CSV's
     permission keys); grants of a permission added at runtime and `user_permissions` are never
     touched, and no permission is ever deleted. The CSV (43 rows: the legacy 42 plus our `1106`
     `changeRole` row) also carries each row's `visible` flag, which the seed writes and restores.
-  - `users.seed.ts` upserts (by email) four verified test accounts, all with password
-    `A12345678`, hashed with `hashPassword` from `better-auth/crypto` into a credential `Account`
-    row so the normal sign-in flow works:
+  - `users.seed.ts` upserts (by email) four verified test accounts, all with password `A12345678`,
+    hashed with `hashPassword` from `better-auth/crypto` into a credential `Account` row so the
+    normal sign-in flow works:
 
     | Email                  | Role          |
     | ---------------------- | ------------- |
@@ -63,8 +63,8 @@ paths:
     `updated`. It creates the accounts only when `NODE_ENV` is `development` or `test`; any other
     value (unset, `production`, `staging`) skips all four (`skipped 4`), so the same command loads
     reference data in a real environment without creating known-password logins. Remaining risk:
-    `runSeeds` loads the root `.env`, so a developer `.env` (`NODE_ENV=development`) combined with
-    a production `DATABASE_URL` would still create them. Seed a real environment from its own
+    `runSeeds` loads the root `.env`, so a developer `.env` (`NODE_ENV=development`) combined with a
+    production `DATABASE_URL` would still create them. Seed a real environment from its own
     environment, never from a developer checkout.
 
 - Generator `prisma-client` (not `prisma-client-js`) with `output = "../src/generated/prisma"` and
@@ -74,8 +74,8 @@ paths:
 - Commands (root `package.json`): `yarn db:migrate:dev` = `prisma migrate dev` (creates a migration
   locally; needs `yarn docker:up`), `yarn db:migrate` = `prisma migrate deploy` (applies committed
   migrations; used by CI, by `startTestDatabase()` — which with `{ seedReferenceData: true }` also
-  runs the roles and permissions seeds — and by deployments), `yarn db:generate`,
-  `yarn db:studio`, `yarn db:seed`.
+  runs the roles and permissions seeds — and by deployments), `yarn db:generate`, `yarn db:studio`,
+  `yarn db:seed`.
 - CI fails on drift: after `yarn db:migrate` it runs, in `packages/database`,
   `yarn prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code`. If the
   schema files say something the migrations do not, the build is red.
@@ -84,16 +84,16 @@ paths:
 
 - Models PascalCase, mapped to snake_case tables and columns: `@@map("health_checks")`,
   `@map("created_at")`.
-- Primary keys are UUID v7: `id String @id @default(uuid(7)) @db.Uuid`. Exception (ADR 0005): a
-  pure join table uses a composite `@@id` over its two foreign keys (`role_permissions`,
+- Primary keys are UUID v7: `id String @id @default(uuid(7)) @db.Uuid`. Exception (ADR 0005): a pure
+  join table uses a composite `@@id` over its two foreign keys (`role_permissions`,
   `user_permissions`). Reference data keeps its uuid `id` but may be related through a unique
   natural key (`source_regions.code`, `roles.key`, `permissions.key`).
 - Every table has `createdAt DateTime @default(now()) @map("created_at")`; mutable tables add
   `updatedAt DateTime @updatedAt @map("updated_at")`; soft-deletable tables add
   `deletedAt DateTime? @map("deleted_at")`.
-- Enums for closed sets (`OutboxStatus { PENDING SENT FAILED }`, mapped to `outbox_status`);
-  `Json` for provider payloads only (`OutboxEmail.payload`); `Unsupported("...")` for types Prisma
-  cannot model (PostGIS), accessed via raw SQL in a repository. Exception: `User.role` is a
+- Enums for closed sets (`OutboxStatus { PENDING SENT FAILED }`, mapped to `outbox_status`); `Json`
+  for provider payloads only (`OutboxEmail.payload`); `Unsupported("...")` for types Prisma cannot
+  model (PostGIS), accessed via raw SQL in a repository. Exception: `User.role` is a
   `String @default("staff")` with a foreign key to `roles.key` (`onDelete: Restrict`), not an enum,
   because Better Auth writes roles as strings — the allowed set is `roleSchema` in
   `@repo/validation`, and the catalog rows are inserted by the migration so a migrations-only
@@ -113,8 +113,8 @@ paths:
 | `20261005143913_align_users_role_with_roles`                       | inserts the four `roles` rows (`ON CONFLICT DO NOTHING`), backfills `users.role` (`member`/NULL → `staff`), then default `'staff'`, NOT NULL, index and FK `users.role → roles.key` (Restrict) |
 | `20261005145534_add_permission_visible_and_user_permission_effect` | enum `permission_effect`; defaulted columns `permissions.visible` (true) and `user_permissions.effect` (`ALLOW`)                                                                               |
 
-The template shipped `0001_init` as its single baseline. Once a migration has been applied
-anywhere, never edit it; add a new one.
+The template shipped `0001_init` as its single baseline. Once a migration has been applied anywhere,
+never edit it; add a new one.
 
 ## Better Auth models
 
@@ -148,8 +148,8 @@ only the field-level changes, keeping the mappings. The CLI package is `auth` (m
    `add_user_avatar`). Read the generated SQL in
    `prisma/migrations/<timestamp>_<name>/migration.sql` before committing it.
 4. Run `yarn db:generate`: Prisma 7's `migrate dev` no longer regenerates the client. Then update
-   repositories, services and tests; run `yarn workspace @repo/database test` (testcontainers
-   apply the new migration) and `yarn verify`.
+   repositories, services and tests; run `yarn workspace @repo/database test` (testcontainers apply
+   the new migration) and `yarn verify`.
 5. Commit schema files, migration, seed changes (if any) and ADR line together.
 
 ## Expand-contract — every change is backward compatible
@@ -174,7 +174,6 @@ never as a rename migration on a table with data.
   new migration instead. `.prettierignore` excludes `prisma/migrations` on purpose — generated SQL
   is not reformatted.
 - Never `prisma migrate reset` or `prisma db push` against a shared database (`migrate reset` is
-  denied in `.claude/settings.json`). Locally, a reset is acceptable only on your own Docker
-  volume.
+  denied in `.claude/settings.json`). Locally, a reset is acceptable only on your own Docker volume.
 - Never put application logic into a migration; migrations are plain SQL.
 - Never change a primary key type or a `@@map` name after the first migration that created it.

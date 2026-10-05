@@ -6,8 +6,8 @@ paths:
 
 # Queue rules (BullMQ 6 + ioredis 6)
 
-The database row is the source of truth; the queue is only a trigger. Every rule below follows
-from that. The email outbox is the reference implementation (`docs/adr/0004-outbox.md`):
+The database row is the source of truth; the queue is only a trigger. Every rule below follows from
+that. The email outbox is the reference implementation (`docs/adr/0004-outbox.md`):
 
 | Part           | File                                                                                                                        |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------- |
@@ -22,8 +22,8 @@ from that. The email outbox is the reference implementation (`docs/adr/0004-outb
 ## The seven rules
 
 1. **ID-only payloads.** A job carries the IDs the worker needs to re-read state, plus an optional
-   `traceId`, never the data itself: `EmailJob = { outboxEmailId: string; traceId?: string }`.
-   Data in Redis goes stale; data in Postgres does not. The row carries `template` (a key of
+   `traceId`, never the data itself: `EmailJob = { outboxEmailId: string; traceId?: string }`. Data
+   in Redis goes stale; data in Postgres does not. The row carries `template` (a key of
    `EMAIL_TEMPLATES`) and `payload` (typed by `EmailTemplatePayloads`); the worker renders them.
 2. **Enqueue AFTER commit.** Producers live in API services and register the enqueue with
    `afterCommit` inside `withTransaction` (`packages/database/src/utils/transaction.ts`):
@@ -52,16 +52,16 @@ from that. The email outbox is the reference implementation (`docs/adr/0004-outb
    `create<Queue>Worker(deps)`, registered in the `workers` array of `apps/worker/src/index.ts`
    (email processor and outbox sweeper today).
 4. **Deterministic jobId.** `jobIdFor(prefix, id)` (`packages/queue/src/job-id.ts`) returns
-   `<prefix>-<id>`; both parts must match `[A-Za-z0-9_-]+` (BullMQ uses `:` as its key separator,
-   so it is excluded) or `InvalidJobIdError` is thrown. Adding a job whose id already exists is a
-   no-op in BullMQ, so the id must derive from the DB row — `emailJobId(outboxEmailId)` =
+   `<prefix>-<id>`; both parts must match `[A-Za-z0-9_-]+` (BullMQ uses `:` as its key separator, so
+   it is excluded) or `InvalidJobIdError` is thrown. Adding a job whose id already exists is a no-op
+   in BullMQ, so the id must derive from the DB row — `emailJobId(outboxEmailId)` =
    `jobIdFor("email", outboxEmailId)` — never from a counter or `Date.now()`.
 5. **Idempotent workers.** `processEmailJob` re-reads the row, returns without doing anything when
    `status !== "PENDING"`, renders (`renderEmail`), sends through `MailProvider.send`, then
    `markSent`. Jobs are retried and re-enqueued by the sweeper; the processor must survive running
    twice (tested: two enqueues of the same row → one mail, `attempts === 1`).
-6. **Every queue name is registered** in `QUEUE_NAMES` (`packages/queue/src/names.ts`) and the
-   queue is created with `createQueue<TPayload>(name, connection)` — for email through
+6. **Every queue name is registered** in `QUEUE_NAMES` (`packages/queue/src/names.ts`) and the queue
+   is created with `createQueue<TPayload>(name, connection)` — for email through
    `createEmailQueue(connection)`. Ad-hoc queue strings do not exist.
 7. **Logs carry `traceId`.** `createWorker(..., { logger })` logs `job failed` / `job completed`
    with `queue`, `jobId` and the payload's `traceId`; processors log through a child logger with
@@ -88,8 +88,8 @@ again, and nothing in Redis can tell "never enqueued" from "failed and cleaned u
   `recordFailedAttempt` (stays `PENDING`, increments `attempts`, stores `lastError`), `markFailed`
   (terminal), `resetToPending` (manual retry), `findStalePending` (sweeper).
 - `processEmailJob` decides per failure:
-  - transient error (SMTP down) and attempts left → `recordFailedAttempt`, rethrow → BullMQ
-    retries with backoff;
+  - transient error (SMTP down) and attempts left → `recordFailedAttempt`, rethrow → BullMQ retries
+    with backoff;
   - last attempt (`job.attemptsStarted >= job.opts.attempts`) → `markFailed`, rethrow;
   - `PermanentMailError` (provider says it will never work) or `TemplateError` (unknown template,
     invalid payload) → `markFailed`, throw `UnrecoverableError` so BullMQ stops retrying;
@@ -121,20 +121,21 @@ BullMQ 6 repeatable jobs are **Job Schedulers**; the legacy `repeat` job option 
 ## BullMQ 6 / ioredis 6 notes
 
 - `ioredis` is a peer dependency of BullMQ; we always pass an ioredis instance
-  (`createRedisConnection(url, { connectionName })` from `packages/queue/src/connection.ts`),
-  never a plain options object. `REDIS_CONNECTION_DEFAULTS` sets `maxRetriesPerRequest: null`
-  (blocking commands must be allowed to wait indefinitely) and `enableReadyCheck: true`. ioredis 6
-  speaks RESP3 by default.
+  (`createRedisConnection(url, { connectionName })` from `packages/queue/src/connection.ts`), never
+  a plain options object. `REDIS_CONNECTION_DEFAULTS` sets `maxRetriesPerRequest: null` (blocking
+  commands must be allowed to wait indefinitely) and `enableReadyCheck: true`. ioredis 6 speaks
+  RESP3 by default.
 - One connection per role: producers share one, every `Worker` gets its own (BullMQ duplicates it
   for blocking commands), pub/sub uses dedicated publisher and subscriber connections
   (`createPubSub`). Call `waitForRedis(connection)` before starting workers.
 - Permanent failures throw `UnrecoverableError` (re-exported from `@repo/queue`) so BullMQ stops
   retrying; the processor marks the row `FAILED` first.
 - `createWorker` defaults to `concurrency: 1`; raise it (and add a `limiter`) per queue with a
-  reason. Email: `EMAIL_WORKER_CONCURRENCY = 5`, `EMAIL_WORKER_LIMITER = { max: 20, duration: 1000 }`.
+  reason. Email: `EMAIL_WORKER_CONCURRENCY = 5`,
+  `EMAIL_WORKER_LIMITER = { max: 20, duration: 1000 }`.
 - Payload types are declared in `packages/queue/src/jobs/<name>.job.ts` and imported by both the
-  producer and the processor: the worker and the API share only `@repo/queue` and
-  `@repo/database`, never each other's code.
+  producer and the processor: the worker and the API share only `@repo/queue` and `@repo/database`,
+  never each other's code.
 - The worker knows nothing about "sending mail" beyond the `MailProvider` interface
   (`apps/worker/src/mail/mail-provider.ts`). `createSmtpMailProvider` (nodemailer, `MAIL_SMTP_URL`,
   `MAIL_FROM`) is production/dev; `createMemoryMailProvider` is the only test double allowed.

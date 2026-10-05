@@ -1,6 +1,8 @@
 ---
 name: bullmq-jobs
-description: Use when adding a new background job, queue, processor or repeatable sweeper, or when debugging job retries and failures.
+description:
+  Use when adding a new background job, queue, processor or repeatable sweeper, or when debugging
+  job retries and failures.
 ---
 
 # BullMQ jobs
@@ -23,8 +25,12 @@ only, the worker is idempotent. Rules: `.claude/rules/queue.md`; decision:
 
    ```ts
    export type EmailJob = { outboxEmailId: string; traceId?: string };
-   export const EMAIL_TEMPLATES = { verification: "verification-email" } as const;
-   export type EmailTemplatePayloads = { "verification-email": { name: string; url: string } };
+   export const EMAIL_TEMPLATES = {
+     verification: "verification-email",
+   } as const;
+   export type EmailTemplatePayloads = {
+     "verification-email": { name: string; url: string };
+   };
    export const emailJobId = (outboxEmailId: string) => jobIdFor("email", outboxEmailId);
    export const createEmailQueue = (connection: RedisConnection): EmailQueue =>
      createQueue<EmailJob>(QUEUE_NAMES.email, connection);
@@ -70,8 +76,9 @@ only, the worker is idempotent. Rules: `.claude/rules/queue.md`; decision:
    - send failed: `PermanentMailError` or last attempt (`job.attemptsStarted >= job.opts.attempts`)
      → `markFailed` (+ `UnrecoverableError` when permanent); otherwise `recordFailedAttempt` and
      rethrow so BullMQ retries.
-   - `createEmailWorker(deps)` = `createWorker<EmailJob>(QUEUE_NAMES.email, processor, connection, options)`
-     with `concurrency: 5`, `limiter: { max: 20, duration: 1000 }` and `logger`; `deps.queueName`
+   - `createEmailWorker(deps)` =
+     `createWorker<EmailJob>(QUEUE_NAMES.email, processor, connection, options)` with
+     `concurrency: 5`, `limiter: { max: 20, duration: 1000 }` and `logger`; `deps.queueName`
      overrides the name for isolated test queues.
 7. **Register** — the `workers` array in `apps/worker/src/index.ts` holds `createEmailWorker` and
    `createOutboxSweeperWorker`; start-up runs `waitForRedis` then `registerOutboxSweeper`.
@@ -93,13 +100,12 @@ only, the worker is idempotent. Rules: `.claude/rules/queue.md`; decision:
 
    Every 2 minutes; `FAILED` rows are never touched.
 
-9. **Tests** — `apps/api/test/modules/email/email.service.test.ts` (row + job after commit,
-   nothing after rollback), `apps/worker/test/processors/email.processor.test.ts` (exactly once with
-   a duplicate enqueue, no-op on `SENT`, transient retries record attempts, `FAILED` after the last
+9. **Tests** — `apps/api/test/modules/email/email.service.test.ts` (row + job after commit, nothing
+   after rollback), `apps/worker/test/processors/email.processor.test.ts` (exactly once with a
+   duplicate enqueue, no-op on `SENT`, transient retries record attempts, `FAILED` after the last
    attempt, permanent failures fail on the first attempt),
-   `apps/worker/test/schedulers/outbox-sweeper.test.ts` (recovers a
-   `PENDING` row after `FLUSHALL`, repeated runs do not duplicate). Helpers:
-   `apps/worker/test/support.ts`.
+   `apps/worker/test/schedulers/outbox-sweeper.test.ts` (recovers a `PENDING` row after `FLUSHALL`,
+   repeated runs do not duplicate). Helpers: `apps/worker/test/support.ts`.
 
 ## Adding a new job
 
@@ -111,10 +117,10 @@ sweeper when there is an outbox, and the tests above.
 
 ## Retry and failure semantics
 
-- `DEFAULT_JOB_OPTIONS`: 5 attempts, exponential backoff from 3 s; completed jobs removed after
-  24 h (at most 1000 kept); failed jobs removed after 7 days.
-- Because the failed job disappears while its deterministic jobId stays the same, the row's
-  `FAILED` status is the durable record. The sweeper skips `FAILED` rows; manual retry is
+- `DEFAULT_JOB_OPTIONS`: 5 attempts, exponential backoff from 3 s; completed jobs removed after 24 h
+  (at most 1000 kept); failed jobs removed after 7 days.
+- Because the failed job disappears while its deterministic jobId stays the same, the row's `FAILED`
+  status is the durable record. The sweeper skips `FAILED` rows; manual retry is
   `resetToPending(id)` on the row, then the sweeper (or an explicit `enqueueEmailJob`) picks it up.
 - Permanent failures (`PermanentMailError` from the provider, `TemplateError` from `renderEmail`):
   mark the row `FAILED` and throw `UnrecoverableError` so BullMQ does not retry.
@@ -130,6 +136,6 @@ sweeper when there is an outbox, and the tests above.
 - Use `job.attemptsStarted` (not `attemptsMade`) to detect the last attempt inside the processor:
   `attemptsMade` is incremented only after the attempt fails.
 - Do not share the worker's connection with pub/sub; `createPubSub` uses its own connections.
-- Worker logs must include `traceId` from the payload — `createWorker`'s `logger` option does it
-  for completed and failed events; use a child logger inside the processor.
+- Worker logs must include `traceId` from the payload — `createWorker`'s `logger` option does it for
+  completed and failed events; use a child logger inside the processor.
 - `createWorker` outside `apps/worker` is a lint error.

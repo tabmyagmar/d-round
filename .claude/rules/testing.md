@@ -10,27 +10,26 @@ paths:
 ## Runner
 
 - Vitest 5. Each workspace has a `vitest.config.ts` (`defineProject`, `name: "@repo/<pkg>"`,
-  `include: ["test/**/*.test.ts"]`, or `*.test.{ts,tsx}` where components are tested) and a
-  `test` script `vitest run`; its `tsconfig.json` includes `test/**/*.ts` (and `.tsx`) so tests
-  are type-checked with the code;
-  `yarn test` runs them through Turborepo (`test` depends on `^build` and `^db:generate`).
-- The root `vitest.config.ts` lists `packages/*/vitest.config.ts` and `apps/*/vitest.config.ts`
-  as projects, so `yarn vitest run` from the root (and IDE integration) runs everything at once.
+  `include: ["test/**/*.test.ts"]`, or `*.test.{ts,tsx}` where components are tested) and a `test`
+  script `vitest run`; its `tsconfig.json` includes `test/**/*.ts` (and `.tsx`) so tests are
+  type-checked with the code; `yarn test` runs them through Turborepo (`test` depends on `^build`
+  and `^db:generate`).
+- The root `vitest.config.ts` lists `packages/*/vitest.config.ts` and `apps/*/vitest.config.ts` as
+  projects, so `yarn vitest run` from the root (and IDE integration) runs everything at once.
 - One workspace: `yarn workspace @repo/api test`. One file:
   `yarn workspace @repo/api vitest run test/core/context.test.ts`.
 
 ## Web and UI components
 
-`apps/web` and `packages/ui` test in jsdom with Testing Library (`@testing-library/react`),
-never against Postgres or Redis — API behaviour is tested in `apps/api`. `packages/ui` runs every
-test in jsdom; `apps/web` defaults to node (pure modules such as `lib/env.ts`) and a component
-test opts in with a `// @vitest-environment jsdom` first line. Render the component with the
-smallest host it needs (a `useForm` harness for a field, no tRPC or session providers), assert
-through roles, labels and text (`screen.getByLabelText`, `getByText`), and call `cleanup` in
-`afterEach` (no `globals`, so Testing Library does not clean up by itself). Both configs set the
-JSX runtime through `oxc` (Next's tsconfig says `jsx: "preserve"`) and mirror the tsconfig path
-alias (`@/` in web, `@repo/ui/*` in ui). Examples:
-`apps/web/test/features/users/role-badge.test.tsx`,
+`apps/web` and `packages/ui` test in jsdom with Testing Library (`@testing-library/react`), never
+against Postgres or Redis — API behaviour is tested in `apps/api`. `packages/ui` runs every test in
+jsdom; `apps/web` defaults to node (pure modules such as `lib/env.ts`) and a component test opts in
+with a `// @vitest-environment jsdom` first line. Render the component with the smallest host it
+needs (a `useForm` harness for a field, no tRPC or session providers), assert through roles, labels
+and text (`screen.getByLabelText`, `getByText`), and call `cleanup` in `afterEach` (no `globals`, so
+Testing Library does not clean up by itself). Both configs set the JSX runtime through `oxc` (Next's
+tsconfig says `jsx: "preserve"`) and mirror the tsconfig path alias (`@/` in web, `@repo/ui/*` in
+ui). Examples: `apps/web/test/features/users/role-badge.test.tsx`,
 `packages/ui/test/components/form/text-field.test.tsx`.
 
 ## Real infrastructure, not mocks
@@ -42,11 +41,11 @@ Anything touching Postgres or Redis runs against testcontainers:
   `{ container, connectionString, prisma, stop }`. `startTestDatabase({ seedReferenceData: true })`
   also loads the role and permission catalog (`seedRoles`, `seedPermissions`, ~1 s; never users or
   addresses) for packages whose tests need real grants (`@repo/auth`, `@repo/api`).
-- `@repo/queue/test` → `startTestRedis()` starts `redis:8-alpine` (override with
-  `TEST_REDIS_IMAGE`) and returns `{ container, url, stop }`.
+- `@repo/queue/test` → `startTestRedis()` starts `redis:8-alpine` (override with `TEST_REDIS_IMAGE`)
+  and returns `{ container, url, stop }`.
 - A workspace that needs them has a `test/global-setup.ts` that starts the containers once per run
-  and publishes their URLs with `project.provide(...)`; tests read them with
-  `inject("databaseUrl")` / `inject("redisUrl")` and create their own client in `beforeAll`
+  and publishes their URLs with `project.provide(...)`; tests read them with `inject("databaseUrl")`
+  / `inject("redisUrl")` and create their own client in `beforeAll`
   (`createPrismaClient({ connectionString: inject("databaseUrl") })`,
   `createRedisConnection(inject("redisUrl"))` + `waitForRedis`). Declare the keys with
   `declare module "vitest" { interface ProvidedContext { databaseUrl: string } }`.
@@ -55,9 +54,10 @@ Anything touching Postgres or Redis runs against testcontainers:
   Hook timeouts are generous (`hookTimeout` 120–180 s) because the first image pull is slow.
 
 Mocks are allowed only for **external providers** we do not run locally: HTTP APIs, mail, payment,
-AI. The one existing mock is `createMemoryMailProvider` (`apps/worker/src/mail/memory-mail-provider.ts`),
-an implementation of the `MailProvider` interface with `failFirst` / `alwaysFailPermanently` knobs.
-Never mock Prisma, Redis, BullMQ, Better Auth, repositories or services of this repo.
+AI. The one existing mock is `createMemoryMailProvider`
+(`apps/worker/src/mail/memory-mail-provider.ts`), an implementation of the `MailProvider` interface
+with `failFirst` / `alwaysFailPermanently` knobs. Never mock Prisma, Redis, BullMQ, Better Auth,
+repositories or services of this repo.
 
 ## Test harnesses — copy these, do not reinvent them
 
@@ -103,10 +103,10 @@ isolate through unique names instead.
 - Each test creates its own data with unique values (`crypto.randomUUID()`) — the container is
   shared by the whole package run — and cleans up what it started (`worker.close()`,
   `queue.obliterate({ force: true })`, disconnect clients) in `afterAll` / `finally`.
-- Routers are tested through `createCallerFactory(appRouter)` with a context from `contextFor`;
-  the HTTP surface through `createApp(deps).request("/health")` (Hono). `createApp` accepts
-  `probes` (simulate dependency failures) and `signInRateLimiter` (a small limit with a unique
-  `keyPrefix`) so tests never depend on the production settings.
+- Routers are tested through `createCallerFactory(appRouter)` with a context from `contextFor`; the
+  HTTP surface through `createApp(deps).request("/health")` (Hono). `createApp` accepts `probes`
+  (simulate dependency failures) and `signInRateLimiter` (a small limit with a unique `keyPrefix`)
+  so tests never depend on the production settings.
 
 ## Where tests live
 

@@ -1,6 +1,8 @@
 ---
 name: testing
-description: Use when writing or fixing a test, adding testcontainers to a workspace, or deciding what may be mocked.
+description:
+  Use when writing or fixing a test, adding testcontainers to a workspace, or deciding what may be
+  mocked.
 ---
 
 # Testing how-to
@@ -21,14 +23,14 @@ Docker must be running for anything that uses testcontainers.
 
 ## Naming and placement
 
-- Every test lives in the workspace's `test/` folder (never in `src/`) and mirrors the `src/`
-  path: `src/modules/user/user.service.ts` → `test/modules/user/user.service.test.ts`,
+- Every test lives in the workspace's `test/` folder (never in `src/`) and mirrors the `src/` path:
+  `src/modules/user/user.service.ts` → `test/modules/user/user.service.test.ts`,
   `src/repositories/user.repository.ts` → `test/repositories/user.repository.test.ts`,
   `src/queue.ts` → `test/queue.test.ts`. `describe` = the unit under test, `it` = a behaviour
   ("returns NotFoundError when the user is soft-deleted").
 - Integration tests for a workspace at the root of `test/` (`test/app.test.ts`); helpers in
-  `test/support.ts`, container lifecycle in `test/global-setup.ts`, a package's public test entry
-  in `test/index.ts`.
+  `test/support.ts`, container lifecycle in `test/global-setup.ts`, a package's public test entry in
+  `test/index.ts`.
 - `vitest.config.ts` has `include: ["test/**/*.test.ts"]` and `tsconfig.json` includes
   `test/**/*.ts`; a test outside `test/` is not run.
 - Test data via the harness helpers in the workspace's `test/support.ts`
@@ -120,7 +122,10 @@ Worker (`apps/worker/test/support.ts`) — `createWorkerHarness`, `isolatedEmail
 `createPendingEmail`, `waitForFinalStatus`, `waitForJobDone`:
 
 ```ts
-const { name, queue } = isolatedEmailQueue(h.connection, { attempts: 3, backoffMs: 20 });
+const { name, queue } = isolatedEmailQueue(h.connection, {
+  attempts: 3,
+  backoffMs: 20,
+});
 const provider = createMemoryMailProvider({ failFirst: 2 });
 const worker = createEmailWorker({ ...h, provider, queueName: name });
 try {
@@ -150,10 +155,9 @@ try {
 
 ## Gotchas
 
-- Vitest `inject` types come from the `declare module "vitest"` block — without it `inject("x")`
-  is a type error.
-- Do not `console.log` in tests (lint error); assertions and their messages carry the
-  information.
+- Vitest `inject` types come from the `declare module "vitest"` block — without it `inject("x")` is
+  a type error.
+- Do not `console.log` in tests (lint error); assertions and their messages carry the information.
 - Clean up queues and workers in `finally`; a hanging worker keeps the run alive.
 - Lint relaxations for tests (`no-non-null-assertion`, `no-unsafe-*`) are in the base preset;
   `no-console` and the layer rules still apply.

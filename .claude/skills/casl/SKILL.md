@@ -1,16 +1,17 @@
 ---
 name: casl
-description: Use when defining or changing CASL abilities, adding an ability check to a procedure, filtering a list with accessibleBy, or extending the permission spec.
+description:
+  Use when defining or changing CASL abilities, adding an ability check to a procedure, filtering a
+  list with accessibleBy, or extending the permission spec.
 ---
 
 # CASL abilities (packages/permissions)
 
 ## Purpose
 
-CASL answers the coarse question "may this user do this kind of action on this kind of subject"
-(the user's grants come from the session).
-Everything that depends on the current state of a row stays in services. Rules:
-`.claude/rules/permissions.md`; decision: `docs/adr/0003-permissions.md`.
+CASL answers the coarse question "may this user do this kind of action on this kind of subject" (the
+user's grants come from the session). Everything that depends on the current state of a row stays in
+services. Rules: `.claude/rules/permissions.md`; decision: `docs/adr/0003-permissions.md`.
 
 ## Shape
 
@@ -61,8 +62,8 @@ export const accessibleUsersWhere = (
 
 1. Who may do what is data: flip or add the row in
    `packages/database/prisma/seed/data/permissions.csv` first (the seed-test counts and
-   `apps/api/test/permission-catalog.test.ts` document the change); no rule code changes for that.
-   A new rule shape (a scoped role, e.g. a team lead reading their own team) starts with a case in
+   `apps/api/test/permission-catalog.test.ts` document the change); no rule code changes for that. A
+   new rule shape (a scoped role, e.g. a team lead reading their own team) starts with a case in
    `test/ability.test.ts` — the spec — then one `can(...)` with an equality condition after the
    grant loop.
 2. Add the `can(...)` line in `defineRules`. Prefer whitelist rules; use `cannot` only to carve an
@@ -143,10 +144,10 @@ it.each(SINGLE_GRANTS)("$action $subject", (grant) => {
 ```
 
 The same file asserts that grants it does not know (`all`, `manage`, unknown subjects) allow
-nothing, the self rule alone, that `definePrismaAbilityFor` answers exactly like
-`defineAbilityFor` for every cell, that an anonymous visitor can do nothing, `canUnscoped`, and
-that `accessibleUsersWhere` restricts a user without the `read User` grant to their own row and
-leaves a holder of that grant unrestricted.
+nothing, the self rule alone, that `definePrismaAbilityFor` answers exactly like `defineAbilityFor`
+for every cell, that an anonymous visitor can do nothing, `canUnscoped`, and that
+`accessibleUsersWhere` restricts a user without the `read User` grant to their own row and leaves a
+holder of that grant unrestricted.
 
 ## Gotchas
 
@@ -155,6 +156,6 @@ leaves a holder of that grant unrestricted.
   condition rules to see the subject type; a raw object silently yields `false`.
 - `accessibleUsersWhere` on an ability with no matching rule returns a fail-closed marker that
   Prisma rejects — always guard with `ability.can(action, "User")` first.
-- `@repo/permissions/server` imports `@prisma/client/extension`; the web app and `packages/ui`
-  may only import `@repo/permissions` and `@repo/permissions/react` (lint-enforced).
+- `@repo/permissions/server` imports `@prisma/client/extension`; the web app and `packages/ui` may
+  only import `@repo/permissions` and `@repo/permissions/react` (lint-enforced).
 - Web `Can` hides UI only; the API check runs regardless.

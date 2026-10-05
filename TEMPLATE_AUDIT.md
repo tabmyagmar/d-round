@@ -67,21 +67,20 @@ All twelve internal packages are named `@repo/<name>`. Single `yarn.lock`, Yarn 
 
 ### P0 — blocks reuse
 
-1. **`yarn verify` is red on a fresh checkout that has the vendored skills.**
-   `.agents/skills/**` (installed by the `skills` CLI, recorded in `skills-lock.json`, symlinked
-   from `.claude/skills/{shadcn,prisma-cli,prisma-client-api,prisma-postgres,create-auth,better-auth-best-practices}`)
-   is untracked and not prettier-ignored.
-   Action, pick one:
+1. **`yarn verify` is red on a fresh checkout that has the vendored skills.** `.agents/skills/**`
+   (installed by the `skills` CLI, recorded in `skills-lock.json`, symlinked from
+   `.claude/skills/{shadcn,prisma-cli,prisma-client-api,prisma-postgres,create-auth,better-auth-best-practices}`)
+   is untracked and not prettier-ignored. Action, pick one:
    - keep them: `git add .agents skills-lock.json .claude/skills/*` and add `.agents/` to
      `.prettierignore`; or
-   - drop them: delete `.agents/`, the six symlinks and `skills-lock.json` (the in-repo skills
-     under `.claude/skills/{prisma,better-auth,shadcn-ui,...}` already cover the same ground).
+   - drop them: delete `.agents/`, the six symlinks and `skills-lock.json` (the in-repo skills under
+     `.claude/skills/{prisma,better-auth,shadcn-ui,...}` already cover the same ground).
 
 2. **Project identity is hard-coded in 16 places** (`d-round`, "Form templates & approval
-   workflows", `no-reply@d-round.local`). Full list in §4. Action: replace with placeholders and
-   add a one-shot `scripts/init-template.mjs` (or documented `sed` list) that rewrites them; keep
-   the runtime brand in one place (`apps/web/lib/brand.ts` + `MAIL_FROM` env) so future renames
-   touch one file.
+   workflows", `no-reply@d-round.local`). Full list in §4. Action: replace with placeholders and add
+   a one-shot `scripts/init-template.mjs` (or documented `sed` list) that rewrites them; keep the
+   runtime brand in one place (`apps/web/lib/brand.ts` + `MAIL_FROM` env) so future renames touch
+   one file.
 
 3. **The example domain leaks into every layer.** `User.employeeCode` / `department`, roles
    `hr_manager` / `dept_head`, department-scoped CASL rules, HR/Engineering seed data, department
@@ -101,13 +100,14 @@ All twelve internal packages are named `@repo/<name>`. Single `yarn.lock`, Yarn 
 
 4. **Migrations and seed are project history, not a template baseline.** Action: squash
    `20260909060455_init` + `20260909113011_phase1_auth_outbox` into one `0001_init` migration
-   regenerated from the cleaned schema (`prisma migrate diff --from-empty --to-schema prisma/schema --script`),
-   commit the pending `SEED_PASSWORD = "A12345678"` fix and update the four places that still say
-   `A123456` (`README.md`, `.claude/rules/migrations.md`, `.claude/skills/prisma/SKILL.md`,
+   regenerated from the cleaned schema
+   (`prisma migrate diff --from-empty --to-schema prisma/schema --script`), commit the pending
+   `SEED_PASSWORD = "A12345678"` fix and update the four places that still say `A123456`
+   (`README.md`, `.claude/rules/migrations.md`, `.claude/skills/prisma/SKILL.md`,
    `packages/database/prisma/seed.ts` header comment).
 
-5. **README and planning docs describe d-round, not a template.** Action: rewrite `README.md`
-   as "template quick start + folder map + conventions pointers" (drop Phase 1 walkthrough, roles
+5. **README and planning docs describe d-round, not a template.** Action: rewrite `README.md` as
+   "template quick start + folder map + conventions pointers" (drop Phase 1 walkthrough, roles
    table, phase text); change `CLAUDE.md` line 4 to a placeholder; delete
    `phase-0-1-claude-code-prompts.md`, `workflow-development-plan-v2.md`,
    `docs/plans/phase-1-plan.md` and their two `.prettierignore` entries; rewrite the "Context"
@@ -115,27 +115,26 @@ All twelve internal packages are named `@repo/<name>`. Single `yarn.lock`, Yarn 
 
 ### P1 — important
 
-6. **No tests in `apps/web` and `packages/ui`.** Add `vitest.config.ts` (jsdom or
-   happy-dom) + `test` script + one sample test each (e.g. `HealthStatus` renders, `TextField`
-   shows an error). New devDeps to justify and version-check: `@testing-library/react`,
-   `@testing-library/jest-dom`, `jsdom` (or `happy-dom`), `@vitejs/plugin-react`.
-   Both tsconfigs must then include `test/**`.
+6. **No tests in `apps/web` and `packages/ui`.** Add `vitest.config.ts` (jsdom or happy-dom) +
+   `test` script + one sample test each (e.g. `HealthStatus` renders, `TextField` shows an error).
+   New devDeps to justify and version-check: `@testing-library/react`, `@testing-library/jest-dom`,
+   `jsdom` (or `happy-dom`), `@vitejs/plugin-react`. Both tsconfigs must then include `test/**`.
 
 7. **Postgres image and DB name duplicated.** `postgis/postgis:18-3.6` appears in
    `docker-compose.yml`, `.github/workflows/ci.yml`, `packages/database/test/index.ts`
    (`TEST_POSTGRES_IMAGE` default), `.claude/rules/testing.md`, `docs/conventions.md`, README;
-   `workflow` DB name in `.env.example`, `docker-compose.yml`, `ci.yml` (×3), README.
-   Decision: PostGIS was a d-round Phase 7 need. For a template use `postgres:18-alpine`
-   (multi-arch, no Rosetta note needed) and make the image an env-driven default in all three
-   runtime places. `{{DB_NAME}}` placeholder for the name.
+   `workflow` DB name in `.env.example`, `docker-compose.yml`, `ci.yml` (×3), README. Decision:
+   PostGIS was a d-round Phase 7 need. For a template use `postgres:18-alpine` (multi-arch, no
+   Rosetta note needed) and make the image an env-driven default in all three runtime places.
+   `{{DB_NAME}}` placeholder for the name.
 
 8. **Web env is unvalidated.** `apps/web/lib/env.ts` should use the same `createEnv` pattern
-   (browser-safe subset: `NEXT_PUBLIC_API_URL` with `z.url()`), read once in `next.config.ts` or
-   a `lib/env.ts` that throws at build time on a bad value.
+   (browser-safe subset: `NEXT_PUBLIC_API_URL` with `z.url()`), read once in `next.config.ts` or a
+   `lib/env.ts` that throws at build time on a bad value.
 
 9. **Locale/brand in web.** `lang="ja"` in `apps/web/app/layout.tsx:23`, metadata title and
-   description, header links in `app/(auth)/layout.tsx`, `components/app-shell.tsx`,
-   `app/page.tsx`, copy in `features/auth/login-form.tsx:54`, dashboard "Phase 1 …" card.
+   description, header links in `app/(auth)/layout.tsx`, `components/app-shell.tsx`, `app/page.tsx`,
+   copy in `features/auth/login-form.tsx:54`, dashboard "Phase 1 …" card.
 
 10. **`.claude/*` docs after P0-3.** Regenerate the seed-account tables and migration names in
     `.claude/rules/migrations.md`, `.claude/skills/prisma/SKILL.md`; remove "Phase 2/7" remarks in
@@ -148,13 +147,14 @@ All twelve internal packages are named `@repo/<name>`. Single `yarn.lock`, Yarn 
 ### P2 — nice to have
 
 12. Remove unused deps: `bullmq` from `apps/worker/package.json` (re-export `UnrecoverableError`
-    from `@repo/queue` if needed), `date-fns` from `packages/ui/package.json`, `@repo/logger`
-    devDep from `packages/queue/package.json`.
+    from `@repo/queue` if needed), `date-fns` from `packages/ui/package.json`, `@repo/logger` devDep
+    from `packages/queue/package.json`.
 13. `Dockerfile` for `apps/api`, `apps/worker`, `apps/web` (multi-stage, `yarn workspaces focus`)
     plus a `docker-compose.prod.yml`/profile — only if deployment targets are known.
 14. `.github/PULL_REQUEST_TEMPLATE.md` (summary / test evidence / ADR links / AI attribution,
     mirroring `protocol.md` Step 6), `CODEOWNERS`, `renovate.json` or `dependabot.yml`.
-15. Delete the empty `apps/web/hooks/` directory (untracked anyway); keep `packages/ui/src/hooks/README.md`.
+15. Delete the empty `apps/web/hooks/` directory (untracked anyway); keep
+    `packages/ui/src/hooks/README.md`.
 16. Mark the GitHub repository as a _template repository_ so `gh repo create --template` works.
 
 ---

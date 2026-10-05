@@ -1,14 +1,16 @@
 ---
 name: nextjs
-description: Use when adding a page, layout or route to apps/web, deciding between server and client components, wiring tRPC and React Query, reading the session, or building a form.
+description:
+  Use when adding a page, layout or route to apps/web, deciding between server and client
+  components, wiring tRPC and React Query, reading the session, or building a form.
 ---
 
 # Next.js 16 (App Router) in apps/web
 
 ## Purpose
 
-`apps/web` is a Next.js 16 App Router app (React 19, Tailwind v4) that talks to `apps/api` over
-tRPC and to Better Auth over `/api/auth`. It never touches the database or the queue. Rules:
+`apps/web` is a Next.js 16 App Router app (React 19, Tailwind v4) that talks to `apps/api` over tRPC
+and to Better Auth over `/api/auth`. It never touches the database or the queue. Rules:
 `.claude/rules/ui.md`, `.claude/rules/layers.md`.
 
 ## Layout of the app (no `src/`)
@@ -44,9 +46,9 @@ to `packages/ui/src/components/composed/` (`.claude/rules/ui.md`, promotion rule
 
 Keep the `"use client"` boundary as low as possible: `app/(app)/users/page.tsx` is a server page
 rendering the client `features/users/users-table.tsx`; `app/(auth)/login/page.tsx` renders
-`features/auth/login-form.tsx`. Only
-Next.js special files (`page`, `layout`, `loading`, `error`, `not-found`, `route`, `proxy.ts`, ...)
-may default-export (`packages/eslint-config/next.js`); everything else is a named export.
+`features/auth/login-form.tsx`. Only Next.js special files (`page`, `layout`, `loading`, `error`,
+`not-found`, `route`, `proxy.ts`, ...) may default-export (`packages/eslint-config/next.js`);
+everything else is a named export.
 
 ## `proxy.ts` replaces `middleware.ts`
 
@@ -63,7 +65,9 @@ export const proxy = (request: NextRequest) => {
   return NextResponse.next();
 };
 
-export const config = { matcher: ["/dashboard/:path*", "/users/:path*", "/profile/:path*"] };
+export const config = {
+  matcher: ["/dashboard/:path*", "/users/:path*", "/profile/:path*"],
+};
 ```
 
 It checks cookie **presence** only (no network call, as Better Auth recommends). The real check is
@@ -85,12 +89,12 @@ const AppLayout = async ({ children }: { children: ReactNode }) => {
 failure; `toCurrentUser` narrows `role` with `roleSchema` and passes the session's `permissions`
 through. `AppShell` mounts `AbilityProvider user={user}` and the nav (`Users` shown when
 `canUnscoped(ability, "read", "User")`, see `visibleNavItems`), and signs out with
-`authClient.signOut()` followed by
-`router.push("/login"); router.refresh()`.
+`authClient.signOut()` followed by `router.push("/login"); router.refresh()`.
 
 ## tRPC + React Query (`@trpc/tanstack-react-query`)
 
-1. `lib/trpc/react.tsx`: `export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRouter>()`
+1. `lib/trpc/react.tsx`:
+   `export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRouter>()`
    (`import type { AppRouter } from "@repo/api/router"`).
 2. `TRPCReactProvider` (`"use client"`) creates one `QueryClient` (`getQueryClient`) and one tRPC
    client (`httpBatchLink` to `${publicEnv.apiUrl}/trpc`, `transformer: superjson`, a `fetch`
@@ -102,8 +106,8 @@ through. `AppShell` mounts `AbilityProvider user={user}` and the nav (`Users` sh
 
 `features/users/users-table.tsx` is the list example: `useState` for `page`, `search`, `role`; the
 standalone `Select` (Base UI: `items`, `onValueChange`) for the role filter; columns from
-`createDataTableColumns<UserRow>()`; `DataTable` from `@repo/ui/components/composed/data-table`
-with `isLoading` and a server-side `pagination` object built from the `PageResult`.
+`createDataTableColumns<UserRow>()`; `DataTable` from `@repo/ui/components/composed/data-table` with
+`isLoading` and a server-side `pagination` object built from the `PageResult`.
 `features/users/user-editor.tsx` is the mutation example, including `ConfirmDialog` (never
 `window.confirm`) before deactivating a user.
 
@@ -115,11 +119,11 @@ the API validates with. Inputs are the bound fields from `@repo/ui/components/fo
 full table and the zod-shape mapping are in `.claude/rules/ui.md`, Forms) inside a `FieldGroup`;
 never hand-write `Field` / `FieldLabel` / `Input` / `FieldError` for a standard input. Domain
 pickers live in the feature that owns the data: a user picker in `features/users/` wraps
-`ComboboxField` with `trpc.user.list` search (debounced, 20 results) and `user.byId` for the
-current value's label, and stores the user id. Field `hint` tooltips rely on the `TooltipProvider`
-that `app/layout.tsx` wraps the app in
-(next to `ThemeProvider` and `TRPCReactProvider`); do not add a second one per form. Auth forms
-submit through `authClient`, everything else through a tRPC mutation.
+`ComboboxField` with `trpc.user.list` search (debounced, 20 results) and `user.byId` for the current
+value's label, and stores the user id. Field `hint` tooltips rely on the `TooltipProvider` that
+`app/layout.tsx` wraps the app in (next to `ThemeProvider` and `TRPCReactProvider`); do not add a
+second one per form. Auth forms submit through `authClient`, everything else through a tRPC
+mutation.
 
 ```tsx
 // apps/web/features/auth/login-form.tsx
@@ -129,7 +133,10 @@ const form = useForm<SignInInput>({
 });
 
 const onSubmit = form.handleSubmit(async (values) => {
-  const { error } = await authClient.signIn.email({ ...values, callbackURL: next });
+  const { error } = await authClient.signIn.email({
+    ...values,
+    callbackURL: next,
+  });
   if (error) {
     setServerError({
       message: error.message ?? "Sign in failed",
@@ -147,29 +154,27 @@ const onSubmit = form.handleSubmit(async (values) => {
 </FieldGroup>;
 ```
 
-There is no register form: public sign-up is disabled (ADR 0002) and users are created through
-the admin plugin. `features/auth/resend-verification.tsx` re-sends the verification mail for an
-unverified account. `features/users/profile-form.tsx`
-(rendered by `/profile` via `profile-editor.tsx` and by `/users/[id]` via `user-editor.tsx`) uses
-`updateProfileSchema` and `trpc.user.updateProfile`; use `emptyAs="null"` on optional nullable
-fields so a cleared input stores `null`. Show server errors in an
-`Alert`; use `toast` (sonner) for mutation results.
+There is no register form: public sign-up is disabled (ADR 0002) and users are created through the
+admin plugin. `features/auth/resend-verification.tsx` re-sends the verification mail for an
+unverified account. `features/users/profile-form.tsx` (rendered by `/profile` via
+`profile-editor.tsx` and by `/users/[id]` via `user-editor.tsx`) uses `updateProfileSchema` and
+`trpc.user.updateProfile`; use `emptyAs="null"` on optional nullable fields so a cleared input
+stores `null`. Show server errors in an `Alert`; use `toast` (sonner) for mutation results.
 
 ## Env
 
-Only `NEXT_PUBLIC_*` variables reach the browser (`NEXT_PUBLIC_API_URL=http://localhost:4000`,
-read through `lib/env.ts`, which validates them with `createEnv` like the api and worker and
-throws at build/load time on a malformed value); they are inlined at build time, so reference
-them as `process.env.NEXT_PUBLIC_X` literally. Everything else stays on the server.
+Only `NEXT_PUBLIC_*` variables reach the browser (`NEXT_PUBLIC_API_URL=http://localhost:4000`, read
+through `lib/env.ts`, which validates them with `createEnv` like the api and worker and throws at
+build/load time on a malformed value); they are inlined at build time, so reference them as
+`process.env.NEXT_PUBLIC_X` literally. Everything else stays on the server.
 
 ## Gotchas
 
 - Yarn 4 with `nodeLinker: node-modules` is required (`.yarnrc.yml`); PnP breaks Next.js.
 - `apps/web` may import `@repo/api` types only; `@repo/database`, `@repo/queue`, `@repo/logger`,
-  `@repo/permissions/server` and the `@repo/auth` server entry are lint-forbidden in the web
-  element (use `@repo/permissions`, `@repo/permissions/react`, `@repo/auth/client`).
-- `superjson` must be configured on both the server (`init.ts`) and the client link, or dates
-  break.
+  `@repo/permissions/server` and the `@repo/auth` server entry are lint-forbidden in the web element
+  (use `@repo/permissions`, `@repo/permissions/react`, `@repo/auth/client`).
+- `superjson` must be configured on both the server (`init.ts`) and the client link, or dates break.
 - Server-side data pattern: server components read the session with `getServerSession` (plain
   `fetch` with the forwarded cookie) and leave tRPC data fetching to client components. Do not call
   the browser tRPC client from a server component.

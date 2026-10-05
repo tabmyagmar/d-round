@@ -6,8 +6,8 @@ Date: 2026-09-09
 
 A reusable monorepo template for single-tenant web applications built by a small team with AI
 agents: it must ship a runnable monorepo with tooling, conventions and agent orchestration before
-any feature, so that a new project starts coding on day one. The requirement is "latest stable
-of everything", pinned exactly, with incompatible pairs resolved explicitly rather than silently
+any feature, so that a new project starts coding on day one. The requirement is "latest stable of
+everything", pinned exactly, with incompatible pairs resolved explicitly rather than silently
 downgraded.
 
 ## Decision
@@ -41,26 +41,25 @@ reasons.
   `@eslint-react` are the maintained equivalents.
 - **Prisma 8.0**: release candidate only at decision time; 7.10 is the latest stable.
 - **Yarn PnP**: Next.js, Prisma and several ESLint plugins still assume a `node_modules` tree.
-- **Compiling workspace packages to `dist/`**: unnecessary — `tsdown` bundles the `@repo/*`
-  sources into the two Node apps and Next.js transpiles them for the web app.
+- **Compiling workspace packages to `dist/`**: unnecessary — `tsdown` bundles the `@repo/*` sources
+  into the two Node apps and Next.js transpiles them for the web app.
 - **A PostGIS image by default**: only projects with geodata need it; the image is a variable
-  (`POSTGRES_IMAGE`, `TEST_POSTGRES_IMAGE`, `CI_POSTGRES_IMAGE`) so such a project swaps it in
-  on day one without touching the compose file.
-- **Multi-tenant with the organization plugin**: not a requirement; it would put
-  `organizationId` on every table and into every CASL condition.
+  (`POSTGRES_IMAGE`, `TEST_POSTGRES_IMAGE`, `CI_POSTGRES_IMAGE`) so such a project swaps it in on
+  day one without touching the compose file.
+- **Multi-tenant with the organization plugin**: not a requirement; it would put `organizationId` on
+  every table and into every CASL condition.
 
 ## Consequences
 
-- Type-aware lint, layer boundaries and Prettier run on every commit and in CI; the architecture
-  is enforced by tooling, not by review.
+- Type-aware lint, layer boundaries and Prettier run on every commit and in CI; the architecture is
+  enforced by tooling, not by review.
 - Prisma 7 specifics everywhere: no `url` in `schema.prisma`, driver adapter mandatory, generated
   client git-ignored and rebuilt by `yarn db:generate` / `postinstall`.
-- BullMQ 6: ioredis is now an optional peer and is passed explicitly (RESP3 by default), the
-  legacy `repeat` option is replaced by job schedulers, `UnrecoverableError` marks permanent
-  failures.
+- BullMQ 6: ioredis is now an optional peer and is passed explicitly (RESP3 by default), the legacy
+  `repeat` option is replaced by job schedulers, `UnrecoverableError` marks permanent failures.
 - Exact pins make upgrades deliberate: `npm view <pkg> version`, ADR line for majors.
-- To revisit: TypeScript 7 (when typescript-eslint supports it), Prisma 8 (when stable),
-  Better Auth ↔ Prisma adapter compatibility on each Better Auth upgrade.
+- To revisit: TypeScript 7 (when typescript-eslint supports it), Prisma 8 (when stable), Better Auth
+  ↔ Prisma adapter compatibility on each Better Auth upgrade.
 
 ## Status
 

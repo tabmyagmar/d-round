@@ -12,42 +12,41 @@ database utilities. It is the only workspace that talks to PostgreSQL.
 
 - One file per aggregate: `src/repositories/<name>.repository.ts` exporting a factory
   `create<Name>Repository(db: DbClient)` whose methods are thin Prisma calls, plus
-  `export type <Name>Repository = ReturnType<typeof create<Name>Repository>`. Re-export it from
-  the barrel `src/repositories/index.ts`.
+  `export type <Name>Repository = ReturnType<typeof create<Name>Repository>`. Re-export it from the
+  barrel `src/repositories/index.ts`.
 - `DbClient = PrismaClient | Prisma.TransactionClient` (`src/utils/transaction.ts`), so the same
   factory runs inside a transaction: `create<Name>Repository(tx)`.
-- Inputs and outputs are Prisma types (`Prisma.<Name>WhereInput`, `Prisma.<Name>UpdateInput`,
-  model types). Expose model types to the rest of the repo through `src/index.ts`
+- Inputs and outputs are Prisma types (`Prisma.<Name>WhereInput`, `Prisma.<Name>UpdateInput`, model
+  types). Expose model types to the rest of the repo through `src/index.ts`
   (`export type { HealthCheck } from "./generated/prisma/client"`); nobody imports `src/generated`
   directly.
 - Forbidden inside repositories, lint-enforced by `boundaries/dependencies`: `zod`,
-  `@repo/validation`, `@repo/queue` and every transport library. Forbidden by review: business
-  rules ("cannot demote the last admin"), authorization decisions, workflow-state checks, logging
-  of request data, and throwing domain errors — repositories let Prisma/pg errors bubble up.
-- A repository method runs one query, or one obviously related pair such as `findMany` + `count`
-  for a page. Composing several writes into a unit of work is the service's job, via
-  `withTransaction`.
+  `@repo/validation`, `@repo/queue` and every transport library. Forbidden by review: business rules
+  ("cannot demote the last admin"), authorization decisions, workflow-state checks, logging of
+  request data, and throwing domain errors — repositories let Prisma/pg errors bubble up.
+- A repository method runs one query, or one obviously related pair such as `findMany` + `count` for
+  a page. Composing several writes into a unit of work is the service's job, via `withTransaction`.
 
 ## Raw SQL only here
 
 `$queryRaw` / `$executeRaw` are allowed only in repositories, only as tagged templates (parameters
-are bound, never interpolated), never `$queryRawUnsafe` with user input. Columns Prisma cannot
-model (e.g. PostGIS geometry) are declared with `Unsupported("...")` in the schema and accessed
-through raw queries in a repository.
+are bound, never interpolated), never `$queryRawUnsafe` with user input. Columns Prisma cannot model
+(e.g. PostGIS geometry) are declared with `Unsupported("...")` in the schema and accessed through
+raw queries in a repository.
 
 ## Soft delete
 
-Models that support soft delete carry `deletedAt DateTime? @map("deleted_at")`. Read methods
-filter `deletedAt: null` by default; a method that must see deleted rows says so in its name
-(`findByIdIncludingDeleted`). `softDelete(id)` sets `deletedAt: new Date()`; there is no
-hard-delete method unless a ticket explicitly asks for one.
+Models that support soft delete carry `deletedAt DateTime? @map("deleted_at")`. Read methods filter
+`deletedAt: null` by default; a method that must see deleted rows says so in its name
+(`findByIdIncludingDeleted`). `softDelete(id)` sets `deletedAt: new Date()`; there is no hard-delete
+method unless a ticket explicitly asks for one.
 
 ## Pagination
 
 Use `normalizePage`, `toSkipTake` and `buildPage` from `src/utils/pagination.ts`
-(`DEFAULT_PER_PAGE = 20`, `MAX_PER_PAGE = 100`). `normalizePage` clamps caller input —
-repositories never trust page parameters — and `buildPage(items, total, page)` returns the shared
-`PageResult<T>` (`items`, `total`, `page`, `perPage`, `totalPages`, `hasNext`, `hasPrev`).
+(`DEFAULT_PER_PAGE = 20`, `MAX_PER_PAGE = 100`). `normalizePage` clamps caller input — repositories
+never trust page parameters — and `buildPage(items, total, page)` returns the shared `PageResult<T>`
+(`items`, `total`, `page`, `perPage`, `totalPages`, `hasNext`, `hasPrev`).
 
 ```ts
 findMany: async (params: Partial<PageParams>, where: Prisma.UserWhereInput = {}) => {
@@ -84,26 +83,26 @@ await withTransaction(ctx.db, async ({ tx, afterCommit }) => {
 
 - `withTransaction(prisma, callback, options?)` (`src/utils/transaction.ts`) opens an interactive
   transaction and passes `tx` to the callback.
-- Hooks registered with `afterCommit` run sequentially **only after the commit succeeded** and
-  never on rollback. Queue producers, notifications and cache invalidation go there — never inside
-  the transaction body.
-- A failing hook does not undo the commit: failures are collected and thrown as
-  `AfterCommitError` once every hook has run (or handed to `options.onAfterCommitError`). Hooks
-  must be safe to retry; for queue producers the sweeper (`.claude/rules/queue.md`) covers the case
-  where the enqueue itself failed.
+- Hooks registered with `afterCommit` run sequentially **only after the commit succeeded** and never
+  on rollback. Queue producers, notifications and cache invalidation go there — never inside the
+  transaction body.
+- A failing hook does not undo the commit: failures are collected and thrown as `AfterCommitError`
+  once every hook has run (or handed to `options.onAfterCommitError`). Hooks must be safe to retry;
+  for queue producers the sweeper (`.claude/rules/queue.md`) covers the case where the enqueue
+  itself failed.
 - `isolationLevel`, `maxWait` and `timeout` go in `options` when the defaults are not enough.
 
 ## Client
 
-`src/client.ts`: `createPrismaClient({ connectionString, maxConnections? })` builds a
-`PrismaClient` on the `@prisma/adapter-pg` driver adapter (required by Prisma 7). Long-running apps
-use the process singleton `getPrismaClient(...)` / `disconnectPrismaClient()`; tests create one
-client per container (`@repo/database/test`). Never `new PrismaClient()` anywhere else.
+`src/client.ts`: `createPrismaClient({ connectionString, maxConnections? })` builds a `PrismaClient`
+on the `@prisma/adapter-pg` driver adapter (required by Prisma 7). Long-running apps use the process
+singleton `getPrismaClient(...)` / `disconnectPrismaClient()`; tests create one client per container
+(`@repo/database/test`). Never `new PrismaClient()` anywhere else.
 
 ## Tests
 
-Repository tests live in `packages/database/test/repositories/<name>.repository.test.ts`
-(mirroring `src/repositories/`) and run against the testcontainers Postgres provided by
-`test/global-setup.ts` (`inject("databaseUrl")`); `startTestDatabase()` applies the committed
-migrations with `prisma migrate deploy`. Use unique data per test — the container is shared by the
-whole package run. See `.claude/rules/testing.md`.
+Repository tests live in `packages/database/test/repositories/<name>.repository.test.ts` (mirroring
+`src/repositories/`) and run against the testcontainers Postgres provided by `test/global-setup.ts`
+(`inject("databaseUrl")`); `startTestDatabase()` applies the committed migrations with
+`prisma migrate deploy`. Use unique data per test — the container is shared by the whole package
+run. See `.claude/rules/testing.md`.

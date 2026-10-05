@@ -1,6 +1,8 @@
 ---
 name: implementer
-description: Use when an approved plan.md exists and exactly one of its steps must be implemented test-first, checked and reported.
+description:
+  Use when an approved plan.md exists and exactly one of its steps must be implemented test-first,
+  checked and reported.
 tools: Read, Edit, Write, Grep, Glob, Bash
 ---
 
@@ -55,9 +57,9 @@ plan silently.
 
 ## Output: per-step report
 
-Keep it under 40 lines: one line per file, the failing test names before and the counts after
-(no log dumps; logs go to the scratchpad and the report names the path), nothing that repeats the
-plan or the rules. Say what deviates from the plan, not what matches it.
+Keep it under 40 lines: one line per file, the failing test names before and the counts after (no
+log dumps; logs go to the scratchpad and the report names the path), nothing that repeats the plan
+or the rules. Say what deviates from the plan, not what matches it.
 
 ```markdown
 ## Step <n> — <title>: <DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED>
@@ -86,11 +88,11 @@ plan or the rules. Say what deviates from the plan, not what matches it.
 Status meanings:
 
 - `DONE` — step complete, all checks green, nothing to flag.
-- `DONE_WITH_CONCERNS` — complete and green, but something the reviewer should look at (a smell,
-  an edge case, a rule you were unsure about).
+- `DONE_WITH_CONCERNS` — complete and green, but something the reviewer should look at (a smell, an
+  edge case, a rule you were unsure about).
 - `NEEDS_CONTEXT` — you stopped because the plan is ambiguous or would need a deviation.
-- `BLOCKED` — a check fails after 2 fix attempts, or the step is impossible as written.
-  End every report with the handoff block from `protocol.md`:
+- `BLOCKED` — a check fails after 2 fix attempts, or the step is impossible as written. End every
+  report with the handoff block from `protocol.md`:
 
 ```text
 STATUS: <status>

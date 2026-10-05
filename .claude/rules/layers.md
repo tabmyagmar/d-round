@@ -1,7 +1,7 @@
 # Layer contract
 
-Every request flows in one direction. A layer may import from itself, from the layer directly
-below it, and from shared packages — never upward and never around a layer.
+Every request flows in one direction. A layer may import from itself, from the layer directly below
+it, and from shared packages — never upward and never around a layer.
 
 ```text
 transport    apps/api/src/trpc            (later: apps/api/src/graphql, apps/api/src/rest)
@@ -93,20 +93,20 @@ import { createWorker } from "@repo/queue";
 
 ## Composition roots may import anything
 
-`apps/api/src/index.ts`, `app.ts`, `env.ts`, `middleware/`, `health/` and `lib/` form the
-`api-app` element: they create the database client, the Redis connection and the logger, build the
-Hono app, mount transports and register graceful shutdown. That is the only place where all layers
-meet. `apps/worker/src/index.ts` plays the same role inside the worker.
+`apps/api/src/index.ts`, `app.ts`, `env.ts`, `middleware/`, `health/` and `lib/` form the `api-app`
+element: they create the database client, the Redis connection and the logger, build the Hono app,
+mount transports and register graceful shutdown. That is the only place where all layers meet.
+`apps/worker/src/index.ts` plays the same role inside the worker.
 
 ## Enforcement
 
 - Rule `boundaries/dependencies` (`eslint-plugin-boundaries`) configured in
-  `packages/eslint-config/boundaries.js` with `default: "disallow"`; policies are evaluated in
-  order and the last matching policy wins. `@repo/*` imports are matched by package name, so the
-  rules do not depend on how workspace symlinks resolve.
+  `packages/eslint-config/boundaries.js` with `default: "disallow"`; policies are evaluated in order
+  and the last matching policy wins. `@repo/*` imports are matched by package name, so the rules do
+  not depend on how workspace symlinks resolve.
 - A violation is an ESLint error: `yarn lint` fails, `lint-staged` blocks the commit, CI fails.
 - Never add `eslint-disable` for `boundaries/dependencies`. A boundary error means the code is in
   the wrong layer — move it: business rule into the service, data access into the repository,
   transport concern into the router or `core/error-mapping.ts`.
-- Adding a transport later (`apps/api/src/graphql`, `apps/api/src/rest`) needs no rule change:
-  those folders are already classified as `api-transport`.
+- Adding a transport later (`apps/api/src/graphql`, `apps/api/src/rest`) needs no rule change: those
+  folders are already classified as `api-transport`.

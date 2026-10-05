@@ -55,7 +55,10 @@ export const updateProfileSchema = z.object({
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
-export const changeRoleSchema = z.object({ userId: idSchema, role: roleSchema });
+export const changeRoleSchema = z.object({
+  userId: idSchema,
+  role: roleSchema,
+});
 
 export const listUsersSchema = paginationSchema.extend({
   search: z.string().trim().min(1).max(100).optional(),
@@ -65,9 +68,9 @@ export type ListUsersQuery = z.output<typeof listUsersSchema>;
 ```
 
 Schemas describe **input shape** only. Rules that need data (uniqueness, state transitions, "last
-admin") belong in the service. Re-export from `packages/validation/src/index.ts`. The same file
-also holds `signInSchema`, which the login form shares with Better Auth (public sign-up is
-disabled; users are created through `auth.api.createUser`).
+admin") belong in the service. Re-export from `packages/validation/src/index.ts`. The same file also
+holds `signInSchema`, which the login form shares with Better Auth (public sign-up is disabled;
+users are created through `auth.api.createUser`).
 
 ## 2. Repository — `packages/database/src/repositories/user.repository.ts`
 
@@ -88,7 +91,11 @@ export const createUserRepository = (db: DbClient) => ({
     const page = normalizePage(params);
     const scoped: Prisma.UserWhereInput = { AND: [where, { deletedAt: null }] };
     const [items, total] = await Promise.all([
-      db.user.findMany({ where: scoped, ...toSkipTake(page), orderBy: { createdAt: "desc" } }),
+      db.user.findMany({
+        where: scoped,
+        ...toSkipTake(page),
+        orderBy: { createdAt: "desc" },
+      }),
       db.user.count({ where: scoped }),
     ]);
     return buildPage(items, total, page);
@@ -119,8 +126,8 @@ export type UserRepository = ReturnType<typeof createUserRepository>;
 `withTransaction` (`createUserRepository(tx)`). Read methods exclude soft-deleted rows unless the
 name says otherwise (`findByIdIncludingDeleted`). The `where` a list method receives is composed by
 the service (ability filter + search) and passed through as a Prisma type. No zod, no
-`@repo/validation`, no `@repo/queue`, no business decisions — the linter rejects the imports and
-the reviewer rejects the rest (`.claude/rules/repositories.md`).
+`@repo/validation`, no `@repo/queue`, no business decisions — the linter rejects the imports and the
+reviewer rejects the rest (`.claude/rules/repositories.md`).
 
 ## 3. Service — `apps/api/src/modules/user/user.service.ts`
 
@@ -228,17 +235,16 @@ Rules:
 - Two authorization layers (`.claude/rules/permissions.md`): the router ran
   `requireAbility(action, "User")` (coarse); the service checks the concrete row with
   `ctx.ability.can(action, prismaUserSubject(row))` and applies stateful rules (last admin,
-  self-deactivation). A service never assumes the router already checked something that matters
-  for its own invariants.
+  self-deactivation). A service never assumes the router already checked something that matters for
+  its own invariants.
 - Throw only `NotFoundError`, `ForbiddenError`, `ConflictError`, `ValidationError` from
   `apps/api/src/core/errors.ts`. Never `TRPCError`, never a bare `Error` for an expected failure.
-- Translate database constraint failures here with `translateDatabaseError` /
-  `isUniqueViolation` from `@repo/database` into `ConflictError`; nothing else compares Prisma or
-  Postgres error codes.
+- Translate database constraint failures here with `translateDatabaseError` / `isUniqueViolation`
+  from `@repo/database` into `ConflictError`; nothing else compares Prisma or Postgres error codes.
 - Multi-statement writes and read-then-write invariants use
-  `withTransaction(ctx.db, async ({ tx, afterCommit }) => ...)` (`@repo/database`); queue
-  producers and other side effects are registered with `afterCommit` and never run inside the
-  transaction (`.claude/rules/queue.md`, `apps/api/src/modules/email/email.service.ts`).
+  `withTransaction(ctx.db, async ({ tx, afterCommit }) => ...)` (`@repo/database`); queue producers
+  and other side effects are registered with `afterCommit` and never run inside the transaction
+  (`.claude/rules/queue.md`, `apps/api/src/modules/email/email.service.ts`).
 - Named exports, one function per concern, no default export, no transport imports.
 - The `health` service is the single exception to "ctx first": it is infrastructure-level and runs
   before any request context exists.
@@ -288,17 +294,16 @@ Rules:
 
 - Every procedure is exactly `protectedProcedure.use(requireAbility(action, subject))` →
   `input(zodSchema)` → one service call. No `if`, no Prisma, no result shaping, no try/catch —
-  `apps/api/src/trpc/init.ts` already maps domain errors to `TRPCError` and adds `requestId` to
-  the error payload.
+  `apps/api/src/trpc/init.ts` already maps domain errors to `TRPCError` and adds `requestId` to the
+  error payload.
 - `requireAbility` (`apps/api/src/trpc/init.ts`) throws `ForbiddenError` when
-  `ctx.ability.can(action, subjectName)` is false, before the service runs. `publicProcedure` is
-  for health and auth-less endpoints only.
+  `ctx.ability.can(action, subjectName)` is false, before the service runs. `publicProcedure` is for
+  health and auth-less endpoints only.
 - Register in `apps/api/src/trpc/router.ts`; `AppRouter` is the type `apps/web` consumes.
 
 ## 5. Tests — `apps/api/test/support.ts`
 
-Every API test uses the shared harness (real Postgres + Redis via testcontainers, real Better
-Auth):
+Every API test uses the shared harness (real Postgres + Redis via testcontainers, real Better Auth):
 
 ```ts
 import { contextFor, createHarness, signedInUser } from "../../../test/support";
@@ -328,8 +333,8 @@ it("maps layer-1 denials to FORBIDDEN before touching the service", async () => 
 - `createHarness()` builds `db`, `redis`, `auth`, `emailQueue`, a silent logger and collects the
   verification mails Better Auth asked for (`sentMails`).
 - `signedInUser(h, { role, name })` creates a verified user with the requested role through
-  `auth.api.createUser` (server-side, so no session is needed), signs in for real and
-  returns `{ user, email, headers }` — `headers` carries the session cookie.
+  `auth.api.createUser` (server-side, so no session is needed), signs in for real and returns
+  `{ user, email, headers }` — `headers` carries the session cookie.
 - `contextFor(h, headers)` builds a `RequestContext` exactly as the transport would
   (`buildRequestContext`), so service tests call the service directly with that context
   (`userService.getById(ctx, id)`) and router tests go through `createCallerFactory(appRouter)`.

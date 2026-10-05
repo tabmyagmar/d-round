@@ -2,12 +2,12 @@
 
 {{PROJECT_DESCRIPTION}}
 
-Built from the Turborepo monorepo template: a Hono + tRPC API, a BullMQ worker and a Next.js 16
-app on top of Prisma 7 / PostgreSQL, Redis, Better Auth and CASL, with Docker services,
-testcontainers, CI and the Claude Code orchestration files already wired. Auth (admin-created
-users, verified email, sessions), a `user` reference module (list, profile, catalog roles,
-deactivate) and a transactional email outbox are included so a new project starts from a working
-vertical slice instead of an empty shell.
+Built from the Turborepo monorepo template: a Hono + tRPC API, a BullMQ worker and a Next.js 16 app
+on top of Prisma 7 / PostgreSQL, Redis, Better Auth and CASL, with Docker services, testcontainers,
+CI and the Claude Code orchestration files already wired. Auth (admin-created users, verified email,
+sessions), a `user` reference module (list, profile, catalog roles, deactivate) and a transactional
+email outbox are included so a new project starts from a working vertical slice instead of an empty
+shell.
 
 ## New project from this template
 
@@ -41,14 +41,13 @@ git push -u origin main                    # CI: migrations, schema drift, verif
 ```
 
 Then follow `.claude/rules/module-template.md` for the first feature module. Mark the source
-repository as a _template repository_ in its GitHub settings so `gh repo create --template`
-works. Delete `TEMPLATE_AUDIT.md` once you no longer need the history of this template pass.
+repository as a _template repository_ in its GitHub settings so `gh repo create --template` works.
+Delete `TEMPLATE_AUDIT.md` once you no longer need the history of this template pass.
 
 ## Prerequisites
 
 - **Node 24** — the version is in `.nvmrc` (`nvm use` / `fnm use`).
-- **Yarn 4** via Corepack: `corepack enable` (the version comes from
-  `package.json#packageManager`).
+- **Yarn 4** via Corepack: `corepack enable` (the version comes from `package.json#packageManager`).
 - **Docker Desktop** — for Postgres, Redis, Mailpit and pgAdmin, and for the testcontainers the
   tests use.
 
@@ -77,9 +76,9 @@ Then sign in at http://localhost:3000/login as `admin@test.com` / `A12345678` (o
 
 ### Environment variables
 
-`.env.example` documents every variable. Each app validates its own subset once at startup with
-zod (`apps/api/src/env.ts`, `apps/worker/src/env.ts`, `apps/web/lib/env.ts`) and refuses to start
-on a missing or malformed value.
+`.env.example` documents every variable. Each app validates its own subset once at startup with zod
+(`apps/api/src/env.ts`, `apps/worker/src/env.ts`, `apps/web/lib/env.ts`) and refuses to start on a
+missing or malformed value.
 
 | Variable              | Used by    | Meaning                                                                                                  |
 | --------------------- | ---------- | -------------------------------------------------------------------------------------------------------- |
@@ -101,19 +100,19 @@ The web app's name, description and `<html lang>` live in `apps/web/lib/brand.ts
 - **Auth** (`packages/auth`, Better Auth): email + password sign-in for users an admin creates
   (`auth.api.createUser`; public sign-up is disabled), email verification, 7-day cookie sessions,
   the admin plugin with roles `super_admin | admin | manager | staff`. The API mounts it at
-  `/api/auth`; the web app has
-  `/login` and `/verify-email`. Until an admin UI exists, users come from `yarn db:seed` (the test
-  accounts) or from `POST /api/auth/admin/create-user` / `authClient.admin.createUser` with an
-  admin session.
-- **User module** (the reference module): `user.me / byId / list / updateProfile / changeRole /
-deactivate` behind two-layer authorization — CASL abilities built from the catalog grants in the
-  session (`packages/permissions`; spec: `packages/permissions/test/ability.test.ts` and
-  `apps/api/test/permission-catalog.test.ts`) plus stateful service rules (the last active admin
-  cannot be demoted or deactivated; deactivation soft-deletes the user and deletes its sessions in
-  one transaction). Web: `/dashboard`, `/users`, `/users/[id]`, `/profile`.
-- **Transactional outbox** (`docs/adr/0004-outbox.md`): the API writes an `outbox_emails` row
-  inside the transaction and enqueues an ID-only BullMQ job after commit; the worker renders and
-  sends through SMTP (Mailpit locally) with retries, and a sweeper re-enqueues stale rows.
+  `/api/auth`; the web app has `/login` and `/verify-email`. Until an admin UI exists, users come
+  from `yarn db:seed` (the test accounts) or from `POST /api/auth/admin/create-user` /
+  `authClient.admin.createUser` with an admin session.
+- **User module** (the reference module):
+  `user.me / byId / list / updateProfile / changeRole / deactivate` behind two-layer authorization —
+  CASL abilities built from the catalog grants in the session (`packages/permissions`; spec:
+  `packages/permissions/test/ability.test.ts` and `apps/api/test/permission-catalog.test.ts`) plus
+  stateful service rules (the last active admin cannot be demoted or deactivated; deactivation
+  soft-deletes the user and deletes its sessions in one transaction). Web: `/dashboard`, `/users`,
+  `/users/[id]`, `/profile`.
+- **Transactional outbox** (`docs/adr/0004-outbox.md`): the API writes an `outbox_emails` row inside
+  the transaction and enqueues an ID-only BullMQ job after commit; the worker renders and sends
+  through SMTP (Mailpit locally) with retries, and a sweeper re-enqueues stale rows.
 - **Health**: `GET /health` (Postgres + Redis probes) and tRPC `health.ping`; ordered graceful
   shutdown in api and worker; pino logging with redaction and request ids.
 
@@ -223,12 +222,11 @@ fails `yarn lint`. Details and rationale: `docs/conventions.md`, `.claude/rules/
 
 ## How to add a new module
 
-Follow `.claude/rules/module-template.md`: four files (`<name>.schema.ts` in
-`packages/validation`, `<name>.repository.ts` in `packages/database`, `<name>.service.ts` in
-`apps/api/src/modules/<name>`, `<name>.router.ts` in `apps/api/src/trpc/routers`), tests under each
-workspace's `test/` folder mirroring `src/`, and the router registered in
-`apps/api/src/trpc/router.ts`. The user module is the reference
-implementation — read these four files first:
+Follow `.claude/rules/module-template.md`: four files (`<name>.schema.ts` in `packages/validation`,
+`<name>.repository.ts` in `packages/database`, `<name>.service.ts` in `apps/api/src/modules/<name>`,
+`<name>.router.ts` in `apps/api/src/trpc/routers`), tests under each workspace's `test/` folder
+mirroring `src/`, and the router registered in `apps/api/src/trpc/router.ts`. The user module is the
+reference implementation — read these four files first:
 
 - `packages/validation/src/user.schema.ts` — zod schemas shared with the web forms
 - `packages/database/src/repositories/user.repository.ts` — pure data access
@@ -247,17 +245,17 @@ and their tests (`packages/database/test/repositories/user.repository.test.ts`,
 - `CLAUDE.md` — the single source of truth for agents (architecture, working rules, style).
   `AGENTS.md` points to it for other tools.
 - `protocol.md` — the planner → implementer → verifier → reviewer flow, limits and guardrails.
-- `.claude/agents/` — the four subagents; `.claude/rules/` — path-scoped rules loaded
-  automatically (`docs.md` says which file owns each fact); `.claude/skills/` — library how-tos; `.claude/settings.json` — command allow and
-  deny lists (no destructive git or database commands, no reading `.env`).
+- `.claude/agents/` — the four subagents; `.claude/rules/` — path-scoped rules loaded automatically
+  (`docs.md` says which file owns each fact); `.claude/skills/` — library how-tos;
+  `.claude/settings.json` — command allow and deny lists (no destructive git or database commands,
+  no reading `.env`).
 - AI-assisted commits carry the attribution trailer described in
   `docs/conventions.md#ai-attribution`; pull requests follow `.github/PULL_REQUEST_TEMPLATE.md`.
 
 ## Documentation
 
-- `docs/conventions.md` — layer contract, lint rule rationale, commits, environment,
-  authentication and sessions, testing, IDs, errors, queue semantics, failed jobs, Docker notes,
-  versions policy.
+- `docs/conventions.md` — layer contract, lint rule rationale, commits, environment, authentication
+  and sessions, testing, IDs, errors, queue semantics, failed jobs, Docker notes, versions policy.
 - `docs/plans/` — the plan of each closed ticket (`plan.md` while the ticket is open).
 - `docs/adr/` — architecture decision records: `0001-stack.md`, `0002-auth.md` (Better Auth),
   `0003-permissions.md` (two-layer authorization), `0004-outbox.md` (transactional outbox).
@@ -266,8 +264,8 @@ and their tests (`packages/database/test/repositories/user.repository.test.ts`,
 
 `.github/workflows/ci.yml` runs on pushes to `main`, on pull requests and on demand
 (`workflow_dispatch`): Postgres (`postgres:18-alpine`, overridable with the `CI_POSTGRES_IMAGE`
-repository variable) and Redis (`redis:8-alpine`) service containers → Node from `.nvmrc` →
-Corepack → Yarn and Turborepo caches → `yarn install --immutable` (runs `prisma generate`) →
+repository variable) and Redis (`redis:8-alpine`) service containers → Node from `.nvmrc` → Corepack
+→ Yarn and Turborepo caches → `yarn install --immutable` (runs `prisma generate`) →
 `yarn db:migrate` → schema-drift check
 (`prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code`) →
 `yarn verify` → commitlint on the pull request's commits. Dependency updates come from Renovate

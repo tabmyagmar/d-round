@@ -1,6 +1,8 @@
 ---
 name: trpc
-description: Use when adding or changing a tRPC router or procedure, wiring error mapping, or calling a procedure from the Next.js app.
+description:
+  Use when adding or changing a tRPC router or procedure, wiring error mapping, or calling a
+  procedure from the Next.js app.
 ---
 
 # tRPC 11 in this repo
@@ -14,11 +16,11 @@ service call**. Rules: `.claude/rules/module-template.md`, `.claude/rules/layers
 
 ## Building blocks (`apps/api/src/trpc/init.ts`)
 
-- `initTRPC.context<RequestContext>()` with the `superjson` transformer; the `errorFormatter`
-  adds `requestId` to `error.data`.
-- `publicProcedure` = `t.procedure.use(domainErrorMapping)`: a middleware that turns domain
-  errors thrown by services into `TRPCError` via `toTRPCError` (`core/error-mapping.ts`) and logs
-  the failure once (`warn` for rejected requests, `error` for internal failures).
+- `initTRPC.context<RequestContext>()` with the `superjson` transformer; the `errorFormatter` adds
+  `requestId` to `error.data`.
+- `publicProcedure` = `t.procedure.use(domainErrorMapping)`: a middleware that turns domain errors
+  thrown by services into `TRPCError` via `toTRPCError` (`core/error-mapping.ts`) and logs the
+  failure once (`warn` for rejected requests, `error` for internal failures).
 - `protectedProcedure` = `publicProcedure` + `UNAUTHORIZED` when `ctx.user` is null; narrows
   `ctx.user` to non-null for the procedure.
 - `requireAbility(action, subjectName)` = a middleware that throws `ForbiddenError` when
@@ -36,10 +38,9 @@ service call**. Rules: `.claude/rules/module-template.md`, `.claude/rules/layers
   ```
 
 - `router`, `mergeRouters`, `createCallerFactory` are re-exported for routers and tests.
-- Context: `buildRequestContext({ headers, requestId }, deps)` in `core/context.ts` — resolves
-  the Better Auth session (`auth.api.getSession({ headers })`) into `ctx.user` and builds
-  `ctx.ability` (`definePrismaAbilityFor`). Every transport wraps it; nothing else builds a
-  context.
+- Context: `buildRequestContext({ headers, requestId }, deps)` in `core/context.ts` — resolves the
+  Better Auth session (`auth.api.getSession({ headers })`) into `ctx.user` and builds `ctx.ability`
+  (`definePrismaAbilityFor`). Every transport wraps it; nothing else builds a context.
 
 ## How-to: add a procedure
 
@@ -121,8 +122,8 @@ Unknown errors never leak their message ("Internal server error"); the cause is 
 - In components: `const trpc = useTRPC();` then
   `useQuery(trpc.user.list.queryOptions({ page, perPage, search, role }))` (`users-table.tsx`),
   `useMutation(trpc.user.changeRole.mutationOptions({ onSuccess, onError }))` (`user-editor.tsx`).
-  Naming mirrors the server (`trpc.<router>.<procedure>`); do not wrap calls in custom hooks
-  unless two components share the exact same call.
+  Naming mirrors the server (`trpc.<router>.<procedure>`); do not wrap calls in custom hooks unless
+  two components share the exact same call.
 - Query keys come from `queryOptions` / `queryKey()` / `pathFilter()` — never hand-written.
   Invalidate a whole router with `queryClient.invalidateQueries(trpc.user.pathFilter())`.
 
@@ -135,5 +136,5 @@ Unknown errors never leak their message ("Internal server error"); the cause is 
   `/trpc/user.me` with the Better Auth cookie is the smoke test for session resolution.
 - Routers import `@repo/database` **types** only (value imports are lint-forbidden there).
 - The `errorFormatter` exposes `requestId`; surface it in the web error UI so users can quote it.
-- CORS on `/trpc/*` allows only `WEB_ORIGIN` with credentials; a new request header must be added
-  to `allowHeaders` in `apps/api/src/app.ts`.
+- CORS on `/trpc/*` allows only `WEB_ORIGIN` with credentials; a new request header must be added to
+  `allowHeaders` in `apps/api/src/app.ts`.

@@ -1,6 +1,8 @@
 ---
 name: better-auth
-description: Use when configuring Better Auth, generating its Prisma models, reading the session on the server or client, or working with the admin plugin's roles.
+description:
+  Use when configuring Better Auth, generating its Prisma models, reading the session on the server
+  or client, or working with the admin plugin's roles.
 ---
 
 # Better Auth 1.7
@@ -15,17 +17,17 @@ writing any config — do not guess option names.** Decision record: `docs/adr/0
 
 - `packages/auth/src/server.ts` — `createAuth(options)` wraps `betterAuth({...})`: `prismaAdapter`
   (`provider: "postgresql"`), `basePath: "/api/auth"`, `emailAndPassword` with
-  `requireEmailVerification`, `emailVerification` (`sendOnSignUp`, `autoSignInAfterVerification`,
-  1 h expiry), `session` 7 d / `updateAge` 1 d, `advanced.database.generateId: false` (Postgres
-  makes UUID v7), optional `crossSubDomainCookies`, the admin plugin, and `customSession(fn, base)`:
-  every session lookup runs one `findEffectiveGrants` query and adds `user.permissions`
+  `requireEmailVerification`, `emailVerification` (`sendOnSignUp`, `autoSignInAfterVerification`, 1
+  h expiry), `session` 7 d / `updateAge` 1 d, `advanced.database.generateId: false` (Postgres makes
+  UUID v7), optional `crossSubDomainCookies`, the admin plugin, and `customSession(fn, base)`: every
+  session lookup runs one `findEffectiveGrants` query and adds `user.permissions`
   (`{ action, subject }[]`, ADR 0003). Public sign-up is off (`disableSignUp`).
 - `packages/auth/src/access-control.ts` — `createAccessControl(defaultStatements)` and the four
   roles for the admin plugin's own endpoints; re-exports `ADMIN_ROLES` (`["super_admin", "admin"]`,
   defined in `@repo/validation`).
-- `packages/auth/src/client.ts` — `createAuthReactClient(baseURL)`: `createAuthClient` (React)
-  with `inferAdditionalFields<Auth>()`, `customSessionClient<Auth>()` (so `session.user.permissions`
-  is typed) and `adminClient({ ac, roles })`, `credentials: "include"`.
+- `packages/auth/src/client.ts` — `createAuthReactClient(baseURL)`: `createAuthClient` (React) with
+  `inferAdditionalFields<Auth>()`, `customSessionClient<Auth>()` (so `session.user.permissions` is
+  typed) and `adminClient({ ac, roles })`, `credentials: "include"`.
 - `packages/auth/auth-cli.config.ts` — exists only for `npx auth generate`.
 - `apps/api/src/index.ts` instantiates it (`secret: env.BETTER_AUTH_SECRET`, `baseURL: env.API_URL`,
   `trustedOrigins: [env.WEB_ORIGIN]`, `cookieDomain: env.COOKIE_DOMAIN`); `apps/api/src/app.ts`
@@ -47,7 +49,11 @@ const auth = createAuth({
   sendVerificationEmail: async ({ user, url }) => {
     await sendEmail(
       { db, emailQueue, logger },
-      { to: user.email, template: EMAIL_TEMPLATES.verification, payload: { name: user.name, url } },
+      {
+        to: user.email,
+        template: EMAIL_TEMPLATES.verification,
+        payload: { name: user.name, url },
+      },
     );
   },
 });
@@ -63,9 +69,8 @@ const user = session ? toAuthUser(session.user) : null;
 ```
 
 Call it once per request in `buildRequestContext`; services receive `ctx.user` (`AuthUser`: `id`,
-`email`, `name`, `role`, `emailVerified`, `permissions`) and never call Better Auth
-for identity. `toAuthUser` parses `role` with `roleSchema` and falls back to `DEFAULT_ROLE` for
-unknown strings.
+`email`, `name`, `role`, `emailVerified`, `permissions`) and never call Better Auth for identity.
+`toAuthUser` parses `role` with `roleSchema` and falls back to `DEFAULT_ROLE` for unknown strings.
 
 In `apps/web`, `getServerSession()` (`apps/web/lib/auth/server.ts`) forwards the browser cookie to
 `${NEXT_PUBLIC_API_URL}/api/auth/get-session`; the browser uses `authClient`
@@ -102,7 +107,11 @@ export const signedInUser = async (harness, options = {}) => {
     body: { email, password: TEST_PASSWORD },
     asResponse: true,
   });
-  return { user, email, headers: new Headers({ cookie: cookieHeaderFrom(response) }) };
+  return {
+    user,
+    email,
+    headers: new Headers({ cookie: cookieHeaderFrom(response) }),
+  };
 };
 ```
 
@@ -124,15 +133,15 @@ user `DENY` row removes one, an `ALLOW` row adds one).
 
 ## Admin plugin and roles
 
-Roles `super_admin | admin | manager | staff` live on `users.role` (a string with a foreign key
-to the `roles` catalog, default `staff`; `ROLES` / `ADMIN_ROLES` in `@repo/validation`). Public
-sign-up is disabled (`emailAndPassword.disableSignUp`): users are created with
-`auth.api.createUser`, which rejects a role outside the `roles` map. Extra profile fields
-go through `user.additionalFields` in `createAuth` plus a schema migration (`.claude/rules/migrations.md`).
-The admin plugin's access control (`ac`, `roles`, `adminRoles`) gates only the plugin's own
-endpoints (set role, ban, revoke sessions); application authorization is CASL
-(`.claude/rules/permissions.md`). Changing a user's role in the app goes through
-`user.changeRole` (our service, last-admin rule), not through the admin plugin's `setRole`.
+Roles `super_admin | admin | manager | staff` live on `users.role` (a string with a foreign key to
+the `roles` catalog, default `staff`; `ROLES` / `ADMIN_ROLES` in `@repo/validation`). Public sign-up
+is disabled (`emailAndPassword.disableSignUp`): users are created with `auth.api.createUser`, which
+rejects a role outside the `roles` map. Extra profile fields go through `user.additionalFields` in
+`createAuth` plus a schema migration (`.claude/rules/migrations.md`). The admin plugin's access
+control (`ac`, `roles`, `adminRoles`) gates only the plugin's own endpoints (set role, ban, revoke
+sessions); application authorization is CASL (`.claude/rules/permissions.md`). Changing a user's
+role in the app goes through `user.changeRole` (our service, last-admin rule), not through the admin
+plugin's `setRole`.
 
 ## Gotchas
 
@@ -145,5 +154,5 @@ endpoints (set role, ban, revoke sessions); application authorization is CASL
   (`apps/api/src/middleware/rate-limit.ts`, 10 attempts / minute, 60 s block, 429 + `Retry-After`).
 - Untrusted origins: Better Auth applies its own origin/CSRF checks; the HTTP tests cover CORS
   preflight (`apps/api/test/app.test.ts`), not a 4xx on a forged `Origin`.
-- Version pinning: check `npm view better-auth version` and the Prisma adapter compatibility
-  before upgrading; record breaking changes in an ADR.
+- Version pinning: check `npm view better-auth version` and the Prisma adapter compatibility before
+  upgrading; record breaking changes in an ADR.

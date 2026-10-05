@@ -12,6 +12,9 @@ const config = {
   plugins: ["prettier-plugin-tailwindcss"],
   // Tailwind v4 has no config file; the plugin needs the CSS entry to sort classes.
   tailwindStylesheet: "./packages/ui/src/styles/globals.css",
+  // Markdown prose is wrapped by the formatter, never by hand (.claude/rules/docs.md). Only
+  // Markdown: YAML plain scalars would otherwise be rewrapped too.
+  overrides: [{ files: "*.md", options: { proseWrap: "always" } }],
 };
 
 export default config;

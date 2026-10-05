@@ -1,6 +1,8 @@
 ---
 name: adr
-description: Use when a decision changes the schema, swaps or adds a dependency, or picks between architectural options that later work depends on.
+description:
+  Use when a decision changes the schema, swaps or adds a dependency, or picks between architectural
+  options that later work depends on.
 ---
 
 # Architecture Decision Records
@@ -36,33 +38,30 @@ Date: YYYY-MM-DD
 
 ## How-to
 
-1. Next number: `ls docs/adr` → `NNNN-<kebab-title>.md`. Existing: `0001-stack.md`,
-   `0002-auth.md`, `0003-permissions.md`, `0004-outbox.md`, `0005-legacy-reference-data.md`; the
-   next one is `0006`.
+1. Next number: `ls docs/adr` → `NNNN-<kebab-title>.md`. Existing: `0001-stack.md`, `0002-auth.md`,
+   `0003-permissions.md`, `0004-outbox.md`, `0005-legacy-reference-data.md`; the next one is `0006`.
 2. Write the five bullets; keep the whole file under one screen. Link related ADRs.
-3. For a schema change inside an existing area, add a dated line under a `## Changes` heading of
-   the existing ADR instead of a new file.
-4. Reference the ADR in the MR description and, for schema changes, in the migration commit
-   message.
+3. For a schema change inside an existing area, add a dated line under a `## Changes` heading of the
+   existing ADR instead of a new file.
+4. Reference the ADR in the MR description and, for schema changes, in the migration commit message.
 5. Superseding: set the old status to `superseded by NNNN`; never delete an ADR.
 
 ## Examples in the repo
 
-- `docs/adr/0002-auth.md` — Better Auth: config location, generated models merged with our
-  mappings, `role String @default("staff")` with a foreign key to the `roles` catalog instead of a
-  Prisma enum (with the reason: Better Auth writes strings), sign-up disabled, cookies/CORS, rate
-  limit. Rejected: own sessions, Clerk/Supabase.
+- `docs/adr/0002-auth.md` — Better Auth: config location, generated models merged with our mappings,
+  `role String @default("staff")` with a foreign key to the `roles` catalog instead of a Prisma enum
+  (with the reason: Better Auth writes strings), sign-up disabled, cookies/CORS, rate limit.
+  Rejected: own sessions, Clerk/Supabase.
 - `docs/adr/0003-permissions.md` — two-layer authorization: CASL rules built twice (browser and
-  Prisma) from the catalog grants in the session, stateful rules in services, the unit spec plus
-  the DB-backed catalog test. Rejected: Better Auth statements
-  only, Cerbos/OpenFGA.
+  Prisma) from the catalog grants in the session, stateful rules in services, the unit spec plus the
+  DB-backed catalog test. Rejected: Better Auth statements only, Cerbos/OpenFGA.
 - `docs/adr/0004-outbox.md` — transactional outbox for email: row inside the transaction, job after
   commit, idempotent worker, sweeper, manual retry = row back to `PENDING`. Rejected: inline send,
   enqueue inside the transaction, BullMQ failed set as the record.
 
 Each one is one screen, uses the `Context / Decision / Alternatives / Consequences` headings and
-names the migration it belongs to (`0001_init`). A later schema change to
-users or the outbox adds a dated line under `## Changes` in 0002 or 0004 rather than a new file.
+names the migration it belongs to (`0001_init`). A later schema change to users or the outbox adds a
+dated line under `## Changes` in 0002 or 0004 rather than a new file.
 
 ## Gotchas
 

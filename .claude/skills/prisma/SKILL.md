@@ -1,15 +1,17 @@
 ---
 name: prisma
-description: Use when changing the Prisma schema, writing a migration, regenerating the client, writing raw SQL in a repository, or wiring a test to the testcontainers Postgres.
+description:
+  Use when changing the Prisma schema, writing a migration, regenerating the client, writing raw SQL
+  in a repository, or wiring a test to the testcontainers Postgres.
 ---
 
 # Prisma 7 in this repo
 
 ## Purpose
 
-Keep every schema change safe (expand-contract), reproducible (committed migrations, drift check
-in CI) and contained (Prisma only inside `packages/database`). Rules:
-`.claude/rules/migrations.md`, `.claude/rules/repositories.md`.
+Keep every schema change safe (expand-contract), reproducible (committed migrations, drift check in
+CI) and contained (Prisma only inside `packages/database`). Rules: `.claude/rules/migrations.md`,
+`.claude/rules/repositories.md`.
 
 ## Where things are
 
@@ -27,22 +29,21 @@ in CI) and contained (Prisma only inside `packages/database`). Rules:
 
 `prisma.config.ts` points `schema` at the **folder** `prisma/schema`. `schema/schema.prisma` holds
 only the `generator` and `datasource` blocks; every model has its own file,
-`schema/<module>/<model-kebab>.prisma` (one folder per module, one model per file, enums in the
-file of the model that owns them): `system/health-check.prisma`,
+`schema/<module>/<model-kebab>.prisma` (one folder per module, one model per file, enums in the file
+of the model that owns them): `system/health-check.prisma`,
 `auth/{user,session,account,verification}.prisma`, `email/outbox-email.prisma` (`OutboxStatus` +
 `OutboxEmail`), `source/{source-region,source-prefecture,source-address}.prisma` (`SourceArea` +
 `SourceRegion`, `SourcePrefecture`, `SourceAddress`),
 `access/{role,permission,role-permission,user-permission}.prisma` (`Role`, `Permission`,
-`RolePermission`, `PermissionEffect` + `UserPermission`). Prisma merges the folder; relations
-across files work as usual.
+`RolePermission`, `PermissionEffect` + `UserPermission`). Prisma merges the folder; relations across
+files work as usual.
 
 ## How-to: add or change a model
 
 1. Add the ADR line (`docs/adr/`, see the `adr` skill). A schema change without an ADR line is a
    review BLOCKER.
-2. Add `prisma/schema/<module>/<model-kebab>.prisma` (or edit the existing file): PascalCase
-   model, `@@map("snake_case")`, `@map` on multi-word columns,
-   `id String @id @default(uuid(7)) @db.Uuid`,
+2. Add `prisma/schema/<module>/<model-kebab>.prisma` (or edit the existing file): PascalCase model,
+   `@@map("snake_case")`, `@map` on multi-word columns, `id String @id @default(uuid(7)) @db.Uuid`,
    `createdAt DateTime @default(now()) @map("created_at")`. A new module gets a new folder. A pure
    join table instead uses a composite `@@id` over its two foreign keys (ADR 0005).
 3. Make it expand-contract safe: new columns nullable or defaulted; constraints only after a
@@ -59,39 +60,38 @@ Existing models from `0001_init`: `User`, `Session`, `Account`, `Verification` (
 names fixed, tables/columns mapped to snake_case, plus our `deletedAt`) and `OutboxEmail` with enum
 `OutboxStatus` (`PENDING | SENT | FAILED`). Since
 `20261005070927_add_source_regions_and_prefectures`: `SourceRegion` (enum `SourceArea`) and
-`SourcePrefecture`, related by the natural key `code`
-(`docs/adr/0005-legacy-reference-data.md`). Since `20261005081809_add_source_addresses`:
-`SourceAddress`, the Japan Post postal-code master, looked up by the unique `postCode`. Since
-`20261005090103_add_roles_and_permissions`: the role and permission catalog `Role`, `Permission`,
-`RolePermission`, `UserPermission`, keyed by `roles.key` / `permissions.key`; `User` gains only
-the relation `permissions`. Since `20261005143913_align_users_role_with_roles`: `users.role` is
-NOT NULL, defaults to `staff` and references `roles.key` (the migration inserts the four rows).
-Since `20261005145534_add_permission_visible_and_user_permission_effect`: `permissions.visible`
-(UI filter) and `user_permissions.effect` (`ALLOW | DENY`).
-Regenerating the Better Auth models is described in `.claude/rules/migrations.md` (diff the CLI
-output against the files under `prisma/schema/auth/`).
+`SourcePrefecture`, related by the natural key `code` (`docs/adr/0005-legacy-reference-data.md`).
+Since `20261005081809_add_source_addresses`: `SourceAddress`, the Japan Post postal-code master,
+looked up by the unique `postCode`. Since `20261005090103_add_roles_and_permissions`: the role and
+permission catalog `Role`, `Permission`, `RolePermission`, `UserPermission`, keyed by `roles.key` /
+`permissions.key`; `User` gains only the relation `permissions`. Since
+`20261005143913_align_users_role_with_roles`: `users.role` is NOT NULL, defaults to `staff` and
+references `roles.key` (the migration inserts the four rows). Since
+`20261005145534_add_permission_visible_and_user_permission_effect`: `permissions.visible` (UI
+filter) and `user_permissions.effect` (`ALLOW | DENY`). Regenerating the Better Auth models is
+described in `.claude/rules/migrations.md` (diff the CLI output against the files under
+`prisma/schema/auth/`).
 
 ## How-to: seed data
 
 `yarn db:seed` (`prisma db seed` → `tsx prisma/seed/index.ts`) is the only seed command. Seeds live
 in `packages/database/prisma/seed/`, one `<dataset>.seed.ts` per dataset exporting a `SeedFn` that
-returns a `SeedSummary` (`support.ts`); `index.ts` calls them in order, parents before children,
-and `runSeeds` prints one line per dataset (permissions add `grants +n/-m` for the role grants
-synced to the CSV). Reference datasets are idempotent: a re-run reports `created 0, updated 0`
+returns a `SeedSummary` (`support.ts`); `index.ts` calls them in order, parents before children, and
+`runSeeds` prints one line per dataset (permissions add `grants +n/-m` for the role grants synced to
+the CSV). Reference datasets are idempotent: a re-run reports `created 0, updated 0`
 (`grants +0/-0`) and leaves every `updated_at` unchanged.
 
 `users.seed.ts` upserts four verified accounts by email, so it converges and is safe to re-run (a
-re-run re-hashes the password and reports existing accounts as `updated`); the password for all
-four is `A12345678`, hashed with `hashPassword` from `better-auth/crypto` and stored in a credential
-`Account` row so the normal `/api/auth/sign-in/email` flow accepts it: one account per catalog
-role (`super_admin@test.com`, `admin@test.com`, `manager@test.com`, `staff@test.com`). It creates
-them only when `NODE_ENV` is `development` or `test`; any other value (unset, `production`,
-`staging`) skips all four and reports them as `skipped`, so
-`yarn db:seed` loads reference data in a real environment without creating known-password logins.
-Seed a real environment from its own environment, never from a developer checkout whose `.env`
-says `development`. Add new fixtures to the `SEED_USERS` array as upserts, never as plain
-`create`. A new dataset is a new `<dataset>.seed.ts` called from `index.ts`, with its test in
-`packages/database/test/seed/`.
+re-run re-hashes the password and reports existing accounts as `updated`); the password for all four
+is `A12345678`, hashed with `hashPassword` from `better-auth/crypto` and stored in a credential
+`Account` row so the normal `/api/auth/sign-in/email` flow accepts it: one account per catalog role
+(`super_admin@test.com`, `admin@test.com`, `manager@test.com`, `staff@test.com`). It creates them
+only when `NODE_ENV` is `development` or `test`; any other value (unset, `production`, `staging`)
+skips all four and reports them as `skipped`, so `yarn db:seed` loads reference data in a real
+environment without creating known-password logins. Seed a real environment from its own
+environment, never from a developer checkout whose `.env` says `development`. Add new fixtures to
+the `SEED_USERS` array as upserts, never as plain `create`. A new dataset is a new
+`<dataset>.seed.ts` called from `index.ts`, with its test in `packages/database/test/seed/`.
 
 ## How-to: write a repository
 
@@ -103,7 +103,12 @@ export const createOutboxEmailRepository = (db: DbClient) => ({
   markSent: (id: string): Promise<OutboxEmail> =>
     db.outboxEmail.update({
       where: { id },
-      data: { status: "SENT", sentAt: new Date(), attempts: { increment: 1 }, lastError: null },
+      data: {
+        status: "SENT",
+        sentAt: new Date(),
+        attempts: { increment: 1 },
+        lastError: null,
+      },
     }),
 
   findStalePending: (olderThan: Date, limit = 100): Promise<OutboxEmail[]> =>
@@ -117,8 +122,9 @@ export const createOutboxEmailRepository = (db: DbClient) => ({
 
 `DbClient = PrismaClient | Prisma.TransactionClient`, so the factory works with the client or an
 open transaction. One method per transition, no validation, no business rule, no queue. Paginated
-lists take a caller-composed `Prisma.<Model>WhereInput` (`createUserRepository(db).findMany(params, where)`)
-and add `deletedAt: null` themselves. Export from `packages/database/src/repositories/index.ts`.
+lists take a caller-composed `Prisma.<Model>WhereInput`
+(`createUserRepository(db).findMany(params, where)`) and add `deletedAt: null` themselves. Export
+from `packages/database/src/repositories/index.ts`.
 
 ## How-to: transactions with after-commit hooks
 
@@ -141,8 +147,8 @@ return withTransaction(ctx.db, async ({ tx }) => {
 
 `withTransaction(prisma, callback, options?)` (`packages/database/src/utils/transaction.ts`) runs an
 interactive transaction; `afterCommit(hook)` registers work that runs only after the commit (queue
-producers — see `queueEmailInTransaction` in `apps/api/src/modules/email/email.service.ts`).
-Hooks that throw are collected into an `AfterCommitError` unless `onAfterCommitError` is given.
+producers — see `queueEmailInTransaction` in `apps/api/src/modules/email/email.service.ts`). Hooks
+that throw are collected into an `AfterCommitError` unless `onAfterCommitError` is given.
 
 ## How-to: raw SQL
 
@@ -195,6 +201,6 @@ stale PENDING rows only".
 - The generated client is ESM (`moduleFormat = "esm"`); import model types via `@repo/database`,
   never from `src/generated`.
 - Prisma error codes (`P2002`, `P2003`, `P2025`) and Postgres SQLSTATEs (`23505`, `23503`) are
-  compared only in `packages/database/src/utils/errors.ts`; elsewhere use
-  `translateDatabaseError` / `isUniqueViolation`.
+  compared only in `packages/database/src/utils/errors.ts`; elsewhere use `translateDatabaseError` /
+  `isUniqueViolation`.
 - `prisma migrate reset` is denied for agents; never run it against a shared database.
