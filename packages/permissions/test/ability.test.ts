@@ -5,12 +5,14 @@
  * changing this table first (the failing row documents the change), then `rules.ts`.
  * Relations: self = the current user, other = any other user.
  */
+import { AbilityBuilder, createMongoAbility } from "@casl/ability";
 import { describe, expect, it } from "vitest";
 
 import { ROLES } from "@repo/validation";
 import type { Role } from "@repo/validation";
 
-import { defineAbilityFor, userSubject } from "../src/ability";
+import { canUnscoped, defineAbilityFor, userSubject } from "../src/ability";
+import type { AppAbility } from "../src/ability";
 import { ACTIONS } from "../src/rules";
 import type { AbilityUser, Action } from "../src/rules";
 import { accessibleUsersWhere, definePrismaAbilityFor } from "../src/server";
@@ -20,7 +22,7 @@ type Relation = "self" | "other";
 const ME_ID = "019187d5-0d76-7d1a-9a4c-4f7d2a1f3b6e";
 const OTHER_ID = "019187d5-0d76-7d1a-9a4c-000000000002";
 
-const me = (role: Role): AbilityUser => ({ id: ME_ID, role });
+const me = (role: Role): AbilityUser => ({ id: ME_ID, role, permissions: [] });
 
 const targets: Record<Relation, (user: AbilityUser) => { id: string }> = {
   self: (user) => ({ id: user.id }),
@@ -91,6 +93,43 @@ describe("edge cases", () => {
         }
       }
     }
+  });
+});
+
+describe("canUnscoped", () => {
+  it.each(["super_admin", "admin"] as const)(
+    "is true for a %s reading User (their `manage all` rule carries no conditions)",
+    (role) => {
+      expect(canUnscoped(defineAbilityFor(me(role)), "read", "User")).toBe(true);
+    },
+  );
+
+  it.each(["manager", "staff"] as const)(
+    "is false for a %s reading User (only the conditional self rule applies)",
+    (role) => {
+      const ability = defineAbilityFor(me(role));
+      // `can` on the bare subject type is optimistic (some row may match); the unscoped check is not.
+      expect(ability.can("read", "User")).toBe(true);
+      expect(canUnscoped(ability, "read", "User")).toBe(false);
+    },
+  );
+
+  it("is false for an anonymous visitor", () => {
+    expect(canUnscoped(defineAbilityFor(null), "read", "User")).toBe(false);
+  });
+
+  it("honours CASL priority: a later unconditional `cannot` overrides an earlier `can`", () => {
+    const builder = new AbilityBuilder<AppAbility>(createMongoAbility);
+    builder.can("read", "User");
+    builder.cannot("read", "User");
+    expect(canUnscoped(builder.build(), "read", "User")).toBe(false);
+  });
+
+  it("honours CASL priority: a later unconditional `can` overrides an earlier `cannot`", () => {
+    const builder = new AbilityBuilder<AppAbility>(createMongoAbility);
+    builder.cannot("read", "User");
+    builder.can("read", "User");
+    expect(canUnscoped(builder.build(), "read", "User")).toBe(true);
   });
 });
 

@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 
+import type { PermissionGrant } from "@repo/permissions";
 import { DEFAULT_ROLE, roleSchema } from "@repo/validation";
 import type { Role } from "@repo/validation";
 
@@ -35,6 +36,8 @@ export type CurrentUser = {
   name: string;
   email: string;
   role: Role;
+  /** Effective grants from the session — what `AbilityProvider` / `defineAbilityFor` read. */
+  permissions: PermissionGrant[];
 };
 
 export const toCurrentUser = (session: Session): CurrentUser => {
@@ -44,5 +47,6 @@ export const toCurrentUser = (session: Session): CurrentUser => {
     name: session.user.name,
     email: session.user.email,
     role: role.success ? role.data : DEFAULT_ROLE,
+    permissions: session.user.permissions,
   };
 };

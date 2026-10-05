@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { canUnscoped, defineAbilityFor } from "@repo/permissions";
 import {
   Card,
   CardContent,
@@ -9,7 +10,7 @@ import {
   CardTitle,
 } from "@repo/ui/components/card";
 
-import { BROWSE_USERS_HIDDEN_ROLES, RoleBadge } from "@/features/users/role-badge";
+import { RoleBadge } from "@/features/users/role-badge";
 import { getServerSession, toCurrentUser } from "@/lib/auth/server";
 
 const DashboardPage = async () => {
@@ -18,6 +19,8 @@ const DashboardPage = async () => {
     redirect("/login");
   }
   const user = toCurrentUser(session);
+  const ability = defineAbilityFor(user);
+  const canBrowseUsers = canUnscoped(ability, "read", "User");
 
   return (
     <>
@@ -47,11 +50,11 @@ const DashboardPage = async () => {
             <Link className="underline" href="/profile">
               Edit your profile
             </Link>
-            {BROWSE_USERS_HIDDEN_ROLES.includes(user.role) ? null : (
+            {canBrowseUsers ? (
               <Link className="underline" href="/users">
                 Browse users
               </Link>
-            )}
+            ) : null}
           </CardContent>
         </Card>
       </div>

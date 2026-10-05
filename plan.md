@@ -121,6 +121,10 @@ ADR 0002's role-set line is written in D3 together with the FK line (one ADR edi
 
 ### Commit E2 — Session carries effective grants (15 files)
 
+> **Amendment (E2 review, orchestrator-accepted):** the nav visibility rule is a pure `visibleNavItems(ability)` with a web test (`apps/web/test/components/app-shell.test.ts`, or a plain `app-nav-items.ts` module if the client component cannot be imported from a node test); `AbilityProvider` and the dashboard receive `user` directly (`CurrentUser` satisfies `AbilityUser`); `canUnscoped` honours CASL rule priority (first unconditional rule, not inverted).
+
+> **Amendment (Step 13, orchestrator-accepted):** `AbilityUser.permissions` is optional (`permissions?: readonly PermissionGrant[]`) until Step 15 makes it required together with `AuthUser.permissions` and the web `AbilityProvider`; a required field would break `apps/api/src/core/context.ts` and `apps/web/components/app-shell.tsx`, which belong to Step 15. For the same reason the `router.test.ts` literal (`permissions: []`) moves from Step 13 to Step 15 (`AuthUser` is defined in Step 15's `context.ts`).
+
 | #   | File                                      | Action | Layer       | Purpose                                                                                                                     |
 | --- | ----------------------------------------- | ------ | ----------- | --------------------------------------------------------------------------------------------------------------------------- |
 | 1   | packages/permissions/src/rules.ts         | modify | permissions | `export type PermissionGrant`; `AbilityUser.permissions: readonly PermissionGrant[]` (rules still the D2 switch)            |
@@ -160,7 +164,7 @@ ADR 0002's role-set line is written in D3 together with the FK line (one ADR edi
 
 ### Commit Docs — docs/comments only (10 files + 1 optional, no behaviour)
 
-`.claude/skills/better-auth/SKILL.md` (lines 22-23, 87-101, 120-125), `.claude/skills/casl/SKILL.md` (whole rule/matrix examples), `.claude/skills/trpc/SKILL.md` (73-76, 93), `.claude/skills/testing/SKILL.md` (107-109), `.claude/skills/nextjs/SKILL.md` (148), `.claude/skills/prisma/SKILL.md` (35-36: `enum PermissionEffect` in the `access/` list; 65-68: history since E1; 80-90, 126; line 67 was fixed in D3), `README.md` (migrations/repositories list kept current per commit), `.claude/rules/module-template.md` (45: `ROLES`; 306-309: `member` fixture — added in D3 review), `.claude/skills/adr/SKILL.md` (51), `.claude/rules/ui.md` (`ROLE_TONES` example 86-89), `packages/database/prisma/seed/roles.seed.ts` (header comment: rows now inserted by the migration, seed keeps names in sync), `packages/database/prisma/seed/permissions.seed.ts` (header comment: `visible`, row 1106), `TEMPLATE_AUDIT.md` (optional).
+`.claude/skills/better-auth/SKILL.md` (lines 22-23, 87-101, 120-125), `.claude/skills/casl/SKILL.md` (whole rule/matrix examples), `.claude/skills/trpc/SKILL.md` (73-76, 93), `.claude/skills/testing/SKILL.md` (107-109), `.claude/skills/nextjs/SKILL.md` (86: `AbilityProvider user={user}` and the nav visibility rule — added in E2 review; 148 was fixed in D1), `.claude/skills/prisma/SKILL.md` (35-36: `enum PermissionEffect` in the `access/` list; 65-68: history since E1; 80-90, 126; line 67 was fixed in D3), `README.md` (migrations/repositories list kept current per commit), `.claude/rules/module-template.md` (45: `ROLES`; 306-309: `member` fixture — added in D3 review), `.claude/skills/adr/SKILL.md` (51), `.claude/rules/ui.md` (`ROLE_TONES` example 86-89), `packages/database/prisma/seed/roles.seed.ts` (header comment: rows now inserted by the migration, seed keeps names in sync), `packages/database/prisma/seed/permissions.seed.ts` (header comment: `visible`, row 1106), `TEMPLATE_AUDIT.md` (optional).
 
 ## Schema changes
 

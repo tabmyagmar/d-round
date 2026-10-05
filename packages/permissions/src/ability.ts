@@ -27,3 +27,15 @@ export const defineAbilityFor = (user: AbilityUser | null): AppAbility => {
   }
   return builder.build();
 };
+
+/**
+ * True when `action` on the subject type is allowed "on every row", not "on some row":
+ * `ability.can(action, "User")` is optimistic (true for staff because their own row matches);
+ * navigation and list links need the unscoped answer. Looks at the highest-priority rule without
+ * a row condition (`rulesFor` returns rules last-defined-first, as CASL resolves them), so an
+ * unconditional `cannot` defined after a `can` wins. No unconditional rule → false. Browser-safe.
+ */
+export const canUnscoped = (ability: AppAbility, action: Action, subject: SubjectName): boolean => {
+  const rule = ability.rulesFor(action, subject).find((candidate) => !candidate.conditions);
+  return rule !== undefined && !rule.inverted;
+};

@@ -2,6 +2,7 @@ import type { Auth, SessionUser } from "@repo/auth";
 import type { PrismaClient } from "@repo/database";
 import { childLogger } from "@repo/logger";
 import type { Logger } from "@repo/logger";
+import type { PermissionGrant } from "@repo/permissions";
 import { definePrismaAbilityFor } from "@repo/permissions/server";
 import type { ServerAbility } from "@repo/permissions/server";
 import type { RedisConnection } from "@repo/queue";
@@ -17,6 +18,8 @@ export type AuthUser = {
   name: string;
   role: Role;
   emailVerified: boolean;
+  /** Effective grants from the session (`customSession`); the rules validate them, not this. */
+  permissions: PermissionGrant[];
 };
 
 /**
@@ -56,6 +59,7 @@ export const toAuthUser = (user: SessionUser): AuthUser => {
     name: user.name,
     role: role.success ? role.data : DEFAULT_ROLE,
     emailVerified: user.emailVerified,
+    permissions: user.permissions.map(({ action, subject }) => ({ action, subject })),
   };
 };
 

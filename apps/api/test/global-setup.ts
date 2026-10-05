@@ -17,7 +17,10 @@ let database: TestDatabase | undefined;
 let redis: TestRedis | undefined;
 
 export const setup = async (project: TestProject): Promise<void> => {
-  [database, redis] = await Promise.all([startTestDatabase(), startTestRedis()]);
+  [database, redis] = await Promise.all([
+    startTestDatabase({ seedReferenceData: true }),
+    startTestRedis(),
+  ]);
   project.provide("databaseUrl", database.connectionString);
   project.provide("redisUrl", redis.url);
 };

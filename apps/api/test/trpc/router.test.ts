@@ -33,6 +33,7 @@ const staff: AuthUser = {
   name: "A",
   role: "staff",
   emailVerified: true,
+  permissions: [],
 };
 
 describe("appRouter.health.ping", () => {

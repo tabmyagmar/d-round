@@ -13,7 +13,8 @@ declare module "vitest" {
 let database: TestDatabase | undefined;
 
 export const setup = async (project: TestProject): Promise<void> => {
-  database = await startTestDatabase();
+  // Roles + permission catalog (never users): the session tests assert real grants.
+  database = await startTestDatabase({ seedReferenceData: true });
   project.provide("databaseUrl", database.connectionString);
 };
 

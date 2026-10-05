@@ -3,9 +3,10 @@ import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { createPrismaClient } from "@repo/database";
 import type { PrismaClient } from "@repo/database";
 import { DEFAULT_ROLE } from "@repo/validation";
+import type { Role } from "@repo/validation";
 
 import { createAuth } from "../src/server";
-import type { Auth, VerificationEmail } from "../src/server";
+import type { Auth, SessionUser, VerificationEmail } from "../src/server";
 
 /**
  * Better Auth against a real Postgres: public sign-up is off, users come only from the admin
@@ -51,8 +52,43 @@ const cookieHeaderFrom = (response: Response) =>
     .filter((cookie) => cookie.startsWith("better-auth."))
     .join("; ");
 
-const sessionFor = (response: Response) =>
-  auth.api.getSession({ headers: new Headers({ cookie: cookieHeaderFrom(response) }) });
+const sessionWithCookie = (cookie: string) =>
+  auth.api.getSession({ headers: new Headers({ cookie }) });
+
+const sessionFor = (response: Response) => sessionWithCookie(cookieHeaderFrom(response));
+
+/** A verified user with the given role, signed in: its id and the cookie for later `getSession` calls. */
+const signedInAs = async (role: Role) => {
+  const email = unique();
+  const created = await auth.api.createUser({
+    body: { email, password: PASSWORD, name: `Role ${role}`, role, data: { emailVerified: true } },
+  });
+  const response = await auth.api.signInEmail({
+    body: { email, password: PASSWORD },
+    asResponse: true,
+  });
+  expect(response.status).toBe(200);
+  return { userId: created.user.id, cookie: cookieHeaderFrom(response) };
+};
+
+/** The seeded `role_permissions` join for a role as session grants, in catalog key order. */
+const roleGrants = async (roleKey: Role) => {
+  const rows = await prisma.rolePermission.findMany({
+    where: { roleKey },
+    include: { permission: true },
+    orderBy: { permissionKey: "asc" },
+  });
+  return rows.map(({ permission }) => ({
+    action: permission.action,
+    subject: permission.modelName,
+  }));
+};
+
+/** The `{ action, subject }` grant a catalog row maps to. */
+const grantOf = async (key: string) => {
+  const permission = await prisma.permission.findUniqueOrThrow({ where: { key } });
+  return { action: permission.action, subject: permission.modelName };
+};
 
 describe("sign up", () => {
   it("is disabled: the public endpoint rejects and writes no user row", async () => {
@@ -170,5 +206,61 @@ describe("sessions", () => {
 
   it("resolves no session for a request without cookies", async () => {
     expect(await auth.api.getSession({ headers: new Headers() })).toBeNull();
+  });
+});
+
+describe("session permissions (customSession)", () => {
+  it("carries the role's grants from role_permissions as { action, subject } for a staff user", async () => {
+    const { cookie } = await signedInAs("staff");
+    const expected = await roleGrants("staff");
+    expect(expected).toHaveLength(8);
+
+    const session = await sessionWithCookie(cookie);
+    // Type-level proof: `SessionUser` (the exported session type) declares `permissions`.
+    const permissions: SessionUser["permissions"] | undefined = session?.user.permissions;
+    expect(permissions).toEqual(expected);
+  });
+
+  it("drops a role grant the user has a DENY row for", async () => {
+    const { userId, cookie } = await signedInAs("staff");
+    const denied = await grantOf("1702");
+    expect(denied).toEqual({ action: "read", subject: "Workflow" });
+    expect((await sessionWithCookie(cookie))?.user.permissions).toContainEqual(denied);
+
+    await prisma.userPermission.create({
+      data: { userId, permissionKey: "1702", effect: "DENY" },
+    });
+
+    const session = await sessionWithCookie(cookie);
+    expect(session?.user.permissions).not.toContainEqual(denied);
+    expect(session?.user.permissions).toEqual(
+      (await roleGrants("staff")).filter(
+        (grant) => grant.action !== denied.action || grant.subject !== denied.subject,
+      ),
+    );
+  });
+
+  it("adds a grant the role lacks when the user has an ALLOW row for it", async () => {
+    const { userId, cookie } = await signedInAs("staff");
+    const allowed = await grantOf("1101");
+    expect(allowed).toEqual({ action: "create", subject: "User" });
+    expect((await sessionWithCookie(cookie))?.user.permissions).not.toContainEqual(allowed);
+
+    await prisma.userPermission.create({
+      data: { userId, permissionKey: "1101", effect: "ALLOW" },
+    });
+
+    const session = await sessionWithCookie(cookie);
+    expect(session?.user.permissions).toContainEqual(allowed);
+    expect(session?.user.permissions).toHaveLength(9);
+  });
+
+  it("carries every catalog grant (35) for a super_admin", async () => {
+    const { cookie } = await signedInAs("super_admin");
+    const expected = await roleGrants("super_admin");
+    expect(expected).toHaveLength(35);
+
+    const session = await sessionWithCookie(cookie);
+    expect(session?.user.permissions).toEqual(expected);
   });
 });

@@ -60,6 +60,24 @@ describe("buildRequestContext", () => {
     expect(ctx.ability.can("changeRole", "User")).toBe(false);
   });
 
+  it("mirrors the role's grants from role_permissions in ctx.user.permissions", async () => {
+    const signedIn = await signedInUser(h, { role: "staff" });
+    const rows = await h.db.rolePermission.findMany({
+      where: { roleKey: "staff" },
+      include: { permission: true },
+      orderBy: { permissionKey: "asc" },
+    });
+    const expected = rows.map(({ permission }) => ({
+      action: permission.action,
+      subject: permission.modelName,
+    }));
+    expect(expected).toHaveLength(8);
+
+    const ctx = await contextFor(h, signedIn.headers);
+
+    expect(ctx.user?.permissions).toEqual(expected);
+  });
+
   it("resolves a user created without a role to the default role", async () => {
     const email = `${crypto.randomUUID()}@example.com`;
     await h.auth.api.createUser({
@@ -90,6 +108,7 @@ describe("toAuthUser", () => {
       updatedAt: new Date(),
       role: "ceo",
       banned: null,
+      permissions: [],
     };
 
     expect(toAuthUser(sessionUser).role).toBe(DEFAULT_ROLE);

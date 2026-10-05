@@ -16,12 +16,6 @@ const ROLE_TONES: Record<Role, StatusTone> = {
   staff: "neutral",
 };
 
-/**
- * Interim until the ability check (Commit E2): roles that do not get the "Users" entry points.
- * Lives here (no "use client") so the server-rendered dashboard and the client shell share it.
- */
-export const BROWSE_USERS_HIDDEN_ROLES: readonly Role[] = ["manager", "staff"];
-
 /** Unknown roles (data older than the enum) render as neutral text instead of crashing. */
 export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   const known = role && role in ROLE_LABELS ? (role as Role) : null;

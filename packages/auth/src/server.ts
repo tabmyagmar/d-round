@@ -1,7 +1,10 @@
 import { betterAuth } from "better-auth";
+import type { BetterAuthOptions } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { admin } from "better-auth/plugins/admin";
+import { customSession } from "better-auth/plugins/custom-session";
 
+import { createPermissionRepository } from "@repo/database";
 import type { PrismaClient } from "@repo/database";
 import { DEFAULT_ROLE } from "@repo/validation";
 
@@ -35,8 +38,12 @@ export type CreateAuthOptions = {
   cookieDomain?: string;
 };
 
-export const createAuth = (options: CreateAuthOptions) =>
-  betterAuth({
+export const createAuth = (options: CreateAuthOptions) => {
+  const permissions = createPermissionRepository(options.prisma);
+
+  // The base options are passed to `customSession` as well, so `user` inside it carries the admin
+  // plugin's fields (`role`) and `Auth["$Infer"]["Session"]` picks up the custom shape.
+  const base = {
     baseURL: options.baseURL,
     basePath: "/api/auth",
     secret: options.secret,
@@ -84,7 +91,29 @@ export const createAuth = (options: CreateAuthOptions) =>
         adminRoles: [...ADMIN_ROLES],
       }),
     ],
+  } satisfies BetterAuthOptions;
+
+  return betterAuth({
+    ...base,
+    plugins: [
+      ...base.plugins,
+      // Every session lookup loads the user's effective grants (role ∪ ALLOW − DENY, one query)
+      // so the API context and the browser build the same CASL ability. See ADR 0003.
+      customSession(async ({ user, session }) => {
+        // `?? DEFAULT_ROLE` only satisfies the plugin's optional type: `users.role` is NOT NULL
+        // with a foreign key to `roles` (ADR 0005), and an unknown key yields no grants anyway.
+        const grants = await permissions.findEffectiveGrants(user.id, user.role ?? DEFAULT_ROLE);
+        return {
+          user: {
+            ...user,
+            permissions: grants.map(({ action, modelName }) => ({ action, subject: modelName })),
+          },
+          session,
+        };
+      }, base),
+    ],
   });
+};
 
 export type Auth = ReturnType<typeof createAuth>;
 export type Session = Auth["$Infer"]["Session"];
