@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@repo/ui/components/card";
 
+import { href, routes } from "@/config/routes";
 import { ResendVerification } from "@/features/auth/resend-verification";
 
 const VerifyEmailPage = async ({ searchParams }: { searchParams: Promise<{ email?: string }> }) => {
@@ -38,7 +39,7 @@ const VerifyEmailPage = async ({ searchParams }: { searchParams: Promise<{ email
       </CardContent>
       <CardFooter className="flex flex-col gap-3">
         {email ? <ResendVerification email={email} /> : null}
-        <Link href="/login" className="text-sm underline">
+        <Link href={href(routes.auth.login)} className="text-sm underline">
           Back to sign in
         </Link>
       </CardFooter>

@@ -21,6 +21,7 @@ import { PasswordField, TextField } from "@repo/ui/components/form";
 import { signInSchema } from "@repo/validation";
 import type { SignInInput } from "@repo/validation";
 
+import { href, routes } from "@/config/routes";
 import { authClient } from "@/lib/auth/client";
 import { brand } from "@/lib/brand";
 
@@ -69,7 +70,7 @@ export const LoginForm = ({ next }: { next: string }) => {
                       {" "}
                       <Link
                         className="underline"
-                        href={`/verify-email?email=${encodeURIComponent(form.getValues("email"))}`}
+                        href={`${href(routes.auth.verifyEmail)}?email=${encodeURIComponent(form.getValues("email"))}`}
                       >
                         Resend the verification email
                       </Link>
@@ -93,10 +94,13 @@ export const LoginForm = ({ next }: { next: string }) => {
             />
           </FieldGroup>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex flex-col gap-3">
           <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
             {form.formState.isSubmitting ? "Signing in…" : "Sign in"}
           </Button>
+          <Link href={href(routes.auth.forgotPassword)} className="text-sm underline">
+            パスワードをお忘れの方
+          </Link>
         </CardFooter>
       </form>
     </Card>
