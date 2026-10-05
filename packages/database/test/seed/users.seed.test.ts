@@ -8,14 +8,25 @@ import type { PrismaClient } from "../../src/client";
 // Only this file touches the SEED_USERS emails, so it may run in parallel with the other
 // database test files on the shared container.
 
+// The accounts are created only for development or test, so pin NODE_ENV for this file instead of
+// relying on Vitest's default; the skip tests override it per call with withNodeEnv.
+
 let prisma: PrismaClient;
+let previousNodeEnv: string | undefined;
 
 beforeAll(() => {
+  previousNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = "test";
   prisma = createPrismaClient({ connectionString: inject("databaseUrl") });
 });
 
 afterAll(async () => {
   await prisma.$disconnect();
+  if (previousNodeEnv === undefined) {
+    delete process.env.NODE_ENV;
+  } else {
+    process.env.NODE_ENV = previousNodeEnv;
+  }
 });
 
 const ADMIN_EMAIL = SEED_USERS.find((seed) => seed.role === "admin")!.email;

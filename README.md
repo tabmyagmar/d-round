@@ -30,7 +30,7 @@ cp .env.example .env                       # one root .env for the whole monorep
 
 # 3. Infrastructure, database, run
 yarn docker:up                             # postgres, redis, mailpit, pgadmin — waits for health checks
-yarn db:migrate                            # applies the single 0001_init migration
+yarn db:migrate                            # applies the committed migrations
 yarn db:seed                               # reference data + admin@test.com / member@test.com (A12345678)
 yarn dev                                   # web :3000, api :4000, worker; Mailpit UI :8025
 

@@ -51,14 +51,13 @@ file of the model that owns them): `system/health-check.prisma`,
 7. `yarn verify`. CI additionally runs
    `prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code`.
 
-Existing models from `0001_init`: `User`, `Session`, `Account`,
-`Verification` (Better Auth — field names fixed, tables/columns mapped to snake_case, plus our
-`deletedAt`) and `OutboxEmail` with enum `OutboxStatus`
-(`PENDING | SENT | FAILED`). Since `20261005070927_add_source_regions_and_prefectures`:
-`SourceRegion` (enum `SourceArea`) and `SourcePrefecture`, related by the natural key `code`
-(`docs/adr/0005-legacy-reference-data.md`). Regenerating the Better Auth models:
-`.claude/rules/migrations.md`
-(diff the CLI output against the files under `prisma/schema/auth/`).
+Existing models from `0001_init`: `User`, `Session`, `Account`, `Verification` (Better Auth: field
+names fixed, tables/columns mapped to snake_case, plus our `deletedAt`) and `OutboxEmail` with enum
+`OutboxStatus` (`PENDING | SENT | FAILED`). Since
+`20261005070927_add_source_regions_and_prefectures`: `SourceRegion` (enum `SourceArea`) and
+`SourcePrefecture`, related by the natural key `code`
+(`docs/adr/0005-legacy-reference-data.md`). Regenerating the Better Auth models is described in
+`.claude/rules/migrations.md` (diff the CLI output against the files under `prisma/schema/auth/`).
 
 ## How-to: seed data
 

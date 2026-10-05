@@ -1,7 +1,7 @@
 // Prisma 7 multi-file schema: prisma.config.ts points at this folder and every *.prisma file
 // in it is merged. This file holds the generator + datasource only; models live in one file per
-// module (system/, auth/, email/, source/). Conventions: PascalCase models mapped to snake_case tables
-// and columns, UUID v7 primary keys (time-ordered, index friendly), explicit created_at.
+// module (system/, auth/, email/, source/). Conventions: PascalCase models mapped to snake_case
+// tables and columns, UUID v7 primary keys (time-ordered, index friendly), explicit created_at.
 // The client is generated into src/generated (git-ignored) and uses the pg driver adapter.
 generator client {
   provider     = "prisma-client"
