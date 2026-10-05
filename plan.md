@@ -1,0 +1,307 @@
+# Plan: Web shell — sidebar layout, route catalog, permission-gated placeholder pages
+
+Ticket: `feature/D_ROUND-TBD_web-shell` (one MR, seven commits after this plan, each green on its
+own; the 15-files-per-commit limit holds). Status: **approved 2026-10-06** with every default below.
+
+## Goal and acceptance criteria
+
+Give `apps/web` the page tree of the legacy `d-round-web` app as empty placeholder pages under
+`/admin`, each declaring the CASL permission it needs, behind one sidebar shell (shadcn `sidebar`),
+with navigation and page access decided by the **same** route catalog and the **same** access rule.
+Reference designs studied: `romuten-v3/apps/web/src/{config,components/layouts}` (route catalog +
+nav config + `requirePermission`) and `d-round-web/src/shared/{config/routes,components/layout}`.
+
+- Every page under `app/admin/**` wraps its content in `<PageGuard route={routes.x.y}>` and renders
+  either the page or an in-place 403 (`AccessDenied`), decided server-side before any HTML reaches
+  the browser. No role literal anywhere in the web.
+- `apps/web/config/routes.ts` is the only place a path or a page title is written; every internal
+  link uses `href(routes.…)`. `apps/web/config/nav.ts` references routes, never paths.
+- Nav visibility and page access both call `canAccessRoute(ability, route)`
+  (`apps/web/lib/auth/route-access.ts`), which uses `canUnscoped` for permission routes — so a staff
+  user, whose self rule makes `ability.can("read", "User")` true, still does **not**
+  see 担当者管理 and gets a 403 on `/admin/master/user`. Proven by `test/config/nav.test.ts`,
+  `test/lib/auth/route-access.test.ts`.
+- The sidebar shows, per role from the seeded catalog (`permissions.csv`): admins everything;
+  manager/staff ワークフロー, クライアント管理, 就業先部署, スタッフ管理, ホーム, 設定 — and
+  no マスター管理 group (its three children all need grants they lack). A user `ALLOW`/`DENY` row
+  changes the menu the same way it changes the ability (nothing to do: both read the session
+  grants).
+- `/dashboard`, `/users`, `/users/[id]`, `/profile` move to `/admin`, `/admin/master/user`,
+  `/admin/master/user/[id]`, `/admin/profile`; `proxy.ts` matches `/admin/:path*` only; login
+  redirects to `/admin`.
+- `yarn verify` green per commit; new pure modules have node tests, new composed components have
+  jsdom tests; no mocks.
+
+## Decisions (all defaults confirmed by the user, 2026-10-06)
+
+1. **URLs mirror the legacy app 1:1 under `/admin`**, including the `master/` segment
+   (`/admin/master/user`, `/admin/master/log`, `/admin/master/workflow/template`), so manuals and
+   bookmarks keep working and the proxy matcher is one line. Alternative: flat paths without prefix
+   (`/workflows`, `/clients`) — cleaner URLs, but every legacy link breaks.
+2. **Forbidden renders a 403 in place** (`AccessDenied` inside the shell, link back to ホーム), not
+   a silent redirect to home as in romuten and not a blank page as in legacy's client-side `<Can>`.
+   Next's `forbidden()` stays unused (still behind `experimental.authInterrupts`).
+3. **Route/nav access = `canUnscoped`**; row and button decisions inside features stay
+   `ability.can(action, userSubject(row))` / `<Can I a>`. Three verbs, documented in
+   `.claude/rules/permissions.md` (Web).
+4. **Titles are Japanese, copied from the legacy route config**; the template's English strings
+   (role labels, dashboard copy) stay until a copy/i18n pass.
+5. **`/admin` is ホーム** (the current dashboard page, moved). The legacy post-login redirect to
+   `/admin/workflow` is not copied; the dashboard links to what the ability allows.
+6. **Settings pages (`privacy` = 定型文管理, `help`, `manual`) are `signed-in` only**, as in legacy
+   (no catalog subject exists for them); `manual` is not in the nav, as in legacy.
+7. **Placeholder pages share one component** (`PlaceholderPage`: `PageHeader` + `EmptyState`
+   準備中); no `features/<name>/` folders are created until a screen gets real content. Feature
+   folder names are fixed now: `workflow`, `workflow-template`, `users`, `audit-log`, `client`,
+   `branch`, `staff`, `settings`, `auth`.
+8. **`apps/web/components.json` `hooks` alias → `@repo/ui/hooks`.** Today it points at `@/hooks`
+   (`apps/web/hooks`), so `npx shadcn add sidebar` would drop `use-mobile.ts` into the app and make
+   `packages/ui/.../sidebar.tsx` import a path it cannot see. The tsconfig path `@repo/ui/*` →
+   `packages/ui/src/*` resolves the new alias; `packages/ui` already exports `./hooks/*`.
+9. **New dependency in `apps/web`: `lucide-react` 1.43.0** (the version pinned in `packages/ui`, so
+   one copy is installed) — the nav config holds icon components.
+10. **Header = `SidebarTrigger` + breadcrumb trail** derived from the catalog (route titles of the
+    path's prefixes), as in romuten's `AppHeader`; pages keep their own `PageHeader` h1.
+
+## Design
+
+### Route catalog — `apps/web/config/routes.ts` (no `"use client"`, pure data + helpers)
+
+```ts
+import type { Action, SubjectName } from "@repo/permissions";
+
+export type RouteAccess = "public" | "signed-in" | { action: Action; subject: SubjectName };
+export type AppRoute = { path: string; title: string; access: RouteAccess }; // path = Next pattern, `[id]`
+
+export const routes = {
+  auth: { login, forgotPassword, newPassword, verifyEmail },          // "public"
+  home: { path: "/admin", title: "ホーム", access: "signed-in" },
+  profile: { path: "/admin/profile", title: "プロフィール", access: "signed-in" },
+  workflow: { list, detail, create, update },                          // Workflow read/read/create/update
+  workflowTemplate: { list, create, update },                          // WorkflowTemplate
+  user: { list, detail, create, update },                              // User, under /admin/master/user
+  auditLog: { list },                                                  // AuditLog, /admin/master/log
+  client: { list, detail, create, update },                            // Client
+  branch: { list, detail, create, update },                            // Branch
+  staff: { list, detail, create, update },                             // Staff
+  settings: { privacy, manual, help },                                 // "signed-in"
+} as const;
+
+export const href = (route: AppRoute, params?: Record<string, string>): string; // fills `[id]`, throws on a missing param
+export const ALL_ROUTES: readonly AppRoute[];                                   // flattened, for findRoute / tests
+export const findRoute = (pathname: string): AppRoute | undefined;              // exact static match first, then `[id]` patterns (same segment count)
+export const breadcrumbTrail = (pathname: string): { title: string; path: string }[];
+```
+
+`breadcrumbTrail` walks the path prefixes: intermediate prefixes match **static** routes only
+(`/admin/workflow/update` must not resolve to `workflow.detail` with id `update`), the full pathname
+uses `findRoute`; prefixes without a route are skipped. `/admin/workflow/update/42`
+→ ホーム › ワークフロー › 申請書を編集; `/admin` → ホーム.
+
+Legacy page → route → access (list `read`, `[id]` `read`, `create` `create`, `update/[id]`
+`update`):
+
+| Legacy file (`src/app/`)                             | Path                                          | Subject            |
+| ---------------------------------------------------- | --------------------------------------------- | ------------------ |
+| `admin/workflow{,/[id],/create,/update/[id]}`        | `/admin/workflow…`                            | `Workflow`         |
+| `admin/master/workflow/template{,/create,/update/…}` | `/admin/master/workflow/template…`            | `WorkflowTemplate` |
+| `admin/master/user{,/[id],/create,/update/[id]}`     | `/admin/master/user…`                         | `User`             |
+| `admin/master/log`                                   | `/admin/master/log`                           | `AuditLog`         |
+| `admin/client{,/[id],/create,/update/[id]}`          | `/admin/client…`                              | `Client`           |
+| `admin/branch{,/[id],/create,/update/[id]}`          | `/admin/branch…`                              | `Branch`           |
+| `admin/staff{,/[id],/create,/update/[id]}`           | `/admin/staff…`                               | `Staff`            |
+| `admin/settings/{privacy,manual,help}`               | `/admin/settings/…`                           | signed-in          |
+| `(auth)/{login,forgot-password,new-password}`        | `/login`, `/forgot-password`, `/new-password` | public             |
+
+`SourceCsvHistory` has no page (CSV upload/download are dialogs on list pages in legacy); the legacy
+`Admin_Workflow_Category` route has no page file, so it is skipped.
+
+### Access rule — `apps/web/lib/auth/route-access.ts`
+
+```ts
+export const canAccessRoute = (ability: AppAbility | null, route: AppRoute): boolean => {
+  if (route.access === "public") return true;
+  if (!ability) return false; // anonymous
+  if (route.access === "signed-in") return true;
+  return canUnscoped(ability, route.access.action, route.access.subject);
+};
+```
+
+One function, two callers (nav, guard) — they cannot disagree.
+
+### Server page gate — `apps/web/components/page-guard.tsx` (server component)
+
+```tsx
+export const PageGuard = async ({ route, children }: { route: AppRoute; children: ReactNode }) => {
+  const user = await getCurrentUser(); // React cache(): one session fetch per request
+  if (!user) redirect(href(routes.auth.login));
+  return canAccessRoute(defineAbilityFor(user), route) ? children : <AccessDenied />;
+};
+```
+
+`lib/auth/server.ts`: wrap `getServerSession` in React `cache()` and add
+`getCurrentUser = cache(async () => session ? toCurrentUser(session) : null)` so the layout and the
+guard share one `/api/auth/get-session` call. Four layers, each thinner than the one behind it:
+`proxy.ts` (cookie presence) → `app/admin/layout.tsx` (session) → `PageGuard` (ability, unscoped) →
+the API (`requireAbility` + service rules, always).
+
+### Nav config — `apps/web/config/nav.ts` (no `"use client"`)
+
+```ts
+export type NavLeaf = { route: AppRoute; icon: LucideIcon };
+export type NavBranch = { title: string; icon: LucideIcon; children: NavLeaf[] }; // not a link (legacy マスター管理)
+export type NavGroup = { id: string; label?: string; items: (NavLeaf | NavBranch)[] };
+
+export const NAV_GROUPS: readonly NavGroup[] = [
+  { id: "main", items: [home, workflow.list, { マスター管理: [user.list, workflowTemplate.list, auditLog.list] },
+                        client.list, branch.list, staff.list] },
+  { id: "settings", label: "設定", items: [settings.privacy, settings.help] },
+];
+export const visibleNavGroups = (ability: AppAbility): NavGroup[]; // leaf kept iff canAccessRoute; branch kept iff ≥1 child; group kept iff ≥1 item
+export const isActivePath = (pathname: string, path: string): boolean; // exact, or `${path}/` prefix; `/admin` exact only
+```
+
+### Shell — `apps/web/components/layout/`
+
+| File              | Kind   | Does                                                                                                                                                                                        |
+| ----------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app-shell.tsx`   | server | `AbilityProvider user` → `SidebarProvider defaultOpen` → `AppSidebar` + `SidebarInset` (`AppHeader`, `<main>` with the page gutters)                                                        |
+| `app-sidebar.tsx` | client | `useAbility()` + `usePathname()` → `visibleNavGroups` → `Sidebar collapsible="icon"`: header (brand → ホーム), one `NavMain` per group, footer `NavUser`                                    |
+| `nav-main.tsx`    | client | one group: `SidebarGroup`/`SidebarGroupLabel`; leaf → `SidebarMenuButton render={<Link>}` with `isActive`/`tooltip`; branch → `Collapsible` + `SidebarMenuSub`, open when a child is active |
+| `nav-user.tsx`    | client | `DropdownMenu` on a `size="lg"` menu button: `Avatar` initials, name, email, `RoleBadge`; items プロフィール, ログアウト (`authClient.signOut` → login → `router.refresh()`)                |
+| `app-header.tsx`  | client | `SidebarTrigger`, `Separator`, `Breadcrumb` from `findRoute` on each path prefix (last crumb = page)                                                                                        |
+
+Notes: `SidebarInset` already renders `<main>`, so the page wrapper inside it is a `<div>`.
+`NAV_GROUPS` holds icon components (functions), so only client modules import `config/nav.ts`; icons
+never cross the server→client boundary as props. The header uses `breadcrumbTrail`.
+
+`app/admin/layout.tsx` (server): `getCurrentUser()` → `redirect(login)` when null; reads the
+`sidebar_state` cookie for `defaultOpen` (as both reference apps do); renders `AppShell`. The old
+top-nav `components/app-shell.tsx` and `visibleNavItems` go away.
+
+Other app-wide pieces: `components/access-denied.tsx` (server, `EmptyState` with `ShieldX`, link
+to ホーム), `components/placeholder-page.tsx` (server, `PageHeader title={route.title}` +
+`EmptyState` 準備中「この画面は現在開発中です」), `app/admin/not-found.tsx` and
+`app/admin/error.tsx` (`EmptyState`).
+
+### `packages/ui` additions
+
+- CLI (`cd apps/web && npx shadcn@4.21.0 add sidebar collapsible avatar breadcrumb`): `sidebar.tsx`,
+  `sheet.tsx` (sidebar dependency), `collapsible.tsx`, `avatar.tsx`, `breadcrumb.tsx`,
+  `src/hooks/use-mobile.ts`. Base UI: `render` instead of `asChild`. Any
+  `exactOptionalPropertyTypes` patch is recorded under "Known local patches" in
+  `.claude/rules/ui.md`.
+- Composed (house style, named exports, tests): `composed/page-header.tsx` (`PageHeader`: `title`,
+  `description?`, `actions?` — replaces the repeated inline `<header><h1>` blocks),
+  `composed/empty-state.tsx` (`EmptyState`: `icon?`, `title`, `description?`, `action?`; used by
+  placeholders, 403, 404, error).
+
+## Steps (commits)
+
+Amendment (2026-10-06): the open `chore/agent-tuning` edits (vendored shadcn conventions) were
+committed as `be5cd41` on `chore/agent-tuning` (= `develop` + that commit), and the feature branch
+starts there, so step 1 has the vendored `shadcn-ui` rules. The MR therefore carries that docs
+commit too.
+
+### 1. `feat(ui): add sidebar primitives and PageHeader/EmptyState composed components` `[parallel: A]`
+
+Files (≤11): `apps/web/components.json` (hooks alias); CLI output
+`packages/ui/src/components/{sidebar,sheet,collapsible,avatar,breadcrumb}.tsx`,
+`packages/ui/src/hooks/use-mobile.ts`;
+`packages/ui/src/components/composed/{page-header,empty-state}.tsx`;
+`packages/ui/test/components/composed/{page-header,empty-state}.test.tsx`;
+`packages/ui/src/components/composed/README.md`. Tests first: `PageHeader` renders an `h1` with the
+title, the description and the actions slot; `EmptyState` renders title/description and the action.
+Checks: `yarn prettier --write` on CLI output, `yarn lint`, `yarn typecheck`,
+`yarn workspace @repo/ui test`. Verify `use-mobile.ts` landed in `packages/ui/src/hooks` and
+`sidebar.tsx` imports `@repo/ui/hooks/use-mobile`.
+
+### 2. `feat(web): route catalog, nav config and the route access rule` `[parallel: A]`
+
+Files (9): `apps/web/config/routes.ts`, `apps/web/config/nav.ts`,
+`apps/web/lib/auth/route-access.ts`, `apps/web/lib/auth/server.ts` (`cache`, `getCurrentUser`),
+`apps/web/package.json` (+ `lucide-react` 1.43.0; run `npm view lucide-react version` and state it
+in the commit), `yarn.lock`, `apps/web/test/config/routes.test.ts`,
+`apps/web/test/config/nav.test.ts`, `apps/web/test/lib/auth/route-access.test.ts`. Tests first
+(node, no DOM):
+
+- `routes`: `href` fills `[id]` and throws on a missing param; `findRoute` prefers the static
+  `/admin/workflow/create` over the `[id]` pattern, resolves `/admin/client/42` to `client.detail`,
+  returns `undefined` for unknown paths; `ALL_ROUTES` has no duplicate paths; every `/admin` route
+  is `signed-in` or a permission, every `auth` route is `public`.
+- `route-access`: public → true for `null`; signed-in → false for `null`, true for any ability;
+  permission → `canUnscoped` (a user with only the self rule cannot access `user.list`; one holding
+  `read User` can; `read Workflow` does not open `client.list`).
+- `nav`: no grants → ホーム + 設定 only, no マスター管理; `read User` alone → マスター管理 with one
+  child; the seeded staff grants (`read` on Client/Staff/Branch, all on Workflow) → the four main
+  items, no master group; all admin grants → every item; `isActivePath` (`/admin` exact only,
+  `/admin/client/42` activates `/admin/client`). Replaces `test/components/app-shell.test.ts`.
+
+### 3. `feat(web): sidebar shell, header and server-side page guard under /admin`
+
+Files (14): `apps/web/components/layout/{app-shell,app-sidebar,nav-main,nav-user,app-header}.tsx`,
+`apps/web/components/{page-guard,access-denied,placeholder-page}.tsx`,
+`apps/web/app/admin/layout.tsx`, `apps/web/app/admin/page.tsx` (ホーム: the dashboard content, links
+through `href`, `canAccessRoute` for the users link), `apps/web/app/admin/profile/page.tsx`,
+`apps/web/app/admin/master/user/page.tsx`, `apps/web/app/admin/master/user/[id]/page.tsx` (both
+inside `PageGuard`), `apps/web/app/admin/not-found.tsx`. The old `(app)` tree and shell still exist
+in this commit so the build stays green. Manual check against the running stack (do not start it):
+`super_admin@test.com` sees the full menu and opens `/admin/master/user`; `staff@test.com` sees four
+items and gets the 403 on `/admin/master/user` and on `/admin/master/log`.
+
+### 4. `refactor(web): move dashboard, users and profile under /admin`
+
+Files (14): delete
+`apps/web/app/(app)/{layout,dashboard/page,profile/page,users/page,users/[id]/page}.tsx`,
+`apps/web/components/app-shell.tsx`, `apps/web/test/components/app-shell.test.ts`; edit
+`apps/web/proxy.ts` (`matcher: ["/admin/:path*"]`), `apps/web/app/page.tsx`,
+`apps/web/app/(auth)/login/page.tsx` (redirect/default `next` → `href(routes.home)`; also reject a
+protocol-relative `next` such as `//evil.example` — today `startsWith("/")` lets it through, an open
+redirect), `apps/web/features/auth/resend-verification.tsx` (callback → home),
+`apps/web/features/users/users-table.tsx` (`href(routes.user.detail, { id })`),
+`apps/web/features/users/user-editor.tsx` (`router.push(href(routes.user.list))`),
+`apps/web/features/users/profile-editor.tsx` / `user-editor.tsx` inline headers → `PageHeader`.
+`yarn build` in `apps/web` once here (route tree change).
+
+### 5. `feat(web): placeholder pages — workflow, templates, audit log, settings, auth` `[parallel: B]`
+
+Files (15): `apps/web/app/admin/workflow/{page,[id]/page,create/page,update/[id]/page}.tsx`,
+`apps/web/app/admin/master/workflow/template/{page,create/page,update/[id]/page}.tsx`,
+`apps/web/app/admin/master/log/page.tsx`,
+`apps/web/app/admin/settings/{privacy,manual,help}/page.tsx`,
+`apps/web/app/(auth)/{forgot-password,new-password}/page.tsx` (placeholder inside the auth card, no
+guard), `apps/web/app/admin/error.tsx`. Each admin page is three lines:
+`<PageGuard route={routes.x.y}><PlaceholderPage route={routes.x.y} /></PageGuard>`; `[id]` pages
+await `params` and pass nothing yet (the placeholder ignores the id).
+
+### 6. `feat(web): placeholder pages — client, branch, staff, user create/update` `[parallel: B]`
+
+Files (14):
+`apps/web/app/admin/{client,branch,staff}/{page,[id]/page,create/page,update/[id]/page}.tsx`,
+`apps/web/app/admin/master/user/{create/page,update/[id]/page}.tsx`.
+
+### 7. `docs: web shell, route catalog and the page guard`
+
+Files (6): `.claude/rules/ui.md` (component table: `components/layout/`, `config/`,
+`PageGuard`/`PlaceholderPage`; composed list; auth layers → four; hooks alias; known patches),
+`.claude/rules/permissions.md` (Web section: `canAccessRoute`, three verbs, `PageGuard` replaces
+`visibleNavItems`), `.claude/skills/nextjs/SKILL.md` (tree, session/authorization, "paths only in
+`config/routes.ts`"), `.claude/skills/casl/SKILL.md` (web pointers), `README.md` (URL table, folder
+map), `docs/adr/0003-permissions.md` (`## Changes` line: web route catalog + unscoped server-side
+gate; UI only, the API stays the guard).
+
+## Risks and open points
+
+- shadcn `sidebar` (base-nova) may need small `exactOptionalPropertyTypes` patches → record them, do
+  not hand-edit beyond that. Confirm `sheet` is pulled automatically; add it explicitly otherwise.
+- `cache()` around a function that calls `headers()` is per-request in Next 16 — the intended
+  behaviour; keep `cache: "no-store"` on the fetch.
+- Async server component with `children` (`PageGuard`) — supported; if the Next typegen complains,
+  type the return as `Promise<ReactNode>`.
+- `config/nav.ts` imports `lucide-react` and runs in node tests — fine (ESM/CJS dual package).
+- `/admin/master/user/[id]` is now `read User` unscoped: a staff user can no longer open their own
+  row there and uses `/admin/profile` instead (the dashboard links there).
+- `generateMetadata` per route (browser `<title>`) is not in scope; `findRoute` makes it a one-liner
+  later. Firebase push, notifications and CSV dialogs from legacy are out of scope.
+- The dev database on 5433 is diverged; the manual check needs a seeded stack
+  (`local-dev-environment` notes).
