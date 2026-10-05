@@ -7,11 +7,11 @@ description:
 
 # CASL abilities (packages/permissions)
 
-## Purpose
-
-CASL answers the coarse question "may this user do this kind of action on this kind of subject" (the
-user's grants come from the session). Everything that depends on the current state of a row stays in
-services. Rules: `.claude/rules/permissions.md`; decision: `docs/adr/0003-permissions.md`.
+CASL answers the coarse question "may this user do this kind of action on this kind of subject"; the
+user's grants come from the session (role grants ∪ user `ALLOW` − user `DENY`). Everything that
+depends on the current state of a row stays in services. The rule set, the actions, the subjects and
+who may do what are in `.claude/rules/permissions.md`; the decision is
+`docs/adr/0003-permissions.md`. This skill is the how-to.
 
 ## Shape
 
@@ -23,139 +23,64 @@ services. Rules: `.claude/rules/permissions.md`; decision: `docs/adr/0003-permis
 | `src/react.tsx` (`@repo/permissions/react`)  | `AbilityProvider`, `Can`, `useAbility`                                                                                                         |
 | `test/ability.test.ts`                       | the grant-driven unit spec (roles live in `permissions.csv`)                                                                                   |
 
-The rules are written once and built twice; conditions are plain equalities on subject attributes
-(today only `id`) so the mongo and the Prisma engine agree.
+The rules are written once (`defineRules`) and built twice: the browser ability hides UI, the Prisma
+ability guards the API and filters lists. Conditions are plain equalities on subject attributes
+(today only `id`) so both engines agree.
 
-```ts
-// src/rules.ts
-export const defineRules = (can: CanFn, user: AbilityUser): void => {
-  // Catalog grants from the session (role grants ∪ user ALLOW − user DENY), validated once.
-  for (const grant of user.permissions) {
-    if (isAction(grant.action) && isSubjectName(grant.subject)) {
-      can(grant.action, grant.subject);
-    }
-  }
-  // Everyone may see and edit their own profile.
-  can(["read", "update"], "User", { id: user.id });
-};
-```
+## How-to: change who may do what
 
-```ts
-// src/server.ts
-export const definePrismaAbilityFor = (user: AbilityUser | null): ServerAbility => {
-  const builder = new AbilityBuilder<ServerAbility>(createPrismaAbility);
-  if (user) {
-    defineRules((action, subjectName, conditions) => {
-      builder.can(action, subjectName, conditions);
-    }, user);
-  }
-  return builder.build();
-};
+Flip or add the row in `packages/database/prisma/seed/data/permissions.csv`; the seed-test counts
+(`packages/database/test/seed/permissions.seed.test.ts`) and the DB-backed catalog test
+(`apps/api/test/permission-catalog.test.ts`) document the change. No rule code changes. A new action
+or subject is a new catalog value plus an entry in `ACTIONS` / `SUBJECT_NAMES` (the guards
+`isAction` / `isSubjectName` ignore anything else, fail closed).
 
-export const accessibleUsersWhere = (
-  ability: ServerAbility,
-  action: Action = "read",
-): Prisma.UserWhereInput => accessibleBy(ability, action).ofType("User");
-```
+## How-to: add a rule shape (a scoped role)
 
-## How-to: write a rule
-
-1. Who may do what is data: flip or add the row in
-   `packages/database/prisma/seed/data/permissions.csv` first (the seed-test counts and
-   `apps/api/test/permission-catalog.test.ts` document the change); no rule code changes for that. A
-   new rule shape (a scoped role, e.g. a team lead reading their own team) starts with a case in
-   `test/ability.test.ts` — the spec — then one `can(...)` with an equality condition after the
-   grant loop.
-2. Add the `can(...)` line in `defineRules`. Prefer whitelist rules; use `cannot` only to carve an
-   exception out of a broad `can`. A new condition key goes into `UserConditions`.
+1. Add the case to `test/ability.test.ts` first — it is the spec; the failing case documents the
+   change.
+2. Add one `can(action, subject, { attribute: user.attribute })` after the grant loop in
+   `defineRules`; the attribute goes into `UserConditions`. Prefer whitelist rules; use `cannot`
+   only to carve an exception out of a broad `can`.
 3. Keep conditions to attributes CASL can evaluate on the subject object (`id`, `teamId`, ...). If
    you need to load something to decide, it is a service rule, not a CASL rule.
 4. ADR line in `docs/adr/0003-permissions.md`.
 
-## How-to: check in a router
+## How-to: check in a router, a service, a list
 
-```ts
-// apps/api/src/trpc/init.ts
-export const requireAbility = (action: Action, subjectName: SubjectName) =>
-  t.middleware(({ ctx, next }) => {
-    if (!ctx.ability.can(action, subjectName)) {
-      throw new ForbiddenError(`Not allowed to ${action} ${subjectName}`);
-    }
-    return next();
-  });
-```
+- Router: every non-public procedure is `protectedProcedure.use(requireAbility(action, subject))`
+  (`apps/api/src/trpc/init.ts`; example `apps/api/src/trpc/routers/user.router.ts`). A missing check
+  is a reviewer BLOCKER.
+- Service row check: `ctx.ability.can(action, prismaUserSubject(row))`, throwing `ForbiddenError`
+  (`assertCan` in `apps/api/src/modules/user/user.service.ts`). The service re-checks the type-level
+  ability too; it never assumes the router did.
+- List: guard with `ctx.ability.can("read", "User")`, then compose
+  `accessibleUsersWhere(ctx.ability, "read")` with the service's own filters and hand the Prisma
+  `where` to the repository (`list` in `user.service.ts`). Never filter in memory.
+- Web: `AbilityProvider user={user}` once in the shell, `<Can I="..." a="...">` to hide UI,
+  `canUnscoped(ability, "read", "User")` for navigation and list links (`visibleNavItems` in
+  `apps/web/components/app-shell.tsx`). UI hiding is never the only guard.
 
-```ts
-// apps/api/src/trpc/routers/user.router.ts
-export const userRouter = router({
-  changeRole: protectedProcedure
-    .use(requireAbility("changeRole", "User"))
-    .input(changeRoleSchema)
-    .mutation(({ ctx, input }) => userService.changeRole(ctx, input)),
-});
-```
+## The spec is two tests
 
-Every non-public procedure: `protectedProcedure` → `requireAbility` → service. A missing check is a
-reviewer BLOCKER.
-
-## How-to: check a row in a service
-
-```ts
-if (!ctx.ability.can("update", prismaUserSubject(targetRow))) {
-  throw new ForbiddenError("Not allowed to update this user");
-}
-```
-
-## How-to: filter a list
-
-```ts
-// apps/api/src/modules/user/user.service.ts
-if (!ctx.ability.can("read", "User")) {
-  throw new ForbiddenError("Not allowed to list users"); // fail-closed marker guard
-}
-const filters: Prisma.UserWhereInput[] = [accessibleUsersWhere(ctx.ability, "read")];
-if (query.role) {
-  filters.push({ role: query.role });
-}
-return createUserRepository(ctx.db).findMany({ page, perPage }, { AND: filters });
-```
-
-The service composes the `where`; the repository receives it as a Prisma type and adds
-`deletedAt: null`. Never filter in memory after loading everything.
-
-## The spec (`test/ability.test.ts` + `apps/api/test/permission-catalog.test.ts`)
-
-The unit spec is grant-driven and knows nothing about roles: a user holding exactly one grant
-`{ action, subject }` can that cell on other rows and nothing else, plus the self rule on their own
-row; grants with `all` or an unknown subject are ignored. The DB-backed catalog test asserts, for
-every role × `permissions.csv` row, that `ctx.ability.can(action, modelName)` equals "a
-`role_permissions` row exists".
-
-```ts
-// One `it` per grant; the answer for every action × subject × relation is compared as a keyed
-// map, so a failure names the exact cell.
-const SINGLE_GRANTS = ACTIONS.flatMap((action) =>
-  SUBJECT_NAMES.map((subject) => ({ action, subject })),
-);
-
-it.each(SINGLE_GRANTS)("$action $subject", (grant) => {
-  expect(browserAnswers(defineAbilityFor(holder([grant])))).toEqual(expectedFor([grant]));
-});
-```
-
-The same file asserts that grants it does not know (`all`, `manage`, unknown subjects) allow
-nothing, the self rule alone, that `definePrismaAbilityFor` answers exactly like `defineAbilityFor`
-for every cell, that an anonymous visitor can do nothing, `canUnscoped`, and that
-`accessibleUsersWhere` restricts a user without the `read User` grant to their own row and leaves a
-holder of that grant unrestricted.
+- `test/ability.test.ts` — grant-driven, role-free: one `it` per single grant comparing a keyed map
+  of every action × subject × relation (`holder`, `browserAnswers`, `expectedFor`); grants it does
+  not know (`all`, `manage`, unknown subjects) allow nothing; the self rule alone; anonymous →
+  nothing; `definePrismaAbilityFor` ≡ `defineAbilityFor`; `canUnscoped`; `accessibleUsersWhere`.
+- `apps/api/test/permission-catalog.test.ts` — DB-backed: for every role × catalog row the ability
+  equals "a `role_permissions` row exists"; user `ALLOW` adds, `DENY` removes; a parent row (`all`)
+  never grants.
 
 ## Gotchas
 
 - Never encode workflow state (submission status, approval step) into CASL.
 - `userSubject(record)` / `prismaUserSubject(row)` (`subject("User", ...)`) is required for
   condition rules to see the subject type; a raw object silently yields `false`.
+- `ability.can(action, "User")` on the bare type is true as soon as any rule exists, including the
+  conditional self rule — use `canUnscoped` when the question is "every row".
 - `accessibleUsersWhere` on an ability with no matching rule returns a fail-closed marker that
   Prisma rejects — always guard with `ability.can(action, "User")` first.
 - `@repo/permissions/server` imports `@prisma/client/extension`; the web app and `packages/ui` may
   only import `@repo/permissions` and `@repo/permissions/react` (lint-enforced).
-- Web `Can` hides UI only; the API check runs regardless.
+- Catalog grants govern this ability only; Better Auth's `/api/auth/admin/*` endpoints stay gated by
+  the admin plugin's role map (ADR 0003).
