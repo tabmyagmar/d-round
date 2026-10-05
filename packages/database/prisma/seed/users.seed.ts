@@ -1,7 +1,8 @@
-// Development test accounts, seeded by prisma/seed/index.ts (`yarn db:seed`). Skipped when
-// NODE_ENV=production: accounts with a known password must never exist there. Converges rather
-// than no-ops: users are upserted by email, so a re-run re-applies the fixtures (fresh password
-// hash) without duplicating them.
+// Development test accounts, seeded by prisma/seed/index.ts (`yarn db:seed`). Created only when
+// NODE_ENV is explicitly `development` or `test`; anything else (unset, `production`, `staging`)
+// skips them, because accounts with a known password must never reach a real environment.
+// Converges rather than no-ops: users are upserted by email, so a re-run re-applies the fixtures
+// (fresh password hash) without duplicating them.
 //
 // Test accounts (all verified, password `A12345678`):
 //   admin@test.com   admin
@@ -22,8 +23,11 @@ export const SEED_USERS = [
 
 const CREDENTIAL_PROVIDER = "credential";
 
+/** Fail closed: only these environments get the known-password accounts. */
+const TEST_USER_ENVIRONMENTS = new Set(["development", "test"]);
+
 export const seedUsers: SeedFn = async (prisma) => {
-  if (process.env.NODE_ENV === "production") {
+  if (!TEST_USER_ENVIRONMENTS.has(process.env.NODE_ENV ?? "")) {
     return {
       dataset: "users",
       rows: SEED_USERS.length,

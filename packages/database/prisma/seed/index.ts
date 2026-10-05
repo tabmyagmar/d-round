@@ -1,6 +1,6 @@
 // Seed — `yarn db:seed` (prisma db seed → tsx prisma/seed/index.ts). Runs every dataset in order,
 // parents before children. Reference data is idempotent: a re-run reports created 0, updated 0.
-// The test accounts are skipped when NODE_ENV=production.
+// The test accounts are created only when NODE_ENV is `development` or `test`.
 //
 // Test accounts (all verified, password `A12345678`):
 //   admin@test.com   admin

@@ -4,9 +4,9 @@ import { seedSourceRegions } from "../../prisma/seed/source-regions.seed";
 import { createPrismaClient } from "../../src/client";
 import type { PrismaClient } from "../../src/client";
 
-// Other seed test files (prefectures, the whole reference entrypoint) seed the same regions on
-// the shared container in parallel, so the first run's created/updated split is not asserted —
-// only the data it leaves behind and that a re-run changes nothing.
+// The prefectures test seeds the same regions on the shared container in parallel, so the first
+// run's created/updated split is not asserted, only the data it leaves behind and that a re-run
+// changes nothing.
 
 let prisma: PrismaClient;
 

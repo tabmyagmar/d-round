@@ -4,7 +4,8 @@
 import { diffByKey, parseInteger, readCsv } from "./support";
 import type { SeedFn } from "./support";
 
-type SourcePrefectureCsvRow = { code: string; name: string; nameEn: string; regionCode: string };
+const SOURCE_PREFECTURE_COLUMNS = ["code", "name", "nameEn", "regionCode"] as const;
+type SourcePrefectureCsvRow = Record<(typeof SOURCE_PREFECTURE_COLUMNS)[number], string>;
 type SourcePrefectureRow = { code: number; name: string; nameEn: string; regionCode: number };
 
 const SOURCE_PREFECTURES_CSV = new URL("./data/source-prefectures.csv", import.meta.url);
@@ -20,7 +21,7 @@ const isSamePrefecture = (a: SourcePrefectureRow, b: SourcePrefectureRow): boole
   a.name === b.name && a.nameEn === b.nameEn && a.regionCode === b.regionCode;
 
 export const seedSourcePrefectures: SeedFn = async (prisma) => {
-  const desired = readCsv<SourcePrefectureCsvRow>(SOURCE_PREFECTURES_CSV).map(toPrefectureRow);
+  const desired = readCsv(SOURCE_PREFECTURES_CSV, SOURCE_PREFECTURE_COLUMNS).map(toPrefectureRow);
   const existing = await prisma.sourcePrefecture.findMany({
     select: { code: true, name: true, nameEn: true, regionCode: true },
   });

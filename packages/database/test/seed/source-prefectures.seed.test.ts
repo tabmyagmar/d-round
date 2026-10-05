@@ -5,9 +5,9 @@ import { seedSourceRegions } from "../../prisma/seed/source-regions.seed";
 import { createPrismaClient } from "../../src/client";
 import type { PrismaClient } from "../../src/client";
 
-// The regions test (and later the whole reference entrypoint) seeds the same rows on the shared
-// container in parallel, so the first run's created/updated split is not asserted — only the
-// data it leaves behind and that a re-run changes nothing.
+// The regions test seeds the same regions on the shared container in parallel, so the first run's
+// created/updated split is not asserted, only the data it leaves behind and that a re-run changes
+// nothing. Only this file writes prefectures, so the drift test asserts its exact summary.
 
 let prisma: PrismaClient;
 
@@ -92,7 +92,13 @@ describe("seedSourcePrefectures", () => {
 
     const summary = await seedSourcePrefectures(prisma);
 
-    expect(summary.created).toBe(0);
+    expect(summary).toEqual({
+      dataset: "source_prefectures",
+      rows: 47,
+      created: 0,
+      updated: 1,
+      skipped: 0,
+    });
     expect(await prisma.sourcePrefecture.count()).toBe(47);
     expect(await prisma.sourcePrefecture.findUniqueOrThrow({ where: { code: 47 } })).toMatchObject({
       name: "沖縄県",

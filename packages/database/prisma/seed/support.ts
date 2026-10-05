@@ -2,6 +2,7 @@
 // a SeedSummary; runSeeds owns the connection and the output. CSV datasets build on readCsv,
 // parseInteger and diffByKey.
 import { readFileSync } from "node:fs";
+import { basename } from "node:path";
 
 import { parse } from "csv-parse/sync";
 import { config as loadEnv } from "dotenv";
@@ -19,9 +20,28 @@ export type SeedSummary = {
 
 export type SeedFn = (prisma: PrismaClient) => Promise<SeedSummary>;
 
-/** Reads a CSV with a header row into one object per row, keyed by column; cells are trimmed. */
-export const readCsv = <T extends Record<string, string>>(file: URL): T[] =>
-  parse<T>(readFileSync(file), { columns: true, skip_empty_lines: true, bom: true, trim: true });
+/**
+ * Reads a CSV whose header must be exactly `columns` (same names, same order) into one object per
+ * row; cells are trimmed. A renamed or missing column throws instead of yielding undefined cells.
+ */
+export const readCsv = <const C extends readonly string[]>(
+  file: URL,
+  columns: C,
+): Record<C[number], string>[] =>
+  // The header check below guarantees every row has exactly the keys in `columns`.
+  parse<Record<string, string>>(readFileSync(file), {
+    columns: (header: string[]) => {
+      if (header.join(",") !== columns.join(",")) {
+        throw new Error(
+          `${basename(file.pathname)}: expected columns ${columns.join(",")}, got ${header.join(",")}`,
+        );
+      }
+      return header;
+    },
+    skip_empty_lines: true,
+    bom: true,
+    trim: true,
+  });
 
 /** Strict integer cell: "12" → 12, while "", "1.5" or "12a" throw instead of being truncated. */
 export const parseInteger = (value: string, column: string): number => {
@@ -33,7 +53,8 @@ export const parseInteger = (value: string, column: string): number => {
 
 /**
  * Splits the desired rows into those missing from `existing` (by key) and those whose values
- * differ, so a seed writes only what changed and a re-run leaves every `updated_at` alone.
+ * differ, so a seed writes only what changed and a re-run leaves every `updated_at` alone. A key
+ * repeated in `desired` throws: such a dataset would never settle.
  */
 export const diffByKey = <T>(
   existing: readonly T[],
@@ -44,8 +65,14 @@ export const diffByKey = <T>(
   const existingByKey = new Map(existing.map((row) => [keyOf(row), row]));
   const toCreate: T[] = [];
   const toUpdate: T[] = [];
+  const seen = new Set<string | number>();
   for (const row of desired) {
-    const current = existingByKey.get(keyOf(row));
+    const key = keyOf(row);
+    if (seen.has(key)) {
+      throw new Error(`diffByKey: duplicate key ${String(key)} in the desired rows`);
+    }
+    seen.add(key);
+    const current = existingByKey.get(key);
     if (current === undefined) {
       toCreate.push(row);
     } else if (!isSame(current, row)) {

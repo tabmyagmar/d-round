@@ -27,6 +27,33 @@ const findSeedUser = (email: string) =>
     include: { accounts: { where: { providerId: "credential" } } },
   });
 
+const SKIPPED = {
+  dataset: "users",
+  rows: SEED_USERS.length,
+  created: 0,
+  updated: 0,
+  skipped: SEED_USERS.length,
+};
+
+/** Runs `run` with NODE_ENV set to `value` (unset when undefined), then restores it. */
+const withNodeEnv = async <T>(value: string | undefined, run: () => Promise<T>): Promise<T> => {
+  const previous = process.env.NODE_ENV;
+  // Assigning undefined to process.env stores the string "undefined", so delete instead.
+  const apply = (next: string | undefined) => {
+    if (next === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = next;
+    }
+  };
+  apply(value);
+  try {
+    return await run();
+  } finally {
+    apply(previous);
+  }
+};
+
 describe("seedUsers", () => {
   it("creates every test account verified, with its role and one working credential login", async () => {
     await prisma.user.deleteMany({ where: { email: { in: SEED_EMAILS } } });
@@ -93,7 +120,19 @@ describe("seedUsers", () => {
     expect((await findSeedUser(ADMIN_EMAIL)).accounts).toHaveLength(1);
   });
 
-  it("skips the test accounts with NODE_ENV=production and leaves the logins untouched", async () => {
+  it.each([undefined, "production", "staging"])(
+    "creates no test account when NODE_ENV is %s",
+    async (nodeEnv) => {
+      await prisma.user.deleteMany({ where: { email: { in: SEED_EMAILS } } });
+
+      const summary = await withNodeEnv(nodeEnv, () => seedUsers(prisma));
+
+      expect(summary).toEqual(SKIPPED);
+      expect(await prisma.user.count({ where: { email: { in: SEED_EMAILS } } })).toBe(0);
+    },
+  );
+
+  it("leaves existing test logins untouched when NODE_ENV=production", async () => {
     await seedUsers(prisma);
     const credentialHashes = async () =>
       (
@@ -105,24 +144,7 @@ describe("seedUsers", () => {
       ).map((account) => `${account.id}:${account.password ?? ""}`);
     const before = await credentialHashes();
 
-    const previous = process.env.NODE_ENV;
-    process.env.NODE_ENV = "production";
-    try {
-      expect(await seedUsers(prisma)).toEqual({
-        dataset: "users",
-        rows: SEED_USERS.length,
-        created: 0,
-        updated: 0,
-        skipped: SEED_USERS.length,
-      });
-    } finally {
-      // Assigning undefined to process.env stores the string "undefined".
-      if (previous === undefined) {
-        delete process.env.NODE_ENV;
-      } else {
-        process.env.NODE_ENV = previous;
-      }
-    }
+    expect(await withNodeEnv("production", () => seedUsers(prisma))).toEqual(SKIPPED);
 
     expect(before).toHaveLength(SEED_USERS.length);
     expect(await credentialHashes()).toEqual(before);

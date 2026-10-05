@@ -5,7 +5,8 @@ import { SourceArea } from "../../src/index";
 import { diffByKey, parseInteger, readCsv } from "./support";
 import type { SeedFn } from "./support";
 
-type SourceRegionCsvRow = { code: string; name: string; nameEn: string; area: string };
+const SOURCE_REGION_COLUMNS = ["code", "name", "nameEn", "area"] as const;
+type SourceRegionCsvRow = Record<(typeof SOURCE_REGION_COLUMNS)[number], string>;
 type SourceRegionRow = { code: number; name: string; nameEn: string; area: SourceArea };
 
 const SOURCE_REGIONS_CSV = new URL("./data/source-regions.csv", import.meta.url);
@@ -29,7 +30,7 @@ const isSameRegion = (a: SourceRegionRow, b: SourceRegionRow): boolean =>
   a.name === b.name && a.nameEn === b.nameEn && a.area === b.area;
 
 export const seedSourceRegions: SeedFn = async (prisma) => {
-  const desired = readCsv<SourceRegionCsvRow>(SOURCE_REGIONS_CSV).map(toRegionRow);
+  const desired = readCsv(SOURCE_REGIONS_CSV, SOURCE_REGION_COLUMNS).map(toRegionRow);
   const existing = await prisma.sourceRegion.findMany({
     select: { code: true, name: true, nameEn: true, area: true },
   });

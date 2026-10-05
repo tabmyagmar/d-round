@@ -16,12 +16,19 @@ afterAll(() => {
 describe("readCsv", () => {
   it("reads one object per row keyed by header, ignoring a BOM, CRLF and padding", () => {
     const file = join(dir, "regions.csv");
-    writeFileSync(file, "﻿code,name\r\n1, 北海道 \r\n2,東北\r\n\r\n");
+    writeFileSync(file, "\uFEFFcode,name\r\n1, 北海道 \r\n2,東北\r\n\r\n");
 
-    expect(readCsv(pathToFileURL(file))).toEqual([
+    expect(readCsv(pathToFileURL(file), ["code", "name"])).toEqual([
       { code: "1", name: "北海道" },
       { code: "2", name: "東北" },
     ]);
+  });
+
+  it("refuses a file whose header does not match the expected columns", () => {
+    const file = join(dir, "renamed.csv");
+    writeFileSync(file, "code,title\n1,北海道\n");
+
+    expect(() => readCsv(pathToFileURL(file), ["code", "name"])).toThrow(/renamed\.csv.*code,name/);
   });
 });
 
@@ -62,5 +69,14 @@ describe("diffByKey", () => {
     const rows: Row[] = [{ code: 1, name: "same" }];
 
     expect(diffByKey(rows, rows, keyOf, isSame)).toEqual({ toCreate: [], toUpdate: [] });
+  });
+
+  it("refuses desired rows that repeat a key", () => {
+    const desired: Row[] = [
+      { code: 1, name: "first" },
+      { code: 1, name: "second" },
+    ];
+
+    expect(() => diffByKey([], desired, keyOf, isSame)).toThrow(/duplicate key 1/);
   });
 });
