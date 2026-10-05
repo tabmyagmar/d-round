@@ -17,6 +17,8 @@ export type SeedSummary = {
   created: number;
   updated: number;
   skipped: number;
+  /** Join-table rows a dataset syncs next to its own rows; printed as `grants +created/-deleted`. */
+  grants?: { created: number; deleted: number };
 };
 
 export type SeedFn = (prisma: PrismaClient) => Promise<SeedSummary>;
@@ -116,9 +118,15 @@ export const diffByKey = <T>(
   return { toCreate, toUpdate };
 };
 
-const formatSummary = (summary: SeedSummary): string =>
-  `seed ${summary.dataset}: rows ${summary.rows}, created ${summary.created}, ` +
-  `updated ${summary.updated}, skipped ${summary.skipped}\n`;
+const formatSummary = (summary: SeedSummary): string => {
+  const grants = summary.grants
+    ? `, grants +${summary.grants.created}/-${summary.grants.deleted}`
+    : "";
+  return (
+    `seed ${summary.dataset}: rows ${summary.rows}, created ${summary.created}, ` +
+    `updated ${summary.updated}, skipped ${summary.skipped}${grants}\n`
+  );
+};
 
 export const runSeeds = async (
   run: (prisma: PrismaClient) => Promise<readonly SeedSummary[]>,

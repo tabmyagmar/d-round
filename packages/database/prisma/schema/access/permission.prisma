@@ -1,0 +1,26 @@
+// Permission catalog (reference data, seeded from prisma/seed/data/permissions.csv). Two levels:
+// a parent (menu group, `parentKey` null) and its children, linked through the natural key
+// `parentKey → Permission.key`; Restrict so deleting a parent never silently flattens its
+// children. See docs/adr/0005-legacy-reference-data.md.
+
+model Permission {
+  id        String       @id @default(uuid(7)) @db.Uuid
+  key       String       @unique
+  name      String
+  nameJp    String       @map("name_jp")
+  parentKey String?      @map("parent_key")
+  parent    Permission?  @relation("PermissionParent", fields: [parentKey], references: [key], onDelete: Restrict)
+  children  Permission[] @relation("PermissionParent")
+  action    String
+  subject   String
+  modelName String       @map("model_name")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  roles RolePermission[]
+  users UserPermission[]
+
+  @@unique([action, subject])
+  @@index([parentKey])
+  @@map("permissions")
+}

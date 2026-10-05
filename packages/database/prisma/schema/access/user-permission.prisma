@@ -1,0 +1,16 @@
+// Per-user permission grant on top of the role (join table; the seed never touches it). Composite
+// primary key instead of a uuid `id`; removed with the user or the permission. `assignedBy` is an
+// audit user id without a foreign key. See docs/adr/0005-legacy-reference-data.md.
+
+model UserPermission {
+  userId        String     @map("user_id") @db.Uuid
+  permissionKey String     @map("permission_key")
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission    Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+  createdAt     DateTime   @default(now()) @map("created_at")
+  assignedBy    String?    @map("assigned_by") @db.Uuid
+
+  @@id([userId, permissionKey])
+  @@index([permissionKey])
+  @@map("user_permissions")
+}

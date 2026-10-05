@@ -1,0 +1,43 @@
+key,name,nameJp,parentKey,action,subject,modelName,super_admin,admin,manager,staff
+1100,User,マスタ管理,,all,Admin_User,User,0,0,0,0
+1101,User create,担当者新規登録,1100,create,Admin_User,User,1,1,0,0
+1102,User read,担当者情報の一覧・詳細を確認,1100,read,Admin_User,User,1,1,0,0
+1103,User update,担当者情報編集,1100,update,Admin_User,User,1,1,0,0
+1104,User delete,担当者情報削除,1100,delete,Admin_User,User,1,1,0,0
+1105,User status,担当者情報のステータス変更,1100,status,Admin_User,User,1,1,0,0
+1200,Client,クライアント管理,,all,Admin_Client,Client,0,0,0,0
+1201,Client create,クライアント新規登録,1200,create,Admin_Client,Client,1,1,0,0
+1202,Client read,クライアント情報の一覧・詳細を確認,1200,read,Admin_Client,Client,1,1,1,1
+1203,Client update,クライアント情報編集,1200,update,Admin_Client,Client,1,1,0,0
+1204,Client delete,クライアント情報削除,1200,delete,Admin_Client,Client,1,1,0,0
+1205,Client status,クライアント情報のステータス変更,1200,status,Admin_Client,Client,1,1,0,0
+1300,Staff,スタッフ管理,,all,Admin_Staff,Staff,0,0,0,0
+1301,Staff create,スタッフ新規登録,1300,create,Admin_Staff,Staff,1,1,0,0
+1302,Staff read,スタッフ情報の一覧・詳細を確認,1300,read,Admin_Staff,Staff,1,1,1,1
+1303,Staff update,スタッフ情報編集,1300,update,Admin_Staff,Staff,1,1,0,0
+1304,Staff delete,スタッフ情報削除,1300,delete,Admin_Staff,Staff,1,1,0,0
+1305,Staff status,スタッフ情報のステータス変更,1300,status,Admin_Staff,Staff,1,1,0,0
+1400,Source csv,CSVアップロード・ダウンロード,,all,Source_csv,SourceCsvHistory,0,0,0,0
+1401,Csv upload,CSVアップロード,1400,create,Source_csv,SourceCsvHistory,1,1,1,0
+1402,Csv download,CSVダウンロード,1400,read,Source_csv,SourceCsvHistory,1,1,1,0
+1500,AuditLog,アクセスログ,,all,Admin_Log,AuditLog,0,0,0,0
+1502,AuditLog read,アクセスログの閲覧,1500,read,Admin_Log,AuditLog,1,1,0,0
+1504,AuditLog delete,アクセスログの削除,1500,delete,Admin_Log,AuditLog,1,1,0,0
+1600,WorkflowTemplate,ワークフロー書式・経路管理,,all,Admin_Workflow_Template,WorkflowTemplate,0,0,0,0
+1601,Workflow template create,ワークフロー申請書書式作成,1600,create,Admin_Workflow_Template,WorkflowTemplate,1,1,0,0
+1602,Workflow template read,ワークフロー申請書書式一覧閲覧,1600,read,Admin_Workflow_Template,WorkflowTemplate,1,1,0,0
+1603,Workflow template update,ワークフロー申請書書式編集,1600,update,Admin_Workflow_Template,WorkflowTemplate,1,1,0,0
+1604,Workflow template delete,ワークフロー申請書書式削除,1600,delete,Admin_Workflow_Template,WorkflowTemplate,1,1,0,0
+1605,Workflow template status,ワークフロー申請書書式ステータス変更,1600,status,Admin_Workflow_Template,WorkflowTemplate,1,1,0,0
+1700,Workflow,ワークフローメニュー,,all,Admin_Workflow,Workflow,0,0,0,0
+1701,Workflow create,ワークフロー申請書,1700,create,Admin_Workflow,Workflow,1,1,1,1
+1702,Workflow read,ワークフロー申請書一覧閲覧,1700,read,Admin_Workflow,Workflow,1,1,1,1
+1703,Workflow update,ワークフロー申請書編集,1700,update,Admin_Workflow,Workflow,1,1,1,1
+1704,Workflow delete,ワークフロー申請書削除,1700,delete,Admin_Workflow,Workflow,1,1,1,1
+1705,Workflow status,ワークフロー申請書ステータス変更,1700,status,Admin_Workflow,Workflow,1,1,1,1
+1800,Branch,就業先部署,,all,Admin_Branch,Branch,0,0,0,0
+1801,Branch create,就業先部署新規登録,1800,create,Admin_Branch,Branch,1,1,0,0
+1802,Branch read,就業先部署一覧閲覧,1800,read,Admin_Branch,Branch,1,1,1,1
+1803,Branch update,就業先部署編集,1800,update,Admin_Branch,Branch,1,1,0,0
+1804,Branch delete,就業先部署削除,1800,delete,Admin_Branch,Branch,1,1,0,0
+1805,Branch status,就業先部署ステータス変更,1800,status,Admin_Branch,Branch,1,1,0,0

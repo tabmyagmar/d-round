@@ -4,11 +4,15 @@ export type {
   Account,
   HealthCheck,
   OutboxEmail,
+  Permission,
+  Role,
+  RolePermission,
   Session,
   SourceAddress,
   SourcePrefecture,
   SourceRegion,
   User,
+  UserPermission,
   Verification,
 } from "./generated/prisma/client";
 

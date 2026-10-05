@@ -1,0 +1,16 @@
+// Role catalog (reference data, seeded from prisma/seed/roles.seed.ts). `key` is lower-case like
+// Better Auth's `users.role`, but there is no foreign key between them: Better Auth owns that
+// column. Grants reference the natural key `key`. See docs/adr/0005-legacy-reference-data.md.
+
+model Role {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  key       String   @unique
+  name      String
+  nameJp    String   @map("name_jp")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  permissions RolePermission[]
+
+  @@map("roles")
+}

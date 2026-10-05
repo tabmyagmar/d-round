@@ -6,6 +6,8 @@
 // Test accounts (all verified, password `A12345678`):
 //   admin@test.com   admin
 //   member@test.com  member
+import { seedPermissions } from "./permissions.seed";
+import { seedRoles } from "./roles.seed";
 import { seedSourceAddresses } from "./source-addresses.seed";
 import { seedSourcePrefectures } from "./source-prefectures.seed";
 import { seedSourceRegions } from "./source-regions.seed";
@@ -13,6 +15,8 @@ import { runSeeds } from "./support";
 import { seedUsers } from "./users.seed";
 
 await runSeeds(async (prisma) => [
+  await seedRoles(prisma),
+  await seedPermissions(prisma),
   await seedSourceRegions(prisma),
   await seedSourcePrefectures(prisma),
   await seedSourceAddresses(prisma),

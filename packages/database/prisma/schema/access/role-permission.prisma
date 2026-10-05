@@ -1,0 +1,16 @@
+// Role → permission grant (join table, synced to prisma/seed/data/permissions.csv by the seed).
+// Composite primary key on the natural keys instead of a uuid `id`; `assignedBy` is an audit
+// user id without a foreign key. See docs/adr/0005-legacy-reference-data.md.
+
+model RolePermission {
+  roleKey       String     @map("role_key")
+  permissionKey String     @map("permission_key")
+  role          Role       @relation(fields: [roleKey], references: [key], onDelete: Cascade)
+  permission    Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+  createdAt     DateTime   @default(now()) @map("created_at")
+  assignedBy    String?    @map("assigned_by") @db.Uuid
+
+  @@id([roleKey, permissionKey])
+  @@index([permissionKey])
+  @@map("role_permissions")
+}

@@ -69,3 +69,31 @@ that environment's own variables: a developer `.env` (`NODE_ENV=development`) po
   post codes of up to 3 digits to 3, longer ones to 5; JIS codes to 5). The data file is stored
   gzip-compressed (`source-addresses.csv.gz`). Unlike regions and prefectures, a re-run never
   updates a changed master row; a master refresh is a separate ticket.
+- **2026-10-05** — Role and permission catalog (`Role`, `Permission`, `RolePermission`,
+  `UserPermission`, migration `20261005090103_add_roles_and_permissions`) in the new schema
+  folder `access/`: our authorization catalog next to Better Auth's `User`, so `auth/` stays the
+  Better-Auth-owned "regenerate and diff" folder; `User` gains only the relation field
+  `permissions`, no column. `roles` and `permissions` keep uuid v7 ids and, as decided for the
+  regions (Keys above), relations target their natural keys `roles.key` and `permissions.key`,
+  because the CSV and later legacy data migrations carry keys. The only exception to the uuid
+  rule: the join tables `role_permissions` and `user_permissions` use composite primary keys
+  (`@@id([roleKey, permissionKey])`, `@@id([userId, permissionKey])`) instead of a uuid `id`.
+  Legacy mapping: the `EnumUserRole` keys `SUPER_ADMIN | ADMIN | MANAGER | STAFF` become the
+  lower-case `super_admin`, `admin`, `manager`, `staff`, matching how Better Auth stores
+  `users.role`; the CSV's role column headers are renamed to match, its values are unchanged and
+  only its line endings changed (CRLF to LF, plus a final newline). The legacy Japanese
+  `Role.name` becomes `name_jp`, and `name` is a new English value. `PermissionsOnRoles` and
+  `PermissionsOnUsers` become `role_permissions` and `user_permissions`; the latter references
+  `users.id` through `user_id` instead of the legacy `userEmail`, and the email-keyed
+  `RolesOnUsers` is not ported (`users.role` replaces it). The legacy `assignedAt` becomes
+  `created_at` per the repo rule, `assigned_by` stays a plain uuid column without a foreign key
+  (an audit value; seeds write null), and the legacy `createdBy` / `updatedBy` on permissions are
+  dropped. There is no foreign key `users.role → roles.key`: Better Auth owns that column and its
+  allowed set stays `roleSchema` (ADR 0002); `member`, Better Auth's default role, has no catalog
+  row until the role-set ticket. The parent self-relation
+  `permissions.parent_key → permissions.key` is `onDelete: Restrict`, so deleting a menu group is
+  deliberate and never silently flattens its children into top-level entries; grants cascade with
+  their role, permission or user. The seed syncs only the role grants the CSV owns (catalog roles
+  × CSV permissions) to its flags: it adds missing grants, removes stale ones and prints the
+  changes as `grants +n/-m`. Grants of a role or permission outside the CSV (for example one added
+  at runtime) and `user_permissions` are never touched, and the seed never deletes a permission.
