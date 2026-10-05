@@ -1,7 +1,6 @@
-// Shared plumbing for the seed entrypoints: prisma/seed/index.ts (`yarn db:seed`, development
-// only) and prisma/seed/reference.ts (`yarn db:seed:reference`, production-safe). Each dataset
-// is a SeedFn that returns a SeedSummary; runSeeds owns the connection and the output. CSV
-// datasets build on readCsv, parseInteger and diffByKey.
+// Shared plumbing for prisma/seed/index.ts (`yarn db:seed`). Each dataset is a SeedFn that returns
+// a SeedSummary; runSeeds owns the connection and the output. CSV datasets build on readCsv,
+// parseInteger and diffByKey.
 import { readFileSync } from "node:fs";
 
 import { parse } from "csv-parse/sync";
@@ -19,24 +18,6 @@ export type SeedSummary = {
 };
 
 export type SeedFn = (prisma: PrismaClient) => Promise<SeedSummary>;
-
-/**
- * Loads the monorepo's root .env, same rule as prisma.config.ts: existing process env wins. Call it
- * before reading process.env in an entrypoint; runSeeds calls it itself.
- */
-export const loadSeedEnv = (): void => {
-  loadEnv({ path: new URL("../../../../.env", import.meta.url), quiet: true });
-};
-
-/** The dev seed creates test users with a known password; production gets reference data only. */
-export const assertNotProduction = (env: NodeJS.ProcessEnv): void => {
-  if (env.NODE_ENV === "production") {
-    throw new Error(
-      "yarn db:seed creates test users and must not run with NODE_ENV=production; " +
-        "use yarn db:seed:reference for reference data",
-    );
-  }
-};
 
 /** Reads a CSV with a header row into one object per row, keyed by column; cells are trimmed. */
 export const readCsv = <T extends Record<string, string>>(file: URL): T[] =>
@@ -74,15 +55,15 @@ export const diffByKey = <T>(
   return { toCreate, toUpdate };
 };
 
-const formatSummary = (label: string, summary: SeedSummary): string =>
-  `seed:${label} ${summary.dataset}: rows ${summary.rows}, created ${summary.created}, ` +
+const formatSummary = (summary: SeedSummary): string =>
+  `seed ${summary.dataset}: rows ${summary.rows}, created ${summary.created}, ` +
   `updated ${summary.updated}, skipped ${summary.skipped}\n`;
 
 export const runSeeds = async (
-  label: string,
   run: (prisma: PrismaClient) => Promise<readonly SeedSummary[]>,
 ): Promise<void> => {
-  loadSeedEnv();
+  // Same rule as prisma.config.ts: one root .env for the monorepo, existing process env wins.
+  loadEnv({ path: new URL("../../../../.env", import.meta.url), quiet: true });
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error("DATABASE_URL is not set; seeding needs a database");
@@ -91,7 +72,7 @@ export const runSeeds = async (
   try {
     const summaries = await run(prisma);
     for (const summary of summaries) {
-      process.stdout.write(formatSummary(label, summary));
+      process.stdout.write(formatSummary(summary));
     }
   } finally {
     await prisma.$disconnect();

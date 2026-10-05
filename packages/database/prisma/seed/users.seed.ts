@@ -1,17 +1,16 @@
-// Development test accounts, seeded by prisma/seed/index.ts (`yarn db:seed`) only — the
-// production-safe reference seed never imports this file. Converges rather than no-ops: users are
-// upserted by email, so a re-run re-applies the fixtures (fresh password hash) without duplicating
-// them. Refuses to run with NODE_ENV=production, however it is started.
+// Development test accounts, seeded by prisma/seed/index.ts (`yarn db:seed`). Skipped when
+// NODE_ENV=production: accounts with a known password must never exist there. Converges rather
+// than no-ops: users are upserted by email, so a re-run re-applies the fixtures (fresh password
+// hash) without duplicating them.
 //
 // Test accounts (all verified, password `A12345678`):
 //   admin@test.com   admin
 //   member@test.com  member
 //
 // Passwords are hashed with Better Auth's own scrypt implementation so the accounts sign in
-// through the normal /api/auth/sign-in/email flow. Never run this against production data.
+// through the normal /api/auth/sign-in/email flow.
 import { hashPassword } from "better-auth/crypto";
 
-import { assertNotProduction } from "./support";
 import type { SeedFn } from "./support";
 
 export const SEED_PASSWORD = "A12345678";
@@ -24,7 +23,15 @@ export const SEED_USERS = [
 const CREDENTIAL_PROVIDER = "credential";
 
 export const seedUsers: SeedFn = async (prisma) => {
-  assertNotProduction(process.env);
+  if (process.env.NODE_ENV === "production") {
+    return {
+      dataset: "users",
+      rows: SEED_USERS.length,
+      created: 0,
+      updated: 0,
+      skipped: SEED_USERS.length,
+    };
+  }
   const password = await hashPassword(SEED_PASSWORD);
   const existing = await prisma.user.findMany({
     where: { email: { in: SEED_USERS.map((seed) => seed.email) } },

@@ -20,12 +20,11 @@ dev test accounts, and loading it twice must change nothing.
   references `source_regions.code`, because the CSVs and the legacy data reference codes.
 - **`onDelete: Restrict`** on prefecture → region: reference data is never deleted implicitly.
 - **`enum SourceArea { EAST WEST }`** mapped to `source_area` (legacy `EnumArea`), a closed set.
-- **Seeds** live in `prisma/seed/` with two entrypoints: `index.ts` (`yarn db:seed`, dev only:
-  reference data, then the test users; refuses `NODE_ENV=production`) and `reference.ts`
-  (`yarn db:seed:reference`, production-safe: the `REFERENCE_SEEDS` registry only). The lint
-  rule `database/seed-production-safe` forbids reference seeds from importing the test-user seed
-  or Better Auth. Reference seeds are diff-based: they create missing rows and update changed rows
-  only, so a re-run reports `created 0, updated 0` and leaves every `updated_at` unchanged.
+- **Seeds** live in `prisma/seed/` behind one command, `yarn db:seed` (`index.ts`): every
+  reference dataset in order, then the test users, which are skipped with `NODE_ENV=production`
+  so production gets the same reference data without known-password logins. Reference seeds are
+  diff-based: they create missing rows and update changed rows only, so a re-run reports
+  `created 0, updated 0` and leaves every `updated_at` unchanged.
 - **`csv-parse` 7.0.3** (dev dependency of `@repo/database`, no dependencies of its own, sync
   API) reads every CSV seed.
 - **Migrations** for this port are generated against a throwaway Postgres that has only the
@@ -36,8 +35,9 @@ dev test accounts, and loading it twice must change nothing.
 
 Autoincrement `Int` ids as in the legacy schema (breaks the UUID v7 convention); child tables
 referencing the parent's uuid `id` (the CSVs carry codes, so every seed and later legacy data
-migration would need a lookup); one combined seed file (test users must stay physically separate
-from the data production loads); a split-based CSV reader (breaks on quoted fields such as Japan
+migration would need a lookup); a separate production-only seed command with a lint guard against
+importing the test-user seed (rejected as more machinery than a `NODE_ENV` check in one place); a
+split-based CSV reader (breaks on quoted fields such as Japan
 Post's KEN_ALL master).
 
 ## Consequences

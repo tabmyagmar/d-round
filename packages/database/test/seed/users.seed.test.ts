@@ -93,7 +93,7 @@ describe("seedUsers", () => {
     expect((await findSeedUser(ADMIN_EMAIL)).accounts).toHaveLength(1);
   });
 
-  it("refuses to run with NODE_ENV=production and leaves the test logins untouched", async () => {
+  it("skips the test accounts with NODE_ENV=production and leaves the logins untouched", async () => {
     await seedUsers(prisma);
     const credentialHashes = async () =>
       (
@@ -108,7 +108,13 @@ describe("seedUsers", () => {
     const previous = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";
     try {
-      await expect(seedUsers(prisma)).rejects.toThrow(/db:seed:reference/);
+      expect(await seedUsers(prisma)).toEqual({
+        dataset: "users",
+        rows: SEED_USERS.length,
+        created: 0,
+        updated: 0,
+        skipped: SEED_USERS.length,
+      });
     } finally {
       // Assigning undefined to process.env stores the string "undefined".
       if (previous === undefined) {
