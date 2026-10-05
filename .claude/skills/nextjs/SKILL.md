@@ -17,10 +17,10 @@ tRPC and to Better Auth over `/api/auth`. It never touches the database or the q
 apps/web/
   proxy.ts                      cookie-presence redirect for /dashboard, /users, /profile
   app/layout.tsx                ThemeProvider + TRPCReactProvider + <Toaster />
-  app/(auth)/layout.tsx         centered card shell; login/, register/, verify-email/
+  app/(auth)/layout.tsx         centered card shell; login/, verify-email/
   app/(app)/layout.tsx          server-side session check + <AppShell>
   app/(app)/dashboard|profile|users|users/[id]
-  features/auth/                login-form, register-form, resend-verification
+  features/auth/                login-form, resend-verification (no sign-up; admin-created users)
   features/users/               users-table, user-editor, profile-form, profile-editor, role-badge
   components/                   app-wide shell only: app-shell, theme-provider
   lib/auth/{client,server}.ts   authClient (browser) / getServerSession (server)
@@ -145,9 +145,9 @@ const onSubmit = form.handleSubmit(async (values) => {
 </FieldGroup>;
 ```
 
-`register-form.tsx` does the same with `signUpSchema` and `authClient.signUp.email(...)`, passing
-`callbackURL` = `<window.location.origin>/dashboard` (where Better Auth lands the user after the
-verification link) and then routing to `/verify-email?email=...`. `features/users/profile-form.tsx`
+There is no register form: public sign-up is disabled (ADR 0002) and users are created through
+the admin plugin. `features/auth/resend-verification.tsx` re-sends the verification mail for an
+unverified account. `features/users/profile-form.tsx`
 (rendered by `/profile` via `profile-editor.tsx` and by `/users/[id]` via `user-editor.tsx`) uses
 `updateProfileSchema` and `trpc.user.updateProfile`; use `emptyAs="null"` on optional nullable
 fields so a cleared input stores `null`. Show server errors in an
@@ -172,5 +172,6 @@ them as `process.env.NEXT_PUBLIC_X` literally. Everything else stays on the serv
   `fetch` with the forwarded cookie) and leave tRPC data fetching to client components. Do not call
   the browser tRPC client from a server component.
 - After a verification link is clicked, Better Auth signs the user in and redirects to the
-  `callbackURL` given at sign-up (`/dashboard`); the login form passes `next` as `callbackURL`.
+  `callbackURL` passed to `sendVerificationEmail` (the resend form passes `/dashboard`); the login
+  form passes `next` as `callbackURL`.
 - Prettier sorts Tailwind classes; do not fight the order.

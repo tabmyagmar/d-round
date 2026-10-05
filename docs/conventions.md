@@ -245,9 +245,11 @@ the web app is a plain client of it.
 - **CORS** (`apps/api/src/app.ts`) allows exactly `WEB_ORIGIN` with credentials on `/api/auth/*`
   and `/trpc/*`; every other origin gets no `Access-Control-Allow-Origin`. Better Auth additionally
   checks `trustedOrigins`.
-- **Verified email required.** Sign-up creates the user and a `PENDING` outbox row for the
-  verification mail; sign-in is refused (403) until the link is clicked; the link signs the user in
-  (`autoSignInAfterVerification`) and redirects to the sign-up `callbackURL`.
+- **Verified email required.** There is no public sign-up: an admin creates the user
+  (`auth.api.createUser`), and `POST /api/auth/send-verification-email` writes the `PENDING` outbox
+  row for the verification mail; sign-in is refused (403) until the link is clicked; the link signs
+  the user in (`autoSignInAfterVerification`) and redirects to the `callbackURL` passed to
+  `sendVerificationEmail`.
 - **Rate limit.** `/api/auth/sign-in/*` allows 10 attempts per minute per client IP
   (`X-Forwarded-For` first, else the socket address), then blocks for 60 s with `429` and
   `Retry-After` (`apps/api/src/middleware/rate-limit.ts`, `RateLimiterRedis` on the shared ioredis

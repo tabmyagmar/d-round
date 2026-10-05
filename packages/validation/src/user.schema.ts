@@ -12,14 +12,6 @@ export const emailSchema = z.email().max(255);
 export const passwordSchema = z.string().min(8).max(128);
 export const nameSchema = z.string().trim().min(1).max(100);
 
-/** Shared by the register form and the API. */
-export const signUpSchema = z.object({
-  name: nameSchema,
-  email: emailSchema,
-  password: passwordSchema,
-});
-export type SignUpInput = z.infer<typeof signUpSchema>;
-
 export const signInSchema = z.object({
   email: emailSchema,
   password: passwordSchema,

@@ -22,7 +22,7 @@ paths:
 `apps/web` has no `src/` folder: `app/`, `features/`, `components/`, `lib/` and `proxy.ts` sit at
 the workspace root and are imported through the `@/` alias (`@/features/users/role-badge`). The web
 app is feature-based: everything with domain knowledge lives in `features/<feature>/`
-(`auth`: `login-form`, `register-form`, `resend-verification`; `users`: `users-table`,
+(`auth`: `login-form`, `resend-verification`; `users`: `users-table`,
 `user-editor`, `profile-form`, `profile-editor`, `role-badge`). Route files
 under `app/` are thin: they import only from `@/features/<feature>/...` and `@/lib/...` and render
 one feature component.
@@ -153,7 +153,7 @@ Three layers, each thinner than the next one behind it:
 
 Client-side auth calls go through `authClient` (`apps/web/lib/auth/client.ts`,
 `createAuthReactClient(publicEnv.apiUrl)` from `@repo/auth/client`): `authClient.signIn.email`,
-`authClient.signUp.email`, `authClient.signOut`. The web app imports `@repo/auth/client` or
+`authClient.signOut`. The web app imports `@repo/auth/client` or
 `@repo/auth/access-control`, never the server entry (lint-enforced).
 
 ## Forms

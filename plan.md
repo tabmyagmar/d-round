@@ -34,7 +34,7 @@ Design defaults kept (not reopened): `SUBJECT_NAMES` = the catalog's eight `mode
 
 **Waiver**: the user waived the 15-file limit for this ticket (one MR). Honest total: about 68 distinct files (7 created, 2 deleted), touched 93 times across the seven commits below; the per-commit counts are exact.
 
-### Commit D1 — Public sign-up off (13 files)
+### Commit D1 — Public sign-up off (16 files)
 
 | #   | File                                     | Action | Layer      | Purpose                                                                                                                                            |
 | --- | ---------------------------------------- | ------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -51,6 +51,9 @@ Design defaults kept (not reopened): `SUBJECT_NAMES` = the catalog's eight `mode
 | 11  | README.md                                | modify | docs       | remove `/register` (lines 71, 103), "email + password sign-up" wording                                                                             |
 | 12  | .claude/rules/ui.md                      | modify | docs       | feature list (`register-form`), `authClient.signUp.email` mention                                                                                  |
 | 13  | .claude/rules/module-template.md         | modify | docs       | the `signUpSchema` sentence (line 68-70)                                                                                                           |
+| 14  | .claude/rules/testing.md                 | modify | docs       | `signedInUser` row (added in review: it described the removed sign-up flow)                                                                        |
+| 15  | .claude/skills/nextjs/SKILL.md           | modify | docs       | feature list, layout tree and the register-form paragraph (added in review: pointed at a deleted file)                                             |
+| 16  | docs/conventions.md                      | modify | docs       | "Verified email required" bullet (added in review: described the removed sign-up flow)                                                             |
 
 ### Commit D2 — Role set in code (15 files, no schema change)
 

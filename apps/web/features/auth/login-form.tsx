@@ -93,16 +93,10 @@ export const LoginForm = ({ next }: { next: string }) => {
             />
           </FieldGroup>
         </CardContent>
-        <CardFooter className="flex flex-col gap-3">
+        <CardFooter>
           <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
             {form.formState.isSubmitting ? "Signing in…" : "Sign in"}
           </Button>
-          <p className="text-sm text-muted-foreground">
-            No account yet?{" "}
-            <Link href="/register" className="underline">
-              Create one
-            </Link>
-          </p>
         </CardFooter>
       </form>
     </Card>

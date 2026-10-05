@@ -22,12 +22,7 @@ const HomePage = async () => {
         {session ? (
           <Button render={<Link href="/dashboard" />}>Open dashboard</Button>
         ) : (
-          <>
-            <Button render={<Link href="/login" />}>Sign in</Button>
-            <Button variant="outline" render={<Link href="/register" />}>
-              Create account
-            </Button>
-          </>
+          <Button render={<Link href="/login" />}>Sign in</Button>
         )}
       </div>
 

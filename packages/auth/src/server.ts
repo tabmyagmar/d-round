@@ -44,11 +44,14 @@ export const createAuth = (options: CreateAuthOptions) =>
     trustedOrigins: options.trustedOrigins,
     emailAndPassword: {
       enabled: true,
+      // No public sign-up: users are created only through the admin plugin (`auth.api.createUser`).
+      disableSignUp: true,
       requireEmailVerification: true,
       minPasswordLength: 8,
       maxPasswordLength: 128,
     },
     emailVerification: {
+      // Inert while sign-up is off: admin-created users are mailed via /send-verification-email.
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
       expiresIn: 60 * 60,

@@ -4,8 +4,8 @@
 
 Built from the Turborepo monorepo template: a Hono + tRPC API, a BullMQ worker and a Next.js 16
 app on top of Prisma 7 / PostgreSQL, Redis, Better Auth and CASL, with Docker services,
-testcontainers, CI and the Claude Code orchestration files already wired. Auth (sign-up with
-verified email, sessions), a `user` reference module (list, profile, roles `admin | member`,
+testcontainers, CI and the Claude Code orchestration files already wired. Auth (admin-created
+users, verified email, sessions), a `user` reference module (list, profile, roles `admin | member`,
 deactivate) and a transactional email outbox are included so a new project starts from a working
 vertical slice instead of an empty shell.
 
@@ -66,14 +66,14 @@ yarn dev               # web + api + worker (all three; emails need the worker)
 Then sign in at http://localhost:3000/login as `admin@test.com` / `A12345678` (or
 `member@test.com`, same password, role `member`). Or:
 
-| Service      | URL                            | Notes                                                     |
-| ------------ | ------------------------------ | --------------------------------------------------------- |
-| Web          | http://localhost:3000          | `/login`, `/register`, `/dashboard`, `/users`, `/profile` |
-| API          | http://localhost:4000/health   | Postgres and Redis probes; 200 `ok` / 503 `degraded`      |
-| Auth         | http://localhost:4000/api/auth | Better Auth endpoints (used by the web app)               |
-| Mailpit      | http://localhost:8025          | every outbox email lands here (SMTP on port 1025)         |
-| pgAdmin      | http://localhost:5050          | login `admin@example.com` / `admin` (from `.env`)         |
-| RedisInsight | http://localhost:5540          | optional: `docker compose --profile tools up -d`          |
+| Service      | URL                            | Notes                                                |
+| ------------ | ------------------------------ | ---------------------------------------------------- |
+| Web          | http://localhost:3000          | `/login`, `/dashboard`, `/users`, `/profile`         |
+| API          | http://localhost:4000/health   | Postgres and Redis probes; 200 `ok` / 503 `degraded` |
+| Auth         | http://localhost:4000/api/auth | Better Auth endpoints (used by the web app)          |
+| Mailpit      | http://localhost:8025          | every outbox email lands here (SMTP on port 1025)    |
+| pgAdmin      | http://localhost:5050          | login `admin@example.com` / `admin` (from `.env`)    |
+| RedisInsight | http://localhost:5540          | optional: `docker compose --profile tools up -d`     |
 
 ### Environment variables
 
@@ -98,9 +98,12 @@ The web app's name, description and `<html lang>` live in `apps/web/lib/brand.ts
 
 ## What is included
 
-- **Auth** (`packages/auth`, Better Auth): email + password sign-up with a verification link,
-  7-day cookie sessions, the admin plugin with roles `admin | member`. The API mounts it at
-  `/api/auth`; the web app has `/login`, `/register`, `/verify-email`.
+- **Auth** (`packages/auth`, Better Auth): email + password sign-in for users an admin creates
+  (`auth.api.createUser`; public sign-up is disabled), email verification, 7-day cookie sessions,
+  the admin plugin with roles `admin | member`. The API mounts it at `/api/auth`; the web app has
+  `/login` and `/verify-email`. Until an admin UI exists, users come from `yarn db:seed` (the test
+  accounts) or from `POST /api/auth/admin/create-user` / `authClient.admin.createUser` with an
+  admin session.
 - **User module** (the reference module): `user.me / byId / list / updateProfile / changeRole /
 deactivate` behind two-layer authorization — CASL abilities (`packages/permissions`, the matrix
   test is the spec) plus stateful service rules (the last active admin cannot be demoted or
@@ -155,8 +158,8 @@ apps/
               outbox-sweeper.ts, src/mail (MailProvider, SMTP, memory, templates, mail-from),
               test/ (mirrors src/, support.ts)
   web/        Next.js 16 App Router, Tailwind v4, tRPC + React Query client. proxy.ts,
-              app/(auth) (login, register, verify-email), app/(app) (dashboard, users, profile),
-              features/auth (login-form, register-form, resend-verification), features/users
+              app/(auth) (login, verify-email), app/(app) (dashboard, users, profile),
+              features/auth (login-form, resend-verification), features/users
               (users-table, user-editor, profile-form, profile-editor, role-badge),
               components/ (app-shell, theme-provider), lib/auth, lib/trpc, lib/env, lib/brand,
               test/ (vitest + Testing Library, jsdom per file)
@@ -172,7 +175,7 @@ packages/
               accounts), generated client (git-ignored), repositories (user, outbox-email), utils
               (pagination, errors, transaction), test/ (testcontainers helper, test/repositories,
               test/utils, test/seed)
-  validation/ zod re-export, shared schemas (user.schema.ts: roles, sign-up/in, profile, list),
+  validation/ zod re-export, shared schemas (user.schema.ts: roles, sign-in, profile, list),
               createEnv() for env validation
   queue/      BullMQ + ioredis wrapper: connection, createQueue, createWorker, pub/sub, jobIdFor,
               QUEUE_NAMES, jobs/email.job.ts (EmailJob contract), test/ (testcontainers Redis)

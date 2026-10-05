@@ -61,13 +61,13 @@ Never mock Prisma, Redis, BullMQ, Better Auth, repositories or services of this 
 
 `apps/api/test/support.ts` (real Postgres + Redis, real Better Auth):
 
-| Helper                             | What it gives you                                                                                        |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `createHarness()`                  | `{ db, redis, auth, emailQueue, logger, sentMails, stop }`; call `stop()` in `afterAll`                  |
-| `signedInUser(h, { role, name })`  | registers via Better Auth, marks verified + role in the DB, signs in; returns `{ user, email, headers }` |
-| `contextFor(h, headers?)`          | a `RequestContext` built by `buildRequestContext` for those headers (anonymous when omitted)             |
-| `cookieHeaderFrom(response)`       | `Cookie` header value from a `Set-Cookie` response, for follow-up HTTP requests                          |
-| `TEST_WEB_ORIGIN`, `TEST_PASSWORD` | constants used by the HTTP tests                                                                         |
+| Helper                             | What it gives you                                                                                             |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `createHarness()`                  | `{ db, redis, auth, emailQueue, logger, sentMails, stop }`; call `stop()` in `afterAll`                       |
+| `signedInUser(h, { role, name })`  | creates a verified user with the role via `auth.api.createUser`, signs in; returns `{ user, email, headers }` |
+| `contextFor(h, headers?)`          | a `RequestContext` built by `buildRequestContext` for those headers (anonymous when omitted)                  |
+| `cookieHeaderFrom(response)`       | `Cookie` header value from a `Set-Cookie` response, for follow-up HTTP requests                               |
+| `TEST_WEB_ORIGIN`, `TEST_PASSWORD` | constants used by the HTTP tests                                                                              |
 
 Service tests call the service with `await contextFor(h, user.headers)`; router tests wrap the same
 context in `createCallerFactory(appRouter)`; HTTP tests build `createApp(...)` from the harness

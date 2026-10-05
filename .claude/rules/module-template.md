@@ -66,8 +66,8 @@ export type ListUsersQuery = z.output<typeof listUsersSchema>;
 
 Schemas describe **input shape** only. Rules that need data (uniqueness, state transitions, "last
 admin") belong in the service. Re-export from `packages/validation/src/index.ts`. The same file
-also holds `signUpSchema` / `signInSchema`, which the register and login forms share with Better
-Auth's `additionalFields`.
+also holds `signInSchema`, which the login form shares with Better Auth (public sign-up is
+disabled; users are created through `auth.api.createUser`).
 
 ## 2. Repository — `packages/database/src/repositories/user.repository.ts`
 
@@ -313,8 +313,8 @@ it("maps layer-1 denials to FORBIDDEN before touching the service", async () => 
 
 - `createHarness()` builds `db`, `redis`, `auth`, `emailQueue`, a silent logger and collects the
   verification mails Better Auth asked for (`sentMails`).
-- `signedInUser(h, { role, name })` registers through Better Auth, marks the user
-  verified with the requested role directly in the database (test shortcut), signs in for real and
+- `signedInUser(h, { role, name })` creates a verified user with the requested role through
+  `auth.api.createUser` (server-side, so no session is needed), signs in for real and
   returns `{ user, email, headers }` — `headers` carries the session cookie.
 - `contextFor(h, headers)` builds a `RequestContext` exactly as the transport would
   (`buildRequestContext`), so service tests call the service directly with that context

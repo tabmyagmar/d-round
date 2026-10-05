@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { emailJobId } from "@repo/queue";
+import { EMAIL_TEMPLATES, emailJobId } from "@repo/queue";
+import { DEFAULT_ROLE } from "@repo/validation";
 
 import { createApp } from "../src/app";
 import type { App } from "../src/app";
@@ -40,8 +41,20 @@ const post = (path: string, body: unknown, headers: Record<string, string> = {})
     body: JSON.stringify(body),
   });
 
+/** Server-side admin call: the only way a user gets created (public sign-up is off). */
+const createUser = (email: string, name: string, options: { emailVerified?: boolean } = {}) =>
+  h.auth.api.createUser({
+    body: {
+      email,
+      password: TEST_PASSWORD,
+      name,
+      role: DEFAULT_ROLE,
+      ...(options.emailVerified ? { data: { emailVerified: true } } : {}),
+    },
+  });
+
 describe("POST /api/auth/sign-up/email", () => {
-  it("creates the user, writes the verification mail to the outbox and enqueues its job", async () => {
+  it("is disabled: answers 400 EMAIL_PASSWORD_SIGN_UP_DISABLED and writes no user row", async () => {
     const email = `${crypto.randomUUID()}@example.com`;
 
     const response = await post("/api/auth/sign-up/email", {
@@ -50,13 +63,26 @@ describe("POST /api/auth/sign-up/email", () => {
       password: TEST_PASSWORD,
     });
 
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "EMAIL_PASSWORD_SIGN_UP_DISABLED" });
+    expect(await h.db.user.findUnique({ where: { email } })).toBeNull();
+  });
+});
+
+describe("POST /api/auth/send-verification-email", () => {
+  it("writes the verification mail of an admin-created unverified user to the outbox and enqueues its job", async () => {
+    const email = `${crypto.randomUUID()}@example.com`;
+    await createUser(email, "Http User");
+
+    const response = await post("/api/auth/send-verification-email", { email });
+
     expect(response.status).toBe(200);
-    const user = await h.db.user.findUnique({ where: { email } });
-    expect(user?.role).toBe("member");
+    const user = await h.db.user.findUniqueOrThrow({ where: { email } });
+    expect(user).toMatchObject({ role: DEFAULT_ROLE, emailVerified: false });
 
     const outbox = await h.db.outboxEmail.findMany({ where: { to: email } });
     expect(outbox).toHaveLength(1);
-    expect(outbox[0]).toMatchObject({ template: "verification-email", status: "PENDING" });
+    expect(outbox[0]).toMatchObject({ template: EMAIL_TEMPLATES.verification, status: "PENDING" });
     expect(outbox[0]?.payload).toMatchObject({ name: "Http User" });
 
     const job = await h.emailQueue.getJob(emailJobId(outbox[0]?.id ?? ""));
@@ -65,15 +91,15 @@ describe("POST /api/auth/sign-up/email", () => {
 });
 
 describe("POST /api/auth/sign-in/email", () => {
-  it("issues a session cookie for a verified user and resolves it on /trpc", async () => {
+  it("issues a session cookie for an admin-created verified user and resolves it on /trpc", async () => {
     const email = `${crypto.randomUUID()}@example.com`;
-    await post("/api/auth/sign-up/email", { name: "Verified", email, password: TEST_PASSWORD });
-    await h.db.user.update({ where: { email }, data: { emailVerified: true } });
+    await createUser(email, "Verified", { emailVerified: true });
 
     const signIn = await post(
       "/api/auth/sign-in/email",
       { email, password: TEST_PASSWORD },
-      { "x-forwarded-for": `10.1.${crypto.randomUUID().slice(0, 2)}.1` },
+      // unique rate-limit key (`clientIp` keys on the raw header)
+      { "x-forwarded-for": crypto.randomUUID() },
     );
     expect(signIn.status).toBe(200);
     const cookie = cookieHeaderFrom(signIn);

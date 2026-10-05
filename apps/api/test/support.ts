@@ -15,6 +15,7 @@ import {
   waitForRedis,
 } from "@repo/queue";
 import type { EmailQueue, RedisConnection } from "@repo/queue";
+import { DEFAULT_ROLE } from "@repo/validation";
 import type { Role } from "@repo/validation";
 
 import { buildRequestContext } from "../src/core/context";
@@ -104,25 +105,25 @@ export type SignedInUser = {
 };
 
 /**
- * Registers a user through Better Auth, marks it verified with the requested role directly in
- * the database (test shortcut), then signs in for real to obtain a session cookie.
+ * Creates a verified user with the requested role through the admin plugin's `createUser`
+ * (server-side, no session needed — the only way a user gets created now that public sign-up
+ * is off), then signs in for real to obtain a session cookie.
  */
 export const signedInUser = async (
   harness: TestHarness,
   options: { role?: Role; name?: string } = {},
 ): Promise<SignedInUser> => {
   const email = `${crypto.randomUUID()}@example.com`;
-  await harness.auth.api.signUpEmail({
+  await harness.auth.api.createUser({
     body: {
-      name: options.name ?? "Test User",
       email,
       password: TEST_PASSWORD,
+      name: options.name ?? "Test User",
+      role: options.role ?? DEFAULT_ROLE,
+      data: { emailVerified: true },
     },
   });
-  const user = await harness.db.user.update({
-    where: { email },
-    data: { emailVerified: true, role: options.role ?? "member" },
-  });
+  const user = await harness.db.user.findUniqueOrThrow({ where: { email } });
   const response = await harness.auth.api.signInEmail({
     body: { email, password: TEST_PASSWORD },
     asResponse: true,
