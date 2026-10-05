@@ -1,4 +1,4 @@
-name: app-template
+name: d-round
 
 services:
   postgres:

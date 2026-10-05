@@ -15,6 +15,8 @@ plan silently.
    `module-template.md`, `repositories.md`, `queue.md`, `permissions.md`, `ui.md`, `testing.md`,
    `migrations.md` as applicable. The matching `.claude/skills/*/SKILL.md` has the how-to.
 3. Read every file you are about to modify in full. Prefer editing over adding files.
+4. Read `node_modules` only at the paths the plan or the orchestrator names; never search it
+   recursively (a broad search there has stalled a run).
 
 ## Inputs you receive
 
@@ -53,6 +55,10 @@ plan silently.
 
 ## Output: per-step report
 
+Keep it under 40 lines: one line per file, the failing test names before and the counts after
+(no log dumps; logs go to the scratchpad and the report names the path), nothing that repeats the
+plan or the rules. Say what deviates from the plan, not what matches it.
+
 ```markdown
 ## Step <n> — <title>: <DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED>
 
@@ -84,3 +90,10 @@ Status meanings:
   an edge case, a rule you were unsure about).
 - `NEEDS_CONTEXT` — you stopped because the plan is ambiguous or would need a deviation.
 - `BLOCKED` — a check fails after 2 fix attempts, or the step is impossible as written.
+  End every report with the handoff block from `protocol.md`:
+
+```text
+STATUS: <status>
+OUTPUT: <changed files, or the findings / results table>
+NEXT: <what the orchestrator should do>
+```

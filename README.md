@@ -117,14 +117,9 @@ deactivate` behind two-layer authorization — CASL abilities built from the cat
 - **Health**: `GET /health` (Postgres + Redis probes) and tRPC `health.ping`; ordered graceful
   shutdown in api and worker; pino logging with redaction and request ids.
 
-| Role                   | May read   | May update | Change roles / deactivate |
-| ---------------------- | ---------- | ---------- | ------------------------- |
-| `super_admin`, `admin` | every user | every user | yes                       |
-| `manager`, `staff`     | self       | self       | no                        |
-
-The table follows `packages/database/prisma/seed/data/permissions.csv`: changing who may do what is
-a CSV change. Adding a role touches the role lists, the CSV flag column and a migration — see
-`.claude/rules/permissions.md`.
+Who may do what (roles, actions, subjects) is data in
+`packages/database/prisma/seed/data/permissions.csv`; `.claude/rules/permissions.md` explains the
+model and how a role is added.
 
 ## Scripts (root)
 
@@ -172,13 +167,10 @@ packages/
   permissions/ CASL: rules.ts (defined once), ability.ts (browser), server.ts (Prisma, list
               filtering), react.tsx (AbilityProvider, Can, useAbility), test/ability.test.ts (the
               spec)
-  database/   Prisma 7 multi-file schema (prisma/schema: schema.prisma + system/, auth/, email/,
-              source/, access/), migrations (0001_init, add_source_regions_and_prefectures,
-              add_source_addresses, add_roles_and_permissions, align_users_role_with_roles,
-              add_permission_visible_and_user_permission_effect), seed/ (reference data + dev test
-              accounts), generated client (git-ignored), repositories (user, outbox-email,
-              permission), utils (pagination, errors, transaction), test/ (testcontainers helper,
-              test/repositories, test/utils, test/seed)
+  database/   Prisma 7 multi-file schema (prisma/schema, one folder per module), migrations/ (the
+              table is in .claude/rules/migrations.md), seed/ (reference data + dev test accounts),
+              generated client (git-ignored), repositories/, utils (pagination, errors,
+              transaction), test/ (testcontainers helper, test/repositories, test/utils, test/seed)
   validation/ zod re-export, shared schemas (user.schema.ts: roles, sign-in, profile, list),
               createEnv() for env validation
   queue/      BullMQ + ioredis wrapper: connection, createQueue, createWorker, pub/sub, jobIdFor,
@@ -256,7 +248,7 @@ and their tests (`packages/database/test/repositories/user.repository.test.ts`,
   `AGENTS.md` points to it for other tools.
 - `protocol.md` — the planner → implementer → verifier → reviewer flow, limits and guardrails.
 - `.claude/agents/` — the four subagents; `.claude/rules/` — path-scoped rules loaded
-  automatically; `.claude/skills/` — library how-tos; `.claude/settings.json` — command allow and
+  automatically (`docs.md` says which file owns each fact); `.claude/skills/` — library how-tos; `.claude/settings.json` — command allow and
   deny lists (no destructive git or database commands, no reading `.env`).
 - AI-assisted commits carry the attribution trailer described in
   `docs/conventions.md#ai-attribution`; pull requests follow `.github/PULL_REQUEST_TEMPLATE.md`.
@@ -266,6 +258,7 @@ and their tests (`packages/database/test/repositories/user.repository.test.ts`,
 - `docs/conventions.md` — layer contract, lint rule rationale, commits, environment,
   authentication and sessions, testing, IDs, errors, queue semantics, failed jobs, Docker notes,
   versions policy.
+- `docs/plans/` — the plan of each closed ticket (`plan.md` while the ticket is open).
 - `docs/adr/` — architecture decision records: `0001-stack.md`, `0002-auth.md` (Better Auth),
   `0003-permissions.md` (two-layer authorization), `0004-outbox.md` (transactional outbox).
 

@@ -39,7 +39,7 @@ the ticket branch after the human approves it.
 
 One paragraph restating the goal, then a bullet list of verifiable criteria.
 
-## Files to touch (max 15)
+## Files to touch (≤15 per commit; one table per commit when the plan has several)
 
 | #   | File                                     | Action | Layer      | Purpose |
 | --- | ---------------------------------------- | ------ | ---------- | ------- |
@@ -55,9 +55,9 @@ docs/adr/.
 | Test file | Kind (unit / integration / matrix) | Asserts |
 | --------- | ---------------------------------- | ------- |
 
-## Steps (executed in order, one at a time)
+## Steps (in order; `[parallel: N]` marks steps on disjoint files that may run together)
 
-### Step 1 — <title>
+### Step 1 — <title> [parallel: 1]
 
 - Files: ...
 - Test first: ...
@@ -83,8 +83,15 @@ docs/adr/.
   the test for a behaviour is written in the same step as the behaviour.
 - Every behaviour change has a test listed. Tests assert behaviour, not implementation. Anything
   touching Postgres/Redis is tested with testcontainers, never mocks.
-- Hard limits from `protocol.md`: at most 15 files per MR; any schema change is flagged and gets
-  an ADR line and an expand-contract safe migration (`.claude/rules/migrations.md`).
+- Hard limits from `protocol.md`: at most 15 files per commit (an MR may hold several commits,
+  one plan unit each); any schema change is flagged and gets an ADR line and an expand-contract
+  safe migration (`.claude/rules/migrations.md`).
+- Point at files, exports and headings, never at line numbers: they go stale with the next
+  commit, and a reviewer then reports the plan as wrong.
+- Tag steps that touch disjoint files with the same `[parallel: N]` so the orchestrator can run
+  them together; documentation steps usually parallel the code step they describe.
+- Keep the plan under 250 lines. Detail belongs in the step that needs it; do not restate rules
+  the implementer reads anyway.
 - Every non-public tRPC procedure in the plan has an ability check step.
 - A new dependency is a risk item: name it, say why, and note that its exact version must be
   checked with `npm view <pkg> version` before it is added.

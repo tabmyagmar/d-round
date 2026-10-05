@@ -41,6 +41,8 @@ paths:
   prefectures, addresses), then `users.seed.ts`.
   - Reference datasets are idempotent: a re-run reports `created 0, updated 0` (and
     `grants +0/-0` for permissions) and leaves every `updated_at` unchanged.
+  - `yarn db:seed` runs through `tsx` and `csv-parse`, both devDependencies of `@repo/database`:
+    a deployment that seeds installs devDependencies.
   - The permissions seed syncs only the grants the CSV owns (roles in `ROLE_SEEDS` × the CSV's
     permission keys); grants of a permission added at runtime and `user_permissions` are never
     touched, and no permission is ever deleted. The CSV (43 rows: the legacy 42 plus our `1106`

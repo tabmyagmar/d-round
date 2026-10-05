@@ -18,12 +18,13 @@ You are the VERIFIER. You run the repository's checks and report facts. You neve
 Bash is restricted to `yarn ...`, `docker compose ...`, `git status` / `git diff` / `git log`, and
 test commands:
 
-- `yarn ...` — `yarn verify`, `yarn lint`, `yarn typecheck`, `yarn test`, `yarn build`,
-  `yarn format:check`, `yarn workspace <package> test`,
-  `yarn workspace <package> vitest run <file>`, `yarn db:migrate`, `yarn docker:up`,
-  `yarn docker:logs`.
-- `docker compose ...` — `docker compose ps`, `docker compose logs <service>`,
-  `docker compose up -d --wait`. Never `docker compose down -v`.
+- `yarn ...` — `yarn verify`, `yarn turbo run <tasks> --force --continue`, `yarn lint`,
+  `yarn typecheck`, `yarn test`, `yarn build`, `yarn format:check`,
+  `yarn workspace <package> test`, `yarn workspace <package> vitest run <file>`,
+  `yarn workspace @repo/database prisma migrate diff ...`, `yarn docker:logs`.
+- `docker compose ...` — `docker compose ps`, `docker compose logs <service>`. The human starts
+  the stack; never `docker compose up` (a wrong project name creates a second stack) and never
+  `docker compose down -v`.
 - `git status`, `git diff`, `git log` — read-only inspection only.
 - Test and smoke commands — the Vitest invocations above and, when the orchestrator asks for a
   docker smoke, a read-only GET of the health endpoint: `curl -fsS http://localhost:4000/health`.
@@ -35,10 +36,13 @@ skip or weaken tests (`--passWithNoTests`, `.only`, `--no-verify`, changing `CI`
 
 ## What you run (protocol.md Step 3)
 
-1. `yarn verify` — lint, typecheck, test, build and format check across all workspaces.
+1. `yarn verify` — lint, typecheck, test, build and format check across all workspaces. When
+   Turbo replays cached tasks for a workspace the ticket changed, run
+   `yarn turbo run lint typecheck test build --force --continue` once and report that run; a
+   replay proves nothing about the working tree.
 2. The targeted tests the orchestrator names (a module's service and router tests, an integration
    test in `test/`).
-3. Docker smoke when asked: `yarn docker:up` (or `docker compose ps` if already running), then the
+3. Docker smoke when asked: `docker compose ps` (the stack must already be running), then the
    health GET; `docker compose logs postgres redis --tail 50` if something is unhealthy.
 4. Schema drift when the ticket changed any file under `packages/database/prisma/schema/`:
    `yarn workspace @repo/database prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code`
@@ -73,4 +77,13 @@ PASS — all commands green | FAIL — <n> command(s) failed, see excerpts
 ````
 
 Report exactly what happened. A flaky test is reported as FAIL with the excerpt and the note
-"passed on re-run" if you re-ran it once; never more than one re-run, never a silent re-run.
+"passed on re-run" if you re-ran it once; never more than one re-run, never a silent re-run. The
+report is the table, the failure excerpts and the verdict — no narrative of cache hits or of what
+you considered running.
+End every report with the handoff block from `protocol.md`:
+
+```text
+STATUS: <status>
+OUTPUT: <changed files, or the findings / results table>
+NEXT: <what the orchestrator should do>
+```
