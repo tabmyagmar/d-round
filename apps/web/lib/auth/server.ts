@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { cache } from "react";
 
 import type { PermissionGrant } from "@repo/permissions";
 import { DEFAULT_ROLE, roleSchema } from "@repo/validation";
@@ -9,9 +10,10 @@ import { publicEnv } from "@/lib/env";
 
 /**
  * Server-side session lookup for server components, layouts and route handlers: forwards the
- * browser's cookies to the API's Better Auth endpoint. Never cached.
+ * browser's cookies to the API's Better Auth endpoint. React `cache()` dedupes it within one
+ * request (layout + page guard share one call); the fetch itself is never cached.
  */
-export const getServerSession = async (): Promise<Session | null> => {
+export const getServerSession = cache(async (): Promise<Session | null> => {
   const cookie = (await headers()).get("cookie");
   if (!cookie) {
     return null;
@@ -28,7 +30,7 @@ export const getServerSession = async (): Promise<Session | null> => {
   } catch {
     return null;
   }
-};
+});
 
 /** The subset of the session the ability rules and the shell need. */
 export type CurrentUser = {
@@ -50,3 +52,9 @@ export const toCurrentUser = (session: Session): CurrentUser => {
     permissions: session.user.permissions,
   };
 };
+
+/** The signed-in user of this request, or null; one session fetch per request (`cache()`). */
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+  const session = await getServerSession();
+  return session ? toCurrentUser(session) : null;
+});
