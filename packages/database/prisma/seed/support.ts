@@ -1,6 +1,10 @@
 // Shared plumbing for the seed entrypoints: prisma/seed/index.ts (`yarn db:seed`, development
 // only) and prisma/seed/reference.ts (`yarn db:seed:reference`, production-safe). Each dataset
-// is a SeedFn that returns a SeedSummary; runSeeds owns the connection and the output.
+// is a SeedFn that returns a SeedSummary; runSeeds owns the connection and the output. CSV
+// datasets build on readCsv, parseInteger and diffByKey.
+import { readFileSync } from "node:fs";
+
+import { parse } from "csv-parse/sync";
 import { config as loadEnv } from "dotenv";
 
 import { createPrismaClient } from "../../src/client";
@@ -32,6 +36,42 @@ export const assertNotProduction = (env: NodeJS.ProcessEnv): void => {
         "use yarn db:seed:reference for reference data",
     );
   }
+};
+
+/** Reads a CSV with a header row into one object per row, keyed by column; cells are trimmed. */
+export const readCsv = <T extends Record<string, string>>(file: URL): T[] =>
+  parse<T>(readFileSync(file), { columns: true, skip_empty_lines: true, bom: true, trim: true });
+
+/** Strict integer cell: "12" → 12, while "", "1.5" or "12a" throw instead of being truncated. */
+export const parseInteger = (value: string, column: string): number => {
+  if (!/^-?\d+$/.test(value)) {
+    throw new Error(`Expected an integer in column "${column}", got "${value}"`);
+  }
+  return Number.parseInt(value, 10);
+};
+
+/**
+ * Splits the desired rows into those missing from `existing` (by key) and those whose values
+ * differ, so a seed writes only what changed and a re-run leaves every `updated_at` alone.
+ */
+export const diffByKey = <T>(
+  existing: readonly T[],
+  desired: readonly T[],
+  keyOf: (row: T) => string | number,
+  isSame: (a: T, b: T) => boolean,
+): { toCreate: T[]; toUpdate: T[] } => {
+  const existingByKey = new Map(existing.map((row) => [keyOf(row), row]));
+  const toCreate: T[] = [];
+  const toUpdate: T[] = [];
+  for (const row of desired) {
+    const current = existingByKey.get(keyOf(row));
+    if (current === undefined) {
+      toCreate.push(row);
+    } else if (!isSame(current, row)) {
+      toUpdate.push(row);
+    }
+  }
+  return { toCreate, toUpdate };
 };
 
 const formatSummary = (label: string, summary: SeedSummary): string =>

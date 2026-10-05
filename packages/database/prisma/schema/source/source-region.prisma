@@ -1,0 +1,23 @@
+// Japan regions (reference data, seeded from prisma/seed/data/source-regions.csv). Children
+// reference the natural key `code`, not `id`. See docs/adr/0005-legacy-reference-data.md.
+
+enum SourceArea {
+  EAST
+  WEST
+
+  @@map("source_area")
+}
+
+model SourceRegion {
+  id        String     @id @default(uuid(7)) @db.Uuid
+  code      Int        @unique
+  name      String
+  nameEn    String     @map("name_en")
+  area      SourceArea
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  prefectures SourcePrefecture[]
+
+  @@map("source_regions")
+}

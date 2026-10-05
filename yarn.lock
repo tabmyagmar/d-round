@@ -2652,6 +2652,7 @@ __metadata:
     "@testcontainers/postgresql": "npm:12.1.0"
     "@types/node": "npm:24.13.3"
     better-auth: "npm:1.7.3"
+    csv-parse: "npm:7.0.3"
     dotenv: "npm:17.4.2"
     eslint: "npm:10.10.0"
     prisma: "npm:7.10.0"
@@ -5580,6 +5581,13 @@ __metadata:
   version: 3.2.3
   resolution: "csstype@npm:3.2.3"
   checksum: 10c0/cd29c51e70fa822f1cecd8641a1445bed7063697469d35633b516e60fe8c1bde04b08f6c5b6022136bb669b64c63d4173af54864510fbb4ee23281801841a3ce
+  languageName: node
+  linkType: hard
+
+"csv-parse@npm:7.0.3":
+  version: 7.0.3
+  resolution: "csv-parse@npm:7.0.3"
+  checksum: 10c0/90d444df5bb14a5531fb87163be5236951a43092934c9ea10e1308cceefdd692c8c0b49f93c616a92a1c9695f371a376268bf45325bb88f60a1328274748cc25
   languageName: node
   linkType: hard
 

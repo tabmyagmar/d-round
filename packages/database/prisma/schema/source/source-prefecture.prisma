@@ -1,0 +1,15 @@
+/// Japan prefecture (reference data). Belongs to a region through the natural key
+/// `regionCode → SourceRegion.code`; Restrict because reference data is never deleted implicitly.
+model SourcePrefecture {
+  id         String       @id @default(uuid(7)) @db.Uuid
+  code       Int          @unique
+  name       String
+  nameEn     String       @map("name_en")
+  regionCode Int          @map("region_code")
+  region     SourceRegion @relation(fields: [regionCode], references: [code], onDelete: Restrict)
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  @@index([regionCode])
+  @@map("source_prefectures")
+}
