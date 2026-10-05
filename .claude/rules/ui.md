@@ -21,11 +21,10 @@ paths:
 
 `apps/web` has no `src/` folder: `app/`, `features/`, `components/`, `lib/` and `proxy.ts` sit at
 the workspace root and are imported through the `@/` alias (`@/features/users/role-badge`). The web
-app is feature-based: everything with domain knowledge lives in `features/<feature>/`
-(`auth`: `login-form`, `resend-verification`; `users`: `users-table`,
-`user-editor`, `profile-form`, `profile-editor`, `role-badge`). Route files
-under `app/` are thin: they import only from `@/features/<feature>/...` and `@/lib/...` and render
-one feature component.
+app is feature-based: everything with domain knowledge lives in `features/<feature>/` (`auth`:
+`login-form`, `resend-verification`; `users`: `users-table`, `user-editor`, `profile-form`,
+`profile-editor`, `role-badge`). Route files under `app/` are thin: they import only from
+`@/features/<feature>/...` and `@/lib/...` and render one feature component.
 
 `@repo/ui` exports `./components/*`, `./components/form` (the form-field barrel), `./lib/*`,
 `./hooks/*`, `./globals.css` and `./postcss.config` (`packages/ui/package.json`). Import as
@@ -44,18 +43,17 @@ primitives beyond what shadcn documents (variants via `cva`).
 Generated primitives are kept pristine so they can be regenerated: `packages/ui/eslint.config.mjs`
 relaxes `func-style`, `import-x/consistent-type-specifier-style`,
 `@typescript-eslint/no-unnecessary-condition`, `@eslint-react/no-leaked-conditional-rendering`,
-`@eslint-react/no-array-index-key`, `@eslint-react/no-nested-component-definitions` and `eqeqeq`
-for `src/components/*.tsx` only. Our own code in `components/form/` and `components/composed/`
-follows the house style in full. One consequence: form fields bind through `useFormField`
+`@eslint-react/no-array-index-key`, `@eslint-react/no-nested-component-definitions` and `eqeqeq` for
+`src/components/*.tsx` only. Our own code in `components/form/` and `components/composed/` follows
+the house style in full. One consequence: form fields bind through `useFormField`
 (`components/form/use-form-field.ts`), which pulls `ref` out of `field`
 (`const { field: { ref, ...field } } = useController(...)`) so that spreading the rest onto the
 input does not trip the `react-hooks/refs` rule, and forwards `disabled` only when it is set
 (`exactOptionalPropertyTypes`).
 
-Installed primitives: `alert`, `badge`, `button`, `calendar`, `card`, `checkbox`, `combobox`,
-`dialog`, `dropdown-menu`, `field`, `input`, `input-group`, `label`, `popover`, `radio-group`,
-`select`, `separator`, `skeleton`, `sonner`, `switch`, `table`, `textarea`, `tooltip`. `calendar`
-brings `react-day-picker 10.0.1` into `packages/ui` dependencies (`date-fns` is not needed).
+Installed primitives: `cd apps/web && npx shadcn@4.21.0 info` lists them (no hand-maintained list
+here). `calendar` brings `react-day-picker 10.0.1` into `packages/ui` dependencies (`date-fns` is
+not needed). CLI workflow (add, smart merge, search, docs): skill `shadcn-ui`.
 
 Known local patches (both for `exactOptionalPropertyTypes`, re-apply after `--overwrite`):
 
@@ -68,15 +66,14 @@ Known local patches (both for `exactOptionalPropertyTypes`, re-apply after `--ov
 
 ## Promotion rule
 
-A component starts in the feature that owns it (`apps/web/features/users/users-table.tsx`); a
-second route in the same feature simply imports it from there (`profile-form.tsx` is rendered by
-`/profile` through `profile-editor.tsx` and by `/users/[id]` through `user-editor.tsx`).
-`apps/web/components/` holds only the app-wide shell (`app-shell.tsx`, `theme-provider.tsx`) —
-nothing with domain knowledge. When a component is domain-free and reusable across apps, move it
-to `packages/ui/src/components/composed/` (named export, no app imports).
-`packages/ui` never imports from `apps/*` or from server-only packages (`@repo/database`,
-`@repo/queue`, `@repo/logger`, `@repo/permissions/server`, `@repo/auth`) — lint-enforced by
-`boundaries/dependencies`.
+A component starts in the feature that owns it (`apps/web/features/users/users-table.tsx`); a second
+route in the same feature simply imports it from there (`profile-form.tsx` is rendered by `/profile`
+through `profile-editor.tsx` and by `/users/[id]` through `user-editor.tsx`). `apps/web/components/`
+holds only the app-wide shell (`app-shell.tsx`, `theme-provider.tsx`) — nothing with domain
+knowledge. When a component is domain-free and reusable across apps, move it to
+`packages/ui/src/components/composed/` (named export, no app imports). `packages/ui` never imports
+from `apps/*` or from server-only packages (`@repo/database`, `@repo/queue`, `@repo/logger`,
+`@repo/permissions/server`, `@repo/auth`) — lint-enforced by `boundaries/dependencies`.
 
 Composed example: `StatusBadge` (`packages/ui/src/components/composed/status-badge.tsx`) is a
 `Badge` with `cva` tones `neutral | info | success | warning | danger` and an optional dot. Domain
@@ -104,9 +101,9 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
 ## Composed components (`packages/ui/src/components/composed/`)
 
 - `DataTable` (`data-table.tsx`) — a `Table` driven by `@tanstack/react-table` v9 (`useTable`,
-  `tableFeatures`). Props: `columns`, `data`, `isLoading` (renders `Skeleton` rows),
-  `emptyMessage`, optional `pagination`, `getRowId`, `className`. Build columns with the typed
-  helper `createDataTableColumns<TData>()` — `helper.columns([...])` over
+  `tableFeatures`). Props: `columns`, `data`, `isLoading` (renders `Skeleton` rows), `emptyMessage`,
+  optional `pagination`, `getRowId`, `className`. Build columns with the typed helper
+  `createDataTableColumns<TData>()` — `helper.columns([...])` over
   `helper.accessor("email", { header: "Email" })` and `helper.display({ id: "actions", cell })`.
   `DataTablePagination` is `{ page, totalPages, total, hasPrev, hasNext, onPageChange, itemLabel? }`
   — server-side pagination that maps 1:1 onto the API's `PageResult`. Reference:
@@ -121,22 +118,21 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
 
 Tailwind v4: there is no `tailwind.config`; tokens are CSS variables in
 `packages/ui/src/styles/globals.css` (`--background`, `--primary`, ...) that Tailwind reads through
-its `@theme` block. Change a colour there, never in a component. `prettier-plugin-tailwindcss`
-sorts class names using that stylesheet (`prettier.config.mjs`). Merge classes with `cn()`; no
-inline `style` for what Tailwind expresses.
+its `@theme` block. Change a colour there, never in a component. `prettier-plugin-tailwindcss` sorts
+class names using that stylesheet (`prettier.config.mjs`). Merge classes with `cn()`; no inline
+`style` for what Tailwind expresses.
 
 ## Server vs client components (`apps/web`)
 
 - Server components by default: pages, layouts, data loading, session lookup.
-- `"use client"` only for interactivity or hooks (`useState`, `useTRPC`, forms, event handlers).
-  Put the client boundary as low as possible — a small interactive leaf
-  (`login-form.tsx`, `users-table.tsx`), not the page.
+- `"use client"` only for interactivity or hooks (`useState`, `useTRPC`, forms, event handlers). Put
+  the client boundary as low as possible — a small interactive leaf (`login-form.tsx`,
+  `users-table.tsx`), not the page.
 - Only Next.js special files (`page`, `layout`, `loading`, `error`, `not-found`, `route`,
   `proxy.ts`, ...) may default-export; everything else uses named exports (lint-enforced in
   `packages/eslint-config/next.js`).
 - Data comes through tRPC (`@trpc/tanstack-react-query`, `useTRPC` from `@/lib/trpc/react`), never
-  from `@repo/database` or `@repo/queue`; the web app imports `@repo/api` types only
-  (`AppRouter`).
+  from `@repo/database` or `@repo/queue`; the web app imports `@repo/api` types only (`AppRouter`).
 - Component files may be `PascalCase.tsx` or `kebab-case.tsx` (shadcn output); everything else is
   kebab-case.
 
@@ -155,15 +151,15 @@ Three layers, each thinner than the next one behind it:
 
 Client-side auth calls go through `authClient` (`apps/web/lib/auth/client.ts`,
 `createAuthReactClient(publicEnv.apiUrl)` from `@repo/auth/client`): `authClient.signIn.email`,
-`authClient.signOut`. The web app imports `@repo/auth/client` or
-`@repo/auth/access-control`, never the server entry (lint-enforced).
+`authClient.signOut`. The web app imports `@repo/auth/client` or `@repo/auth/access-control`, never
+the server entry (lint-enforced).
 
 ## Forms
 
 `react-hook-form` + `zodResolver(schema)` with the schema imported from `@repo/validation` — the
-same schema the router validates with. Do not redeclare validation in the component. Inputs are
-the bound fields from `@repo/ui/components/form`; each one binds itself with `useFormField` and
-renders label, control, description and error itself:
+same schema the router validates with. Do not redeclare validation in the component. Inputs are the
+bound fields from `@repo/ui/components/form`; each one binds itself with `useFormField` and renders
+label, control, description and error itself:
 
 ```tsx
 // apps/web/features/users/profile-form.tsx
@@ -179,11 +175,11 @@ const form = useForm<UpdateProfileInput>({
 
 ### Shared props (`BaseFieldProps`, `form/types.ts`)
 
-Every field takes `control`, `name` (type-checked against the form values), `label`,
-`description?`, `required?` (red `*` next to the label — validation itself stays in zod), `hint?`
-(short help text in a tooltip behind an info icon), `disabled?` and `className?`. The hint tooltip
-needs the `TooltipProvider` from `@repo/ui/components/tooltip`, which `apps/web/app/layout.tsx`
-wraps the whole app in. Shared types: `SelectOption` (`{ value, label, disabled? }`), `EmptyAs`
+Every field takes `control`, `name` (type-checked against the form values), `label`, `description?`,
+`required?` (red `*` next to the label — validation itself stays in zod), `hint?` (short help text
+in a tooltip behind an info icon), `disabled?` and `className?`. The hint tooltip needs the
+`TooltipProvider` from `@repo/ui/components/tooltip`, which `apps/web/app/layout.tsx` wraps the
+whole app in. Shared types: `SelectOption` (`{ value, label, disabled? }`), `EmptyAs`
 (`"string" | "null" | "undefined"`), `FileFieldValue`, `DateRangeValue`.
 
 ### Fields (`packages/ui/src/components/form/`)
@@ -210,9 +206,9 @@ wraps the whole app in. Shared types: `SelectOption` (`{ value, label, disabled?
 | `ArrayField`         | `object[]`                                                         | `useFieldArray` wrapper: `renderRow({ index, id, isFirst, isLast, remove })`, `newItem()`, `min`, `max`, `addLabel`, `sortable` (up/down buttons), `emptyMessage`; array-level (`root`) errors render below the rows                             |
 
 Domain pickers live in the web app, not in `packages/ui`: a `UserPickerField` in
-`apps/web/features/users/` would be a `ComboboxField` backed by `trpc.user.list` (debounced
-search, first 20 matches) plus `user.byId` to label the current value when it is not among the
-results, storing the user id. Build pickers this way, in the feature that owns the data.
+`apps/web/features/users/` would be a `ComboboxField` backed by `trpc.user.list` (debounced search,
+first 20 matches) plus `user.byId` to label the current value when it is not among the results,
+storing the user id. Build pickers this way, in the feature that owns the data.
 
 ### Which field for which zod shape
 
@@ -235,20 +231,20 @@ components through a renderer registry, so a new field type starts as a new comp
 - Never hand-write `Field` / `FieldLabel` / `Input` / `FieldError` for a standard input in
   `apps/web`; add a field to `@repo/ui/components/form` if one is missing. Hand-written `Field`
   markup is for the rare non-standard control only.
-- Custom fields are built on the shared pieces: `useFormField({ control, name, disabled })` for
-  the binding, `FormFieldShell` (`htmlFor`, `label`, `required`, `hint`, `description`, `error`,
-  optional `counter: { length, max }`) for the vertical frame and `FormFieldLabel` (`asLegend`
-  for grouped controls) where the shell does not fit. New file `<name>-field.tsx`, exported from
+- Custom fields are built on the shared pieces: `useFormField({ control, name, disabled })` for the
+  binding, `FormFieldShell` (`htmlFor`, `label`, `required`, `hint`, `description`, `error`,
+  optional `counter: { length, max }`) for the vertical frame and `FormFieldLabel` (`asLegend` for
+  grouped controls) where the shell does not fit. New file `<name>-field.tsx`, exported from
   `index.ts`.
 - Nullable fields say what a cleared input stores with `emptyAs`: text fields default to `""`,
   `NumberField` to `null` — no `setValueAs` / `emptyToNull` helpers in the form.
 - Date helpers `toIsoDate`, `toDate`, `formatDate`, `formatDateTime` (`form/date-utils.ts`) are
   exported from the barrel for showing stored dates outside a form; the explicit default
-  (`DEFAULT_LOCALE` in `src/lib/locale.ts`, set by the template initialiser's `--lang`) keeps
-  server and client rendering the same text.
-- The standalone `Select` from `@repo/ui/components/select` stays for filters, toolbars and
-  controls that are not react-hook-form fields (`users-table.tsx` role filter, `user-editor.tsx`
-  role select, which fires a mutation directly); inside a form use `SelectField`.
+  (`DEFAULT_LOCALE` in `src/lib/locale.ts`, set by the template initialiser's `--lang`) keeps server
+  and client rendering the same text.
+- The standalone `Select` from `@repo/ui/components/select` stays for filters, toolbars and controls
+  that are not react-hook-form fields (`users-table.tsx` role filter, `user-editor.tsx` role select,
+  which fires a mutation directly); inside a form use `SelectField`.
 - Submit through a tRPC mutation (`useMutation(trpc.user.updateProfile.mutationOptions(...))`),
   `toast` from `sonner` for success/error, `queryClient.invalidateQueries(trpc.user.pathFilter())`
   afterwards.
