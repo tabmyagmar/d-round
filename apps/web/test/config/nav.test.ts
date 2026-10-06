@@ -1,20 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { defineAbilityFor } from "@repo/permissions";
-import type { AppAbility, PermissionGrant } from "@repo/permissions";
+import type { PermissionGrant } from "@repo/permissions";
 
 import { isActivePath, isNavItemActive, NAV_GROUPS, visibleNavGroups } from "@/config/nav";
 import type { NavBranch, NavGroup, NavItem, NavLeaf } from "@/config/nav";
 import { routes } from "@/config/routes";
-import { EVERY_GRANT, STAFF_GRANTS } from "@/test/support/grants";
 
-const ME_ID = "019187d5-0d76-7d1a-9a4c-4f7d2a1f3b6e";
+import { abilityWith, EVERY_GRANT, STAFF_GRANTS } from "../support/grants";
 
 const MASTER = "マスター管理";
-
-/** The ability of a user holding exactly these grants; the role never decides. */
-const abilityWith = (permissions: readonly PermissionGrant[]): AppAbility =>
-  defineAbilityFor({ id: ME_ID, role: "staff", permissions });
 
 /** A menu as plain data: leaf → its route title, branch → `{ [title]: child titles }`. */
 const outline = (groups: readonly NavGroup[]) =>

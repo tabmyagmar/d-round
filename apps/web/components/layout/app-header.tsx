@@ -38,18 +38,18 @@ export const AppHeader = () => {
           {trail.map((crumb, index) => (
             <Fragment key={crumb.path}>
               {index > 0 ? <BreadcrumbSeparator className="hidden md:block" /> : null}
-              {index === trail.length - 1 ? (
+              {crumb.current ? (
                 <BreadcrumbItem>
-                  <BreadcrumbPage>{crumb.title}</BreadcrumbPage>
+                  <BreadcrumbPage>{crumb.route.title}</BreadcrumbPage>
                 </BreadcrumbItem>
               ) : (
                 <BreadcrumbItem className="hidden md:block">
                   {crumb.linkable ? (
                     <BreadcrumbLink render={<Link href={crumb.path} />}>
-                      {crumb.title}
+                      {crumb.route.title}
                     </BreadcrumbLink>
                   ) : (
-                    crumb.title
+                    crumb.route.title
                   )}
                 </BreadcrumbItem>
               )}

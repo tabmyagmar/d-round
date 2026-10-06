@@ -4,8 +4,9 @@ import type { AbilityUser, AppAbility } from "@repo/permissions";
 import type { AppRoute, Breadcrumb } from "@/config/routes";
 
 /**
- * THE route access rule — the sidebar (`visibleNavGroups`) and the server page guard both call it,
- * so the menu and the 403 cannot disagree. Permission routes ask `canUnscoped` ("on every row"),
+ * THE route access rule — the sidebar (`visibleNavGroups`), the header breadcrumbs
+ * (`breadcrumbLinks`) and the server page guard (`PageGuard`) all call it, so for one session the
+ * menu, the crumb links and the 403 agree. Permission routes ask `canUnscoped` ("on every row"),
  * never `ability.can`: the self rule makes `ability.can("read", "User")` true for everyone. UI
  * only — the API re-checks every request.
  */
@@ -40,19 +41,19 @@ export const routeDecision = (user: AbilityUser | null, route: AppRoute): RouteD
   return canAccessRoute(defineAbilityFor(user), route) ? "allow" : "forbidden";
 };
 
-/** A crumb of the header trail and whether the header may render it as a link. */
-export type BreadcrumbEntry = Breadcrumb & { linkable: boolean };
+/** A crumb of the header trail: the current page, or a link only when `linkable`. */
+export type BreadcrumbEntry = Breadcrumb & { current: boolean; linkable: boolean };
 
 /**
- * The header trail with the access rule applied: an intermediate crumb links to its page only when
- * `canAccessRoute` opens it, so `create Client` without `read Client` shows クライアント管理 as text
- * instead of a link to a 403. The last crumb is the current page and never links.
+ * The header trail with the access rule applied: the last crumb is the current page and never
+ * links; an earlier crumb links to its page only when `canAccessRoute` opens it, so `create Client`
+ * without `read Client` shows クライアント管理 as text instead of a link to a 403.
  */
 export const breadcrumbLinks = (
   ability: AppAbility | null,
   trail: readonly Breadcrumb[],
 ): BreadcrumbEntry[] =>
-  trail.map((crumb, index) => ({
-    ...crumb,
-    linkable: index < trail.length - 1 && canAccessRoute(ability, crumb.route),
-  }));
+  trail.map((crumb, index) => {
+    const current = index === trail.length - 1;
+    return { ...crumb, current, linkable: !current && canAccessRoute(ability, crumb.route) };
+  });

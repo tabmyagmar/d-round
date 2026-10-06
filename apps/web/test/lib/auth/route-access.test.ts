@@ -1,24 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { defineAbilityFor } from "@repo/permissions";
-import type { AbilityUser, AppAbility, PermissionGrant } from "@repo/permissions";
+import type { PermissionGrant } from "@repo/permissions";
 
 import { ALL_ROUTES, breadcrumbTrail, href, routes } from "@/config/routes";
 import { breadcrumbLinks, canAccessRoute, routeDecision } from "@/lib/auth/route-access";
-import { EVERY_GRANT, STAFF_GRANTS } from "@/test/support/grants";
+import type { BreadcrumbEntry } from "@/lib/auth/route-access";
 
-const ME_ID = "019187d5-0d76-7d1a-9a4c-4f7d2a1f3b6e";
-
-/** A signed-in user holding exactly these grants; the role never decides. */
-const userWith = (permissions: readonly PermissionGrant[]): AbilityUser => ({
-  id: ME_ID,
-  role: "staff",
-  permissions,
-});
-
-/** The ability of that user. */
-const abilityWith = (permissions: readonly PermissionGrant[]): AppAbility =>
-  defineAbilityFor(userWith(permissions));
+import { abilityWith, EVERY_GRANT, ME_ID, STAFF_GRANTS, userWith } from "../../support/grants";
 
 describe("canAccessRoute", () => {
   it("opens a public route to anonymous visitors", () => {
@@ -113,26 +101,31 @@ describe("routeDecision", () => {
 });
 
 describe("breadcrumbLinks", () => {
-  /** The trail of `pathname` as `[title, linkable]` pairs for a user holding these grants. */
-  const linksFor = (permissions: readonly PermissionGrant[], pathname: string) =>
-    breadcrumbLinks(abilityWith(permissions), breadcrumbTrail(pathname)).map(
-      ({ title, linkable }) => [title, linkable],
-    );
+  /** How the header renders a crumb: the current page, a link, or plain text. */
+  const kindOf = ({ current, linkable }: BreadcrumbEntry) =>
+    current ? "current" : linkable ? "link" : "text";
 
-  it("links every intermediate crumb the seeded staff grants open, never the current page", () => {
+  /** The trail of `pathname` as `[title, kind]` pairs for a user holding these grants. */
+  const linksFor = (permissions: readonly PermissionGrant[], pathname: string) =>
+    breadcrumbLinks(abilityWith(permissions), breadcrumbTrail(pathname)).map((crumb) => [
+      crumb.route.title,
+      kindOf(crumb),
+    ]);
+
+  it("links every earlier crumb the seeded staff grants open; the last is the current page", () => {
     expect(linksFor(STAFF_GRANTS, href(routes.client.create))).toEqual([
-      [routes.home.title, true],
-      [routes.client.list.title, true],
-      [routes.client.create.title, false],
+      [routes.home.title, "link"],
+      [routes.client.list.title, "link"],
+      [routes.client.create.title, "current"],
     ]);
   });
 
   it("shows the list as text, not a link to a 403, to a user with `create Client` alone", () => {
     expect(linksFor([{ action: "create", subject: "Client" }], href(routes.client.create))).toEqual(
       [
-        [routes.home.title, true],
-        [routes.client.list.title, false],
-        [routes.client.create.title, false],
+        [routes.home.title, "link"],
+        [routes.client.list.title, "text"],
+        [routes.client.create.title, "current"],
       ],
     );
   });
@@ -140,16 +133,17 @@ describe("breadcrumbLinks", () => {
   it("does not link 担当者管理 on the self rule alone, although ability.can(read, User) is true", () => {
     const path = href(routes.user.update, { id: ME_ID });
     expect(linksFor([{ action: "update", subject: "User" }], path)).toEqual([
-      [routes.home.title, true],
-      [routes.user.list.title, false],
-      [routes.user.update.title, false],
+      [routes.home.title, "link"],
+      [routes.user.list.title, "text"],
+      [routes.user.update.title, "current"],
     ]);
   });
 
-  it("keeps the trail itself: titles, visited paths and routes", () => {
+  it("keeps the trail itself and never links the current page, even with every grant", () => {
     const trail = breadcrumbTrail(href(routes.client.update, { id: "42" }));
+    const last = trail.length - 1;
     expect(breadcrumbLinks(abilityWith(EVERY_GRANT), trail)).toEqual(
-      trail.map((crumb, index) => ({ ...crumb, linkable: index < trail.length - 1 })),
+      trail.map((crumb, index) => ({ ...crumb, current: index === last, linkable: index < last })),
     );
   });
 });

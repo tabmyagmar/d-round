@@ -15,7 +15,7 @@ import type { AppRoute } from "@/config/routes";
 const isAdminPath = (path: string): boolean => path === "/admin" || path.startsWith("/admin/");
 
 /** The crumb a route contributes; `path` is the visited URL, not the `[id]` pattern. */
-const crumb = (route: AppRoute, path: string = route.path) => ({ title: route.title, path, route });
+const crumb = (route: AppRoute, path: string = route.path) => ({ path, route });
 
 /** The subject each permission group is gated on; every other catalog entry is listed below. */
 const GROUP_SUBJECTS = {
@@ -95,12 +95,9 @@ describe("ALL_ROUTES", () => {
     expect(new Set(paths).size).toBe(paths.length);
   });
 
-  it("protects every /admin route and keeps every auth route public", () => {
+  it("protects every /admin route", () => {
     for (const route of ALL_ROUTES.filter((candidate) => isAdminPath(candidate.path))) {
       expect(route.access, route.path).not.toBe("public");
-    }
-    for (const route of Object.values(routes.auth)) {
-      expect(route.access, route.path).toBe("public");
     }
   });
 

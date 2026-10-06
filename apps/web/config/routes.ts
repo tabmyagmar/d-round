@@ -14,7 +14,7 @@ export type RouteAccess = "public" | "signed-in" | { action: Action; subject: Su
 export type AppRoute = { path: string; title: string; access: RouteAccess };
 
 /** One crumb of the header trail; `path` is the visited URL, `route` the page it renders. */
-export type Breadcrumb = { title: string; path: string; route: AppRoute };
+export type Breadcrumb = { path: string; route: AppRoute };
 
 const allow = (action: Action, subject: SubjectName): RouteAccess => ({ action, subject });
 
@@ -211,7 +211,7 @@ export const breadcrumbTrail = (pathname: string): Breadcrumb[] => {
   return segments.flatMap((_segment, index) => {
     const path = `/${segments.slice(0, index + 1).join("/")}`;
     const route = index === segments.length - 1 ? findRoute(path) : STATIC_ROUTES.get(path);
-    return route ? [{ title: route.title, path, route }] : [];
+    return route ? [{ path, route }] : [];
   });
 };
 

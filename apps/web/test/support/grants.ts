@@ -1,5 +1,19 @@
-import { ACTIONS, SUBJECT_NAMES } from "@repo/permissions";
-import type { PermissionGrant } from "@repo/permissions";
+import { ACTIONS, defineAbilityFor, SUBJECT_NAMES } from "@repo/permissions";
+import type { AbilityUser, AppAbility, PermissionGrant } from "@repo/permissions";
+
+/** The signed-in user of the access tests; the self rule matches this id. */
+export const ME_ID = "019187d5-0d76-7d1a-9a4c-4f7d2a1f3b6e";
+
+/** A signed-in user holding exactly these grants; the role never decides. */
+export const userWith = (permissions: readonly PermissionGrant[]): AbilityUser => ({
+  id: ME_ID,
+  role: "staff",
+  permissions,
+});
+
+/** The ability of that user. */
+export const abilityWith = (permissions: readonly PermissionGrant[]): AppAbility =>
+  defineAbilityFor(userWith(permissions));
 
 /** What `permissions.csv` grants the seeded staff role today. */
 export const STAFF_GRANTS: readonly PermissionGrant[] = [
