@@ -8,9 +8,9 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import type { CurrentUser } from "@/lib/auth/server";
 
 /**
- * The signed-in shell under /admin: ability for the whole tree, collapsible sidebar, header with
- * the breadcrumb trail, and the page gutters. A server component — only the serialisable `user`
- * crosses into the client pieces; the nav (icons) is read on the client side.
+ * The signed-in shell under /admin: ability for the whole tree, collapsible sidebar with the logo,
+ * header with the page title and the user menu, and the page gutters. A server component — only
+ * the serialisable `user` crosses into the client pieces; the nav (icons) is read on the client side.
  */
 export const AppShell = ({
   user,
@@ -24,10 +24,10 @@ export const AppShell = ({
 }) => (
   <AbilityProvider user={user}>
     <SidebarProvider defaultOpen={defaultOpen}>
-      <AppSidebar user={user} />
+      <AppSidebar />
       {/* SidebarInset is the <main>; the page wrapper inside it is a <div>. */}
       <SidebarInset>
-        <AppHeader />
+        <AppHeader user={user} />
         <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">{children}</div>
       </SidebarInset>
     </SidebarProvider>

@@ -17,7 +17,6 @@ import {
   CardTitle,
 } from "@repo/ui/components/card";
 import { ConfirmDialog } from "@repo/ui/components/composed/confirm-dialog";
-import { PageHeader } from "@repo/ui/components/composed/page-header";
 import {
   Select,
   SelectContent,
@@ -86,11 +85,14 @@ export const UserEditor = ({ userId }: { userId: string }) => {
 
   return (
     <>
-      <PageHeader
-        title={user.data.name}
-        description={user.data.email}
-        actions={<RoleBadge role={user.data.role} />}
-      />
+      {/* The header holds the page's h1 (the route title); the user being edited is an h2. */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h2 className="truncate font-heading text-xl font-semibold">{user.data.name}</h2>
+          <p className="truncate text-sm text-muted-foreground">{user.data.email}</p>
+        </div>
+        <RoleBadge role={user.data.role} />
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
         <Card>
