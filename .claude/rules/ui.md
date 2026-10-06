@@ -177,6 +177,36 @@ its `@theme` block. Change a colour there, never in a component. `prettier-plugi
 class names using that stylesheet (`prettier.config.mjs`). Merge classes with `cn()`; no inline
 `style` for what Tailwind expresses.
 
+The theme is the legacy d-round brand expressed as shadcn semantic tokens, so every primitive is
+branded without per-component colours: `primary` is the logo blue #062c9b (a lighter blue in dark
+mode), the page `background` the legacy blue-grey #eff2f9 under white `card`, header and `sidebar`,
+`accent` the legacy selected background, and `success` / `warning` / `info` the status colours
+(`StatusBadge` tones use them as `text-<tone>` on `bg-<tone>/10`). The one scale is `brand-50…950`
+(the legacy `primary-0…1000`), for shades no token covers, such as charts. Fonts: Inter for Latin,
+then the platform's Japanese fonts (`--font-sans` stack); headings use the same family. Sizes are
+Tailwind's (`text-lg` 18px, `text-base` 16px, `text-sm` 14px, `text-xs` 12px — the legacy
+`heading-*` / `body*` sizes).
+
+Porting a legacy screen, translate its classes; never re-add the legacy scales:
+
+| Legacy class                                                  | Use                                                                      |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `*-primary-900`, `*-bd-500`, `*-wb-1000`, `*-wb-900`          | `*-primary` (text on it: `text-primary-foreground`)                      |
+| `text-muted`, `text-description`, `text-dw-400…700`           | `text-muted-foreground`                                                  |
+| `bg-selectedBg`, `text-selectedText`                          | `bg-accent`, `text-accent-foreground`                                    |
+| `bg-wb-100`, `bg-wb-200`                                      | `bg-secondary` (`text-secondary-foreground`)                             |
+| `text-success`/`bg-success`, `*-pending`                      | `StatusBadge` tones, or `text-success`, `text-warning`                   |
+| `*-destructive`                                               | `*-destructive`                                                          |
+| `border-stroke`, `border-wb-100`, `border-primary-100`        | `border-border` (inputs: `border-input`)                                 |
+| `text-dw-800`, `text-dw-900`, `text-bd-1000`                  | `text-foreground`                                                        |
+| other `*-primary-N`, `*-wb-N`                                 | `*-brand-N` (`0` → `50`, `1000` → `950`) if no token                     |
+| `font-heading-*`, `font-body*`                                | nothing (one family)                                                     |
+| `text-heading-large` / `-medium` / `-small`, `text-body1/2/3` | `text-lg` / `text-base` / `text-sm`, `text-sm` / `text-base` / `text-xs` |
+
+The legacy `@import "tailwindcss" important`, the global `.border` colour override and the A4 /
+print utilities are not carried over; the print utilities come back with the workflow print screens,
+as `@utility` blocks next to that feature.
+
 ## Server vs client components (`apps/web`)
 
 - Server components by default: pages, layouts, data loading, session lookup.

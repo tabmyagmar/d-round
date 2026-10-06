@@ -3,11 +3,35 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
-@source "../../../apps/**/*.{ts,tsx}";
-@source "../../../components/**/*.{ts,tsx}";
+
+/* Paths are relative to this file: the web app's components and pages, and packages/ui itself. */
+@source "../../../../apps/web/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
+/*
+ * The brand scale (legacy d-round-web `primary-0…1000`, renamed to Tailwind's 50…950). Use it only
+ * for a shade no semantic token covers (charts, illustrations); components use the semantic tokens
+ * below (`bg-primary`, `text-muted-foreground`, `bg-accent`, …), so a re-brand is a change here.
+ */
+@theme {
+  --color-brand-50: oklch(0.979 0.01 267.36);
+  --color-brand-100: oklch(0.937 0.027 260.317);
+  --color-brand-200: oklch(0.873 0.056 262.746);
+  --color-brand-300: oklch(0.802 0.087 262.038);
+  --color-brand-400: oklch(0.729 0.115 262.356);
+  --color-brand-500: oklch(0.659 0.137 263.773);
+  --color-brand-600: oklch(0.586 0.146 263.678);
+  --color-brand-700: oklch(0.51 0.159 264.262);
+  --color-brand-800: oklch(0.434 0.171 264.232);
+  --color-brand-900: oklch(0.361 0.183 263.997);
+  --color-brand-950: oklch(0.231 0.104 263.716);
+}
+
 @theme inline {
+  /* next/font sets --font-inter on <html>; Japanese glyphs fall back to the platform's JP fonts. */
+  --font-sans:
+    var(--font-inter), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI",
+    Meiryo, sans-serif;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -25,6 +49,9 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
+  --color-info: var(--info);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
@@ -47,44 +74,51 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  --font-sans: var(--font-sans);
 }
 
+/* Light: the legacy look — a blue-grey page (#eff2f9) with white cards, header and sidebar. */
 :root {
-  --background: oklch(1 0 0);
+  --background: oklch(0.961 0.01 267.359);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.488 0.243 264.376);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
+  /* Brand blue #062c9b (the logo). */
+  --primary: oklch(0.361 0.183 263.997);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.935 0.016 274.813);
+  --secondary-foreground: oklch(0.361 0.183 263.997);
+  --muted: oklch(0.962 0.01 273.356);
+  --muted-foreground: oklch(0.551 0.023 264.364);
+  /* Hover and selected background (legacy selectedBg #f0f2f9 with selectedText #03164d). */
+  --accent: oklch(0.962 0.01 273.356);
+  --accent-foreground: oklch(0.231 0.104 263.716);
+  --destructive: oklch(0.577 0.215 27.325);
+  /* Status colours dark enough for text on their own 10% tint (StatusBadge). */
+  --success: oklch(0.527 0.137 150.069);
+  --warning: oklch(0.555 0.146 48.998);
+  --info: oklch(0.434 0.171 264.232);
+  --border: oklch(0.937 0.027 260.317);
+  --input: oklch(0.872 0.033 272.234);
+  --ring: oklch(0.586 0.146 263.678);
+  --chart-1: oklch(0.802 0.087 262.038);
+  --chart-2: oklch(0.659 0.137 263.773);
+  --chart-3: oklch(0.51 0.159 264.262);
+  --chart-4: oklch(0.361 0.183 263.997);
+  --chart-5: oklch(0.737 0.13 184.561);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.546 0.245 262.881);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.479 0.147 266.453);
+  --sidebar-primary: oklch(0.361 0.183 263.997);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.962 0.01 273.356);
+  --sidebar-accent-foreground: oklch(0.417 0.166 265.03);
+  --sidebar-border: oklch(0.937 0.027 260.317);
+  --sidebar-ring: oklch(0.586 0.146 263.678);
 }
 
+/* Dark: neutral surfaces, the brand as a lighter blue so text on it keeps its contrast. */
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -92,36 +126,42 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.424 0.199 265.638);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.729 0.115 262.356);
+  --primary-foreground: oklch(0.231 0.104 263.716);
+  --secondary: oklch(0.271 0.069 267.773);
+  --secondary-foreground: oklch(0.937 0.027 260.317);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --muted-foreground: oklch(0.714 0.019 261.325);
+  --accent: oklch(0.271 0.069 267.773);
+  --accent-foreground: oklch(0.937 0.027 260.317);
   --destructive: oklch(0.704 0.191 22.216);
+  --success: oklch(0.8 0.182 151.711);
+  --warning: oklch(0.837 0.164 84.429);
+  --info: oklch(0.729 0.115 262.356);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
+  --ring: oklch(0.659 0.137 263.773);
+  --chart-1: oklch(0.873 0.056 262.746);
+  --chart-2: oklch(0.729 0.115 262.356);
+  --chart-3: oklch(0.586 0.146 263.678);
+  --chart-4: oklch(0.434 0.171 264.232);
+  --chart-5: oklch(0.737 0.13 184.561);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.623 0.214 259.815);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.729 0.115 262.356);
+  --sidebar-primary-foreground: oklch(0.231 0.104 263.716);
+  --sidebar-accent: oklch(0.271 0.069 267.773);
+  --sidebar-accent-foreground: oklch(0.937 0.027 260.317);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.659 0.137 263.773);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* Thin scrollbars (Firefox, Chromium 121+), as in the legacy app, in theme colours. */
+    scrollbar-width: thin;
+    scrollbar-color: var(--input) transparent;
   }
   body {
     @apply bg-background text-foreground;

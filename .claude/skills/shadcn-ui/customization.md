@@ -130,7 +130,7 @@ module.exports = {
 
 ```tsx
 // 3. Use in components.
-<div className="bg-warning text-warning-foreground">Warning</div>
+<div className="text-warning-foreground bg-warning">Warning</div>
 ```
 
 ---

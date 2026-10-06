@@ -11,7 +11,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { brand } from "@/lib/brand";
 import { TRPCReactProvider } from "@/lib/trpc/react";
 
-const fontSans = Inter({ subsets: ["latin"], variable: "--font-sans" });
+// --font-inter heads the --font-sans stack in packages/ui globals.css (JP fallbacks after it).
+const fontSans = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {

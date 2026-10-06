@@ -17,7 +17,7 @@ export const AppHeader = ({ user }: { user: CurrentUser }) => {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4 md:px-6">
+    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-card px-4 md:px-6">
       <SidebarTrigger className="-ml-1 md:hidden" />
       <div className="min-w-0 flex-1">
         <PageTitle pathname={pathname} />
