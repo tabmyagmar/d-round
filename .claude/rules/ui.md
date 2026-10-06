@@ -25,20 +25,23 @@ paths:
 `proxy.ts` sit at the workspace root and are imported through the `@/` alias
 (`@/features/users/role-badge`). The web app is feature-based: everything with domain knowledge
 lives in `features/<feature>/` (`auth`: `login-form`, `resend-verification`; `users`: `users-table`,
-`user-editor`, `profile-form`, `profile-editor`, `role-badge`; `home`: `home-dashboard`). Route
-files under `app/` are thin: they import only from `@/features/<feature>/...`, `@/components/...`,
-`@/config/...`, `@/lib/...` and `@repo/ui` (`PageHeader`), and render one feature component inside
-`PageGuard`.
+`user-editor`, `profile-form`, `profile-editor`, `role-badge`). Route files under `app/` are thin:
+they import only from `@/features/<feature>/...`, `@/components/...`, `@/config/...`, `@/lib/...`
+and `@repo/ui` (`PageHeader`), and render one feature component inside `PageGuard`.
 
 ### Pages, the route catalog and the sidebar
 
 - `apps/web/config/routes.ts` is the only place a path or a page title is written. Links use
   `href(routes.client.detail, { id })`, redirects `href(routes.auth.login)`; a `"/admin/..."`
-  literal elsewhere is a review finding. `safeNextPath` vets every `?next=` before it is used.
+  literal elsewhere is a review finding (except `proxy.ts`, whose `matcher` Next reads statically).
+  `safeNextPath` vets every `?next=` before it is used.
 - Signed-in pages live under `app/admin/` (the URLs of the legacy d-round-web app). The layout
   `app/admin/layout.tsx` checks the session and renders `components/layout/app-shell.tsx`: shadcn
   `SidebarProvider` (open state from the `sidebar_state` cookie), `AppSidebar`, `SidebarInset` with
   `AppHeader` (trigger + breadcrumb from `breadcrumbTrail`). `SidebarInset` is the `<main>`.
+- There is no `/admin` page, as in the legacy app. `LANDING_ROUTE` (`config/routes.ts`, the workflow
+  list) is where a signed-in user lands: after login, from `/admin` (redirected by `proxy.ts`), from
+  the brand link and from the 403/404 back button. Change the landing there only.
 - How to add a page: skill `nextjs` (Adding a page). What guards the pages and what
   `route-tree.test.ts` enforces: `.claude/rules/permissions.md` (Web).
 - Breadcrumb crumbs come from `breadcrumbTrail`; an intermediate crumb the ability cannot open
@@ -185,7 +188,8 @@ Four layers, each thinner than the next one behind it:
 
 1. `apps/web/proxy.ts` — optimistic redirect on cookie **presence** only
    (`getSessionCookie(request)` from `better-auth/cookies`); `matcher` covers `/admin/:path*` and
-   sends signed-out visitors to `/login?next=<path>`. No network call.
+   sends signed-out visitors to `/login?next=<path>`; `/admin` itself goes to `LANDING_ROUTE`. No
+   network call.
 2. `apps/web/app/admin/layout.tsx` — server-side session on every request: `getCurrentUser()`
    (`apps/web/lib/auth/server.ts`: `getServerSession` forwards the browser cookie to
    `${NEXT_PUBLIC_API_URL}/api/auth/get-session`, `cache: "no-store"`, wrapped in React `cache()` so

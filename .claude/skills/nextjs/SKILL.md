@@ -104,8 +104,8 @@ server.
 - Server components read the session with `getServerSession` and leave tRPC data fetching to client
   components; never call the browser tRPC client from a server component.
 - After a verification link is clicked, Better Auth signs the user in and redirects to the
-  `callbackURL` passed to `sendVerificationEmail` (the resend form passes `/admin`); the login form
-  passes `next` as `callbackURL`.
+  `callbackURL` passed to `sendVerificationEmail` (the resend form passes `LANDING_ROUTE`); the
+  login form passes `next` as `callbackURL`.
 - Tests: `apps/web/test` runs in node by default; pure modules (`config/routes.ts`, `config/nav.ts`,
   `lib/auth/route-access.ts`) are tested without jsdom, a component test opts in with
   `// @vitest-environment jsdom` (stub `window.matchMedia` before rendering `SidebarProvider`).

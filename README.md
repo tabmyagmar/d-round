@@ -67,7 +67,7 @@ Then sign in at http://localhost:3000/login as `admin@test.com` / `A12345678` (o
 
 | Service      | URL                            | Notes                                                |
 | ------------ | ------------------------------ | ---------------------------------------------------- |
-| Web          | http://localhost:3000          | `/login`, `/admin` (sidebar shell, every page below) |
+| Web          | http://localhost:3000          | `/login`, `/admin/workflow` (sidebar shell, landing) |
 | API          | http://localhost:4000/health   | Postgres and Redis probes; 200 `ok` / 503 `degraded` |
 | Auth         | http://localhost:4000/api/auth | Better Auth endpoints (used by the web app)          |
 | Mailpit      | http://localhost:8025          | every outbox email lands here (SMTP on port 1025)    |
@@ -108,13 +108,14 @@ The web app's name, description and `<html lang>` live in `apps/web/lib/brand.ts
   CASL abilities built from the catalog grants in the session (`packages/permissions`; spec:
   `packages/permissions/test/ability.test.ts` and `apps/api/test/permission-catalog.test.ts`) plus
   stateful service rules (the last active admin cannot be demoted or deactivated; deactivation
-  soft-deletes the user and deletes its sessions in one transaction). Web: `/admin`,
-  `/admin/master/user`, `/admin/master/user/[id]`, `/admin/profile`.
+  soft-deletes the user and deletes its sessions in one transaction). Web: `/admin/master/user`,
+  `/admin/master/user/[id]`, `/admin/profile`.
 - **Web shell**: a shadcn sidebar under `/admin` with every page of the legacy d-round-web app
   (workflow, templates, users, audit log, clients, branches, staff, settings), most of them
-  placeholders. One route catalog (`apps/web/config/routes.ts`) holds each page's path, title and
-  required permission; the sidebar and a server-side page guard decide with the same rule, from the
-  session's grants (`.claude/rules/permissions.md`, Web).
+  placeholders; `/admin/workflow` is the landing page. One route catalog
+  (`apps/web/config/routes.ts`) holds each page's path, title and required permission; the sidebar
+  and a server-side page guard decide with the same rule, from the session's grants
+  (`.claude/rules/permissions.md`, Web).
 - **Transactional outbox** (`docs/adr/0004-outbox.md`): the API writes an `outbox_emails` row inside
   the transaction and enqueues an ID-only BullMQ job after commit; the worker renders and sends
   through SMTP (Mailpit locally) with retries, and a sweeper re-enqueues stale rows.
@@ -163,8 +164,7 @@ apps/
               app/(auth) (login, verify-email, forgot-password, new-password), app/admin (sidebar
               layout, one page per route), config/ (routes.ts: the route catalog, nav.ts: the
               sidebar), features/auth (login-form, resend-verification), features/users
-              (users-table, user-editor, profile-form, profile-editor, role-badge), features/home
-              (home-dashboard),
+              (users-table, user-editor, profile-form, profile-editor, role-badge),
               components/ (layout/: app-shell, app-sidebar, nav-main, nav-user, app-header;
               page-guard, access-denied, placeholder-page, theme-provider), lib/auth (client,
               server, route-access), lib/trpc, lib/env, lib/brand,

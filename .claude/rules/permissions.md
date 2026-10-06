@@ -192,6 +192,9 @@ detail page needs `read`, a create page `create`, an update page `update` on its
 - Route access is **unscoped**: `canUnscoped`, never `ability.can(action, "User")`, which the self
   rule makes true for everyone. A staff user does not see 担当者管理 and gets the 403 on
   `/admin/master/user/[id]` even for their own row — `/admin/profile` is their page.
+- Users land on `LANDING_ROUTE` (the workflow list, `read Workflow`). Every catalog role holds that
+  grant; a user whose `DENY` row removes it lands on the 403 and still
+  reaches プロフィール and 設定.
 - `apps/web/test/app/route-tree.test.ts` fails when a catalog route has no `page.tsx`, a page has no
   catalog entry, or a page under `app/admin` does not return exactly one `PageGuard` for its own
   route as its root element — the web counterpart of "every non-public procedure has
