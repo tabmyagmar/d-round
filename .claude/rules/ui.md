@@ -27,7 +27,7 @@ paths:
 lives in `features/<feature>/` (`auth`: `login-form`, `resend-verification`; `users`: `users-table`,
 `user-editor`, `profile-form`, `profile-editor`, `role-badge`). Route files under `app/` are thin:
 they import only from `@/features/<feature>/...`, `@/components/...`, `@/config/...`, `@/lib/...`
-and `@repo/ui` (`PageHeader`), and render one feature component inside `PageGuard`.
+and `@repo/ui`, and render one feature component inside `PageGuard`.
 
 ### Pages, the route catalog and the sidebar
 
@@ -38,7 +38,14 @@ and `@repo/ui` (`PageHeader`), and render one feature component inside `PageGuar
 - Signed-in pages live under `app/admin/` (the URLs of the legacy d-round-web app). The layout
   `app/admin/layout.tsx` checks the session and renders `components/layout/app-shell.tsx`: shadcn
   `SidebarProvider` (open state from the `sidebar_state` cookie), `AppSidebar`, `SidebarInset` with
-  `AppHeader` (trigger + breadcrumb from `breadcrumbTrail`). `SidebarInset` is the `<main>`.
+  `AppHeader`. `SidebarInset` is the `<main>`. As in the legacy app:
+  - the sidebar header shows the logo (`brand.logo`, `apps/web/public/logo.png`; another product
+    replaces that file) linking to the landing page, and the `SidebarTrigger`; on the icon rail only
+    the trigger remains;
+  - the header shows the page title once — `PageTitle` renders the current route's `title` as the
+    page's only `<h1>`, with the breadcrumb trail under it when there is more than one crumb — and
+    the user menu (`UserMenu`: プロフィール, ログアウト) on the right, where the notification bell
+    will join it; below `md` the header also carries the `SidebarTrigger` (the sidebar is a sheet).
 - There is no `/admin` page, as in the legacy app. `LANDING_ROUTE` (`config/routes.ts`, the workflow
   list) is where a signed-in user lands: after login, from `/admin` (redirected by `proxy.ts`), from
   the brand link and from the 403/404 back button. Change the landing there only.
@@ -48,9 +55,11 @@ and `@repo/ui` (`PageHeader`), and render one feature component inside `PageGuar
   (`breadcrumbLinks` → `canAccessRoute`) renders as plain text, never as a link to a 403.
 - `config/nav.ts` holds icon components (functions), so only client modules import it; icons never
   cross the server→client boundary as props.
-- Page chrome: `PageHeader` (h1, description, actions) at the top of every page; `EmptyState` for
-  placeholders, 403 (`AccessDenied`), 404 (`app/admin/not-found.tsx`, reached for unknown URLs
-  through `app/admin/[...slug]`) and `app/admin/error.tsx`; `LoadingState` for
+- Page chrome: pages inside the shell render no `<h1>` and no `PageHeader` (the header owns the
+  title; a dynamic name, such as the user being edited, is an `h2` in the content); actions go in a
+  toolbar at the top of the content. `PageHeader` is for pages outside the shell (the landing `/`).
+  `EmptyState` for placeholders, 403 (`AccessDenied`), 404 (`app/admin/not-found.tsx`, reached for
+  unknown URLs through `app/admin/[...slug]`) and `app/admin/error.tsx`; `LoadingState` for
   `app/admin/loading.tsx`, which Next shows inside the shell while a page renders.
 - A `Button` that renders a `Link` sets `nativeButton={false}` (Base UI).
 
@@ -153,7 +162,7 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   `apps/web/features/users/user-editor.tsx` (deactivate user).
 - `StatusBadge` (`status-badge.tsx`) — see above.
 - `PageHeader` (`page-header.tsx`) — `title` (the page's only `h1`), `description?`, `actions?`.
-  Hook-free, so server pages render it.
+  Hook-free. For pages outside the `/admin` shell, whose header already renders the title.
 - `EmptyState` (`empty-state.tsx`) — the shadcn `Empty` with `icon?`, `title` (an `h2`),
   `description?`, `action?`. Hook-free. Reference: `apps/web/components/access-denied.tsx`.
 - `LoadingState` (`loading-state.tsx`) — the shadcn `Spinner` (hidden from assistive tech) with a

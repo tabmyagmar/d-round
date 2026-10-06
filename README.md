@@ -93,7 +93,8 @@ missing or malformed value.
 | `NEXT_PUBLIC_API_URL` | web        | API origin the browser and the server components call (must be http(s))                                  |
 | `POSTGRES_IMAGE`      | docker     | Postgres image for compose (default `postgres:18-alpine`; `TEST_POSTGRES_IMAGE` for tests)               |
 
-The web app's name, description and `<html lang>` live in `apps/web/lib/brand.ts`.
+The web app's name, description, `<html lang>` and logo (`apps/web/public/logo.png`, shown in the
+sidebar) live in `apps/web/lib/brand.ts`.
 
 ## What is included
 
@@ -165,7 +166,7 @@ apps/
               layout, one page per route), config/ (routes.ts: the route catalog, nav.ts: the
               sidebar), features/auth (login-form, resend-verification), features/users
               (users-table, user-editor, profile-form, profile-editor, role-badge),
-              components/ (layout/: app-shell, app-sidebar, nav-main, nav-user, app-header;
+              components/ (layout/: app-shell, app-sidebar, nav-main, app-header, page-title, user-menu;
               page-guard, access-denied, placeholder-page, theme-provider), lib/auth (client,
               server, route-access), lib/trpc, lib/env, lib/brand,
               test/ (vitest + Testing Library, jsdom per file)
