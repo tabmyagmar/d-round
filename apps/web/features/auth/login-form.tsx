@@ -32,7 +32,7 @@ export const LoginForm = ({ next }: { next: string }) => {
   );
   const form = useForm<SignInInput>({
     resolver: zodResolver(signInSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { email: "", password: "", rememberMe: true },
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
