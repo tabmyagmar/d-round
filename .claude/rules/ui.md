@@ -47,7 +47,8 @@ files under `app/` are thin: they import only from `@/features/<feature>/...`, `
   cross the server→client boundary as props.
 - Page chrome: `PageHeader` (h1, description, actions) at the top of every page; `EmptyState` for
   placeholders, 403 (`AccessDenied`), 404 (`app/admin/not-found.tsx`, reached for unknown URLs
-  through `app/admin/[...slug]`) and `app/admin/error.tsx`.
+  through `app/admin/[...slug]`) and `app/admin/error.tsx`; `LoadingState` for
+  `app/admin/loading.tsx`, which Next shows inside the shell while a page renders.
 - A `Button` that renders a `Link` sets `nativeButton={false}` (Base UI).
 
 `@repo/ui` exports `./components/*`, `./components/form` (the form-field barrel), `./lib/*`,
@@ -152,6 +153,9 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   Hook-free, so server pages render it.
 - `EmptyState` (`empty-state.tsx`) — the shadcn `Empty` with `icon?`, `title` (an `h2`),
   `description?`, `action?`. Hook-free. Reference: `apps/web/components/access-denied.tsx`.
+- `LoadingState` (`loading-state.tsx`) — the shadcn `Spinner` (hidden from assistive tech) with a
+  `message?` (default `Loading…`) in one `role="status"` region. Hook-free. Reference:
+  `apps/web/app/admin/loading.tsx`.
 
 ## Theming
 
