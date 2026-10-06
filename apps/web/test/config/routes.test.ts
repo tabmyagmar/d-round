@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { SubjectName } from "@repo/permissions";
+
 import {
   ALL_ROUTES,
   breadcrumbTrail,
@@ -13,7 +15,27 @@ import type { AppRoute } from "@/config/routes";
 const isAdminPath = (path: string): boolean => path === "/admin" || path.startsWith("/admin/");
 
 /** The crumb a route contributes; `path` is the visited URL, not the `[id]` pattern. */
-const crumb = (route: AppRoute, path: string = route.path) => ({ title: route.title, path });
+const crumb = (route: AppRoute, path: string = route.path) => ({ title: route.title, path, route });
+
+/** The subject each permission group is gated on; every other catalog entry is listed below. */
+const GROUP_SUBJECTS = {
+  workflow: "Workflow",
+  workflowTemplate: "WorkflowTemplate",
+  user: "User",
+  auditLog: "AuditLog",
+  client: "Client",
+  branch: "Branch",
+  staff: "Staff",
+} as const satisfies Partial<Record<keyof typeof routes, SubjectName>>;
+
+type PermissionGroup = keyof typeof GROUP_SUBJECTS;
+
+/** Catalog entries open without a grant: `auth` to everyone, the rest to any signed-in user. */
+const OPEN_ENTRIES = ["auth", "home", "profile", "settings"] as const;
+
+/** A permission route's subject, or the open access (`public`, `signed-in`) it has instead. */
+const subjectOf = (route: AppRoute): string =>
+  typeof route.access === "string" ? route.access : route.access.subject;
 
 describe("href", () => {
   it("returns a static path as it is", () => {
@@ -103,6 +125,34 @@ describe("ALL_ROUTES", () => {
   });
 });
 
+describe("route access", () => {
+  it("classifies every catalog entry as a permission group or an open entry", () => {
+    expect(new Set(Object.keys(routes))).toEqual(
+      new Set([...Object.keys(GROUP_SUBJECTS), ...OPEN_ENTRIES]),
+    );
+  });
+
+  it.each(Object.entries(GROUP_SUBJECTS) as [PermissionGroup, SubjectName][])(
+    "gates every %s route on %s",
+    (group, subject) => {
+      const groupRoutes: readonly AppRoute[] = Object.values(routes[group]);
+      expect(groupRoutes.length, group).toBeGreaterThan(0);
+      for (const route of groupRoutes) {
+        expect(subjectOf(route), route.path).toBe(subject);
+      }
+    },
+  );
+
+  it("keeps auth.* public and home, profile and settings.* signed-in", () => {
+    for (const route of Object.values(routes.auth)) {
+      expect(subjectOf(route), route.path).toBe("public");
+    }
+    for (const route of [routes.home, routes.profile, ...Object.values(routes.settings)]) {
+      expect(subjectOf(route), route.path).toBe("signed-in");
+    }
+  });
+});
+
 describe("breadcrumbTrail", () => {
   it("is just ホーム on /admin", () => {
     expect(breadcrumbTrail("/admin")).toEqual([crumb(routes.home)]);
@@ -157,6 +207,7 @@ describe("safeNextPath", () => {
     ["absolute URL", "https://evil.example"],
     ["javascript: URL", "javascript:alert(1)"],
     ["relative path", "admin"],
+    ["array (?next= given twice)", ["/a", "/b"]],
     ["tab the URL parser strips (/<tab>/ becomes //)", "/\t/evil.example"],
     ["newline the URL parser strips", "/\n/evil.example"],
   ])("falls back for %s", (_label, next) => {

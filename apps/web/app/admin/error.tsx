@@ -1,6 +1,7 @@
 "use client";
 
 import { TriangleAlert } from "lucide-react";
+import type { ErrorInfo } from "next/error";
 
 import { Button } from "@repo/ui/components/button";
 import { EmptyState } from "@repo/ui/components/composed/empty-state";
@@ -17,21 +18,24 @@ const digestOf = (error: unknown): string | undefined =>
     ? error.digest
     : undefined;
 
-/** An error while rendering a page under /admin: shown inside the shell, with a retry. */
-const AdminError = ({ error, reset }: { error: unknown; reset: () => void }) => {
+/**
+ * An error while rendering a page under /admin: shown inside the shell. 再試行 calls `retry`, which
+ * refreshes the route from the server before re-rendering; `reset` would only clear the boundary,
+ * and a server-render error would throw again.
+ */
+const AdminError = ({ error, retry }: ErrorInfo) => {
   const digest = digestOf(error);
   return (
     <EmptyState
       icon={<TriangleAlert />}
       title="エラーが発生しました"
       description={
-        // EmptyDescription is a <p>: block spans, never nested <p> (invalid HTML, hydration error).
         <>
           <span className="block">時間をおいて再度お試しください。</span>
           {digest ? <span className="mt-2 block font-mono text-xs">{digest}</span> : null}
         </>
       }
-      action={<Button onClick={reset}>再試行</Button>}
+      action={<Button onClick={retry}>再試行</Button>}
     />
   );
 };

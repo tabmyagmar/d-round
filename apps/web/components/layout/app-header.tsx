@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment } from "react";
 
+import { useAbility } from "@repo/permissions/react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -16,10 +17,14 @@ import { Separator } from "@repo/ui/components/separator";
 import { SidebarTrigger } from "@repo/ui/components/sidebar";
 
 import { breadcrumbTrail } from "@/config/routes";
+import { breadcrumbLinks } from "@/lib/auth/route-access";
 
-/** Sidebar toggle and the catalog's breadcrumb trail; below `md` only the current page shows. */
+/**
+ * Sidebar toggle and the catalog's breadcrumb trail; below `md` only the current page shows. An
+ * intermediate crumb links only to a page this ability may open; otherwise it is plain text.
+ */
 export const AppHeader = () => {
-  const trail = breadcrumbTrail(usePathname());
+  const trail = breadcrumbLinks(useAbility(), breadcrumbTrail(usePathname()));
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 px-4 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
@@ -39,7 +44,13 @@ export const AppHeader = () => {
                 </BreadcrumbItem>
               ) : (
                 <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink render={<Link href={crumb.path} />}>{crumb.title}</BreadcrumbLink>
+                  {crumb.linkable ? (
+                    <BreadcrumbLink render={<Link href={crumb.path} />}>
+                      {crumb.title}
+                    </BreadcrumbLink>
+                  ) : (
+                    crumb.title
+                  )}
                 </BreadcrumbItem>
               )}
             </Fragment>

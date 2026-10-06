@@ -1,35 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { ACTIONS, defineAbilityFor, SUBJECT_NAMES } from "@repo/permissions";
+import { defineAbilityFor } from "@repo/permissions";
 import type { AppAbility, PermissionGrant } from "@repo/permissions";
 
 import { isActivePath, isNavItemActive, NAV_GROUPS, visibleNavGroups } from "@/config/nav";
 import type { NavBranch, NavGroup, NavItem, NavLeaf } from "@/config/nav";
 import { routes } from "@/config/routes";
+import { EVERY_GRANT, STAFF_GRANTS } from "@/test/support/grants";
 
 const ME_ID = "019187d5-0d76-7d1a-9a4c-4f7d2a1f3b6e";
 
 const MASTER = "マスター管理";
 
 /** The ability of a user holding exactly these grants; the role never decides. */
-const abilityWith = (permissions: PermissionGrant[]): AppAbility =>
+const abilityWith = (permissions: readonly PermissionGrant[]): AppAbility =>
   defineAbilityFor({ id: ME_ID, role: "staff", permissions });
-
-/** What `permissions.csv` grants the seeded staff role today. */
-const STAFF_GRANTS: PermissionGrant[] = [
-  { action: "read", subject: "Client" },
-  { action: "read", subject: "Staff" },
-  { action: "read", subject: "Branch" },
-  { action: "create", subject: "Workflow" },
-  { action: "read", subject: "Workflow" },
-  { action: "update", subject: "Workflow" },
-  { action: "delete", subject: "Workflow" },
-  { action: "status", subject: "Workflow" },
-];
-
-const EVERY_GRANT: PermissionGrant[] = ACTIONS.flatMap((action) =>
-  SUBJECT_NAMES.map((subject) => ({ action, subject })),
-);
 
 /** A menu as plain data: leaf → its route title, branch → `{ [title]: child titles }`. */
 const outline = (groups: readonly NavGroup[]) =>
@@ -42,7 +27,7 @@ const outline = (groups: readonly NavGroup[]) =>
     ),
   }));
 
-const menuFor = (permissions: PermissionGrant[]) =>
+const menuFor = (permissions: readonly PermissionGrant[]) =>
   outline(visibleNavGroups(abilityWith(permissions)));
 
 const SETTINGS_GROUP = {

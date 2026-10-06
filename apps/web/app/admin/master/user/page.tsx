@@ -8,7 +8,7 @@ const UsersPage = () => (
   <PageGuard route={routes.user.list}>
     <PageHeader
       title={routes.user.list.title}
-      description="You only see the users your role allows; admins see everyone."
+      description="The users your permissions let you read; the API filters every row."
     />
     <UsersTable />
   </PageGuard>

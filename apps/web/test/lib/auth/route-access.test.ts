@@ -1,39 +1,24 @@
 import { describe, expect, it } from "vitest";
 
-import { ACTIONS, defineAbilityFor, SUBJECT_NAMES } from "@repo/permissions";
+import { defineAbilityFor } from "@repo/permissions";
 import type { AbilityUser, AppAbility, PermissionGrant } from "@repo/permissions";
 
-import { ALL_ROUTES, routes } from "@/config/routes";
-import { canAccessRoute, routeDecision } from "@/lib/auth/route-access";
+import { ALL_ROUTES, breadcrumbTrail, href, routes } from "@/config/routes";
+import { breadcrumbLinks, canAccessRoute, routeDecision } from "@/lib/auth/route-access";
+import { EVERY_GRANT, STAFF_GRANTS } from "@/test/support/grants";
 
 const ME_ID = "019187d5-0d76-7d1a-9a4c-4f7d2a1f3b6e";
 
 /** A signed-in user holding exactly these grants; the role never decides. */
-const userWith = (permissions: PermissionGrant[]): AbilityUser => ({
+const userWith = (permissions: readonly PermissionGrant[]): AbilityUser => ({
   id: ME_ID,
   role: "staff",
   permissions,
 });
 
 /** The ability of that user. */
-const abilityWith = (permissions: PermissionGrant[]): AppAbility =>
+const abilityWith = (permissions: readonly PermissionGrant[]): AppAbility =>
   defineAbilityFor(userWith(permissions));
-
-/** What `permissions.csv` grants the seeded staff role today. */
-const STAFF_GRANTS: PermissionGrant[] = [
-  { action: "read", subject: "Client" },
-  { action: "read", subject: "Staff" },
-  { action: "read", subject: "Branch" },
-  { action: "create", subject: "Workflow" },
-  { action: "read", subject: "Workflow" },
-  { action: "update", subject: "Workflow" },
-  { action: "delete", subject: "Workflow" },
-  { action: "status", subject: "Workflow" },
-];
-
-const EVERY_GRANT: PermissionGrant[] = ACTIONS.flatMap((action) =>
-  SUBJECT_NAMES.map((subject) => ({ action, subject })),
-);
 
 describe("canAccessRoute", () => {
   it("opens a public route to anonymous visitors", () => {
@@ -124,5 +109,47 @@ describe("routeDecision", () => {
     );
     expect(routeDecision(denied, routes.client.list)).toBe("forbidden");
     expect(routeDecision(denied, routes.client.create)).toBe("allow");
+  });
+});
+
+describe("breadcrumbLinks", () => {
+  /** The trail of `pathname` as `[title, linkable]` pairs for a user holding these grants. */
+  const linksFor = (permissions: readonly PermissionGrant[], pathname: string) =>
+    breadcrumbLinks(abilityWith(permissions), breadcrumbTrail(pathname)).map(
+      ({ title, linkable }) => [title, linkable],
+    );
+
+  it("links every intermediate crumb the seeded staff grants open, never the current page", () => {
+    expect(linksFor(STAFF_GRANTS, href(routes.client.create))).toEqual([
+      [routes.home.title, true],
+      [routes.client.list.title, true],
+      [routes.client.create.title, false],
+    ]);
+  });
+
+  it("shows the list as text, not a link to a 403, to a user with `create Client` alone", () => {
+    expect(linksFor([{ action: "create", subject: "Client" }], href(routes.client.create))).toEqual(
+      [
+        [routes.home.title, true],
+        [routes.client.list.title, false],
+        [routes.client.create.title, false],
+      ],
+    );
+  });
+
+  it("does not link 担当者管理 on the self rule alone, although ability.can(read, User) is true", () => {
+    const path = href(routes.user.update, { id: ME_ID });
+    expect(linksFor([{ action: "update", subject: "User" }], path)).toEqual([
+      [routes.home.title, true],
+      [routes.user.list.title, false],
+      [routes.user.update.title, false],
+    ]);
+  });
+
+  it("keeps the trail itself: titles, visited paths and routes", () => {
+    const trail = breadcrumbTrail(href(routes.client.update, { id: "42" }));
+    expect(breadcrumbLinks(abilityWith(EVERY_GRANT), trail)).toEqual(
+      trail.map((crumb, index) => ({ ...crumb, linkable: index < trail.length - 1 })),
+    );
   });
 });

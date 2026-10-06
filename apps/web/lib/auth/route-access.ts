@@ -1,7 +1,7 @@
 import { canUnscoped, defineAbilityFor } from "@repo/permissions";
 import type { AbilityUser, AppAbility } from "@repo/permissions";
 
-import type { AppRoute } from "@/config/routes";
+import type { AppRoute, Breadcrumb } from "@/config/routes";
 
 /**
  * THE route access rule — the sidebar (`visibleNavGroups`) and the server page guard both call it,
@@ -39,3 +39,20 @@ export const routeDecision = (user: AbilityUser | null, route: AppRoute): RouteD
   }
   return canAccessRoute(defineAbilityFor(user), route) ? "allow" : "forbidden";
 };
+
+/** A crumb of the header trail and whether the header may render it as a link. */
+export type BreadcrumbEntry = Breadcrumb & { linkable: boolean };
+
+/**
+ * The header trail with the access rule applied: an intermediate crumb links to its page only when
+ * `canAccessRoute` opens it, so `create Client` without `read Client` shows クライアント管理 as text
+ * instead of a link to a 403. The last crumb is the current page and never links.
+ */
+export const breadcrumbLinks = (
+  ability: AppAbility | null,
+  trail: readonly Breadcrumb[],
+): BreadcrumbEntry[] =>
+  trail.map((crumb, index) => ({
+    ...crumb,
+    linkable: index < trail.length - 1 && canAccessRoute(ability, crumb.route),
+  }));

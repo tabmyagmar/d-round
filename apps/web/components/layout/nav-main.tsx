@@ -45,11 +45,21 @@ const NavLeafItem = ({ leaf, pathname }: { leaf: NavLeaf; pathname: string }) =>
   );
 };
 
-/** A heading over links (マスター管理); open on load when one of its children is the page. */
+/** A heading over links (マスター管理); opens whenever one of its children becomes the page. */
 const NavBranchItem = ({ branch, pathname }: { branch: NavBranch; pathname: string }) => {
   const sidebar = useSidebar();
   const active = isNavItemActive(pathname, branch);
   const [open, setOpen] = useState(active);
+  const [wasActive, setWasActive] = useState(active);
+
+  // The layout stays mounted across soft navigation, so the initial state alone never reopens the
+  // branch: adjust the state while rendering when a child turns active (no effect, no extra paint).
+  if (active !== wasActive) {
+    setWasActive(active);
+    if (active) {
+      setOpen(true);
+    }
+  }
 
   const onOpenChange = (next: boolean) => {
     // On the icon rail the children are hidden: a click expands the sidebar and shows them,

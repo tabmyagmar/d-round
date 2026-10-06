@@ -13,8 +13,8 @@ export type RouteAccess = "public" | "signed-in" | { action: Action; subject: Su
 /** One page; `path` is the Next.js pattern (`[id]` marks a dynamic segment). */
 export type AppRoute = { path: string; title: string; access: RouteAccess };
 
-/** One crumb of the header trail; `path` is the visited URL, not the pattern. */
-export type Breadcrumb = { title: string; path: string };
+/** One crumb of the header trail; `path` is the visited URL, `route` the page it renders. */
+export type Breadcrumb = { title: string; path: string; route: AppRoute };
 
 const allow = (action: Action, subject: SubjectName): RouteAccess => ({ action, subject });
 
@@ -211,7 +211,7 @@ export const breadcrumbTrail = (pathname: string): Breadcrumb[] => {
   return segments.flatMap((_segment, index) => {
     const path = `/${segments.slice(0, index + 1).join("/")}`;
     const route = index === segments.length - 1 ? findRoute(path) : STATIC_ROUTES.get(path);
-    return route ? [{ title: route.title, path }] : [];
+    return route ? [{ title: route.title, path, route }] : [];
   });
 };
 
@@ -220,11 +220,16 @@ const URL_STRIPPED = /[\t\n\r]/;
 
 /**
  * `next` when it is a same-origin path, otherwise `fallback` — the guard against open redirects
- * after sign-in. A same-origin path starts with exactly one `/`; a second `/` or `\` makes it
- * protocol-relative (browsers treat `/\host` like `//host`), and a tab or newline the URL parser
- * strips could produce one. Absolute URLs (`https:`, `javascript:`) and relative paths fall back.
+ * after sign-in. Only a string qualifies (`?next=a&next=b` arrives as an array). A same-origin
+ * path starts with exactly one `/`; a second `/` or `\` makes it protocol-relative (browsers
+ * treat `/\host` like `//host`), and a tab or newline the URL parser strips could produce one.
+ * Absolute URLs (`https:`, `javascript:`) and relative paths fall back.
  */
-export const safeNextPath = (next: string | null | undefined, fallback: string): string =>
-  next?.startsWith("/") && next[1] !== "/" && next[1] !== "\\" && !URL_STRIPPED.test(next)
+export const safeNextPath = (next: unknown, fallback: string): string =>
+  typeof next === "string" &&
+  next.startsWith("/") &&
+  next[1] !== "/" &&
+  next[1] !== "\\" &&
+  !URL_STRIPPED.test(next)
     ? next
     : fallback;

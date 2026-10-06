@@ -20,7 +20,10 @@ export type ProfileFormProps = {
   disabled?: boolean;
 };
 
-/** Shared by /profile (self) and /users/[id] (admins). Same zod schema as the API. */
+/**
+ * Shared by /admin/profile (self) and /admin/master/user/[id] (another user, for those allowed to
+ * update them). Same zod schema as the API.
+ */
 export const ProfileForm = ({ userId, initial, disabled = false }: ProfileFormProps) => {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
