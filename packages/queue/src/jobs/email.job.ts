@@ -19,12 +19,18 @@ export const EMAIL_JOB_ID_PREFIX = "email";
 /** Template names + payload shapes rendered by the worker (apps/worker/src/mail/templates.ts). */
 export const EMAIL_TEMPLATES = {
   verification: "verification-email",
+  /** Forgot password and the admin re-send for a user who already has a password. */
+  passwordReset: "password-reset",
+  /** First password for a user an admin created (same reset link, invitation wording). */
+  accountInvitation: "account-invitation",
 } as const;
 
 export type EmailTemplate = (typeof EMAIL_TEMPLATES)[keyof typeof EMAIL_TEMPLATES];
 
 export type EmailTemplatePayloads = {
   "verification-email": { name: string; url: string };
+  "password-reset": { name: string; url: string };
+  "account-invitation": { name: string; url: string };
 };
 
 export const emailJobId = (outboxEmailId: string): string =>
