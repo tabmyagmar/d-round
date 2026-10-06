@@ -33,7 +33,8 @@ plan silently.
 2. Implement the smallest change that makes the test pass and satisfies the step.
 3. Run the checks for the step and fix what they report:
    - `yarn workspace <package> test` (one file: `yarn workspace <package> vitest run <path>`)
-   - `yarn lint`
+   - `yarn lint` — warnings count: the pre-commit hook runs `eslint --max-warnings 0`, so a warning
+     left in a changed file (generated shadcn code included) blocks the commit
    - `yarn typecheck`
    - the last step of a plan additionally runs `yarn verify`.
 4. If a check still fails after 2 fix attempts, STOP and report `BLOCKED` with the log excerpt.

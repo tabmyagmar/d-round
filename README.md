@@ -163,7 +163,8 @@ apps/
               app/(auth) (login, verify-email, forgot-password, new-password), app/admin (sidebar
               layout, one page per route), config/ (routes.ts: the route catalog, nav.ts: the
               sidebar), features/auth (login-form, resend-verification), features/users
-              (users-table, user-editor, profile-form, profile-editor, role-badge),
+              (users-table, user-editor, profile-form, profile-editor, role-badge), features/home
+              (home-dashboard),
               components/ (layout/: app-shell, app-sidebar, nav-main, nav-user, app-header;
               page-guard, access-denied, placeholder-page, theme-provider), lib/auth (client,
               server, route-access), lib/trpc, lib/env, lib/brand,

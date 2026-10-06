@@ -39,9 +39,8 @@ files under `app/` are thin: they import only from `@/features/<feature>/...`, `
   `app/admin/layout.tsx` checks the session and renders `components/layout/app-shell.tsx`: shadcn
   `SidebarProvider` (open state from the `sidebar_state` cookie), `AppSidebar`, `SidebarInset` with
   `AppHeader` (trigger + breadcrumb from `breadcrumbTrail`). `SidebarInset` is the `<main>`.
-- How to add a page: skill `nextjs` (Adding a page). `apps/web/test/app/route-tree.test.ts` fails
-  when the catalog and the page tree disagree or a page under `app/admin` is not rooted in a
-  `PageGuard` for its own route. Access rules: `.claude/rules/permissions.md` (Web).
+- How to add a page: skill `nextjs` (Adding a page). What guards the pages and what
+  `route-tree.test.ts` enforces: `.claude/rules/permissions.md` (Web).
 - Breadcrumb crumbs come from `breadcrumbTrail`; an intermediate crumb the ability cannot open
   (`breadcrumbLinks` → `canAccessRoute`) renders as plain text, never as a link to a 403.
 - `config/nav.ts` holds icon components (functions), so only client modules import it; icons never

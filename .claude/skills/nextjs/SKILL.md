@@ -13,25 +13,10 @@ and to Better Auth over `/api/auth`. It never touches the database or the queue.
 
 ## Layout of the app (no `src/`)
 
-```text
-apps/web/
-  proxy.ts                      cookie-presence redirect for /admin/:path*
-  app/layout.tsx                ThemeProvider + TRPCReactProvider + TooltipProvider + <Toaster />
-  app/(auth)/layout.tsx         centered card shell; login/, verify-email/, forgot-password/, new-password/
-  app/admin/layout.tsx          server-side session check + <AppShell> (sidebar)
-  app/admin/**/page.tsx         one page per catalog route, content inside <PageGuard>
-  app/admin/{error,not-found}.tsx, app/admin/[...slug]/page.tsx (unknown URLs → 404 in the shell)
-  config/routes.ts              THE route catalog: path, title, access; href, findRoute, breadcrumbTrail, safeNextPath
-  config/nav.ts                 sidebar groups (NAV_GROUPS) and visibleNavGroups(ability)
-  features/auth/                login-form, resend-verification (no sign-up; admin-created users)
-  features/users/               users-table, user-editor, profile-form, profile-editor, role-badge
-  components/layout/            app-shell, app-sidebar, nav-main, nav-user, app-header
-  components/                   page-guard, access-denied, placeholder-page, theme-provider
-  lib/auth/{client,server}.ts   authClient (browser) / getServerSession, getCurrentUser (cached), toCurrentUser
-  lib/auth/route-access.ts      canAccessRoute, routeDecision — the page and menu access rule
-  lib/trpc/{react.tsx,query-client.ts}
-  lib/env.ts                    publicEnv.apiUrl (NEXT_PUBLIC_API_URL, zod-validated at load)
-```
+The folder map is in `README.md` (the `apps/web` entry); where each kind of component lives is in
+`.claude/rules/ui.md` (Where components live). The files a page change usually touches:
+`config/routes.ts` (the route catalog), `app/admin/<path>/page.tsx`, `features/<feature>/`,
+`config/nav.ts` and, for access, `lib/auth/route-access.ts`.
 
 ## Server vs client components
 
@@ -42,14 +27,11 @@ apps/web/
 | Data that can be fetched on the server               | server                                             |
 | Forms, buttons with handlers, `useState`, tRPC hooks | client (`"use client"` at the leaf)                |
 
-The app is feature-based: domain components live in `features/<feature>/` and route files under
-`app/` import only from `@/features/<feature>/...`, `@/components/...`, `@/config/...`, `@/lib/...`
-and `@repo/ui` (never from each other). `components/` keeps the app-wide shell. Keep the
-`"use client"` boundary as low as possible: `app/admin/master/user/page.tsx` is a server page
-rendering the client `features/users/users-table.tsx`. Only Next.js special files (`page`, `layout`,
-`loading`, `error`, `not-found`, `route`, `proxy.ts`, ...) may default-export; everything else is a
-named export. A server component may import a value from a client module only to render it — never
-call or dot into it (a shared constant lives in a module without `"use client"`).
+Route-file imports, the feature layout, default exports and the client-boundary rules are in
+`.claude/rules/ui.md` (Where components live; Server vs client components). Example:
+`app/admin/master/user/page.tsx` is a server page rendering the client
+`features/users/users-table.tsx`. A server component may import a value from a client module only to
+render it — never call or dot into it (a shared constant lives in a module without `"use client"`).
 
 ## Adding a page
 
@@ -60,10 +42,9 @@ call or dot into it (a shared constant lives in a module without `"use client"`)
 3. Top-level list pages get a `NavLeaf` (or a `NavBranch` child) in `config/nav.ts`.
 4. Link to it with `href(routes.x.y, { id })`, never a string literal.
 
-`test/app/route-tree.test.ts` fails when the catalog and the page tree disagree or a page lacks its
-own guard; `test/config/nav.test.ts` holds the per-grant menu cases. The facts behind these steps
-(shell, page chrome, Base UI and server/client rules) are in `.claude/rules/ui.md` (Pages, the route
-catalog and the sidebar); the access rule in `.claude/rules/permissions.md` (Web).
+Steps 1 and 2 are enforced by `test/app/route-tree.test.ts`, the access rule behind them is in
+`.claude/rules/permissions.md` (Web), and the shell and page chrome in `.claude/rules/ui.md` (Pages,
+the route catalog and the sidebar).
 
 ## Session and authorization in the web
 
@@ -130,6 +111,6 @@ server.
   `// @vitest-environment jsdom` (stub `window.matchMedia` before rendering `SidebarProvider`).
 - `next dev` started by an agent (Claude Code) writes `apps/web/AGENTS.md` and `apps/web/CLAUDE.md`
   (Next's agent rules, `node_modules/next/dist/server/lib/generate-agent-files.js`). They are not
-  part of the repo and fail `format:check`: delete them after a smoke run. A human's `yarn dev` does
-  not write them.
+  part of the repo: `AGENTS.md` fails `format:check` (`CLAUDE.md` is Prettier-ignored) and both
+  leave the tree dirty, so delete them after a smoke run. A human's `yarn dev` does not write them.
 - Prettier sorts Tailwind classes; do not fight the order.

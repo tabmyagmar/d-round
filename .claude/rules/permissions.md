@@ -193,10 +193,11 @@ detail page needs `read`, a create page `create`, an update page `update` on its
   rule makes true for everyone. A staff user does not see 担当者管理 and gets the 403 on
   `/admin/master/user/[id]` even for their own row — `/admin/profile` is their page.
 - `apps/web/test/app/route-tree.test.ts` fails when a catalog route has no `page.tsx`, a page has no
-  catalog entry, or a page under `app/admin` is not wrapped in `PageGuard` with its own route — the
-  web counterpart of "every non-public procedure has `requireAbility`". The decision itself is
-  covered in `apps/web/test/lib/auth/route-access.test.ts` and `test/config/nav.test.ts` (seeded
-  staff grants, a `DENY`, the self rule).
+  catalog entry, or a page under `app/admin` does not return exactly one `PageGuard` for its own
+  route as its root element — the web counterpart of "every non-public procedure has
+  `requireAbility`". `apps/web/test/config/routes.test.ts` pins each route's action and subject. The
+  decision itself is covered in `apps/web/test/lib/auth/route-access.test.ts` (including
+  `breadcrumbLinks`) and `test/config/nav.test.ts` (seeded staff grants, a `DENY`, the self rule).
 
 ```tsx
 // apps/web/components/layout/app-shell.tsx — once, around the signed-in app; CurrentUser carries
