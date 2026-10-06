@@ -312,6 +312,19 @@ gate; UI only, the API stays the guard).
   also rejects a `next` containing a tab, LF or CR — URL parsing strips them, so `/%09/evil.example`
   would become `//evil.example`.
 
+- 2026-10-06, steps 5–7 and review: two files outside the plan's lists were added —
+  `apps/web/app/admin/[...slug]/page.tsx` (unknown `/admin` URLs render the admin 404 inside the
+  shell) and a pointer in `.claude/rules/module-template.md` (screens replace placeholders). Commits
+  `4b8e7f8` and `ad7e5d2` hold 16 files each (15 + this plan's amendment); that needs the human's
+  waiver of the 15-file limit.
+- 2026-10-06, review round 1 (0 BLOCKER, 7 SHOULD, NITs): one fix commit for the web code (subjects
+  pinned per route group in the tests, `safeNextPath` takes `unknown` so a repeated `?next=` no
+  longer throws, `error.tsx` retries with `retry`, breadcrumb crumbs filtered by `canAccessRoute`,
+  `HomeDashboard` moved to `features/home`, マスター管理 opens on soft navigation, route-tree test
+  asserts the guard is the page root, shared grant fixtures, stale comments) and one docs commit
+  (facts in `ui.md`, how-tos in the skills, the soft-navigation caveat, stale paths).
+  `TEMPLATE_AUDIT.md` keeps its historical mentions of `app-shell.tsx` and `(app)/dashboard`.
+
 ## Risks and open points
 
 - shadcn `sidebar` (base-nova) may need small `exactOptionalPropertyTypes` patches → record them, do

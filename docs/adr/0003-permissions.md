@@ -77,12 +77,13 @@ lint error. Changing a permission means changing the matrix test first.
   `apps/web` has one entry in `apps/web/config/routes.ts` (`path`, `title`, `access` = `public`,
   `signed-in` or `{ action, subject }` on a catalog subject). One function, `canAccessRoute`
   (`apps/web/lib/auth/route-access.ts`), answers for both the sidebar (`visibleNavGroups`) and a
-  server-side `PageGuard` that wraps every page under `/admin`, so a menu entry and its page cannot
-  disagree. It asks `canUnscoped`, not `ability.can`, because the self rule makes
-  `can("read", "User")` true for everyone; a staff user therefore gets the 403 on
-  `/admin/master/user/[id]` even for their own row and edits themselves at `/admin/profile`. The 403
-  renders in place (no redirect), before any HTML reaches the browser. A structural test
-  (`apps/web/test/app/route-tree.test.ts`) keeps the catalog, the page tree and the guards in sync.
-  It replaces `visibleNavItems` (`apps/web/components/app-shell.tsx`) as the web's navigation check
-  and keeps the Decision's "browser ability only hides UI": the API's `requireAbility` and the
-  service rules stay the guard.
+  server-side `PageGuard` that wraps every page under `/admin`, so a menu entry and its page agree
+  for one session (the layout is not re-rendered on soft navigation: after a grant change the guard
+  applies it at once and the menu on the next full load). It asks `canUnscoped`, not `ability.can`,
+  because the self rule makes `can("read", "User")` true for everyone; a staff user therefore gets
+  the 403 on `/admin/master/user/[id]` even for their own row and edits themselves at
+  `/admin/profile`. The 403 renders in place (no redirect), before any HTML reaches the browser. A
+  structural test (`apps/web/test/app/route-tree.test.ts`) keeps the catalog, the page tree and the
+  guards in sync. It replaces `visibleNavItems` (`apps/web/components/app-shell.tsx`) as the web's
+  navigation check and keeps the Decision's "browser ability only hides UI": the API's
+  `requireAbility` and the service rules stay the guard.

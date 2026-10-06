@@ -25,9 +25,10 @@ paths:
 `proxy.ts` sit at the workspace root and are imported through the `@/` alias
 (`@/features/users/role-badge`). The web app is feature-based: everything with domain knowledge
 lives in `features/<feature>/` (`auth`: `login-form`, `resend-verification`; `users`: `users-table`,
-`user-editor`, `profile-form`, `profile-editor`, `role-badge`). Route files under `app/` are thin:
-they import only from `@/features/<feature>/...`, `@/components/...`, `@/config/...` and `@/lib/...`
-and render one feature component inside `PageGuard`.
+`user-editor`, `profile-form`, `profile-editor`, `role-badge`; `home`: `home-dashboard`). Route
+files under `app/` are thin: they import only from `@/features/<feature>/...`, `@/components/...`,
+`@/config/...`, `@/lib/...` and `@repo/ui` (`PageHeader`), and render one feature component inside
+`PageGuard`.
 
 ### Pages, the route catalog and the sidebar
 
@@ -38,12 +39,11 @@ and render one feature component inside `PageGuard`.
   `app/admin/layout.tsx` checks the session and renders `components/layout/app-shell.tsx`: shadcn
   `SidebarProvider` (open state from the `sidebar_state` cookie), `AppSidebar`, `SidebarInset` with
   `AppHeader` (trigger + breadcrumb from `breadcrumbTrail`). `SidebarInset` is the `<main>`.
-- Add a page: (1) a catalog entry `{ path, title, access }`; (2) `app/admin/<path>/page.tsx` whose
-  content sits in `<PageGuard route={routes.x.y}>` with its own route (a feature component, or
-  `PlaceholderPage` until the screen exists); (3) for a top-level list, a `NavLeaf` in
-  `config/nav.ts` (`{ kind: "leaf", route, icon }`, lucide icon) or a child of a `NavBranch`.
-  `apps/web/test/app/route-tree.test.ts` fails when (1) and (2) disagree. Access rules:
-  `.claude/rules/permissions.md` (Web).
+- How to add a page: skill `nextjs` (Adding a page). `apps/web/test/app/route-tree.test.ts` fails
+  when the catalog and the page tree disagree or a page under `app/admin` is not rooted in a
+  `PageGuard` for its own route. Access rules: `.claude/rules/permissions.md` (Web).
+- Breadcrumb crumbs come from `breadcrumbTrail`; an intermediate crumb the ability cannot open
+  (`breadcrumbLinks` → `canAccessRoute`) renders as plain text, never as a link to a 403.
 - `config/nav.ts` holds icon components (functions), so only client modules import it; icons never
   cross the server→client boundary as props.
 - Page chrome: `PageHeader` (h1, description, actions) at the top of every page; `EmptyState` for

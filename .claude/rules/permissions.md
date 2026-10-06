@@ -184,9 +184,11 @@ detail page needs `read`, a create page `create`, an update page `update` on its
 - `PageGuard` (`apps/web/components/page-guard.tsx`, server) reads the user once per request
   (`getCurrentUser`, React `cache()`), asks `routeDecision(user, route)` and renders the page, the
   in-place `AccessDenied` (403) or a redirect to login, before any HTML reaches the browser.
-- The sidebar (`visibleNavGroups` in `apps/web/config/nav.ts`) filters with the same
-  `canAccessRoute`, so the menu and the 403 cannot disagree. A branch (マスター管理) is shown when
-  at least one child is.
+- The sidebar (`visibleNavGroups` in `apps/web/config/nav.ts`) and the header's breadcrumb links
+  (`breadcrumbLinks`) filter with the same `canAccessRoute`, so for one session the menu and the 403
+  agree. A branch (マスター管理) is shown when at least one child is. The `/admin` layout (and with
+  it `AbilityProvider` and the sidebar) is not re-rendered on soft navigation while `PageGuard` is:
+  after a grant changes, the guard applies it at once and the menu catches up on the next full load.
 - Route access is **unscoped**: `canUnscoped`, never `ability.can(action, "User")`, which the self
   rule makes true for everyone. A staff user does not see 担当者管理 and gets the 403 on
   `/admin/master/user/[id]` even for their own row — `/admin/profile` is their page.

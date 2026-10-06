@@ -43,10 +43,13 @@ apps/web/
 | Forms, buttons with handlers, `useState`, tRPC hooks | client (`"use client"` at the leaf)                |
 
 The app is feature-based: domain components live in `features/<feature>/` and route files under
-`app/` import only from `@/features/<feature>/...`, `@/components/...`, `@/config/...` and
-`@/lib/...` (never from each other). `components/` keeps the app-wide shell. Keep the `"use client"`
-boundary as low as possible: `app/admin/master/user/page.tsx` is a server page rendering the client
-`features/users/users-table.tsx`.
+`app/` import only from `@/features/<feature>/...`, `@/components/...`, `@/config/...`, `@/lib/...`
+and `@repo/ui` (never from each other). `components/` keeps the app-wide shell. Keep the
+`"use client"` boundary as low as possible: `app/admin/master/user/page.tsx` is a server page
+rendering the client `features/users/users-table.tsx`. Only Next.js special files (`page`, `layout`,
+`loading`, `error`, `not-found`, `route`, `proxy.ts`, ...) may default-export; everything else is a
+named export. A server component may import a value from a client module only to render it — never
+call or dot into it (a shared constant lives in a module without `"use client"`).
 
 ## Adding a page
 
@@ -58,25 +61,22 @@ boundary as low as possible: `app/admin/master/user/page.tsx` is a server page r
 4. Link to it with `href(routes.x.y, { id })`, never a string literal.
 
 `test/app/route-tree.test.ts` fails when the catalog and the page tree disagree or a page lacks its
-own guard; `test/config/nav.test.ts` holds the per-grant menu cases. Access rules:
-`.claude/rules/permissions.md` (Web). Only Next.js special files (`page`, `layout`, `loading`,
-`error`, `not-found`, `route`, `proxy.ts`, ...) may default-export; everything else is a named
-export. A server component may import a value from a client module only to render it — never call or
-dot into it (a shared constant lives in a module without `"use client"`).
+own guard; `test/config/nav.test.ts` holds the per-grant menu cases. The facts behind these steps
+(shell, page chrome, Base UI and server/client rules) are in `.claude/rules/ui.md` (Pages, the route
+catalog and the sidebar); the access rule in `.claude/rules/permissions.md` (Web).
 
 ## Session and authorization in the web
 
-- `proxy.ts` (replaces `middleware.ts`) checks cookie **presence** only with `getSessionCookie` from
-  `better-auth/cookies` and redirects to `/login?next=...`; no network call.
-- The real check is `app/admin/layout.tsx`: `getCurrentUser()` (`lib/auth/server.ts`;
-  `getServerSession` forwards the incoming cookie to `/api/auth/get-session`, `cache: "no-store"`,
-  `null` on any failure, and is wrapped in React `cache()` so the layout and every `PageGuard` share
-  one fetch per request), redirect to login when null, else `<AppShell user defaultOpen>`.
+The four layers (proxy cookie check, `app/admin/layout.tsx`, `PageGuard`, the API) are described in
+`.claude/rules/ui.md` (Authentication in the web app); the access rule in
+`.claude/rules/permissions.md` (Web). In code:
+
+- Server code reads the user with `getCurrentUser()` (`lib/auth/server.ts`; React `cache()`, so the
+  layout and every `PageGuard` share one `/api/auth/get-session` fetch per request).
 - `CurrentUser` carries `id`, `role` and the session's `permissions`, so it satisfies `AbilityUser`:
-  `AppShell` mounts `AbilityProvider user={user}`, the sidebar uses `visibleNavGroups(ability)`,
-  pages use `PageGuard` (`routeDecision` → `canAccessRoute` → `canUnscoped`), components use
-  `<Can I="..." a="...">` from `@repo/permissions/react`. Never a role literal in the web.
-- The login page vets `?next=` with `safeNextPath` (same-origin paths only).
+  `defineAbilityFor(user)` on the server, `useAbility()` under `AbilityProvider` in client
+  components. Never a role literal in the web.
+- A `?next=` value goes through `safeNextPath` before it is used.
 - Sign-out: `authClient.signOut()` then `router.push(href(routes.auth.login)); router.refresh()`.
 
 ## tRPC + React Query
@@ -128,7 +128,8 @@ server.
 - Tests: `apps/web/test` runs in node by default; pure modules (`config/routes.ts`, `config/nav.ts`,
   `lib/auth/route-access.ts`) are tested without jsdom, a component test opts in with
   `// @vitest-environment jsdom` (stub `window.matchMedia` before rendering `SidebarProvider`).
-- `SidebarInset` renders the `<main>`; do not nest another one. Icons from `config/nav.ts` stay in
-  client modules — functions cannot be passed from a server component to a client component.
-- A `Button` rendering a `Link` needs `nativeButton={false}` (Base UI).
+- `next dev` started by an agent (Claude Code) writes `apps/web/AGENTS.md` and `apps/web/CLAUDE.md`
+  (Next's agent rules, `node_modules/next/dist/server/lib/generate-agent-files.js`). They are not
+  part of the repo and fail `format:check`: delete them after a smoke run. A human's `yarn dev` does
+  not write them.
 - Prettier sorts Tailwind classes; do not fight the order.

@@ -82,7 +82,7 @@ import { createQueue } from "@repo/queue"; // repositories do not enqueue
 // apps/worker/src/processors/email.processor.ts
 import { appRouter } from "@repo/api/router"; // the worker never depends on the API
 
-// apps/web/src/app/users/page.tsx
+// apps/web/app/admin/master/user/page.tsx
 import { getPrismaClient } from "@repo/database"; // browser code never sees the database
 import { createQueue } from "@repo/queue";
 
