@@ -79,13 +79,14 @@ the API validates with. Inputs are the bound fields from `@repo/ui/components/fo
 `PasswordField`, `SelectField`, `ComboboxField`, `DateField`, ...; the full table and the zod-shape
 mapping are in `.claude/rules/ui.md`, Forms) inside a `FieldGroup`; never hand-write `Field` /
 `FieldLabel` / `Input` / `FieldError` for a standard input. Auth forms submit through `authClient`
-(`features/auth/login-form.tsx`: `signIn.email` with `callbackURL: next`, a 403 means "unverified"),
-everything else through a tRPC mutation (`features/users/profile-form.tsx`, rendered by
-`/admin/profile` and `/admin/master/user/[id]`; `emptyAs="null"` on optional nullable fields). Show
-server errors in an `Alert`; use `toast` (sonner) for mutation results. Domain pickers live in the
-feature that owns the data (a user picker wraps `ComboboxField` with `trpc.user.list` search). There
-is no register form: public sign-up is disabled (ADR 0002); `features/auth/resend-verification.tsx`
-re-sends the verification mail.
+(`features/auth/login-form.tsx`: `signIn.email` with `callbackURL: next` and `rememberMe`; errors
+through `authErrorMessage`), everything else through a tRPC mutation
+(`features/users/profile-form.tsx`, rendered by `/admin/profile` and `/admin/master/user/[id]`;
+`emptyAs="null"` on optional nullable fields). Show server errors in an `Alert`; use `toast`
+(sonner) for mutation results. Domain pickers live in the feature that owns the data (a user picker
+wraps `ComboboxField` with `trpc.user.list` search). There is no register form: public sign-up is
+disabled (ADR 0002); users are invited (`user.invite`) and set their first password on
+`/new-password`. Password flows: skill `better-auth`.
 
 ## Env
 

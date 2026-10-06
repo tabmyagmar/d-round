@@ -98,19 +98,20 @@ sidebar) live in `apps/web/lib/brand.ts`.
 
 ## What is included
 
-- **Auth** (`packages/auth`, Better Auth): email + password sign-in for users an admin creates
-  (`auth.api.createUser`; public sign-up is disabled), email verification, 7-day cookie sessions,
-  the admin plugin with roles `super_admin | admin | manager | staff`. The API mounts it at
-  `/api/auth`; the web app has `/login` and `/verify-email`. Until an admin UI exists, users come
-  from `yarn db:seed` (the test accounts) or from `POST /api/auth/admin/create-user` /
-  `authClient.admin.createUser` with an admin session.
+- **Auth** (`packages/auth`, Better Auth): email + password sign-in (7-day cookie
+  sessions,「ログイン状態を保持する」), no public sign-up, roles
+  `super_admin | admin | manager | staff`. Users are invited (`user.invite`: an account without a
+  password plus an invitation mail whose link sets the first password), reset a forgotten password
+  from `/forgot-password`, and change it on `/admin/profile`; an admin can re-send the mail from the
+  user page. One password policy for forms and API, Japanese mails through the outbox (Mailpit at
+  `localhost:8025` in development). Seeded test accounts: `yarn db:seed`.
 - **User module** (the reference module):
-  `user.me / byId / list / updateProfile / changeRole / deactivate` behind two-layer authorization —
-  CASL abilities built from the catalog grants in the session (`packages/permissions`; spec:
-  `packages/permissions/test/ability.test.ts` and `apps/api/test/permission-catalog.test.ts`) plus
-  stateful service rules (the last active admin cannot be demoted or deactivated; deactivation
-  soft-deletes the user and deletes its sessions in one transaction). Web: `/admin/master/user`,
-  `/admin/master/user/[id]`, `/admin/profile`.
+  `user.me / byId / list / updateProfile / changeRole / deactivate / invite / sendPasswordReset`
+  behind two-layer authorization — CASL abilities built from the catalog grants in the session
+  (`packages/permissions`; spec: `packages/permissions/test/ability.test.ts` and
+  `apps/api/test/permission-catalog.test.ts`) plus stateful service rules (the last active admin
+  cannot be demoted or deactivated; deactivation soft-deletes the user and deletes its sessions in
+  one transaction). Web: `/admin/master/user`, `/admin/master/user/[id]`, `/admin/profile`.
 - **Web shell**: a shadcn sidebar under `/admin` with every page of the legacy d-round-web app
   (workflow, templates, users, audit log, clients, branches, staff, settings), most of them
   placeholders; `/admin/workflow` is the landing page. One route catalog
@@ -162,10 +163,11 @@ apps/
               outbox-sweeper.ts, src/mail (MailProvider, SMTP, memory, templates, mail-from),
               test/ (mirrors src/, support.ts)
   web/        Next.js 16 App Router, Tailwind v4, tRPC + React Query client. proxy.ts,
-              app/(auth) (login, verify-email, forgot-password, new-password), app/admin (sidebar
+              app/(auth) (login, forgot-password, new-password), app/admin (sidebar
               layout, one page per route), config/ (routes.ts: the route catalog, nav.ts: the
-              sidebar), features/auth (login-form, resend-verification), features/users
-              (users-table, user-editor, profile-form, profile-editor, role-badge),
+              sidebar), features/auth (login-form, forgot-password-form, new-password-form,
+              auth-errors), features/users (users-table, user-editor, profile-form,
+              profile-editor, password-change-form, role-badge),
               components/ (layout/: app-shell, app-sidebar, nav-main, app-header, page-title, user-menu;
               page-guard, access-denied, placeholder-page, theme-provider), lib/auth (client,
               server, route-access), lib/trpc, lib/env, lib/brand,

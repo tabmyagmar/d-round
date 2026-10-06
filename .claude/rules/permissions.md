@@ -74,7 +74,10 @@ spec change first.
 Catalog grants shape this ability only — our tRPC API and the web UI. Better Auth's own
 `/api/auth/admin/*` endpoints stay gated by the admin plugin's role map (`super_admin`, `admin`): a
 user `DENY` row does not narrow them, and row 1101 does not gate `admin/create-user`. Aligning them
-with the grants is a follow-up (ADR 0003).
+with the grants is a follow-up (ADR 0003). The app does not use those endpoints to add users:
+`user.invite` requires `create User` (row 1101) and `user.sendPasswordReset` requires `update User`
+(row 1103) on the target row; both call Better Auth server-side, so the catalog and `DENY` rows
+decide.
 
 `canUnscoped(ability, action, subject)` (`@repo/permissions`) answers "may this user do this to
 every row" — the highest-priority rule without conditions is not inverted — for list pages and

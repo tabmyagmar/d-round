@@ -36,8 +36,9 @@ service call**. Rules: `.claude/rules/module-template.md`, `.claude/rules/layers
 3. Procedure in `apps/api/src/trpc/routers/<name>.router.ts` as
    `protectedProcedure.use(requireAbility(action, subject)).input(schema).query|mutation(({ ctx, input }) => service(ctx, input))`
    — `apps/api/src/trpc/routers/user.router.ts` is the reference (`me`, `byId`, `list`,
-   `updateProfile`, `changeRole`, `deactivate` with the `status` action). The action is a catalog
-   action (`.claude/rules/permissions.md`).
+   `updateProfile`, `changeRole`, `deactivate` with the `status` action, `invite` with `create`,
+   `sendPasswordReset` with `update`). The action is a catalog action
+   (`.claude/rules/permissions.md`).
 4. Register in `apps/api/src/trpc/router.ts`: `router({ health: healthRouter, user: userRouter })`.
 5. Test through `createCallerFactory(appRouter)` with a context from `contextFor`
    (`apps/api/test/trpc/routers/user.router.test.ts`): `UNAUTHORIZED` without a session, `FORBIDDEN`

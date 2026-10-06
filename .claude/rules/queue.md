@@ -17,7 +17,7 @@ that. The email outbox is the reference implementation (`docs/adr/0004-outbox.md
 | Producer       | `apps/api/src/modules/email/email.service.ts` — `queueEmailInTransaction`, `sendEmail`                                      |
 | Consumer       | `apps/worker/src/processors/email.processor.ts` — `processEmailJob`, `createEmailWorker`                                    |
 | Sweeper        | `apps/worker/src/schedulers/outbox-sweeper.ts` — `sweepOutboxEmails`, `registerOutboxSweeper`                               |
-| Mail transport | `apps/worker/src/mail/*.ts` — `MailProvider`, SMTP (Mailpit in dev), memory (tests), `renderEmail`                          |
+| Mail transport | `apps/worker/src/mail/*.ts` — `MailProvider`, SMTP (Mailpit in dev), memory (tests), `renderEmail`, `renderLayout`          |
 
 ## The seven rules
 

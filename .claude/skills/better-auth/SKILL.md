@@ -51,7 +51,30 @@ needs no session; over HTTP it needs an admin role; it rejects a role outside th
 applies `defaultRole` when none is given). In tests use `signedInUser` from
 `apps/api/test/support.ts` — it creates a verified user with `createUser` and signs in; do not write
 another variant. Changing a role in the app goes through `user.changeRole` (our service, last-admin
-rule, catalog row 1106), not through the admin plugin's `setRole`.
+rule, catalog row 1106), not through the admin plugin's `setRole`. The app's way to add a user is
+`user.invite` (no password; the invitation mail sets it), see below.
+
+## How-to: password flows (invitation, forgot, reset, change)
+
+- Every password link is Better Auth's reset token:
+  `auth.api.requestPasswordReset({ body: { email, redirectTo } })` with `redirectTo` an **absolute**
+  web URL in `trustedOrigins` (`webLinks.newPassword(ctx.webOrigin)` in the API;
+  `window.location.origin + /new-password` in the browser). Better Auth mails
+  `${API}/api/auth/reset-password/<token>?callbackURL=…`, which redirects to `/new-password?token=…`
+  or `?error=INVALID_TOKEN`.
+- `createAuth`'s `sendPasswordResetEmail({ user, url, purpose })` receives `purpose` `"invitation"`
+  (no credential account yet) or `"reset"`; `createAuthEmailSenders`
+  (`apps/api/src/modules/email/auth-emails.ts`) maps it to the outbox template. Deactivated users
+  get nothing.
+- Browser client methods (camel-cased paths): `authClient.requestPasswordReset`,
+  `authClient.resetPassword({ newPassword, token })`,
+  `authClient.changePassword({ currentPassword, newPassword, revokeOtherSessions: true })`,
+  `authClient.signIn.email({ …, rememberMe })`. Japanese error text: `authErrorMessage`
+  (`apps/web/features/auth/auth-errors.ts`).
+- The password policy is `passwordSchema` (`@repo/validation`); the server side is the
+  `hooks.before` middleware in `packages/auth/src/server.ts` over `PASSWORD_SETTING_PATHS`. A new
+  endpoint that stores a password must be added to that set (its test in
+  `packages/auth/test/auth.test.ts` proves it).
 
 ## How-to: the admin API on the caller's behalf
 
@@ -73,9 +96,9 @@ the caller's role in its own map, which ignores catalog grants and `DENY` rows (
 
 ## Gotchas
 
-- Email hooks (`sendVerificationEmail`) must **not** send inline: `sendEmail` writes an
-  `OutboxEmail` row and enqueues after commit (`.claude/rules/queue.md`). `createUser` sends no
-  mail; the resend endpoint (`/send-verification-email`) does.
+- Email hooks (`sendVerificationEmail`, `sendPasswordResetEmail`) must **not** send inline:
+  `sendEmail` writes an `OutboxEmail` row and enqueues after commit (`.claude/rules/queue.md`).
+  `createUser` sends no mail; the resend endpoint (`/send-verification-email`) does.
 - `customSession` runs on every `getSession` (one query); it does not catch: a failing grant lookup
   fails the session instead of signing someone in with no grants. A Redis cache is a follow-up.
 - Cookies: CORS with `credentials: true` for `WEB_ORIGIN` on `/api/auth/*` and `/trpc/*`
