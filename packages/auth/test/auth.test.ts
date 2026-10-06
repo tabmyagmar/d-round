@@ -6,7 +6,7 @@ import { DEFAULT_ROLE } from "@repo/validation";
 import type { Role } from "@repo/validation";
 
 import { createAuth } from "../src/server";
-import type { Auth, SessionUser, VerificationEmail } from "../src/server";
+import type { Auth, PasswordResetEmail, SessionUser, VerificationEmail } from "../src/server";
 
 /**
  * Better Auth against a real Postgres: public sign-up is off, users come only from the admin
@@ -16,6 +16,7 @@ import type { Auth, SessionUser, VerificationEmail } from "../src/server";
 let prisma: PrismaClient;
 let auth: Auth;
 const sentMails: VerificationEmail[] = [];
+const sentResets: PasswordResetEmail[] = [];
 
 beforeAll(() => {
   prisma = createPrismaClient({ connectionString: inject("databaseUrl") });
@@ -26,6 +27,10 @@ beforeAll(() => {
     trustedOrigins: ["http://localhost:3000"],
     sendVerificationEmail: (mail) => {
       sentMails.push(mail);
+      return Promise.resolve();
+    },
+    sendPasswordResetEmail: (mail) => {
+      sentResets.push(mail);
       return Promise.resolve();
     },
   });
@@ -262,5 +267,185 @@ describe("session permissions (customSession)", () => {
 
     const session = await sessionWithCookie(cookie);
     expect(session?.user.permissions).toEqual(expected);
+  });
+});
+
+const NEW_PASSWORD = "NewPassw0rd";
+const RESET_REDIRECT = "http://localhost:3000/new-password";
+
+/** The reset mails Better Auth asked us to send to one address. */
+const resetsFor = (email: string) => sentResets.filter((mail) => mail.user.email === email);
+
+/** The token at the end of `/api/auth/reset-password/<token>?callbackURL=…`. */
+const tokenOf = (mail: PasswordResetEmail | undefined) =>
+  new URL(mail?.url ?? "http://invalid/").pathname.split("/").at(-1) ?? "";
+
+const requestReset = (email: string) =>
+  auth.api.requestPasswordReset({ body: { email, redirectTo: RESET_REDIRECT } });
+
+describe("password reset", () => {
+  it("mails a reset link to a user with a password and answers the same for an unknown address", async () => {
+    const email = unique();
+    await createUser(email, "Has Password");
+    const unknownEmail = unique();
+
+    const known = await requestReset(email);
+    const unknown = await requestReset(unknownEmail);
+
+    expect(unknown).toEqual(known);
+    const mails = resetsFor(email);
+    expect(mails).toHaveLength(1);
+    expect(mails[0]).toMatchObject({ purpose: "reset", user: { name: "Has Password" } });
+    expect(mails[0]?.url).toContain("/api/auth/reset-password/");
+    expect(mails[0]?.url).toContain(encodeURIComponent(RESET_REDIRECT));
+    expect(resetsFor(unknownEmail)).toHaveLength(0);
+  });
+
+  it("sets the new password, ends every session and accepts the token only once", async () => {
+    const email = unique();
+    await auth.api.createUser({
+      body: { email, password: PASSWORD, name: "Resetter", data: { emailVerified: true } },
+    });
+    const oldCookie = cookieHeaderFrom(
+      await auth.api.signInEmail({ body: { email, password: PASSWORD }, asResponse: true }),
+    );
+    expect(await sessionWithCookie(oldCookie)).not.toBeNull();
+
+    await requestReset(email);
+    const token = tokenOf(resetsFor(email)[0]);
+    await auth.api.resetPassword({ body: { newPassword: NEW_PASSWORD, token } });
+
+    expect(await sessionWithCookie(oldCookie)).toBeNull();
+    await expect(
+      auth.api.signInEmail({ body: { email, password: PASSWORD } }),
+    ).rejects.toMatchObject({ status: "UNAUTHORIZED" });
+    const after = await auth.api.signInEmail({
+      body: { email, password: NEW_PASSWORD },
+      asResponse: true,
+    });
+    expect(after.status).toBe(200);
+
+    await expect(
+      auth.api.resetPassword({ body: { newPassword: "Another123", token } }),
+    ).rejects.toMatchObject({ status: "BAD_REQUEST", body: { code: "INVALID_TOKEN" } });
+  });
+
+  it("refuses to sign in a user who never set a password", async () => {
+    const email = unique();
+    await auth.api.createUser({
+      body: { email, name: "No Password", data: { emailVerified: true } },
+    });
+
+    await expect(
+      auth.api.signInEmail({ body: { email, password: PASSWORD } }),
+    ).rejects.toMatchObject({
+      status: "UNAUTHORIZED",
+      body: { code: "INVALID_EMAIL_OR_PASSWORD" },
+    });
+  });
+
+  it("invites a user created without a password: the link sets the first password and verifies the email", async () => {
+    const email = unique();
+    await auth.api.createUser({ body: { email, name: "Invitee" } });
+    const user = await prisma.user.findUniqueOrThrow({ where: { email } });
+    expect(user.emailVerified).toBe(false);
+    expect(await prisma.account.count({ where: { userId: user.id } })).toBe(0);
+
+    await requestReset(email);
+    const mail = resetsFor(email)[0];
+    expect(mail?.purpose).toBe("invitation");
+
+    await auth.api.resetPassword({ body: { newPassword: NEW_PASSWORD, token: tokenOf(mail) } });
+
+    const stored = await prisma.user.findUniqueOrThrow({ where: { email } });
+    expect(stored.emailVerified).toBe(true);
+    const response = await auth.api.signInEmail({
+      body: { email, password: NEW_PASSWORD },
+      asResponse: true,
+    });
+    expect(response.status).toBe(200);
+  });
+
+  it("mails nothing to a deactivated user", async () => {
+    const email = unique();
+    const created = await createUser(email, "Deactivated");
+    await prisma.user.update({
+      where: { id: created.user.id },
+      data: { deletedAt: new Date(), banned: true },
+    });
+
+    await requestReset(email);
+
+    expect(resetsFor(email)).toHaveLength(0);
+  });
+});
+
+describe("password policy (server side)", () => {
+  it("rejects a reset password that breaks the policy and keeps the token usable", async () => {
+    const email = unique();
+    await createUser(email, "Policy Reset");
+    await requestReset(email);
+    const token = tokenOf(resetsFor(email)[0]);
+
+    await expect(
+      auth.api.resetPassword({ body: { newPassword: "12345678", token } }),
+    ).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: { code: "PASSWORD_POLICY", message: "英字を1文字以上含めてください" },
+    });
+
+    await expect(
+      auth.api.resetPassword({ body: { newPassword: NEW_PASSWORD, token } }),
+    ).resolves.toMatchObject({ status: true });
+  });
+
+  it("changes the password only with the current one, applies the policy and ends other sessions", async () => {
+    const email = unique();
+    await auth.api.createUser({
+      body: { email, password: PASSWORD, name: "Changer", data: { emailVerified: true } },
+    });
+    const signIn = async () =>
+      cookieHeaderFrom(
+        await auth.api.signInEmail({ body: { email, password: PASSWORD }, asResponse: true }),
+      );
+    const headers = new Headers({ cookie: await signIn() });
+    const otherCookie = await signIn();
+
+    await expect(
+      auth.api.changePassword({
+        body: { currentPassword: "wrong-password-1", newPassword: NEW_PASSWORD },
+        headers,
+      }),
+    ).rejects.toMatchObject({ body: { code: "INVALID_PASSWORD" } });
+    await expect(
+      auth.api.changePassword({
+        body: { currentPassword: PASSWORD, newPassword: "abcdefghij" },
+        headers,
+      }),
+    ).rejects.toMatchObject({ status: "BAD_REQUEST", body: { code: "PASSWORD_POLICY" } });
+
+    await auth.api.changePassword({
+      body: { currentPassword: PASSWORD, newPassword: NEW_PASSWORD, revokeOtherSessions: true },
+      headers,
+    });
+
+    expect(await sessionWithCookie(otherCookie)).toBeNull();
+    const response = await auth.api.signInEmail({
+      body: { email, password: NEW_PASSWORD },
+      asResponse: true,
+    });
+    expect(response.status).toBe(200);
+  });
+
+  it("applies the policy when an admin sets another user's password", async () => {
+    const admin = await signedInAs("super_admin");
+    const target = await signedInAs(DEFAULT_ROLE);
+
+    await expect(
+      auth.api.setUserPassword({
+        body: { userId: target.userId, newPassword: "abcdefghij" },
+        headers: new Headers({ cookie: admin.cookie }),
+      }),
+    ).rejects.toMatchObject({ status: "BAD_REQUEST", body: { code: "PASSWORD_POLICY" } });
   });
 });

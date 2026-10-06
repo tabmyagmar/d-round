@@ -8,19 +8,14 @@ import { createPrismaClient } from "@repo/database";
 import type { PrismaClient, User } from "@repo/database";
 import { createLogger } from "@repo/logger";
 import type { Logger } from "@repo/logger";
-import {
-  EMAIL_TEMPLATES,
-  createEmailQueue,
-  createRedisConnection,
-  waitForRedis,
-} from "@repo/queue";
+import { createEmailQueue, createRedisConnection, waitForRedis } from "@repo/queue";
 import type { EmailQueue, RedisConnection } from "@repo/queue";
 import { DEFAULT_ROLE } from "@repo/validation";
 import type { Role } from "@repo/validation";
 
 import { buildRequestContext } from "../src/core/context";
 import type { RequestContext } from "../src/core/context";
-import { sendEmail } from "../src/modules/email/email.service";
+import { createAuthEmailSenders } from "../src/modules/email/auth-emails";
 
 /** Shared wiring for API tests: real Postgres + Redis (testcontainers), real Better Auth. */
 
@@ -55,6 +50,8 @@ export const createHarness = async (): Promise<TestHarness> => {
   const logger = silentLogger();
   const emailQueue = createEmailQueue(redis);
   const sentMails: VerificationEmail[] = [];
+  // The production callbacks (outbox rows + jobs), with the verification mails also recorded.
+  const senders = createAuthEmailSenders({ db, emailQueue, logger });
 
   const auth = createAuth({
     prisma: db,
@@ -63,15 +60,9 @@ export const createHarness = async (): Promise<TestHarness> => {
     trustedOrigins: [TEST_WEB_ORIGIN],
     sendVerificationEmail: async (mail) => {
       sentMails.push(mail);
-      await sendEmail(
-        { db, emailQueue, logger },
-        {
-          to: mail.user.email,
-          template: EMAIL_TEMPLATES.verification,
-          payload: { name: mail.user.name, url: mail.url },
-        },
-      );
+      await senders.sendVerificationEmail(mail);
     },
+    sendPasswordResetEmail: senders.sendPasswordResetEmail,
   });
 
   return {

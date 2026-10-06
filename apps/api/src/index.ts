@@ -3,12 +3,12 @@ import { serve } from "@hono/node-server";
 import { createAuth } from "@repo/auth";
 import { disconnectPrismaClient, getPrismaClient } from "@repo/database";
 import { createLogger } from "@repo/logger";
-import { EMAIL_TEMPLATES, createEmailQueue, createRedisConnection } from "@repo/queue";
+import { createEmailQueue, createRedisConnection } from "@repo/queue";
 
 import { createApp } from "./app";
 import { loadApiEnv } from "./env";
 import { registerGracefulShutdown } from "./lib/graceful-shutdown";
-import { sendEmail } from "./modules/email/email.service";
+import { createAuthEmailSenders } from "./modules/email/auth-emails";
 
 const env = loadApiEnv();
 const logger = createLogger({
@@ -32,12 +32,7 @@ const auth = createAuth({
   trustedOrigins: [env.WEB_ORIGIN],
   ...(env.COOKIE_DOMAIN ? { cookieDomain: env.COOKIE_DOMAIN } : {}),
   // Outbox: row inside a transaction, job after commit; the worker sends the mail.
-  sendVerificationEmail: async ({ user, url }) => {
-    await sendEmail(
-      { db, emailQueue, logger },
-      { to: user.email, template: EMAIL_TEMPLATES.verification, payload: { name: user.name, url } },
-    );
-  },
+  ...createAuthEmailSenders({ db, emailQueue, logger }),
 });
 
 const app = createApp({ logger, db, redis, auth, webOrigin: env.WEB_ORIGIN });

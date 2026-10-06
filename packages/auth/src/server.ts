@@ -1,12 +1,13 @@
 import { betterAuth } from "better-auth";
 import type { BetterAuthOptions } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { admin } from "better-auth/plugins/admin";
 import { customSession } from "better-auth/plugins/custom-session";
 
-import { createPermissionRepository } from "@repo/database";
+import { createPermissionRepository, createUserRepository } from "@repo/database";
 import type { PrismaClient } from "@repo/database";
-import { DEFAULT_ROLE } from "@repo/validation";
+import { DEFAULT_ROLE, passwordSchema } from "@repo/validation";
 
 import { ADMIN_ROLES, ac, roles } from "./access-control";
 
@@ -17,6 +18,49 @@ export type VerificationEmail = {
   url: string;
   token: string;
 };
+
+/**
+ * A password link to mail. `invitation`: the user has no password yet (an admin created them) —
+ * the link sets the first one. `reset`: forgot password or an admin re-send.
+ */
+export type PasswordResetEmail = {
+  user: { id: string; email: string; name: string };
+  url: string;
+  purpose: "invitation" | "reset";
+};
+
+/** Every endpoint that stores a new password; the policy hook checks their `newPassword`. */
+export const PASSWORD_SETTING_PATHS: ReadonlySet<string> = new Set([
+  "/reset-password",
+  "/change-password",
+  "/set-password",
+  "/admin/set-user-password",
+]);
+
+/**
+ * The server side of THE password policy (`passwordSchema`, @repo/validation): the forms parse
+ * with the same schema, this refuses a request that bypassed them. Sign-in and the admin
+ * `create-user` (server-side and tests only; the invitation creates users without a password)
+ * are not password-setting paths.
+ */
+const passwordPolicyViolation = (path: string, body: unknown): string | null => {
+  if (!PASSWORD_SETTING_PATHS.has(path)) {
+    return null;
+  }
+  const candidate =
+    typeof body === "object" && body !== null && "newPassword" in body
+      ? body.newPassword
+      : undefined;
+  const result = passwordSchema.safeParse(candidate);
+  return result.success ? null : (result.error.issues[0]?.message ?? "Invalid password");
+};
+
+const passwordPolicy = createAuthMiddleware((ctx) => {
+  const violation = passwordPolicyViolation(ctx.path, ctx.body);
+  return violation === null
+    ? Promise.resolve()
+    : Promise.reject(new APIError("BAD_REQUEST", { code: "PASSWORD_POLICY", message: violation }));
+});
 
 export type CreateAuthOptions = {
   prisma: PrismaClient;
@@ -32,6 +76,11 @@ export type CreateAuthOptions = {
    */
   sendVerificationEmail: (email: VerificationEmail) => Promise<void>;
   /**
+   * Called when Better Auth wants a password link sent (forgot password, invitation, admin
+   * re-send). Same rule as above: the API writes an outbox row, nothing is sent inline.
+   */
+  sendPasswordResetEmail: (email: PasswordResetEmail) => Promise<void>;
+  /**
    * Same-parent-domain deployment (web.example.com + api.example.com): set the parent domain so
    * the session cookie is shared. Leave undefined for localhost. See docs/adr/0002-auth.md.
    */
@@ -40,6 +89,7 @@ export type CreateAuthOptions = {
 
 export const createAuth = (options: CreateAuthOptions) => {
   const permissions = createPermissionRepository(options.prisma);
+  const users = createUserRepository(options.prisma);
 
   // The base options are passed to `customSession` as well, so `user` inside it carries the admin
   // plugin's fields (`role`) and `Auth["$Infer"]["Session"]` picks up the custom shape.
@@ -56,6 +106,25 @@ export const createAuth = (options: CreateAuthOptions) => {
       requireEmailVerification: true,
       minPasswordLength: 8,
       maxPasswordLength: 128,
+      resetPasswordTokenExpiresIn: 60 * 60,
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: async ({ user, url }) => {
+        // A deactivated user gets no link: it would only lead to a refused sign-in.
+        if (!(await users.findById(user.id))) {
+          return;
+        }
+        const purpose = (await users.hasCredentialAccount(user.id)) ? "reset" : "invitation";
+        await options.sendPasswordResetEmail({
+          user: { id: user.id, email: user.email, name: user.name },
+          url,
+          purpose,
+        });
+      },
+      // The link was mailed, so using it proves the mailbox: an invited user is verified by
+      // setting the first password (ADR 0002).
+      onPasswordReset: async ({ user }) => {
+        await users.markEmailVerified(user.id);
+      },
     },
     emailVerification: {
       // Inert while sign-up is off: admin-created users are mailed via /send-verification-email.
@@ -74,6 +143,7 @@ export const createAuth = (options: CreateAuthOptions) => {
       expiresIn: 7 * DAY_SECONDS,
       updateAge: DAY_SECONDS,
     },
+    hooks: { before: passwordPolicy },
     advanced: {
       database: {
         // Postgres generates UUID v7 ids (prisma schema `@default(uuid(7))`).

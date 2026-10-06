@@ -8,4 +8,5 @@ export const auth = createAuth({
   baseURL: "http://localhost:4000",
   trustedOrigins: ["http://localhost:3000"],
   sendVerificationEmail: () => Promise.resolve(),
+  sendPasswordResetEmail: () => Promise.resolve(),
 });

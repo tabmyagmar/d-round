@@ -21,6 +21,17 @@ export const SIGN_IN_RATE_LIMIT: RateLimitOptions = {
   blockDurationSeconds: 60,
 };
 
+/**
+ * Password reset requests send mail, so they get a tighter budget than sign-in. Better Auth
+ * answers known and unknown addresses alike, so the limit is about mail volume, not enumeration.
+ */
+export const PASSWORD_RESET_RATE_LIMIT: RateLimitOptions = {
+  keyPrefix: "rl:password-reset",
+  points: 5,
+  durationSeconds: 15 * 60,
+  blockDurationSeconds: 15 * 60,
+};
+
 export const createRateLimiter = (
   redis: RedisConnection,
   options: RateLimitOptions,

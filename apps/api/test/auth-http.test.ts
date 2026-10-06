@@ -27,6 +27,11 @@ beforeAll(async () => {
       points: 2,
       durationSeconds: 60,
     }),
+    passwordResetRateLimiter: createRateLimiter(h.redis, {
+      keyPrefix: `rl-reset-test-${crypto.randomUUID()}`,
+      points: 2,
+      durationSeconds: 60,
+    }),
   });
 });
 
@@ -135,5 +140,71 @@ describe("POST /api/auth/sign-in/email", () => {
       { "x-forwarded-for": "203.0.113.8" },
     );
     expect(other.status).not.toBe(429);
+  });
+});
+
+describe("POST /api/auth/request-password-reset", () => {
+  const redirectTo = `${TEST_WEB_ORIGIN}/new-password`;
+  /** Each request from its own client IP, so the reset rate limit stays out of these cases. */
+  const requestReset = (email: string) =>
+    post(
+      "/api/auth/request-password-reset",
+      { email, redirectTo },
+      { "x-forwarded-for": `198.51.100.${String(Math.floor(Math.random() * 250) + 1)}` },
+    );
+  const outboxFor = (to: string) => h.db.outboxEmail.findMany({ where: { to } });
+
+  it("mails a password reset to a user who has a password", async () => {
+    const email = `${crypto.randomUUID()}@example.com`;
+    await createUser(email, "Has Password", { emailVerified: true });
+
+    const response = await requestReset(email);
+
+    expect(response.status).toBe(200);
+    const rows = await outboxFor(email);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ template: EMAIL_TEMPLATES.passwordReset, status: "PENDING" });
+    expect(rows[0]?.payload).toMatchObject({ name: "Has Password" });
+    const job = await h.emailQueue.getJob(emailJobId(rows[0]?.id ?? ""));
+    expect(job?.data.outboxEmailId).toBe(rows[0]?.id);
+  });
+
+  it("mails an invitation to a user an admin created without a password", async () => {
+    const email = `${crypto.randomUUID()}@example.com`;
+    await h.auth.api.createUser({ body: { email, name: "Invitee", role: DEFAULT_ROLE } });
+
+    const response = await requestReset(email);
+
+    expect(response.status).toBe(200);
+    const rows = await outboxFor(email);
+    expect(rows.map((row) => row.template)).toEqual([EMAIL_TEMPLATES.accountInvitation]);
+  });
+
+  it("answers an unknown address exactly like a known one and writes nothing", async () => {
+    const known = `${crypto.randomUUID()}@example.com`;
+    await createUser(known, "Known", { emailVerified: true });
+    const unknown = `${crypto.randomUUID()}@example.com`;
+
+    const knownResponse = await requestReset(known);
+    const unknownResponse = await requestReset(unknown);
+
+    expect(unknownResponse.status).toBe(knownResponse.status);
+    expect(await unknownResponse.json()).toEqual(await knownResponse.json());
+    expect(await outboxFor(unknown)).toHaveLength(0);
+  });
+
+  it("rate limits reset requests per client IP with Retry-After", async () => {
+    const attempt = () =>
+      post(
+        "/api/auth/request-password-reset",
+        { email: "nobody@example.com", redirectTo },
+        { "x-forwarded-for": "203.0.113.42" },
+      );
+
+    expect((await attempt()).status).not.toBe(429);
+    expect((await attempt()).status).not.toBe(429);
+    const third = await attempt();
+    expect(third.status).toBe(429);
+    expect(Number(third.headers.get("retry-after"))).toBeGreaterThan(0);
   });
 });

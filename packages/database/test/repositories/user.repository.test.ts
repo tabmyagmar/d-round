@@ -121,4 +121,31 @@ describe("user repository", () => {
     expect(promoted.role).toBe("admin");
     expect(promoted.name).toBe("Renamed");
   });
+
+  it("tells a user with a password (credential account) from one without", async () => {
+    const repo = createUserRepository(prisma);
+    const user = await createUser({ group: group() });
+    expect(await repo.hasCredentialAccount(user.id)).toBe(false);
+
+    // An OAuth account is not a password.
+    await prisma.account.create({
+      data: { userId: user.id, accountId: user.id, providerId: "google" },
+    });
+    expect(await repo.hasCredentialAccount(user.id)).toBe(false);
+
+    await prisma.account.create({
+      data: { userId: user.id, accountId: user.id, providerId: "credential", password: "hash" },
+    });
+    expect(await repo.hasCredentialAccount(user.id)).toBe(true);
+  });
+
+  it("marks the email verified once and reports whether it changed", async () => {
+    const repo = createUserRepository(prisma);
+    const user = await createUser({ group: group() });
+
+    expect(await repo.markEmailVerified(user.id)).toBe(true);
+    expect(await repo.markEmailVerified(user.id)).toBe(false);
+    const stored = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(stored.emailVerified).toBe(true);
+  });
 });

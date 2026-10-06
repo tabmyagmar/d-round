@@ -55,6 +55,22 @@ export const createUserRepository = (db: DbClient) => ({
       data: { deletedAt: new Date(), banned: true, banReason: "deactivated" },
     }),
 
+  /**
+   * True when the user has a password (Better Auth's `credential` account). A user an admin
+   * created without one has none until they set it from the invitation link.
+   */
+  hasCredentialAccount: async (userId: string): Promise<boolean> =>
+    (await db.account.count({ where: { userId, providerId: "credential" } })) > 0,
+
+  /** Sets `emailVerified`; true when it changed (false when it already was verified). */
+  markEmailVerified: async (id: string): Promise<boolean> =>
+    (
+      await db.user.updateMany({
+        where: { id, emailVerified: false },
+        data: { emailVerified: true },
+      })
+    ).count > 0,
+
   /** Ends every session of the user (Better Auth reads them from this table); returns the count. */
   deleteSessions: async (userId: string): Promise<number> =>
     (await db.session.deleteMany({ where: { userId } })).count,
