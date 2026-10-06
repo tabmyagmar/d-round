@@ -1,24 +1,11 @@
-import Link from "next/link";
+import { InvalidPasswordLink, NewPasswordForm } from "@/features/auth/new-password-form";
+import { newPasswordState } from "@/features/auth/new-password-state";
+import type { NewPasswordParams } from "@/features/auth/new-password-state";
 
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@repo/ui/components/card";
-
-import { PlaceholderPage } from "@/components/placeholder-page";
-import { href, routes } from "@/config/routes";
-
-const NewPasswordPage = () => (
-  <Card>
-    <CardHeader>
-      <CardTitle>{routes.auth.newPassword.title}</CardTitle>
-    </CardHeader>
-    <CardContent>
-      <PlaceholderPage route={routes.auth.newPassword} />
-    </CardContent>
-    <CardFooter>
-      <Link href={href(routes.auth.login)} className="text-sm underline">
-        ログインへ戻る
-      </Link>
-    </CardFooter>
-  </Card>
-);
+/** Landing page of the mailed link (invitation or reset), after Better Auth checked the token. */
+const NewPasswordPage = async ({ searchParams }: { searchParams: Promise<NewPasswordParams> }) => {
+  const state = newPasswordState(await searchParams);
+  return state.kind === "form" ? <NewPasswordForm token={state.token} /> : <InvalidPasswordLink />;
+};
 
 export default NewPasswordPage;

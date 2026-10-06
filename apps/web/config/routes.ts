@@ -24,8 +24,8 @@ export const routes = {
   auth: {
     login: { path: "/login", title: "ログイン", access: "public" },
     forgotPassword: { path: "/forgot-password", title: "パスワード再設定", access: "public" },
-    newPassword: { path: "/new-password", title: "新しいパスワード設定", access: "public" },
-    verifyEmail: { path: "/verify-email", title: "メール認証", access: "public" },
+    // Also mailed by the API: apps/api/src/core/web-links.ts mirrors this path.
+    newPassword: { path: "/new-password", title: "パスワード設定", access: "public" },
   },
   profile: { path: "/admin/profile", title: "プロフィール", access: "signed-in" },
   workflow: {

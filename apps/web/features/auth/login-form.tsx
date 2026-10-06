@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
-import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
+import { Alert, AlertDescription } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
 import {
   Card,
@@ -17,19 +17,17 @@ import {
   CardTitle,
 } from "@repo/ui/components/card";
 import { FieldGroup } from "@repo/ui/components/field";
-import { PasswordField, TextField } from "@repo/ui/components/form";
+import { CheckboxField, PasswordField, TextField } from "@repo/ui/components/form";
 import { signInSchema } from "@repo/validation";
 import type { SignInInput } from "@repo/validation";
 
 import { href, routes } from "@/config/routes";
+import { authErrorMessage } from "@/features/auth/auth-errors";
 import { authClient } from "@/lib/auth/client";
-import { brand } from "@/lib/brand";
 
 export const LoginForm = ({ next }: { next: string }) => {
   const router = useRouter();
-  const [serverError, setServerError] = useState<{ message: string; unverified: boolean } | null>(
-    null,
-  );
+  const [serverError, setServerError] = useState<string | null>(null);
   const form = useForm<SignInInput>({
     resolver: zodResolver(signInSchema),
     defaultValues: { email: "", password: "", rememberMe: true },
@@ -37,12 +35,10 @@ export const LoginForm = ({ next }: { next: string }) => {
 
   const onSubmit = form.handleSubmit(async (values) => {
     setServerError(null);
+    // rememberMe off: the session cookie ends when the browser closes.
     const { error } = await authClient.signIn.email({ ...values, callbackURL: next });
     if (error) {
-      setServerError({
-        message: error.message ?? "Sign in failed",
-        unverified: error.status === 403,
-      });
+      setServerError(authErrorMessage(error));
       return;
     }
     router.push(next);
@@ -52,51 +48,42 @@ export const LoginForm = ({ next }: { next: string }) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Sign in</CardTitle>
-        <CardDescription>Use the email and password of your {brand.name} account.</CardDescription>
+        <CardTitle>{routes.auth.login.title}</CardTitle>
+        <CardDescription>
+          メールアドレス・パスワードを付与されていない第三者の利用は禁じられています。必要な情報を入力してログインしてください。
+        </CardDescription>
       </CardHeader>
       <form onSubmit={onSubmit} noValidate>
         <CardContent>
           <FieldGroup>
             {serverError ? (
               <Alert variant="destructive">
-                <AlertTitle>
-                  {serverError.unverified ? "Email not verified" : "Sign in failed"}
-                </AlertTitle>
-                <AlertDescription>
-                  {serverError.message}
-                  {serverError.unverified ? (
-                    <>
-                      {" "}
-                      <Link
-                        className="underline"
-                        href={`${href(routes.auth.verifyEmail)}?email=${encodeURIComponent(form.getValues("email"))}`}
-                      >
-                        Resend the verification email
-                      </Link>
-                    </>
-                  ) : null}
-                </AlertDescription>
+                <AlertDescription>{serverError}</AlertDescription>
               </Alert>
             ) : null}
             <TextField
               control={form.control}
               name="email"
-              label="Email"
+              label="メールアドレス"
               type="email"
               autoComplete="email"
             />
             <PasswordField
               control={form.control}
               name="password"
-              label="Password"
+              label="パスワード"
               autoComplete="current-password"
+            />
+            <CheckboxField
+              control={form.control}
+              name="rememberMe"
+              label="ログイン状態を保持する"
             />
           </FieldGroup>
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
           <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "Signing in…" : "Sign in"}
+            {form.formState.isSubmitting ? "ログイン中…" : "ログイン"}
           </Button>
           <Link href={href(routes.auth.forgotPassword)} className="text-sm underline">
             パスワードをお忘れの方

@@ -89,7 +89,6 @@ describe("ALL_ROUTES", () => {
     expect(ALL_ROUTES).toContain(routes.profile);
     expect(ALL_ROUTES).toContain(routes.auditLog.list);
     expect(ALL_ROUTES).toContain(routes.settings.manual);
-    expect(ALL_ROUTES).toContain(routes.auth.verifyEmail);
   });
 
   it("has no duplicate paths", () => {
