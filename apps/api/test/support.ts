@@ -129,5 +129,11 @@ export const contextFor = (
 ): Promise<RequestContext> =>
   buildRequestContext(
     { headers, requestId: `test-${crypto.randomUUID()}` },
-    { logger: harness.logger, db: harness.db, redis: harness.redis, auth: harness.auth },
+    {
+      logger: harness.logger,
+      db: harness.db,
+      redis: harness.redis,
+      auth: harness.auth,
+      webOrigin: TEST_WEB_ORIGIN,
+    },
   );

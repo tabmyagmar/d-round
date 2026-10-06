@@ -95,4 +95,28 @@ describe("user router", () => {
     const gone = await caller.user.deactivate({ userId: victim.user.id });
     expect(gone.deletedAt).toBeInstanceOf(Date);
   });
+
+  it("invites through user.invite and re-sends through user.sendPasswordReset for an admin only", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const staff = await signedInUser(h);
+    const email = `${crypto.randomUUID()}@example.com`;
+
+    const staffCaller = createCaller(await contextFor(h, staff.headers));
+    await expect(
+      staffCaller.user.invite({ email, name: "Nope", role: "staff" }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    const caller = createCaller(await contextFor(h, admin.headers));
+    const invited = await caller.user.invite({ email, name: "Router Invitee", role: "staff" });
+    expect(invited.email).toBe(email);
+
+    await expect(caller.user.invite({ email, name: "Twice", role: "staff" })).rejects.toMatchObject(
+      { code: "CONFLICT" },
+    );
+    await expect(
+      caller.user.invite({ email: "not-an-email", name: "Bad", role: "staff" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+
+    await expect(caller.user.sendPasswordReset({ userId: invited.id })).resolves.toBeUndefined();
+  });
 });

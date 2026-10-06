@@ -20,8 +20,6 @@ import type { HealthProbes } from "./modules/health/health.service";
 import { appRouter } from "./trpc/router";
 
 export type AppDeps = ContextDeps & {
-  /** Browser origin allowed to call the API with cookies. */
-  webOrigin: string;
   /** Override for tests; defaults to real Postgres + Redis probes. */
   probes?: HealthProbes;
   /** Override for tests; defaults to SIGN_IN_RATE_LIMIT on Redis. */

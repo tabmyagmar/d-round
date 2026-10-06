@@ -291,3 +291,100 @@ describe("deactivate", () => {
     }
   });
 });
+
+describe("invite", () => {
+  const outboxFor = (to: string) => h.db.outboxEmail.findMany({ where: { to } });
+
+  it("creates the user with the role and no password, unverified, and mails the invitation", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const email = `${crypto.randomUUID()}@example.com`;
+
+    const invited = await userService.invite(await contextFor(h, admin.headers), {
+      email,
+      name: "招待 花子",
+      role: "manager",
+    });
+
+    expect(invited).toMatchObject({
+      email,
+      name: "招待 花子",
+      role: "manager",
+      emailVerified: false,
+    });
+    expect(await h.db.account.count({ where: { userId: invited.id } })).toBe(0);
+    const rows = await outboxFor(email);
+    expect(rows.map((row) => row.template)).toEqual(["account-invitation"]);
+    expect(rows[0]?.payload).toMatchObject({ name: "招待 花子" });
+  });
+
+  it("refuses an email that is already registered", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const existing = await signedInUser(h);
+
+    await expect(
+      userService.invite(await contextFor(h, admin.headers), {
+        email: existing.email,
+        name: "Again",
+        role: "staff",
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it("refuses a caller without `create User`", async () => {
+    const staff = await signedInUser(h);
+    const email = `${crypto.randomUUID()}@example.com`;
+
+    await expect(
+      userService.invite(await contextFor(h, staff.headers), { email, name: "No", role: "staff" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(await h.db.user.findUnique({ where: { email } })).toBeNull();
+  });
+});
+
+describe("sendPasswordReset", () => {
+  const outboxFor = (to: string) => h.db.outboxEmail.findMany({ where: { to } });
+
+  it("mails a reset link to a user who has a password", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const target = await signedInUser(h);
+
+    await userService.sendPasswordReset(await contextFor(h, admin.headers), target.user.id);
+
+    expect((await outboxFor(target.email)).map((row) => row.template)).toEqual(["password-reset"]);
+  });
+
+  it("re-sends the invitation to a user who never set a password", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const ctx = await contextFor(h, admin.headers);
+    const email = `${crypto.randomUUID()}@example.com`;
+    const invited = await userService.invite(ctx, { email, name: "Late", role: "staff" });
+
+    await userService.sendPasswordReset(ctx, invited.id);
+
+    expect((await outboxFor(email)).map((row) => row.template)).toEqual([
+      "account-invitation",
+      "account-invitation",
+    ]);
+  });
+
+  it("refuses a caller without `update User` on that user, and unknown or deactivated users", async () => {
+    const staff = await signedInUser(h);
+    const other = await signedInUser(h);
+    await expect(
+      userService.sendPasswordReset(await contextFor(h, staff.headers), other.user.id),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+
+    const admin = await signedInUser(h, { role: "admin" });
+    const adminCtx = await contextFor(h, admin.headers);
+    await expect(
+      userService.sendPasswordReset(adminCtx, crypto.randomUUID()),
+    ).rejects.toBeInstanceOf(NotFoundError);
+
+    const gone = await signedInUser(h);
+    await userService.deactivate(adminCtx, gone.user.id);
+    await expect(userService.sendPasswordReset(adminCtx, gone.user.id)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect(await outboxFor(gone.email)).toHaveLength(0);
+  });
+});

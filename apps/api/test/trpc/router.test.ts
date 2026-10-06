@@ -25,6 +25,7 @@ const contextFor = (user: AuthUser | null = null): RequestContext => ({
   db: {} as RequestContext["db"],
   redis: {} as RequestContext["redis"],
   auth: {} as Auth,
+  webOrigin: "http://localhost:3000",
 });
 
 const staff: AuthUser = {

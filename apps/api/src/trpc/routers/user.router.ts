@@ -1,5 +1,6 @@
 import {
   changeRoleSchema,
+  inviteUserSchema,
   listUsersSchema,
   updateProfileSchema,
   userIdSchema,
@@ -38,4 +39,14 @@ export const userRouter = router({
     .use(requireAbility("status", "User"))
     .input(userIdSchema)
     .mutation(({ ctx, input }) => userService.deactivate(ctx, input.userId)),
+
+  invite: protectedProcedure
+    .use(requireAbility("create", "User"))
+    .input(inviteUserSchema)
+    .mutation(({ ctx, input }) => userService.invite(ctx, input)),
+
+  sendPasswordReset: protectedProcedure
+    .use(requireAbility("update", "User"))
+    .input(userIdSchema)
+    .mutation(({ ctx, input }) => userService.sendPasswordReset(ctx, input.userId)),
 });

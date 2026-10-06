@@ -2,10 +2,16 @@ import { createUserRepository, translateDatabaseError, withTransaction } from "@
 import type { PageResult, Prisma, UniqueViolationError, User } from "@repo/database";
 import { accessibleUsersWhere, prismaUserSubject } from "@repo/permissions/server";
 import { ADMIN_ROLES } from "@repo/validation";
-import type { ChangeRoleInput, ListUsersQuery, UpdateProfileInput } from "@repo/validation";
+import type {
+  ChangeRoleInput,
+  InviteUserInput,
+  ListUsersQuery,
+  UpdateProfileInput,
+} from "@repo/validation";
 
 import type { RequestContext } from "../../core/context";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../core/errors";
+import { webLinks } from "../../core/web-links";
 
 /**
  * User module — the reference implementation of .claude/rules/module-template.md.
@@ -161,4 +167,67 @@ export const deactivate = async (ctx: RequestContext, userId: string): Promise<U
     await users.deleteSessions(target.id);
     return softDeleted;
   });
+};
+
+/** Better Auth rejects with an `APIError` whose `body.code` names the reason. */
+const hasAuthErrorCode = (error: unknown, code: string): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  "body" in error &&
+  typeof error.body === "object" &&
+  error.body !== null &&
+  "code" in error.body &&
+  error.body.code === code;
+
+/**
+ * Mails a set-password link through Better Auth (token in `verifications`, outbox row via the
+ * auth mail callback). The callback picks the wording: an invitation for a user without a
+ * password, a reset otherwise. Server-side call: catalog grants decided before this runs.
+ */
+const mailPasswordLink = async (ctx: RequestContext, email: string): Promise<void> => {
+  await ctx.auth.api.requestPasswordReset({
+    body: { email, redirectTo: webLinks.newPassword(ctx.webOrigin) },
+  });
+};
+
+/**
+ * Creates a user without a password and mails the invitation; the user sets the first password
+ * from the link (which also verifies the email). Catalog row 1101 (`create User`).
+ */
+export const invite = async (ctx: RequestContext, input: InviteUserInput): Promise<User> => {
+  requireUser(ctx);
+  if (!ctx.ability.can("create", "User")) {
+    throw new ForbiddenError("Not allowed to create users");
+  }
+
+  let createdId: string;
+  try {
+    const created = await ctx.auth.api.createUser({
+      body: { email: input.email, name: input.name, role: input.role },
+    });
+    createdId = created.user.id;
+  } catch (error) {
+    if (hasAuthErrorCode(error, "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL")) {
+      throw new ConflictError("A user with this email already exists");
+    }
+    throw error;
+  }
+
+  // The user exists even if the mail cannot be queued; the admin re-sends from the user page.
+  await mailPasswordLink(ctx, input.email);
+  return loadUser(ctx, createdId);
+};
+
+/**
+ * Mails the user a password link again: the invitation while they have no password, a reset
+ * afterwards. Catalog row 1103 (`update User`) on that user; deactivated users are not found.
+ */
+export const sendPasswordReset = async (ctx: RequestContext, userId: string): Promise<void> => {
+  requireUser(ctx);
+  if (!ctx.ability.can("update", "User")) {
+    throw new ForbiddenError("Not allowed to update users");
+  }
+  const target = await loadUser(ctx, userId);
+  assertCan(ctx, "update", target);
+  await mailPasswordLink(ctx, target.email);
 };

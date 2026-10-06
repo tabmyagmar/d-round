@@ -36,6 +36,8 @@ export type RequestContext = {
   db: PrismaClient;
   redis: RedisConnection;
   auth: Auth;
+  /** The web app's origin: CORS, and the links the API puts in mails (`core/web-links.ts`). */
+  webOrigin: string;
 };
 
 export type ContextDeps = {
@@ -43,6 +45,8 @@ export type ContextDeps = {
   db: PrismaClient;
   redis: RedisConnection;
   auth: Auth;
+  /** Browser origin allowed to call the API with cookies; also the base of mailed links. */
+  webOrigin: string;
 };
 
 export type ContextInput = {
@@ -81,5 +85,6 @@ export const buildRequestContext = async (
     db: deps.db,
     redis: deps.redis,
     auth: deps.auth,
+    webOrigin: deps.webOrigin,
   };
 };
