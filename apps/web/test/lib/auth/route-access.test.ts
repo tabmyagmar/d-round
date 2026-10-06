@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PermissionGrant } from "@repo/permissions";
 
-import { ALL_ROUTES, breadcrumbTrail, href, routes } from "@/config/routes";
+import { ALL_ROUTES, breadcrumbTrail, href, LANDING_ROUTE, routes } from "@/config/routes";
 import { breadcrumbLinks, canAccessRoute, routeDecision } from "@/lib/auth/route-access";
 import type { BreadcrumbEntry } from "@/lib/auth/route-access";
 
@@ -14,12 +14,11 @@ describe("canAccessRoute", () => {
   });
 
   it("keeps anonymous visitors out of signed-in and permission routes", () => {
-    expect(canAccessRoute(null, routes.home)).toBe(false);
+    expect(canAccessRoute(null, routes.profile)).toBe(false);
     expect(canAccessRoute(null, routes.client.list)).toBe(false);
   });
 
   it("opens signed-in routes to any signed-in user, even one without grants", () => {
-    expect(canAccessRoute(abilityWith([]), routes.home)).toBe(true);
     expect(canAccessRoute(abilityWith([]), routes.profile)).toBe(true);
     expect(canAccessRoute(abilityWith([]), routes.settings.privacy)).toBe(true);
   });
@@ -70,7 +69,7 @@ describe("routeDecision", () => {
   });
 
   it("sends anonymous visitors to sign-in on signed-in and permission routes", () => {
-    expect(routeDecision(null, routes.home)).toBe("sign-in");
+    expect(routeDecision(null, routes.profile)).toBe("sign-in");
     expect(routeDecision(null, routes.client.list)).toBe("sign-in");
   });
 
@@ -78,7 +77,8 @@ describe("routeDecision", () => {
     const staff = userWith(STAFF_GRANTS);
     expect(routeDecision(staff, routes.client.list)).toBe("allow");
     expect(routeDecision(staff, routes.workflow.create)).toBe("allow");
-    expect(routeDecision(staff, routes.home)).toBe("allow");
+    expect(routeDecision(staff, LANDING_ROUTE)).toBe("allow");
+    expect(routeDecision(staff, routes.profile)).toBe("allow");
     expect(routeDecision(staff, routes.settings.privacy)).toBe("allow");
   });
 
@@ -114,7 +114,6 @@ describe("breadcrumbLinks", () => {
 
   it("links every earlier crumb the seeded staff grants open; the last is the current page", () => {
     expect(linksFor(STAFF_GRANTS, href(routes.client.create))).toEqual([
-      [routes.home.title, "link"],
       [routes.client.list.title, "link"],
       [routes.client.create.title, "current"],
     ]);
@@ -123,7 +122,6 @@ describe("breadcrumbLinks", () => {
   it("shows the list as text, not a link to a 403, to a user with `create Client` alone", () => {
     expect(linksFor([{ action: "create", subject: "Client" }], href(routes.client.create))).toEqual(
       [
-        [routes.home.title, "link"],
         [routes.client.list.title, "text"],
         [routes.client.create.title, "current"],
       ],
@@ -133,7 +131,6 @@ describe("breadcrumbLinks", () => {
   it("does not link 担当者管理 on the self rule alone, although ability.can(read, User) is true", () => {
     const path = href(routes.user.update, { id: ME_ID });
     expect(linksFor([{ action: "update", subject: "User" }], path)).toEqual([
-      [routes.home.title, "link"],
       [routes.user.list.title, "text"],
       [routes.user.update.title, "current"],
     ]);

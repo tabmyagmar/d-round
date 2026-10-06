@@ -46,7 +46,7 @@ type RouteGroup = Readonly<Record<string, AppRoute>>;
 
 const isRoute = (entry: AppRoute | RouteGroup): entry is AppRoute => typeof entry.path === "string";
 
-/** Every expression a page may pass to `PageGuard` (`routes.home`, `routes.client.create`, …). */
+/** Every expression a page may pass to `PageGuard` (`routes.profile`, `routes.client.create`, …). */
 const ROUTE_EXPRESSIONS = new Map<string, AppRoute>(
   Object.entries<AppRoute | RouteGroup>(routes).flatMap(([key, entry]): [string, AppRoute][] =>
     isRoute(entry)

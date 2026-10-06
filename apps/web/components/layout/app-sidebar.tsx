@@ -20,11 +20,11 @@ import {
 import { NavMain } from "@/components/layout/nav-main";
 import { NavUser } from "@/components/layout/nav-user";
 import { visibleNavGroups } from "@/config/nav";
-import { href, routes } from "@/config/routes";
+import { href, LANDING_ROUTE } from "@/config/routes";
 import type { CurrentUser } from "@/lib/auth/server";
 import { brand } from "@/lib/brand";
 
-/** The sidebar: brand link to ホーム, the menu this ability may see, the user menu. */
+/** The sidebar: brand link to the landing page, the menu this ability may see, the user menu. */
 export const AppSidebar = ({ user }: { user: CurrentUser }) => {
   const ability = useAbility();
   const pathname = usePathname();
@@ -38,7 +38,7 @@ export const AppSidebar = ({ user }: { user: CurrentUser }) => {
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
-              render={<Link href={href(routes.home)} />}
+              render={<Link href={href(LANDING_ROUTE)} />}
               tooltip={brand.name}
               onClick={() => {
                 setOpenMobile(false);

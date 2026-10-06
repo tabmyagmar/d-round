@@ -9,7 +9,7 @@ import { NAV_GROUPS } from "@/config/nav";
 import type { NavGroup } from "@/config/nav";
 import { routes } from "@/config/routes";
 
-/** The real main group (ホーム, マスター管理 with its children, …), not a hand-built copy. */
+/** The real main group (ワークフロー, マスター管理 with its children, …), not a hand-built copy. */
 const mainGroup = (): NavGroup => {
   const group = NAV_GROUPS.find((candidate) => candidate.id === "main");
   if (!group) {
@@ -45,7 +45,7 @@ afterAll(() => {
 
 describe("NavMain", () => {
   it("keeps マスター管理 closed while none of its children is the page", () => {
-    render(navOn(routes.home.path));
+    render(navOn(routes.workflow.list.path));
     expect(screen.getByText("マスター管理")).toBeDefined();
     expect(screen.queryByText(AUDIT_LOG.title)).toBeNull();
   });
@@ -56,7 +56,7 @@ describe("NavMain", () => {
   });
 
   it("reopens マスター管理 when a child becomes the page by soft navigation (no remount)", () => {
-    const { rerender } = render(navOn(routes.home.path));
+    const { rerender } = render(navOn(routes.workflow.list.path));
     expect(screen.queryByText(AUDIT_LOG.title)).toBeNull();
 
     rerender(navOn(AUDIT_LOG.path));

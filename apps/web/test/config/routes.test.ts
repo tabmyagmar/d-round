@@ -7,6 +7,7 @@ import {
   breadcrumbTrail,
   findRoute,
   href,
+  LANDING_ROUTE,
   routes,
   safeNextPath,
 } from "@/config/routes";
@@ -31,7 +32,7 @@ const GROUP_SUBJECTS = {
 type PermissionGroup = keyof typeof GROUP_SUBJECTS;
 
 /** Catalog entries open without a grant: `auth` to everyone, the rest to any signed-in user. */
-const OPEN_ENTRIES = ["auth", "home", "profile", "settings"] as const;
+const OPEN_ENTRIES = ["auth", "profile", "settings"] as const;
 
 /** A permission route's subject, or the open access (`public`, `signed-in`) it has instead. */
 const subjectOf = (route: AppRoute): string =>
@@ -71,11 +72,13 @@ describe("findRoute", () => {
 
   it("ignores a trailing slash", () => {
     expect(findRoute("/admin/client/")).toBe(routes.client.list);
-    expect(findRoute("/admin/")).toBe(routes.home);
+    expect(findRoute("/admin/workflow/")).toBe(routes.workflow.list);
   });
 
   it("returns undefined for paths the catalog does not know", () => {
     expect(findRoute("/nope")).toBeUndefined();
+    expect(findRoute("/admin")).toBeUndefined();
+    expect(findRoute("/admin/")).toBeUndefined();
     expect(findRoute("/admin/client/42/extra")).toBeUndefined();
     expect(findRoute("/admin/settings/unknown")).toBeUndefined();
   });
@@ -83,7 +86,6 @@ describe("findRoute", () => {
 
 describe("ALL_ROUTES", () => {
   it("contains the single routes and every grouped route", () => {
-    expect(ALL_ROUTES).toContain(routes.home);
     expect(ALL_ROUTES).toContain(routes.profile);
     expect(ALL_ROUTES).toContain(routes.auditLog.list);
     expect(ALL_ROUTES).toContain(routes.settings.manual);
@@ -140,24 +142,27 @@ describe("route access", () => {
     },
   );
 
-  it("keeps auth.* public and home, profile and settings.* signed-in", () => {
+  it("keeps auth.* public and profile and settings.* signed-in", () => {
     for (const route of Object.values(routes.auth)) {
       expect(subjectOf(route), route.path).toBe("public");
     }
-    for (const route of [routes.home, routes.profile, ...Object.values(routes.settings)]) {
+    for (const route of [routes.profile, ...Object.values(routes.settings)]) {
       expect(subjectOf(route), route.path).toBe("signed-in");
     }
   });
 });
 
 describe("breadcrumbTrail", () => {
-  it("is just ホーム on /admin", () => {
-    expect(breadcrumbTrail("/admin")).toEqual([crumb(routes.home)]);
+  it("is empty on /admin, which has no page", () => {
+    expect(breadcrumbTrail("/admin")).toEqual([]);
+  });
+
+  it("starts at the first page below /admin", () => {
+    expect(breadcrumbTrail(href(LANDING_ROUTE))).toEqual([crumb(LANDING_ROUTE)]);
   });
 
   it("never resolves an intermediate `update` segment to the [id] detail route", () => {
     expect(breadcrumbTrail("/admin/workflow/update/42")).toEqual([
-      crumb(routes.home),
       crumb(routes.workflow.list),
       crumb(routes.workflow.update, "/admin/workflow/update/42"),
     ]);
@@ -165,31 +170,32 @@ describe("breadcrumbTrail", () => {
 
   it("skips prefixes without a page (/admin/master)", () => {
     expect(breadcrumbTrail("/admin/master/user/42")).toEqual([
-      crumb(routes.home),
       crumb(routes.user.list),
       crumb(routes.user.detail, "/admin/master/user/42"),
     ]);
     expect(breadcrumbTrail("/admin/master/workflow/template/update/7")).toEqual([
-      crumb(routes.home),
       crumb(routes.workflowTemplate.list),
       crumb(routes.workflowTemplate.update, "/admin/master/workflow/template/update/7"),
     ]);
   });
 
   it("drops an unknown last segment", () => {
-    expect(breadcrumbTrail("/admin/settings/unknown")).toEqual([crumb(routes.home)]);
+    expect(breadcrumbTrail("/admin/settings/unknown")).toEqual([]);
   });
 
   it("ignores a trailing slash", () => {
-    expect(breadcrumbTrail("/admin/client/")).toEqual([
-      crumb(routes.home),
-      crumb(routes.client.list),
-    ]);
+    expect(breadcrumbTrail("/admin/client/")).toEqual([crumb(routes.client.list)]);
+  });
+});
+
+describe("LANDING_ROUTE", () => {
+  it("is the workflow list", () => {
+    expect(LANDING_ROUTE).toBe(routes.workflow.list);
   });
 });
 
 describe("safeNextPath", () => {
-  const FALLBACK = "/admin";
+  const FALLBACK = href(LANDING_ROUTE);
 
   it("passes a same-origin path through unchanged, query string included", () => {
     expect(safeNextPath("/admin/client?page=2", FALLBACK)).toBe("/admin/client?page=2");

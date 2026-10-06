@@ -4,7 +4,7 @@ import type { PermissionGrant } from "@repo/permissions";
 
 import { isActivePath, isNavItemActive, NAV_GROUPS, visibleNavGroups } from "@/config/nav";
 import type { NavBranch, NavGroup, NavItem, NavLeaf } from "@/config/nav";
-import { routes } from "@/config/routes";
+import { href, routes } from "@/config/routes";
 
 import { abilityWith, EVERY_GRANT, STAFF_GRANTS } from "../support/grants";
 
@@ -34,17 +34,19 @@ const allItems = (): NavItem[] => NAV_GROUPS.flatMap((group) => group.items);
 const masterBranch = (): NavBranch =>
   allItems().find((item): item is NavBranch => item.kind === "branch" && item.title === MASTER)!;
 
-const homeLeaf = (): NavLeaf =>
-  allItems().find((item): item is NavLeaf => item.kind === "leaf" && item.route === routes.home)!;
+const workflowLeaf = (): NavLeaf =>
+  allItems().find(
+    (item): item is NavLeaf => item.kind === "leaf" && item.route === routes.workflow.list,
+  )!;
 
 describe("visibleNavGroups", () => {
-  it("shows only ホーム and the 設定 group to a user without grants", () => {
-    expect(menuFor([])).toEqual([{ id: "main", items: [routes.home.title] }, SETTINGS_GROUP]);
+  it("shows only the 設定 group to a user without grants", () => {
+    expect(menuFor([])).toEqual([SETTINGS_GROUP]);
   });
 
   it("shows マスター管理 with exactly one child to a user holding `read User` alone", () => {
     expect(menuFor([{ action: "read", subject: "User" }])).toEqual([
-      { id: "main", items: [routes.home.title, { [MASTER]: [routes.user.list.title] }] },
+      { id: "main", items: [{ [MASTER]: [routes.user.list.title] }] },
       SETTINGS_GROUP,
     ]);
   });
@@ -54,7 +56,6 @@ describe("visibleNavGroups", () => {
       {
         id: "main",
         items: [
-          routes.home.title,
           routes.workflow.list.title,
           routes.client.list.title,
           routes.branch.list.title,
@@ -71,7 +72,6 @@ describe("visibleNavGroups", () => {
       {
         id: "main",
         items: [
-          routes.home.title,
           routes.workflow.list.title,
           {
             [MASTER]: [
@@ -100,11 +100,6 @@ describe("visibleNavGroups", () => {
 });
 
 describe("isActivePath", () => {
-  it("matches an exact path only by equality", () => {
-    expect(isActivePath(routes.home.path, routes.home.path, true)).toBe(true);
-    expect(isActivePath(routes.client.list.path, routes.home.path, true)).toBe(false);
-  });
-
   it("activates a section on its own path and on the pages below it", () => {
     expect(isActivePath(routes.client.list.path, routes.client.list.path)).toBe(true);
     expect(isActivePath("/admin/client/42", routes.client.list.path)).toBe(true);
@@ -122,8 +117,8 @@ describe("isNavItemActive", () => {
     expect(isNavItemActive(routes.client.list.path, masterBranch())).toBe(false);
   });
 
-  it("keeps ホーム (exact) inactive below /admin", () => {
-    expect(isNavItemActive(routes.home.path, homeLeaf())).toBe(true);
-    expect(isNavItemActive(routes.client.list.path, homeLeaf())).toBe(false);
+  it("activates ワークフロー on its own pages, not on ワークフロー管理 under /admin/master", () => {
+    expect(isNavItemActive(href(routes.workflow.update, { id: "7" }), workflowLeaf())).toBe(true);
+    expect(isNavItemActive(routes.workflowTemplate.list.path, workflowLeaf())).toBe(false);
   });
 });

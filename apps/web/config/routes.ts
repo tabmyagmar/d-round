@@ -18,7 +18,7 @@ export type Breadcrumb = { path: string; route: AppRoute };
 
 const allow = (action: Action, subject: SubjectName): RouteAccess => ({ action, subject });
 
-// A top-level entry is either one route (`routes.home`, `routes.profile`) or a group of routes
+// A top-level entry is either one route (`routes.profile`) or a group of routes
 // (`routes.client.list`); `ALL_ROUTES` flattens both shapes.
 export const routes = {
   auth: {
@@ -27,7 +27,6 @@ export const routes = {
     newPassword: { path: "/new-password", title: "新しいパスワード設定", access: "public" },
     verifyEmail: { path: "/verify-email", title: "メール認証", access: "public" },
   },
-  home: { path: "/admin", title: "ホーム", access: "signed-in" },
   profile: { path: "/admin/profile", title: "プロフィール", access: "signed-in" },
   workflow: {
     list: { path: "/admin/workflow", title: "ワークフロー", access: allow("read", "Workflow") },
@@ -146,6 +145,9 @@ export const routes = {
   },
 } as const satisfies Record<string, AppRoute | Record<string, AppRoute>>;
 
+/** Where a signed-in user lands: after login, from `/admin`, and the way back from a 403 or 404. */
+export const LANDING_ROUTE = routes.workflow.list;
+
 type RouteGroup = Readonly<Record<string, AppRoute>>;
 
 const isRoute = (entry: AppRoute | RouteGroup): entry is AppRoute => typeof entry.path === "string";
@@ -204,7 +206,8 @@ export const findRoute = (pathname: string): AppRoute | undefined => {
 /**
  * The header trail of a pathname: one crumb per prefix that is a page. Intermediate prefixes
  * match static routes only (`/admin/workflow/update` is not the detail of id `update`); the full
- * pathname goes through `findRoute`. `/admin/workflow/update/42` → ホーム › ワークフロー › 申請書を編集.
+ * pathname goes through `findRoute`; `/admin` has no page, so the trail starts below it.
+ * `/admin/workflow/update/42` → ワークフロー › 申請書を編集.
  */
 export const breadcrumbTrail = (pathname: string): Breadcrumb[] => {
   const segments = segmentsOf(normalize(pathname));

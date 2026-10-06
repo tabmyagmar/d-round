@@ -4,7 +4,6 @@ import {
   CircleQuestionMark,
   FileStack,
   FileText,
-  House,
   ScrollText,
   Stamp,
   Store,
@@ -24,8 +23,8 @@ import { canAccessRoute } from "@/lib/auth/route-access";
  * client modules import it (icons never cross the server → client boundary as props).
  */
 
-/** A link to one route; `exact` activates it on its own path only (ホーム). */
-export type NavLeaf = { kind: "leaf"; route: AppRoute; icon: LucideIcon; exact?: boolean };
+/** A link to one route. */
+export type NavLeaf = { kind: "leaf"; route: AppRoute; icon: LucideIcon };
 /** A collapsible heading over leaves; not a link itself (legacy マスター管理). */
 export type NavBranch = {
   kind: "branch";
@@ -42,7 +41,6 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   {
     id: "main",
     items: [
-      { kind: "leaf", route: routes.home, icon: House, exact: true },
       leaf(routes.workflow.list, Stamp),
       {
         kind: "branch",
@@ -88,12 +86,12 @@ export const visibleNavGroups = (ability: AppAbility): NavGroup[] =>
     return items.length > 0 ? [{ ...group, items }] : [];
   });
 
-/** `exact` → equality only; otherwise the path itself or any page below it. */
-export const isActivePath = (pathname: string, path: string, exact = false): boolean =>
-  pathname === path || (!exact && pathname.startsWith(`${path}/`));
+/** The path itself or any page below it. */
+export const isActivePath = (pathname: string, path: string): boolean =>
+  pathname === path || pathname.startsWith(`${path}/`);
 
 /** A leaf by its own path; a branch when any of its children is active. */
 export const isNavItemActive = (pathname: string, item: NavItem): boolean =>
   item.kind === "leaf"
-    ? isActivePath(pathname, item.route.path, item.exact)
+    ? isActivePath(pathname, item.route.path)
     : item.children.some((child) => isNavItemActive(pathname, child));

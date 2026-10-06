@@ -4,7 +4,7 @@ import { Button } from "@repo/ui/components/button";
 import { PageHeader } from "@repo/ui/components/composed/page-header";
 
 import { HealthStatus } from "@/components/health-status";
-import { href, routes } from "@/config/routes";
+import { href, LANDING_ROUTE, routes } from "@/config/routes";
 import { getServerSession } from "@/lib/auth/server";
 import { brand } from "@/lib/brand";
 
@@ -24,8 +24,8 @@ const HomePage = async () => {
 
       <div className="flex gap-2">
         {session ? (
-          <Button render={<Link href={href(routes.home)} />} nativeButton={false}>
-            Open dashboard
+          <Button render={<Link href={href(LANDING_ROUTE)} />} nativeButton={false}>
+            Open app
           </Button>
         ) : (
           <Button render={<Link href={href(routes.auth.login)} />} nativeButton={false}>
