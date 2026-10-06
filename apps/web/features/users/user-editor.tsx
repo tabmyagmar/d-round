@@ -40,6 +40,7 @@ export const UserEditor = ({ userId }: { userId: string }) => {
   const router = useRouter();
   const ability = useAbility();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const user = useQuery(trpc.user.byId.queryOptions({ userId }));
 
   const changeRole = useMutation(
@@ -61,6 +62,18 @@ export const UserEditor = ({ userId }: { userId: string }) => {
         setConfirmOpen(false);
         await queryClient.invalidateQueries(trpc.user.pathFilter());
         router.push(href(routes.user.list));
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
+    }),
+  );
+
+  const sendPasswordReset = useMutation(
+    trpc.user.sendPasswordReset.mutationOptions({
+      onSuccess: () => {
+        toast.success("パスワード設定メールを送信しました");
+        setResetOpen(false);
       },
       onError: (error) => {
         toast.error(error.message);
@@ -147,6 +160,39 @@ export const UserEditor = ({ userId }: { userId: string }) => {
               </CardContent>
             </Card>
           </Can>
+
+          {canEdit ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>パスワード設定メール</CardTitle>
+                <CardDescription>
+                  パスワード未設定のユーザーには登録案内を、設定済みのユーザーには再設定のURLを送信します（有効期限1時間）。
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setResetOpen(true);
+                  }}
+                >
+                  メールを送信
+                </Button>
+                <ConfirmDialog
+                  open={resetOpen}
+                  onOpenChange={setResetOpen}
+                  title={`${user.data.name}様にパスワード設定メールを送信しますか？`}
+                  description={`${user.data.email} 宛に送信します。URLの有効期限は1時間です。`}
+                  confirmLabel="送信"
+                  cancelLabel="キャンセル"
+                  pending={sendPasswordReset.isPending}
+                  onConfirm={() => {
+                    sendPasswordReset.mutate({ userId: user.data.id });
+                  }}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Can I="status" a="User">
             <Card>
