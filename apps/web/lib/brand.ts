@@ -3,10 +3,10 @@
  * placeholders; the worker takes the brand for emails from the MAIL_FROM display name.
  */
 export const brand = {
-  name: "{{PROJECT_NAME}}",
-  description: "{{PROJECT_DESCRIPTION}}",
+  name: "D-Round",
+  description: "D-Round",
   /** `<html lang>` — BCP 47 tag such as "en" or "ja". */
-  htmlLang: "{{HTML_LANG}}",
+  htmlLang: "ja",
   /**
    * The sidebar logo (`name` is its alt text). Another product replaces `public/logo.png` and
    * these intrinsic pixel sizes, which `next/image` uses for the aspect ratio.
