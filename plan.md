@@ -325,6 +325,125 @@ example paths, URL-state pattern), `.claude/rules/module-template.md` (pointer p
 `.claude/rules/permissions.md` (Web table example paths), `docs/auth.md` (invite with overrides, one
 sentence), `plan.md` → `docs/plans/2026-10-07-user-feature.md` at Close (Outcome section).
 
+## Amendments
+
+- 2026-10-07, step 2: `assignableRoles` follows the legacy picker exactly (`USER_ROLES` = admin,
+  manager, staff): `super_admin` and `admin` assign admin / manager / staff, a manager manager /
+  staff, staff nothing — `super_admin` is never assigned through the app. Today an admin can promote
+  to `super_admin` through `user.changeRole`; step 3 removes that, and the changeRole test "lets the
+  last admin-role user move to the other admin role" moves to the super_admin → admin direction. The
+  permission module's `permission.schema.ts` (module template) holds `permissionKeysSchema`, used
+  from step 3.
+
+- 2026-10-07, order: the Docker daemon's API stopped answering during step 2's verify (the
+  containers kept serving their ports; restarting Docker Desktop would stop the user's other
+  project's containers, so it is left to the user). Steps 4, 5, 6 and 7 (Docker-free,
+  `[parallel: A]` or web-only on step 1's API) were committed first, each verified with
+  `yarn verify` while the uncommitted step 2 was stashed, so every Docker-backed test task was a
+  cache hit of step 1's green run (no inputs changed). Steps 2 and 3 are verified when Docker
+  answers again.
+- 2026-10-07, step 4: no `sortableHeader` helper — `DataTable` renders the toggle button itself for
+  a column with `enableSorting: true` (`defaultColumn: { enableSorting: false }`), with `aria-sort`.
+- 2026-10-07, step 5: `use-debounced-value.ts` became `use-debounced-callback.ts` (debounce the
+  change event; a debounced value mirrored into an effect that navigates is the effect-for-events
+  anti-pattern). `features/users/list/build-user-list-input.ts` became the shared
+  `parseSearchParams(schema, params)` in `hooks/search-params.ts`, which reads each parameter
+  through the list's own zod input schema — every list reuses it. `pageToParam` keeps page 1 out of
+  the URL.
+- 2026-10-07, step 7: split into 7a (shared: `components/search-input.tsx`, `UserStatusBadge`,
+  `UserStatusDialog`, Japanese `ROLE_LABELS`) and 7b (the list), to stay under 15 files. The plan
+  said `ROLE_LABELS` were already Japanese; they were English and now carry the legacy labels
+  (スーパーアドミン, アドミン, マネジャー, AM); statuses are 利用中 / 停止 as in the legacy app. The
+  deactivate / reactivate mutations live in `UserStatusDialog` (its only caller), so there is no
+  `hooks/use-user-status.ts`; the list keeps the chosen row in `useState` and renders one dialog. A
+  deactivated user's row offers only 利用再開 and no detail link: `user.byId` does not find
+  deactivated users. The toolbar is presentational (`filters`, `onChange`) so it is tested without a
+  router. Base UI's `Button` rendering a `Link` keeps `role="button"` on the `<a>`.
+
+- 2026-10-07, step 3: besides the new role, `update` checks that the caller may assign the user's
+  **current** role (a manager holding `changeRole` must not demote an admin). With `super_admin`
+  never assignable, a super_admin's role cannot change in the app at all, so the step 2 note is
+  superseded: the changeRole test "lets the last admin-role user move to the other admin role"
+  becomes "never assigns super_admin and leaves a super_admin's role alone". Override keys are
+  checked against the visible catalog children; invite validates them before Better Auth creates the
+  user. The docs that name `changeRole`, `user-editor` or the old paths (ui.md, skills, README,
+  module-template) move to step 10 with permissions.md (it also needed new web examples); ADR 0003
+  stays in step 3. Self-review added two escalation guards with tests: nobody edits their own
+  overrides, and a caller may only ALLOW a permission their own session grants (otherwise a manager
+  holding `changeRole` could hand out — or, through a second manager, receive — anything).
+- 2026-10-07, step 8: the toolbar and the permission summary are presentational (props in, ability
+  inside) so they are tested without tRPC; the detail container owns the queries and the dialogs
+  (`PasswordMailDialog`, `UserStatusDialog`, whose `onDone` goes back to the list because
+  `user.byId` does not find a deactivated user). `permission-catalog.ts` holds the pure catalog
+  helpers (`roleKeysOf`, `grantedGroups`); the catalog is fetched only when the 権限 card shows
+  (manager target, caller holds `changeRole`). `use-send-password-reset.ts` was not needed: the
+  dialog is the mutation's only caller.
+- 2026-10-07, step 9: two thin forms (invite, edit) over a shared `UserFormFields`
+  (氏名, アカウントタイプ, 権限（詳細設定）) — each form keeps its own schema, mutation and email
+  fields, which a `mode` prop would have branched on everywhere. `roleFieldState` (pure) decides the
+  role options. The permission dialog's body (`permission-dialog-body.tsx`: catalog query +
+  `PermissionEditor`) is loaded with `next/dynamic` when the dialog opens, so the form fields test
+  without tRPC; the editor marks the role's permissions 標準 and offers 標準に戻す. The edit form
+  sends only what changed; the email is shown, not edited. No shadcn addition (`accordion` not
+  needed: fieldsets with checkboxes).
+
+## Review round 1 (user, 2026-10-07): structure, reusable components, lazy loading
+
+The user's review of steps 4–9 asked for: the feature folder split by technical role as in
+romuten-v3 (not by screen), reusable composed components other features can take (select, filter,
+toolbar, dialog, …), lazy loading so a page first loads only what it shows, the filter rendered only
+when used, the permission dialog fixed and the CSV toolbar parts left out for now.
+
+Research: bulletproof-react (`docs/project-structure.md`) splits a feature by role — `api`,
+`components`, `hooks`, `stores`, `types`, `utils`, "only the ones that are necessary" — keeps shared
+code in app-level `components`, `hooks`, `stores`, and composes features at the application level
+instead of importing across them; Next.js documents feature/route colocation as unopinionated and
+`next/dynamic` for client components loaded "only when/if the condition is met". romuten-v3 follows
+the same split (`components`, `containers`, `graphql`, `hooks`, `schemas`, `store`, `utils`) with
+`next/dynamic` filter contents and dialogs; d-round-web is a hybrid (screen folders under
+`components/`). Splitting by screen (`list/`, `detail/`, `form/`) was a choice of steps 6–9, not a
+convention; it is replaced.
+
+Decisions:
+
+1. **`features/users/`** = `containers/` (one entry per route; the only files pages import:
+   `users-container`, `user-detail-container`, `user-create-container`, `user-update-container`,
+   `profile-container`), `components/` (everything they render, dialogs with their mutation
+   included), `hooks/` (`use-permission-catalog`), `utils/` (pure, node-tested), `types.ts` (the
+   router output types). No `api/` or `graphql/` (tRPC hooks are called where used), no `schemas/`
+   (zod lives in `@repo/validation`, shared with the API), no `stores/` until state is shared beyond
+   one container (decision 4 stands). Forms are presentational (`onSubmit`, `pending`,
+   `errorMessage`); their containers own the mutations, so forms test without tRPC.
+2. **Reusable composed components** in `packages/ui/src/components/composed/` (domain-free, English
+   defaults, Japanese passed by the app): `OptionSelect` (standalone select over `options`, optional
+   "all" option, visible or hidden label) — also the base of `SelectField`; `SearchInput` (moved
+   from `apps/web/components`) with `useDebouncedCallback` (moved to `packages/ui/src/hooks`);
+   `FilterPopover` (trigger with the active-filter count, content rendered only while open, clear
+   footer); `FilterTags` (active filters as removable chips + clear all); `ListToolbar` (search /
+   filters / actions slots, bottom row); `RowActions` (row menu over an action list; hidden actions
+   are filtered by the caller); `ContentDialog` (title, description, body, footer; body mounted only
+   while open) with `ConfirmDialog` built on it; `DescriptionList` (label / value pairs for detail
+   cards); `GroupedCheckboxList` (checkbox groups with a per-group select-all, `indeterminate`).
+   Each has a jsdom test.
+3. **Lazy loading** (`next/dynamic`, `ssr: false`, rendered only when used): the list's filter
+   content (inside `FilterPopover`), the status dialog (list and detail), the password-mail dialog,
+   the detail page's permission summary (managers only) and the permission dialog (from its form
+   field). Row menus render their items only while open (Base UI). The pages stay server components
+   rendering one client container.
+4. **CSV** (legacy `CsvMenus`, `CsvDownloadDialog`) stays out; the toolbar carries a TODO where it
+   goes.
+5. App-level code stays where bulletproof-react puts it: `apps/web/hooks/` (URL state: `use-search`,
+   `use-table-state`, `search-params`), `apps/web/components/` (shell, guard). The shell's user menu
+   imports `RoleBadge` from the users feature (composition at the application level).
+
+Commits: R1 `feat(ui)` list building blocks (OptionSelect + SelectField on it, SearchInput +
+useDebouncedCallback moved in, FilterPopover, FilterTags, ListToolbar, RowActions); R2 `feat(ui)`
+ContentDialog (+ ConfirmDialog), DescriptionList, GroupedCheckboxList; R3 `refactor(web)` users list
+and profile into `containers/` + `components/`, the list on the composed blocks, lazy filter and
+status dialog; R4 `feat(web)` user detail (step 8 rebuilt); R5 `feat(web)` invite and edit forms
+with the permission field and dialog (step 9 rebuilt); R6 `docs`. Each ≤15 files, `yarn verify`
+green.
+
 ## Out of scope (own tickets)
 
 - User profile fields (社員番号, 氏名カナ, エリア, 地域, 部署, 役職, 退職日) and the `user_profiles`

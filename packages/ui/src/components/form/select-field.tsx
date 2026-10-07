@@ -2,7 +2,7 @@
 
 import type { FieldValues } from "react-hook-form";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../select";
+import { OptionSelect } from "../composed/option-select";
 
 import { FormFieldShell } from "./form-field-shell";
 import type { BaseFieldProps, SelectOption } from "./types";
@@ -16,8 +16,8 @@ export type SelectFieldProps<TValues extends FieldValues> = BaseFieldProps<TValu
 };
 
 /**
- * react-hook-form wrapper around the standalone `Select` (which stays usable on its own for
- * filters and toolbars). Values are strings; parse them in the zod schema. For long or searchable
+ * react-hook-form wrapper around `OptionSelect` (the composed select filters and toolbars use on
+ * their own). Values are strings; parse them in the zod schema. For long or searchable
  * lists use `ComboboxField`.
  */
 export const SelectField = <TValues extends FieldValues>({
@@ -46,29 +46,18 @@ export const SelectField = <TValues extends FieldValues>({
       error={fieldState.error}
       className={className}
     >
-      <Select
-        items={options.map(({ value: optionValue, label: optionLabel }) => ({
-          value: optionValue,
-          label: optionLabel,
-        }))}
+      <OptionSelect
+        id={field.name}
+        name={field.name}
+        options={options}
         value={typeof value === "string" ? value : null}
         onValueChange={(next) => {
           field.onChange(next ?? (nullable ? null : ""));
         }}
-        disabled={field.disabled}
-        name={field.name}
-      >
-        <SelectTrigger id={field.name} className="w-full" aria-invalid={fieldState.invalid}>
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        invalid={fieldState.invalid}
+        {...(field.disabled === undefined ? {} : { disabled: field.disabled })}
+        {...(placeholder === undefined ? {} : { placeholder })}
+      />
     </FormFieldShell>
   );
 };
