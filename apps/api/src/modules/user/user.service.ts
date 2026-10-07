@@ -194,6 +194,8 @@ export const list = async (
       OR: [
         { name: { contains: query.search, mode: "insensitive" } },
         { email: { contains: query.search, mode: "insensitive" } },
+        { lastNameKana: { contains: query.search } },
+        { firstNameKana: { contains: query.search } },
       ],
     });
   }

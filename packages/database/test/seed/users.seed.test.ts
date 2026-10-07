@@ -99,6 +99,13 @@ describe("seedUsers", () => {
       expect(user.emailVerified).toBe(true);
       expect(user.role).toBe(seed.role);
       expect(user.name).toBe(seed.name);
+      expect(user).toMatchObject({
+        lastName: seed.lastName,
+        firstName: seed.firstName,
+        lastNameKana: seed.lastNameKana,
+        firstNameKana: seed.firstNameKana,
+      });
+      expect(user.name).toBe(`${seed.lastName} ${seed.firstName}`);
       expect(user.accounts).toHaveLength(1);
       const hash = user.accounts[0]!.password!;
       expect(await verifyPassword({ hash, password: SEED_PASSWORD })).toBe(true);

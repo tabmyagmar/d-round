@@ -64,6 +64,12 @@ describe("UsersTable", () => {
     expect(screen.getByText("利用中")).toBeDefined();
   });
 
+  it("shows the katakana reading under the name", () => {
+    renderTable([userRow({ name: "山田 太郎", lastNameKana: "ヤマダ", firstNameKana: "タロウ" })]);
+
+    expect(screen.getByText("ヤマダ タロウ")).toBeDefined();
+  });
+
   it("shows a deactivated user as 停止, without a link to a detail page it cannot open", () => {
     renderTable([userRow({ name: "Bob", deletedAt: new Date() })]);
 

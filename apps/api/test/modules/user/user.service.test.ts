@@ -128,6 +128,29 @@ describe("list", () => {
     expect(onlyAdmins.items.every((u) => u.role === "admin")).toBe(true);
   });
 
+  it("finds a user by the katakana reading of the name", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const ctx = await contextFor(h, admin.headers);
+    const target = await signedInUser(h);
+    const reading = `ヨミ${crypto
+      .randomUUID()
+      .replace(/[^a-f]/g, "")
+      .slice(0, 4)
+      .toUpperCase()}`;
+    await userService.update(ctx, {
+      userId: target.user.id,
+      lastName: "読み",
+      firstName: "検索",
+      lastNameKana: "ヨミ",
+      firstNameKana: "ケンサク",
+    });
+    await h.db.user.update({ where: { id: target.user.id }, data: { firstNameKana: reading } });
+
+    const found = await userService.list(ctx, listQuery({ search: reading }));
+
+    expect(found.items.map((u) => u.id)).toEqual([target.user.id]);
+  });
+
   it("lists deactivated users only when asked, in the requested order", async () => {
     const marker = tag();
     const admin = await signedInUser(h, { role: "admin" });

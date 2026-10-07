@@ -15,7 +15,7 @@ import { UserRowActions } from "@/features/users/components/user-row-actions";
 import { UserStatusBadge } from "@/features/users/components/user-status-badge";
 import { useUsersStore } from "@/features/users/stores/users-store-provider";
 import type { UserRow } from "@/features/users/types";
-import { userStatusOf } from "@/features/users/utils/user-labels";
+import { readingOf, userStatusOf } from "@/features/users/utils/user-labels";
 
 const helper = createDataTableColumns<UserRow>();
 
@@ -28,17 +28,23 @@ const userColumns = (onToggleStatus: (user: UserRow) => void) =>
     helper.accessor("name", {
       header: "氏名",
       enableSorting: true,
-      cell: ({ row, getValue }) =>
-        userStatusOf(row.original) === "active" ? (
-          <Link
-            href={href(routes.user.detail, { id: row.original.id })}
-            className="font-medium hover:underline"
-          >
-            {getValue()}
-          </Link>
-        ) : (
-          <span className="font-medium text-muted-foreground">{getValue()}</span>
-        ),
+      cell: ({ row, getValue }) => (
+        <div className="flex flex-col">
+          {userStatusOf(row.original) === "active" ? (
+            <Link
+              href={href(routes.user.detail, { id: row.original.id })}
+              className="font-medium hover:underline"
+            >
+              {getValue()}
+            </Link>
+          ) : (
+            <span className="font-medium text-muted-foreground">{getValue()}</span>
+          )}
+          {readingOf(row.original) ? (
+            <span className="text-xs text-muted-foreground">{readingOf(row.original)}</span>
+          ) : null}
+        </div>
+      ),
     }),
     helper.accessor("email", {
       header: "メールアドレス",

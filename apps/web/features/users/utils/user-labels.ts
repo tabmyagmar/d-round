@@ -14,6 +14,12 @@ export const USER_STATUS_LABELS: Record<UserStatus, string> = {
   deactivated: "停止",
 };
 
+/** The katakana reading "セイ メイ", or `null` for a user from before the name parts. */
+export const readingOf = (user: {
+  lastNameKana: string | null;
+  firstNameKana: string | null;
+}): string | null => [user.lastNameKana, user.firstNameKana].filter(Boolean).join(" ") || null;
+
 /** A deactivated user is soft-deleted: `deletedAt` is set. */
 export const userStatusOf = (user: { deletedAt: Date | null }): UserStatus =>
   user.deletedAt ? "deactivated" : "active";

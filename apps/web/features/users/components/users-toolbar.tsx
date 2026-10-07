@@ -37,7 +37,7 @@ export const UsersToolbar = ({ filters, onChange }: UsersToolbarProps) => {
           onSearch={(search) => {
             onChange({ search });
           }}
-          label="氏名・メールアドレスで検索"
+          label="氏名・フリガナ・メールアドレスで検索"
         />
       }
       filters={<UserFilter filters={filters} onChange={onChange} />}

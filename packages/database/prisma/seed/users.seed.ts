@@ -19,12 +19,38 @@ import type { SeedFn } from "./support";
 
 export const SEED_PASSWORD = "A12345678";
 
-export const SEED_USERS = [
-  { email: "super_admin@test.com", name: "Super Admin Test", role: "super_admin" },
-  { email: "admin@test.com", name: "Admin Test", role: "admin" },
-  { email: "manager@test.com", name: "Manager Test", role: "manager" },
-  { email: "staff@test.com", name: "Staff Test", role: "staff" },
-] as const satisfies readonly { email: string; name: string; role: RoleKey }[];
+type SeedUser = {
+  email: string;
+  /** "姓 名", Better Auth's display name, as the user service writes it. */
+  name: string;
+  lastName: string;
+  firstName: string;
+  lastNameKana: string;
+  firstNameKana: string;
+  role: RoleKey;
+};
+
+const seedUser = (
+  email: string,
+  role: RoleKey,
+  [lastName, firstName]: readonly [string, string],
+  [lastNameKana, firstNameKana]: readonly [string, string],
+): SeedUser => ({
+  email,
+  name: `${lastName} ${firstName}`,
+  lastName,
+  firstName,
+  lastNameKana,
+  firstNameKana,
+  role,
+});
+
+export const SEED_USERS: readonly SeedUser[] = [
+  seedUser("super_admin@test.com", "super_admin", ["佐藤", "一郎"], ["サトウ", "イチロウ"]),
+  seedUser("admin@test.com", "admin", ["鈴木", "花子"], ["スズキ", "ハナコ"]),
+  seedUser("manager@test.com", "manager", ["高橋", "次郎"], ["タカハシ", "ジロウ"]),
+  seedUser("staff@test.com", "staff", ["田中", "美咲"], ["タナカ", "ミサキ"]),
+];
 
 const CREDENTIAL_PROVIDER = "credential";
 
@@ -53,6 +79,10 @@ export const seedUsers: SeedFn = async (prisma) => {
       where: { email: seed.email },
       update: {
         name: seed.name,
+        lastName: seed.lastName,
+        firstName: seed.firstName,
+        lastNameKana: seed.lastNameKana,
+        firstNameKana: seed.firstNameKana,
         role: seed.role,
         emailVerified: true,
         banned: false,
@@ -62,6 +92,10 @@ export const seedUsers: SeedFn = async (prisma) => {
       create: {
         email: seed.email,
         name: seed.name,
+        lastName: seed.lastName,
+        firstName: seed.firstName,
+        lastNameKana: seed.lastNameKana,
+        firstNameKana: seed.firstNameKana,
         role: seed.role,
         emailVerified: true,
       },

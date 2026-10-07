@@ -25,7 +25,7 @@ import { UserChargesPlaceholder } from "@/features/users/components/user-charges
 import { UserDetailToolbar } from "@/features/users/components/user-detail-toolbar";
 import { UserStatusBadge } from "@/features/users/components/user-status-badge";
 import { usePermissionCatalog } from "@/features/users/hooks/use-permission-catalog";
-import { userStatusOf } from "@/features/users/utils/user-labels";
+import { readingOf, userStatusOf } from "@/features/users/utils/user-labels";
 import { useTRPC } from "@/lib/trpc/react";
 
 // Loaded only when used: the dialogs when an action is chosen, the summary for a manager.
@@ -116,6 +116,7 @@ export const UserDetailContainer = ({ userId }: { userId: string }) => {
             <DescriptionList
               items={[
                 { label: "氏名", value: detail.name },
+                { label: "フリガナ", value: readingOf(detail) },
                 { label: "メールアドレス", value: detail.email },
                 { label: "アカウントタイプ", value: <RoleBadge role={detail.role} /> },
                 { label: "ステータス", value: <UserStatusBadge status={userStatusOf(detail)} /> },
