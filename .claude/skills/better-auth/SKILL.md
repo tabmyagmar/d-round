@@ -10,8 +10,9 @@ description:
 Authentication (email + password, email verification, 7-day sessions) and role storage for the
 single organization. The library's API changes quickly: **read the current docs (Context7, or the
 installed `node_modules/better-auth/dist/**/*.d.mts` at the exact path you need) before writing any
-config — do not guess option names.** Decision record: `docs/adr/0002-auth.md`; roles and grants:
-`.claude/rules/permissions.md`.
+config — do not guess option names.** Runtime behaviour (session lifetime, what ends a session,
+several devices, password links): `docs/auth.md`. Decision record: `docs/adr/0002-auth.md`; roles
+and grants: `.claude/rules/permissions.md`.
 
 ## Where things live
 

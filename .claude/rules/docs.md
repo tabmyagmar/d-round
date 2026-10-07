@@ -8,17 +8,18 @@ paths:
 Every fact about the repository lives in exactly one file; every other file that needs it points
 there. A change then touches one file, and a reviewer does not find stale copies.
 
-| Fact                                              | Lives in                                         |
-| ------------------------------------------------- | ------------------------------------------------ |
-| Schema folders, migrations table, seed datasets   | `.claude/rules/migrations.md`                    |
-| Test accounts (emails, roles, password)           | `.claude/rules/migrations.md` (seed section)     |
-| Roles, actions, subjects, who may do what         | `.claude/rules/permissions.md`                   |
-| Layer contract and allowed imports                | `.claude/rules/layers.md`                        |
-| Module file set and reference snippets            | `.claude/rules/module-template.md`               |
-| Test harnesses and testcontainers                 | `.claude/rules/testing.md`                       |
-| Why a decision was taken, and later changes to it | `docs/adr/NNNN-*.md` (`## Changes`, dated lines) |
-| Commands, ports, quick start, folder map (names)  | `README.md`                                      |
-| Library how-tos                                   | `.claude/skills/<lib>/SKILL.md`                  |
+| Fact                                                                  | Lives in                                         |
+| --------------------------------------------------------------------- | ------------------------------------------------ |
+| Schema folders, migrations table, seed datasets                       | `.claude/rules/migrations.md`                    |
+| Test accounts (emails, roles, password)                               | `.claude/rules/migrations.md` (seed section)     |
+| Roles, actions, subjects, who may do what                             | `.claude/rules/permissions.md`                   |
+| Layer contract and allowed imports                                    | `.claude/rules/layers.md`                        |
+| Module file set and reference snippets                                | `.claude/rules/module-template.md`               |
+| Test harnesses and testcontainers                                     | `.claude/rules/testing.md`                       |
+| Why a decision was taken, and later changes to it                     | `docs/adr/NNNN-*.md` (`## Changes`, dated lines) |
+| How auth behaves at runtime (sessions, devices, password links, gaps) | `docs/auth.md`                                   |
+| Commands, ports, quick start, folder map (names)                      | `README.md`                                      |
+| Library how-tos                                                       | `.claude/skills/<lib>/SKILL.md`                  |
 
 Rules:
 

@@ -99,8 +99,8 @@ sidebar and on the auth card) and auth background (`apps/web/public/auth-backgro
 
 ## What is included
 
-- **Auth** (`packages/auth`, Better Auth): email + password sign-in (7-day cookie
-  sessions,「ログイン状態を保持する」), no public sign-up, roles
+- **Auth** (`packages/auth`, Better Auth; how it behaves at runtime: `docs/auth.md`): email +
+  password sign-in (7-day cookie sessions,「ログイン状態を保持する」), no public sign-up, roles
   `super_admin | admin | manager | staff`. Users are invited (`user.invite`: an account without a
   password plus an invitation mail whose link sets the first password), reset a forgotten password
   from `/forgot-password`, and change it on `/admin/profile`; an admin can re-send the mail from the
@@ -270,6 +270,8 @@ and their tests (`packages/database/test/repositories/user.repository.test.ts`,
 
 - `docs/conventions.md` — layer contract, lint rule rationale, commits, environment, authentication
   and sessions, testing, IDs, errors, queue semantics, failed jobs, Docker notes, versions policy.
+- `docs/auth.md` — authentication at runtime: sign-in, session lifetime, what ends a session,
+  several devices, password links, rate limits, known gaps.
 - `docs/plans/` — the plan of each closed ticket (`plan.md` while the ticket is open).
 - `docs/adr/` — architecture decision records: `0001-stack.md`, `0002-auth.md` (Better Auth),
   `0003-permissions.md` (two-layer authorization), `0004-outbox.md` (transactional outbox).
