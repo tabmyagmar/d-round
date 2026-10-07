@@ -150,13 +150,17 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
 ## Composed components (`packages/ui/src/components/composed/`)
 
 - `DataTable` (`data-table.tsx`) — a `Table` driven by `@tanstack/react-table` v9 (`useTable`,
-  `tableFeatures`). Props: `columns`, `data`, `isLoading` (renders `Skeleton` rows), `emptyMessage`,
-  optional `pagination`, `getRowId`, `className`. Build columns with the typed helper
-  `createDataTableColumns<TData>()` — `helper.columns([...])` over
+  `tableFeatures({ rowSortingFeature })`). Props: `columns`, `data`, `isLoading` (renders `Skeleton`
+  rows), `emptyMessage`, optional `pagination`, `sorting`, `getRowId`, `className`. Build columns
+  with the typed helper `createDataTableColumns<TData>()` — `helper.columns([...])` over
   `helper.accessor("email", { header: "Email" })` and `helper.display({ id: "actions", cell })`.
-  `DataTablePagination` is `{ page, totalPages, total, hasPrev, hasNext, onPageChange, itemLabel? }`
-  — server-side pagination that maps 1:1 onto the API's `PageResult`. Reference:
-  `apps/web/features/users/users-table.tsx`.
+  `DataTablePagination` is
+  `{ page, totalPages, total, hasPrev, hasNext, onPageChange, itemLabel?, labels? }` — server-side
+  pagination that maps 1:1 onto the API's `PageResult`; `labels` (`previous`, `next`,
+  `summary(page)`) replaces the English defaults. `DataTableSorting` is `{ state, onChange }`
+  (TanStack `SortingState`): sorting is server-side (`manualSorting`), single-column and asc ↔ desc;
+  a column takes part with `enableSorting: true` and its header becomes a toggle button with
+  `aria-sort`. Reference: `apps/web/features/users/users-table.tsx`.
 - `ConfirmDialog` (`confirm-dialog.tsx`) — built on the shadcn `Dialog`; props `open`,
   `onOpenChange`, `title`, `description?`, `confirmLabel`, `cancelLabel?`, `destructive?`,
   `pending?`, `onConfirm`. Use it for every confirmation; never `window.confirm`. Reference:
