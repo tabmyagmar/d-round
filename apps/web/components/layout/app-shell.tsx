@@ -9,8 +9,9 @@ import type { CurrentUser } from "@/lib/auth/server";
 
 /**
  * The signed-in shell under /admin: ability for the whole tree, collapsible sidebar with the logo,
- * header with the page title and the user menu, and the page gutters. A server component — only
- * the serialisable `user` crosses into the client pieces; the nav (icons) is read on the client side.
+ * header with the page title and the user menu, and the page gutters (`--page-gutter`, which a
+ * page's `StickyBar` reaches across). A server component — only the serialisable `user` crosses
+ * into the client pieces; the nav (icons) is read on the client side.
  */
 export const AppShell = ({
   user,
@@ -28,7 +29,9 @@ export const AppShell = ({
       {/* SidebarInset is the <main>; the page wrapper inside it is a <div>. */}
       <SidebarInset>
         <AppHeader user={user} />
-        <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">{children}</div>
+        <div className="flex flex-1 flex-col gap-6 p-(--page-gutter) [--page-gutter:--spacing(4)] md:[--page-gutter:--spacing(6)]">
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   </AbilityProvider>

@@ -7,7 +7,8 @@ import { useForm } from "react-hook-form";
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
-import { TextField } from "@repo/ui/components/form";
+import { StickyBar } from "@repo/ui/components/composed/sticky-bar";
+import { FormActions, TextField } from "@repo/ui/components/form";
 import { DEFAULT_ROLE, inviteUserFormSchema } from "@repo/validation";
 import type { InviteUserFormInput, InviteUserInput } from "@repo/validation";
 
@@ -26,7 +27,7 @@ export type UserCreateFormProps = {
 
 /**
  * 担当者追加 (invite): 姓 / 名 / セイ / メイ, the email typed twice, アカウントタイプ and a manager's
- * permissions.
+ * permissions, with キャンセル / 招待メールを送信 in the bar at the bottom of the page.
  * AM (staff) is preselected when the caller may give it.
  */
 export const UserCreateForm = ({
@@ -50,15 +51,15 @@ export const UserCreateForm = ({
   });
 
   return (
-    <Card className="max-w-2xl">
-      <CardContent>
-        <form
-          noValidate
-          className="flex flex-col gap-6"
-          onSubmit={form.handleSubmit((values) => {
-            onSubmit(toInviteInput(values));
-          })}
-        >
+    <form
+      noValidate
+      className="flex flex-1 flex-col gap-6"
+      onSubmit={form.handleSubmit((values) => {
+        onSubmit(toInviteInput(values));
+      })}
+    >
+      <Card className="max-w-2xl">
+        <CardContent className="flex flex-col gap-6">
           {errorMessage ? (
             <Alert variant="destructive">
               <AlertTitle>担当者を追加できませんでした</AlertTitle>
@@ -87,20 +88,25 @@ export const UserCreateForm = ({
               required
             />
           </UserFormFields>
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={pending || roleField.disabled}>
-              {pending ? "送信中…" : "招待メールを送信"}
-            </Button>
-            <Button
-              variant="outline"
-              render={<Link href={href(routes.user.list)} />}
-              nativeButton={false}
-            >
-              キャンセル
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      <StickyBar>
+        <FormActions
+          className="max-w-2xl"
+          submitLabel="招待メールを送信"
+          pendingLabel="送信中…"
+          pending={pending}
+          disabled={roleField.disabled}
+        >
+          <Button
+            variant="outline"
+            render={<Link href={href(routes.user.list)} />}
+            nativeButton={false}
+          >
+            キャンセル
+          </Button>
+        </FormActions>
+      </StickyBar>
+    </form>
   );
 };

@@ -7,7 +7,8 @@ import { useForm } from "react-hook-form";
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
-import { FormFieldShell } from "@repo/ui/components/form";
+import { StickyBar } from "@repo/ui/components/composed/sticky-bar";
+import { FormActions, FormFieldShell } from "@repo/ui/components/form";
 import { isOverridableRole, roleSchema, updateUserSchema } from "@repo/validation";
 import type { UpdateUserInput } from "@repo/validation";
 
@@ -29,7 +30,8 @@ export type UserUpdateFormProps = {
 /**
  * 担当者情報編集: 姓 / 名 / セイ / メイ, アカウントタイプ and a manager's permissions; the email is
  * shown, not edited.
- * 保存 is enabled once something changed and sends only the changes.
+ * キャンセル / 保存 sit in the bar at the bottom of the page; 保存 is enabled once something changed
+ * and sends only the changes.
  */
 export const UserUpdateForm = ({
   user,
@@ -56,15 +58,15 @@ export const UserUpdateForm = ({
   });
 
   return (
-    <Card className="max-w-2xl">
-      <CardContent>
-        <form
-          noValidate
-          className="flex flex-col gap-6"
-          onSubmit={form.handleSubmit((values) => {
-            onSubmit(toUpdateInput({ ...user, role: currentRole }, values));
-          })}
-        >
+    <form
+      noValidate
+      className="flex flex-1 flex-col gap-6"
+      onSubmit={form.handleSubmit((values) => {
+        onSubmit(toUpdateInput({ ...user, role: currentRole }, values));
+      })}
+    >
+      <Card className="max-w-2xl">
+        <CardContent className="flex flex-col gap-6">
           {errorMessage ? (
             <Alert variant="destructive">
               <AlertTitle>担当者情報を更新できませんでした</AlertTitle>
@@ -82,20 +84,25 @@ export const UserUpdateForm = ({
               </p>
             </FormFieldShell>
           </UserFormFields>
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={pending || !form.formState.isDirty}>
-              {pending ? "保存中…" : "保存"}
-            </Button>
-            <Button
-              variant="outline"
-              render={<Link href={href(routes.user.detail, { id: user.id })} />}
-              nativeButton={false}
-            >
-              キャンセル
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      <StickyBar>
+        <FormActions
+          className="max-w-2xl"
+          submitLabel="保存"
+          pendingLabel="保存中…"
+          pending={pending}
+          disabled={!form.formState.isDirty}
+        >
+          <Button
+            variant="outline"
+            render={<Link href={href(routes.user.detail, { id: user.id })} />}
+            nativeButton={false}
+          >
+            キャンセル
+          </Button>
+        </FormActions>
+      </StickyBar>
+    </form>
   );
 };

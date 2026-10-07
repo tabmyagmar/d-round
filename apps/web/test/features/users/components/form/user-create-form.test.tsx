@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { href, routes } from "@/config/routes";
 import { UserCreateForm } from "@/features/users/components/form/user-create-form";
 
 afterEach(cleanup);
@@ -31,6 +32,17 @@ const fillName = () => {
 };
 
 describe("UserCreateForm", () => {
+  it("keeps キャンセル and 招待メールを送信 in the bar at the bottom of the page, outside the card", () => {
+    renderForm();
+
+    const send = screen.getByRole("button", { name: "招待メールを送信" });
+    const cancel = screen.getByRole("button", { name: "キャンセル" });
+    expect(send.closest("[data-slot=sticky-bar]")).not.toBeNull();
+    expect(send.closest("[data-slot=card]")).toBeNull();
+    expect(cancel.closest("[data-slot=sticky-bar]")).not.toBeNull();
+    expect(cancel.getAttribute("href")).toBe(href(routes.user.list));
+  });
+
   it("invites with the name, the email and AM as the default account type", async () => {
     const onSubmit = renderForm();
 

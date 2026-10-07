@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { href, routes } from "@/config/routes";
 import { UserUpdateForm } from "@/features/users/components/form/user-update-form";
 import type { UserDetail } from "@/features/users/types";
 
@@ -29,6 +30,16 @@ const renderForm = () => {
 };
 
 describe("UserUpdateForm", () => {
+  it("keeps キャンセル and 保存 in the bar at the bottom of the page, outside the card", () => {
+    renderForm();
+
+    const save = screen.getByRole("button", { name: "保存" });
+    const cancel = screen.getByRole("button", { name: "キャンセル" });
+    expect(save.closest("[data-slot=sticky-bar]")).not.toBeNull();
+    expect(save.closest("[data-slot=card]")).toBeNull();
+    expect(cancel.getAttribute("href")).toBe(href(routes.user.detail, { id: USER.id }));
+  });
+
   it("shows the email without letting it be edited", () => {
     renderForm();
 
