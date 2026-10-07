@@ -12,11 +12,11 @@ import {
 } from "@repo/ui/components/card";
 import { Skeleton } from "@repo/ui/components/skeleton";
 
-import { PasswordChangeForm } from "@/features/users/profile/password-change-form";
-import { ProfileForm } from "@/features/users/profile/profile-form";
+import { PasswordChangeForm } from "@/features/users/components/password-change-form";
+import { ProfileForm } from "@/features/users/components/profile-form";
 import { useTRPC } from "@/lib/trpc/react";
 
-export const ProfileEditor = () => {
+export const ProfileContainer = () => {
   const trpc = useTRPC();
   const me = useQuery(trpc.user.me.queryOptions());
 
