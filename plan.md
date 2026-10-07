@@ -536,6 +536,12 @@ users list on it), then this docs commit.
 Commits: `a50c2fc` folders, `fc78e05` ui (outline, FormActions, StickyBar), `a848c95` web (shell
 gutter, forms), then this docs commit.
 
+4. **Bug found while checking the pages in the browser**: an untouched edit form enabled 保存 for
+   every user but a manager. The shared fields registered `permissionKeys` on every form; under
+   StrictMode (`next dev`) the remount left an `undefined` value that the default values of a
+   non-manager lack, so `isDirty` was true. The key is now registered only with the permission
+   field, and the update form tests render in StrictMode (`a888dce`).
+
 ## Out of scope (own tickets)
 
 - User profile fields (社員番号, 氏名カナ, エリア, 地域, 部署, 役職, 退職日) and the `user_profiles`
