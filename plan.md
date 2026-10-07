@@ -451,6 +451,47 @@ status dialog; R4 `feat(web)` user detail (step 8 rebuilt); R5 `feat(web)` invit
 with the permission field and dialog (step 9 rebuilt); R6 `docs`. Each ≤15 files, `yarn verify`
 green.
 
+## Review round 2 (user, 2026-10-07): selection, pagination, table surface, names
+
+The user asked for a select checkbox with the selection in a zustand store, the legacy pagination
+(`<< <` pages `> >>` and a page box), a decision on the legacy card around the table, an explanation
+of why the list is not fetched on the server, and 姓 / 名 / セイ / メイ with a zod rule for the
+kana.
+
+Decisions:
+
+1. **Selection** is a DataTable feature (`rowSelection`, TanStack `rowSelectionFeature`, keyed by
+   user id so it survives paging) and the users list keeps it in a per-screen zustand store
+   (`features/users/stores/`), because two components share it: the table and the toolbar's new
+   `SelectionBar` (count, 選択解除, slot for bulk actions — CSV export comes with its own ticket).
+   zustand 5.0.15 is added to apps/web (decision 4 of the plan is superseded: the consumer exists).
+2. **Pagination** is a composed `PaginationBar` (also usable outside tables) with first / previous /
+   numbered pages with ellipsis / next / last and a page box, as the legacy
+   `shared/components/table/pagination.tsx`.
+3. **Card**: the legacy wrapped toolbar and table in a `Card` per page (`ContentWrapper`). The
+   surface is right — the theme puts white cards on the blue-grey page — but it belongs to the
+   shared table, not to each page: `DataTable` itself is the card (table + pagination on `bg-card`);
+   the toolbar stays on the page background as in romuten-v3. No page wraps a list in another card.
+4. **Server-side list** (explanation, no change): the list could be prefetched in the server page
+   only over HTTP — `apps/web` may import `@repo/api` types only (`.claude/rules/layers.md`), so an
+   in-process tRPC caller is not available; it would be a server tRPC client that forwards the
+   cookie, `prefetchQuery` and a `HydrationBoundary`. That buys a first paint with rows instead of a
+   skeleton, but every filter, page or sort change is a client query anyway (the URL drives a client
+   container), each request makes an extra hop browser → Next → API, and the data is per-user, so
+   nothing is cached. The legacy apps fetched in an async server component and called
+   `router.refresh()` after each change. Kept client-side (decision 1); prefetch + hydration is the
+   path if the first paint matters later.
+5. **Names**: `users` gains `last_name`, `first_name`, `last_name_kana`, `first_name_kana`
+   (nullable, expand only; ADR 0002); the forms require all four, readings in full-width katakana
+   (`kanaSchema`, the legacy `KatakanaSchema` rule); the service keeps Better Auth's `name` as
+   "姓 名"; search matches the readings; the seeded accounts have Japanese names. The migration was
+   generated with `prisma migrate diff` (read-only) against the dev database (5433, in sync) and
+   applied there with `migrate deploy`, so the running dev server keeps working.
+
+Commits: `9756931` ui (selection, PaginationBar, card), `be7286c` web selection + store, `dd2f0b0`
+db + kana schema, `4c447a0` invite / edit / profile with the name parts, `dfed1fd` display +
+search + seeds, then this docs commit.
+
 ## Out of scope (own tickets)
 
 - User profile fields (社員番号, 氏名カナ, エリア, 地域, 部署, 役職, 退職日) and the `user_profiles`

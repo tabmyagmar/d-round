@@ -167,7 +167,7 @@ apps/
               app/(auth) (login, forgot-password, new-password), app/admin (sidebar
               layout, one page per route), config/ (routes.ts: the route catalog, nav.ts: the
               sidebar), features/auth (login-form, forgot-password-form, new-password-form,
-              auth-errors), features/users (containers/, components/, hooks/, utils/,
+              auth-errors), features/users (containers/, components/, hooks/, stores/, utils/,
               types.ts), hooks/ (search-params, use-search, use-table-state),
               components/ (layout/: app-shell, app-sidebar, nav-main, app-header, page-title, user-menu;
               page-guard, access-denied, placeholder-page, theme-provider), lib/auth (client,

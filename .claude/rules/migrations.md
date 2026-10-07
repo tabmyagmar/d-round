@@ -51,12 +51,12 @@ paths:
     hashed with `hashPassword` from `better-auth/crypto` into a credential `Account` row so the
     normal sign-in flow works:
 
-    | Email                  | Role          |
-    | ---------------------- | ------------- |
-    | `super_admin@test.com` | `super_admin` |
-    | `admin@test.com`       | `admin`       |
-    | `manager@test.com`     | `manager`     |
-    | `staff@test.com`       | `staff`       |
+    | Email                  | Role          | Name (reading)              |
+    | ---------------------- | ------------- | --------------------------- |
+    | `super_admin@test.com` | `super_admin` | 佐藤 一郎 (サトウ イチロウ) |
+    | `admin@test.com`       | `admin`       | 鈴木 花子 (スズキ ハナコ)   |
+    | `manager@test.com`     | `manager`     | 高橋 次郎 (タカハシ ジロウ) |
+    | `staff@test.com`       | `staff`       | 田中 美咲 (タナカ ミサキ)   |
 
     It converges rather than being idempotent: a re-run re-applies the fixtures (a fresh password
     hash, a soft-deleted or banned account restored) and always reports existing accounts as
@@ -121,10 +121,11 @@ never edit it; add a new one.
 `User`, `Session`, `Account`, `Verification` are Better Auth's models. **Field names must stay
 exactly as Better Auth expects** (`emailVerified`, `banExpires`, `impersonatedBy`, `providerId`,
 ...); only table and column names are mapped (`@@map("users")`, `@map("email_verified")`). Our own
-fields (`deletedAt`), the relation fields on `User` (`permissions UserPermission[]`, no column, and
-`roleRef Role` over the existing `role` column with `@@index([role])`), `role`'s NOT NULL and
-`@default("staff")`, and the UUID v7 ids (Better Auth runs with `generateId: false`) are merged in
-by hand; keep them when diffing regenerated output.
+fields (`deletedAt`; `lastName`, `firstName`, `lastNameKana`, `firstNameKana`, written by the user
+service, which keeps `name` = "姓 名"), the relation fields on `User`
+(`permissions UserPermission[]`, no column, and `roleRef Role` over the existing `role` column with
+`@@index([role])`), `role`'s NOT NULL and `@default("staff")`, and the UUID v7 ids (Better Auth runs
+with `generateId: false`) are merged in by hand; keep them when diffing regenerated output.
 
 When the Better Auth config changes (new plugin, new additional field) or Better Auth is upgraded,
 regenerate and diff instead of guessing:

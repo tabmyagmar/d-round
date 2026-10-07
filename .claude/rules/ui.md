@@ -28,21 +28,26 @@ paths:
 `hooks/`, `lib/`, `config/`); everything with domain knowledge lives in `features/<feature>/`, split
 by role as in bulletproof-react and romuten-v3 — only the folders a feature needs:
 
-| Folder        | Holds                                                                        | `users` example                                                       |
-| ------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `containers/` | one entry per route, the only files pages import; they call tRPC and compose | `users-container`, `user-detail-container`, `user-update-container`   |
-| `components/` | everything the containers render; presentational where possible (forms take  | `users-table`, `user-filter`, `user-create-form`, `permission-dialog` |
-|               | `onSubmit` / `pending`); a dialog may own its own mutation or query          |                                                                       |
-| `hooks/`      | the feature's hooks shared by several components                             | `use-permission-catalog`                                              |
-| `utils/`      | pure functions and labels, node-tested                                       | `user-filters`, `user-form-input`, `role-field-state`, `user-labels`  |
-| `types.ts`    | the router output types (`inferRouterOutputs<AppRouter>`)                    | `UserRow`, `UserDetail`, `PermissionCatalog`                          |
+| Folder        | Holds                                                                           | `users` example                                                       |
+| ------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `containers/` | one entry per route, the only files pages import; they call tRPC and compose    | `users-container`, `user-detail-container`, `user-update-container`   |
+| `components/` | everything the containers render; presentational where possible (forms take     | `users-table`, `user-filter`, `user-create-form`, `permission-dialog` |
+|               | `onSubmit` / `pending`); a dialog may own its own mutation or query             |                                                                       |
+| `hooks/`      | the feature's hooks shared by several components                                | `use-permission-catalog`                                              |
+| `stores/`     | zustand state several components of one screen share (vanilla store + provider) | `users-store` (row selection), `users-store-provider`                 |
+| `utils/`      | pure functions and labels, node-tested                                          | `user-filters`, `user-form-input`, `role-field-state`, `user-labels`  |
+| `types.ts`    | the router output types (`inferRouterOutputs<AppRouter>`)                       | `UserRow`, `UserDetail`, `PermissionCatalog`                          |
 
-There is no `api/` or `graphql/` folder (tRPC hooks are called where they are used), no `schemas/`
-(zod lives in `@repo/validation`, shared with the API) and no `stores/` until state is shared beyond
-one container: screen state lives in the URL or in the container's `useState`. Features do not
-import each other; the app level composes them (the shell's user menu renders the users feature's
-`RoleBadge`). `auth` is small and flat (`login-form`, `auth-card`, …). Route files under `app/` are
-thin: they import only from `@/features/<feature>/containers/...`, `@/components/...`,
+There is no `api/` or `graphql/` folder (tRPC hooks are called where they are used) and no
+`schemas/` (zod lives in `@repo/validation`, shared with the API). State goes, in this order, into
+the URL (filters, page, sort — shareable), a container's `useState` (one component's dialog target),
+or a feature store (`stores/`, zustand 5) when several components share it, as the users list's row
+selection is shared by the table and the toolbar's `SelectionBar`. A store is created per mounted
+screen by its provider (`createUsersStore` + `UsersStoreProvider`, `useState` lazy init), never as a
+module singleton, and read with selectors (`useUsersStore((store) => store.rowSelection)`). Features
+do not import each other; the app level composes them (the shell's user menu renders the users
+feature's `RoleBadge`). `auth` is small and flat (`login-form`, `auth-card`, …). Route files under
+`app/` are thin: they import only from `@/features/<feature>/containers/...`, `@/components/...`,
 `@/config/...`, `@/lib/...` and `@repo/ui`, and render one container inside `PageGuard`.
 
 ### List pages: state in the URL
@@ -192,17 +197,29 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
 ## Composed components (`packages/ui/src/components/composed/`)
 
 - `DataTable` (`data-table.tsx`) — a `Table` driven by `@tanstack/react-table` v9 (`useTable`,
-  `tableFeatures({ rowSortingFeature })`). Props: `columns`, `data`, `isLoading` (renders `Skeleton`
-  rows), `emptyMessage`, optional `pagination`, `sorting`, `getRowId`, `className`. Build columns
-  with the typed helper `createDataTableColumns<TData>()` — `helper.columns([...])` over
-  `helper.accessor("email", { header: "Email" })` and `helper.display({ id: "actions", cell })`.
-  `DataTablePagination` is
+  `tableFeatures({ rowSortingFeature, rowSelectionFeature })`), on one card surface (`bg-card`,
+  border) together with its `PaginationBar`: the list's white surface on the page background, so a
+  page never wraps it in another `Card`. Props: `columns`, `data`, `isLoading` (renders `Skeleton`
+  rows), `emptyMessage`, optional `pagination`, `sorting`, `rowSelection`, `getRowId`, `className`.
+  Build columns with the typed helper `createDataTableColumns<TData>()` — `helper.columns([...])`
+  over `helper.accessor("email", { header: "Email" })` and
+  `helper.display({ id: "actions", cell })`. `DataTablePagination` is `PaginationBar`'s props
   `{ page, totalPages, total, hasPrev, hasNext, onPageChange, itemLabel?, labels? }` — server-side
-  pagination that maps 1:1 onto the API's `PageResult`; `labels` (`previous`, `next`,
-  `summary(page)`) replaces the English defaults. `DataTableSorting` is `{ state, onChange }`
-  (TanStack `SortingState`): sorting is server-side (`manualSorting`), single-column and asc ↔ desc;
-  a column takes part with `enableSorting: true` and its header becomes a toggle button with
-  `aria-sort`. Reference: `apps/web/features/users/components/users-table.tsx`.
+  pagination that maps 1:1 onto the API's `PageResult`. `DataTableRowSelection` is
+  `{ state, onChange, labels? }` (TanStack `RowSelectionState`, keyed by `getRowId` so it survives
+  paging): it adds a checkbox column with a page-wide select-all; `labels.row(row)` names each box.
+  `DataTableSorting` is `{ state, onChange }` (TanStack `SortingState`): sorting is server-side
+  (`manualSorting`), single-column and asc ↔ desc; a column takes part with `enableSorting: true`
+  and its header becomes a toggle button with `aria-sort`. Reference:
+  `apps/web/features/users/components/users-table.tsx`.
+- `PaginationBar` (`pagination-bar.tsx`) — summary, first / previous / numbered pages with ellipsis
+  (`pageItems(page, totalPages)`) / next / last, and a box to jump to a page (Enter); `labels`
+  (`first`, `previous`, `next`, `last`, `pageInput`, `summary(page)`) replace the English defaults
+  (the web's are `PAGINATION_LABELS` in `apps/web/hooks/use-table-state.ts`). Hides the buttons when
+  there is one page.
+- `SelectionBar` (`selection-bar.tsx`) — the selected-rows line: `count`, `onClear`, bulk actions as
+  `children`, `label?(count)`, `clearLabel?`; nothing while `count` is 0. Reference:
+  `apps/web/features/users/components/users-toolbar.tsx`.
 - `ContentDialog` (`content-dialog.tsx`) — the shell of every dialog: `open`, `onOpenChange`,
   `title`, `description?`, body (`children`, mounted only while open), `footer?`, `className?`
   (width), `showCloseButton?`. Render it only when needed (a `next/dynamic` component, or
@@ -421,10 +438,12 @@ components through a renderer registry, so a new field type starts as a new comp
   values into API input with a pure function (`features/users/utils/user-form-input.ts`); the
   route's container owns the mutation (`user-create-container.tsx`). They test without tRPC.
 - Two forms that share fields (invite and edit) share a fields component typed over their common
-  keys (`features/users/components/user-form-fields.tsx`); each form keeps its own schema and extra
-  fields. A decision that depends only on data, such as which roles the field offers, is a pure
-  function in `utils/` (`role-field-state.ts`). A field whose dialog needs data loads the dialog
-  with `next/dynamic` when it is opened (`permission-field.tsx`), so the form renders without it.
+  keys (`features/users/components/user-form-fields.tsx`, whose `UserNameFields`
+  — 姓 / 名 / セイ / メイ, two per row — the profile form uses too); each form keeps its own schema
+  and extra fields. Katakana readings validate with `kanaSchema` from `@repo/validation`. A decision
+  that depends only on data, such as which roles the field offers, is a pure function in `utils/`
+  (`role-field-state.ts`). A field whose dialog needs data loads the dialog with `next/dynamic` when
+  it is opened (`permission-field.tsx`), so the form renders without it.
 - Confirmations (deactivate, delete) go through `ConfirmDialog`, never `window.confirm`.
 
 ## Select (Base UI)
