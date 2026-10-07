@@ -3,15 +3,9 @@
 import type { ReactNode } from "react";
 
 import { Button } from "../button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../dialog";
+import { DialogClose } from "../dialog";
+
+import { ContentDialog } from "./content-dialog";
 
 export type ConfirmDialogProps = {
   open: boolean;
@@ -20,6 +14,8 @@ export type ConfirmDialogProps = {
   description?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
+  /** Shown on the confirm button while `pending`. */
+  pendingLabel?: string;
   /** Renders the confirm button in the destructive variant. */
   destructive?: boolean;
   pending?: boolean;
@@ -34,17 +30,20 @@ export const ConfirmDialog = ({
   description,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
+  pendingLabel = "Working…",
   destructive = false,
   pending = false,
   onConfirm,
 }: ConfirmDialogProps) => (
-  <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent showCloseButton={false}>
-      <DialogHeader>
-        <DialogTitle>{title}</DialogTitle>
-        {description ? <DialogDescription>{description}</DialogDescription> : null}
-      </DialogHeader>
-      <DialogFooter>
+  <ContentDialog
+    open={open}
+    onOpenChange={onOpenChange}
+    title={title}
+    description={description}
+    className="sm:max-w-sm"
+    showCloseButton={false}
+    footer={
+      <>
         <DialogClose render={<Button variant="outline" disabled={pending} />}>
           {cancelLabel}
         </DialogClose>
@@ -53,9 +52,9 @@ export const ConfirmDialog = ({
           onClick={onConfirm}
           disabled={pending}
         >
-          {pending ? "Working…" : confirmLabel}
+          {pending ? pendingLabel : confirmLabel}
         </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+      </>
+    }
+  />
 );
