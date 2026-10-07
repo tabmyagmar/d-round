@@ -21,6 +21,13 @@ model User {
   /// Soft delete (deactivate). Deactivated users cannot sign in; rows are never deleted.
   deletedAt DateTime? @map("deleted_at")
 
+  /// 姓 / 名 and their full-width katakana readings (セイ / メイ); `name` is "姓 名", written by the
+  /// user service. Nullable until every user has them (ADR 0002, 2026-10-07).
+  lastName      String? @map("last_name")
+  firstName     String? @map("first_name")
+  lastNameKana  String? @map("last_name_kana")
+  firstNameKana String? @map("first_name_kana")
+
   roleRef     Role             @relation(fields: [role], references: [key], onDelete: Restrict)
   sessions    Session[]
   accounts    Account[]

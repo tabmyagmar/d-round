@@ -60,6 +60,33 @@ export const passwordSchema = z
 
 export const nameSchema = z.string().trim().min(1).max(100);
 
+/** Full-width katakana with ー, ・ and spaces: the legacy rule for name readings (セイ / メイ). */
+export const KATAKANA_PATTERN = /^[\u30A0-\u30FF\s]+$/u;
+
+const requiredText = (label: string, max: number) =>
+  z
+    .string()
+    .trim()
+    .min(1, { error: `${label}を入力してください` })
+    .max(max, { error: `${label}は${String(max)}文字以内で入力してください` });
+
+/** A required katakana reading, e.g. `kanaSchema("セイ")`. */
+export const kanaSchema = (label: string) =>
+  requiredText(label, 80).regex(KATAKANA_PATTERN, { error: "全角カタカナで入力してください" });
+
+/** 姓 / 名 and their readings セイ / メイ (legacy limits: 80 characters each). */
+export const userNameSchema = z.object({
+  lastName: requiredText("姓", 80),
+  firstName: requiredText("名", 80),
+  lastNameKana: kanaSchema("セイ"),
+  firstNameKana: kanaSchema("メイ"),
+});
+export type UserNameInput = z.infer<typeof userNameSchema>;
+
+/** The display name Better Auth keeps in `name`: "姓 名". */
+export const fullName = (name: { lastName: string; firstName: string }): string =>
+  `${name.lastName} ${name.firstName}`;
+
 const confirmPasswordSchema = z.string().min(1, { error: "パスワードを再度入力してください" });
 const PASSWORD_MISMATCH = "パスワードが一致していません";
 

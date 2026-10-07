@@ -69,6 +69,10 @@ const userRow = (id: string): User => ({
   banReason: null,
   banExpires: null,
   deletedAt: null,
+  lastName: null,
+  firstName: null,
+  lastNameKana: null,
+  firstNameKana: null,
 });
 
 /** Every cell's answer from the browser ability, keyed so a failure shows the exact cell. */

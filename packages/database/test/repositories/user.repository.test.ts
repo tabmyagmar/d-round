@@ -172,6 +172,27 @@ describe("user repository", () => {
     expect(promoted.name).toBe("Renamed");
   });
 
+  it("updates the name parts with the display name", async () => {
+    const repo = createUserRepository(prisma);
+    const user = await createUser({ group: group() });
+
+    const updated = await repo.updateProfile(user.id, {
+      name: "山田 太郎",
+      lastName: "山田",
+      firstName: "太郎",
+      lastNameKana: "ヤマダ",
+      firstNameKana: "タロウ",
+    });
+
+    expect(updated).toMatchObject({
+      name: "山田 太郎",
+      lastName: "山田",
+      firstName: "太郎",
+      lastNameKana: "ヤマダ",
+      firstNameKana: "タロウ",
+    });
+  });
+
   it("tells a user with a password (credential account) from one without", async () => {
     const repo = createUserRepository(prisma);
     const user = await createUser({ group: group() });

@@ -14,5 +14,9 @@ export const userRow = (overrides: Partial<UserRow> = {}): UserRow => ({
   banReason: null,
   banExpires: null,
   deletedAt: null,
+  lastName: "山田",
+  firstName: "太郎",
+  lastNameKana: "ヤマダ",
+  firstNameKana: "タロウ",
   ...overrides,
 });

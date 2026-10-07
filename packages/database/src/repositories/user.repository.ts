@@ -5,7 +5,12 @@ import type { DbClient } from "../utils/transaction";
 
 /** Editable profile fields. Role and soft-delete have dedicated methods. */
 export type UserProfileUpdate = {
+  /** The display name; the service keeps it as "姓 名". */
   name?: string;
+  lastName?: string;
+  firstName?: string;
+  lastNameKana?: string;
+  firstNameKana?: string;
 };
 
 export type UserListOptions = {

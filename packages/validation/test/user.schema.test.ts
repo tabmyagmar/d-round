@@ -5,13 +5,16 @@ import {
   changePasswordSchema,
   emailSchema,
   forgotPasswordSchema,
+  fullName,
   inviteUserFormSchema,
+  kanaSchema,
   inviteUserSchema,
   listUsersSchema,
   passwordSchema,
   resetPasswordSchema,
   signInSchema,
   updateUserSchema,
+  userNameSchema,
 } from "../src/user.schema";
 
 /** The first issue's path and message, or null when the value parses. */
@@ -264,5 +267,60 @@ describe("updateUserSchema", () => {
   it("rejects an empty permission key and a role outside the catalog", () => {
     expect(updateUserSchema.safeParse({ userId, permissionKeys: [""] }).success).toBe(false);
     expect(updateUserSchema.safeParse({ userId, role: "owner" }).success).toBe(false);
+  });
+});
+
+describe("kanaSchema (セイ / メイ)", () => {
+  const sei = kanaSchema("セイ");
+
+  it("accepts full-width katakana with ー, ・ and spaces", () => {
+    for (const value of ["ヤマダ", "ヤマダ タロウ", "ジョン・スミス", "ヴィー", "ヤマダ　タロウ"]) {
+      expect(sei.safeParse(value).success).toBe(true);
+    }
+  });
+
+  it("refuses hiragana, half-width katakana, latin letters and kanji", () => {
+    for (const value of ["やまだ", "ﾔﾏﾀﾞ", "Yamada", "山田"]) {
+      expect(firstIssue(sei.safeParse(value))?.message).toBe("全角カタカナで入力してください");
+    }
+  });
+
+  it("asks for the reading when it is empty or blank", () => {
+    expect(firstIssue(sei.safeParse(""))?.message).toBe("セイを入力してください");
+    expect(firstIssue(sei.safeParse("  "))?.message).toBe("セイを入力してください");
+  });
+});
+
+describe("userNameSchema", () => {
+  const valid = {
+    lastName: "山田",
+    firstName: "太郎",
+    lastNameKana: "ヤマダ",
+    firstNameKana: "タロウ",
+  };
+
+  it("takes 姓, 名 and their readings, trimmed", () => {
+    expect(userNameSchema.parse({ ...valid, lastName: " 山田 " })).toEqual(valid);
+  });
+
+  it("names the missing part", () => {
+    expect(firstIssue(userNameSchema.safeParse({ ...valid, firstName: "" }))).toEqual({
+      path: "firstName",
+      message: "名を入力してください",
+    });
+    expect(firstIssue(userNameSchema.safeParse({ ...valid, firstNameKana: "たろう" }))).toEqual({
+      path: "firstNameKana",
+      message: "全角カタカナで入力してください",
+    });
+  });
+
+  it("caps each part at 80 characters", () => {
+    expect(userNameSchema.safeParse({ ...valid, lastName: "山".repeat(81) }).success).toBe(false);
+  });
+});
+
+describe("fullName", () => {
+  it("is 姓 and 名 with a space, the display name Better Auth keeps", () => {
+    expect(fullName({ lastName: "山田", firstName: "太郎" })).toBe("山田 太郎");
   });
 });
