@@ -20,8 +20,9 @@ paths:
 | Route catalog and navigation         | `apps/web/config/`                               | `routes.ts` (paths, titles, access), `nav.ts` (sidebar groups)       |
 | Feature components                   | `apps/web/features/<feature>/`                   | `features/auth/login-form.tsx`, `features/users/users-table.tsx`     |
 | Client-side libraries                | `apps/web/lib/`                                  | `auth/client.ts`, `auth/server.ts`, `trpc/react.tsx`, `env.ts`       |
+| App-wide hooks (URL state, timing)   | `apps/web/hooks/`                                | `use-search.ts`, `use-table-state.ts`, `search-params.ts`            |
 
-`apps/web` has no `src/` folder: `app/`, `features/`, `components/`, `config/`, `lib/` and
+`apps/web` has no `src/` folder: `app/`, `features/`, `components/`, `config/`, `hooks/`, `lib/` and
 `proxy.ts` sit at the workspace root and are imported through the `@/` alias
 (`@/features/users/role-badge`). The web app is feature-based: everything with domain knowledge
 lives in `features/<feature>/` (`auth`: `login-form`, `forgot-password-form`, `new-password-form`,
@@ -29,6 +30,19 @@ lives in `features/<feature>/` (`auth`: `login-form`, `forgot-password-form`, `n
 `user-editor`, `profile-form`, `profile-editor`, `role-badge`). Route files under `app/` are thin:
 they import only from `@/features/<feature>/...`, `@/components/...`, `@/config/...`, `@/lib/...`
 and `@repo/ui`, and render one feature component inside `PageGuard`.
+
+### List pages: state in the URL
+
+A list keeps its filters, page and sort in the query string, so a link reproduces the view and
+back/forward works; never in `useState`. `hooks/search-params.ts` holds the pure helpers
+(`withParams`: empty values removed, a filter change drops `page`; `NON_RESET_KEYS`;
+`sortingFromParams` / `sortingToParams`; `pageToParam`; `parseSearchParams(schema, params)`, which
+reads each parameter through the list's own zod input schema from `@repo/validation` and drops
+invalid ones). `useSearch()` (`searchParams`, `set`, `setMany`) pushes the new URL;
+`useTableState(pageResult)` returns `DataTable`'s `sorting` and Japanese `pagination` bound to
+`sortBy`, `sortOrder` and `page`; `useDebouncedCallback` debounces the search box's change event
+(debounce the event, never mirror a value into an effect). The query input is
+`parseSearchParams(listXSchema, searchParams)` in the client list component.
 
 ### Pages, the route catalog and the sidebar
 
