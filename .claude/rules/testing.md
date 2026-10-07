@@ -29,7 +29,7 @@ needs (a `useForm` harness for a field, no tRPC or session providers), assert th
 and text (`screen.getByLabelText`, `getByText`), and call `cleanup` in `afterEach` (no `globals`, so
 Testing Library does not clean up by itself). Both configs set the JSX runtime through `oxc` (Next's
 tsconfig says `jsx: "preserve"`) and mirror the tsconfig path alias (`@/` in web, `@repo/ui/*` in
-ui). Examples: `apps/web/test/features/users/role-badge.test.tsx`,
+ui). Examples: `apps/web/test/features/users/components/role-badge.test.tsx`,
 `packages/ui/test/components/form/text-field.test.tsx`.
 
 ## Real infrastructure, not mocks

@@ -106,7 +106,10 @@ Two things to know about expiry in the browser:
 
 One mechanism, Better Auth's password-reset token, serves three entry points: `user.invite` (an
 admin creates a user with no password), `/forgot-password` in the web, and the admin's re-send on
-the user page (`user.sendPasswordReset`).
+the user page (`user.sendPasswordReset`). An invite may also carry a manager's permission overrides
+(`permissionKeys`): Better Auth creates the user and the invitation is queued first, so if writing
+the overrides fails the user exists with the role's permissions and the error says to set them on
+the edit page.
 
 1. `requestPasswordReset` stores a random single-use token valid **1 hour**
    (`resetPasswordTokenExpiresIn`) and calls `sendResetPassword`, which writes an outbox mail

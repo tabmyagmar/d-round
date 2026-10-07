@@ -69,7 +69,7 @@ Testcontainers need Docker running. If a test fails with a Docker connection err
 #### 2 — yarn workspace @repo/api test
 
 ```text
-FAIL src/modules/user/user.service.test.ts > changeRole > refuses to demote the last admin
+FAIL src/modules/user/user.service.test.ts > update > refuses to demote the last admin
 AssertionError: ...
 ```
 

@@ -79,6 +79,16 @@ with the grants is a follow-up (ADR 0003). The app does not use those endpoints 
 (row 1103) on the target row; both call Better Auth server-side, so the catalog and `DENY` rows
 decide.
 
+Who may give which role is `assignableRoles(callerRole)` in `@repo/validation` (the legacy role
+picker: admin roles give admin / manager / staff, a manager gives manager / staff, staff nothing;
+`super_admin` is never given in the app). The user service enforces it on `invite` (new role) and
+`update` (new role and the user's current role, after `changeRole`); the web renders only what it
+returns (`roleFieldState`). Per-user permission overrides exist for `OVERRIDABLE_ROLES` (`manager`)
+only and need `changeRole`: `user.update` / `user.invite` take the ticked child keys
+(`permissionKeys`) and the service stores the difference to the role's grants as `ALLOW` / `DENY`
+rows; leaving an overridable role drops them. Nobody edits their own overrides, and a caller may
+only `ALLOW` what their own session grants (ADR 0003, 2026-10-07).
+
 `canUnscoped(ability, action, subject)` (`@repo/permissions`) answers "may this user do this to
 every row" — the highest-priority rule without conditions is not inverted — for list pages and
 navigation; `ability.can(action, subject)` alone is also true for the conditional self rule.
@@ -166,11 +176,11 @@ means changing the unit spec first, then `rules.ts`, then an ADR line in
 
 The web asks three questions, each with its own verb; none of them is a role literal.
 
-| Question                                     | Verb                                                        | Where                                  |
-| -------------------------------------------- | ----------------------------------------------------------- | -------------------------------------- |
-| May this user open this page / see this menu | `canAccessRoute(ability, route)` → `canUnscoped` underneath | `apps/web/lib/auth/route-access.ts`    |
-| May this user do X to this row               | `ability.can(action, userSubject(row))`                     | feature components (`user-editor.tsx`) |
-| Show this button / card at all               | `<Can I="changeRole" a="User">`                             | feature components                     |
+| Question                                     | Verb                                                        | Where                                       |
+| -------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------- |
+| May this user open this page / see this menu | `canAccessRoute(ability, route)` → `canUnscoped` underneath | `apps/web/lib/auth/route-access.ts`         |
+| May this user do X to this row               | `ability.can(action, userSubject(row))`                     | feature components (`user-row-actions.tsx`) |
+| Show this button / card at all               | `<Can I="changeRole" a="User">`                             | feature components                          |
 
 Every page has one entry in the route catalog `apps/web/config/routes.ts`: `{ path, title, access }`
 with `access` = `"public"`, `"signed-in"` or `{ action, subject }` (an `Action` and a `SubjectName`
@@ -210,13 +220,16 @@ detail page needs `read`, a create page `create`, an update page `update` on its
 // id, role and the session's permissions, so it satisfies AbilityUser as is.
 <AbilityProvider user={user}>{children}</AbilityProvider>;
 
-// apps/web/features/users/user-editor.tsx
+// apps/web/features/users/components/user-detail-toolbar.tsx
 const ability = useAbility();
-const subject = userSubject({ id: user.data.id });
-const canEdit = ability.can("update", subject);
+const subject = userSubject({ id: user.id });
+const canUpdate = ability.can("update", subject);
 
-<Can I="changeRole" a="User">
-  <RoleCard />
+// apps/web/features/users/components/users-toolbar.tsx
+<Can I="create" a="User">
+  <Button render={<Link href={href(routes.user.create)} />} nativeButton={false}>
+    担当者追加
+  </Button>
 </Can>;
 ```
 

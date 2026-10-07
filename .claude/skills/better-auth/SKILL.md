@@ -51,9 +51,9 @@ Public sign-up is disabled: users come from `auth.api.createUser` (server-side w
 needs no session; over HTTP it needs an admin role; it rejects a role outside the `roles` map and
 applies `defaultRole` when none is given). In tests use `signedInUser` from
 `apps/api/test/support.ts` — it creates a verified user with `createUser` and signs in; do not write
-another variant. Changing a role in the app goes through `user.changeRole` (our service, last-admin
-rule, catalog row 1106), not through the admin plugin's `setRole`. The app's way to add a user is
-`user.invite` (no password; the invitation mail sets it), see below.
+another variant. Changing a role in the app goes through `user.update` (our service: catalog row
+1106, `assignableRoles`, the last-admin rule), not through the admin plugin's `setRole`. The app's
+way to add a user is `user.invite` (no password; the invitation mail sets it), see below.
 
 ## How-to: password flows (invitation, forgot, reset, change)
 

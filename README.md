@@ -107,10 +107,10 @@ sidebar and on the auth card) and auth background (`apps/web/public/auth-backgro
   user page. One password policy for forms and API, Japanese mails through the outbox (Mailpit at
   `localhost:8025` in development). Seeded test accounts: `yarn db:seed`.
 - **User module** (the reference module):
-  `user.me / byId / list / updateProfile / changeRole / deactivate / invite / sendPasswordReset`
-  behind two-layer authorization — CASL abilities built from the catalog grants in the session
-  (`packages/permissions`; spec: `packages/permissions/test/ability.test.ts` and
-  `apps/api/test/permission-catalog.test.ts`) plus stateful service rules (the last active admin
+  `user.me / byId / list / updateProfile / update / deactivate / reactivate / invite / sendPasswordReset`
+  and `permission.catalog` behind two-layer authorization — CASL abilities built from the catalog
+  grants in the session (`packages/permissions`; spec: `packages/permissions/test/ability.test.ts`
+  and `apps/api/test/permission-catalog.test.ts`) plus stateful service rules (the last active admin
   cannot be demoted or deactivated; deactivation soft-deletes the user and deletes its sessions in
   one transaction). Web: `/admin/master/user`, `/admin/master/user/[id]`, `/admin/profile`.
 - **Web shell**: a shadcn sidebar under `/admin` with every page of the legacy d-round-web app
@@ -167,8 +167,8 @@ apps/
               app/(auth) (login, forgot-password, new-password), app/admin (sidebar
               layout, one page per route), config/ (routes.ts: the route catalog, nav.ts: the
               sidebar), features/auth (login-form, forgot-password-form, new-password-form,
-              auth-errors), features/users (users-table, user-editor, profile-form,
-              profile-editor, password-change-form, role-badge),
+              auth-errors), features/users (containers/, components/, hooks/, utils/,
+              types.ts), hooks/ (search-params, use-search, use-table-state),
               components/ (layout/: app-shell, app-sidebar, nav-main, app-header, page-title, user-menu;
               page-guard, access-denied, placeholder-page, theme-provider), lib/auth (client,
               server, route-access), lib/trpc, lib/env, lib/brand,

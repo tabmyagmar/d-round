@@ -80,7 +80,8 @@ interactive transaction; build repositories on `tx`. `afterCommit(hook)` registe
 only after the commit — queue producers, never inside the transaction body (see
 `queueEmailInTransaction` in `apps/api/src/modules/email/email.service.ts`). Hooks that throw are
 collected into an `AfterCommitError` unless `onAfterCommitError` is given. A worked example of a
-stateful rule inside a transaction is `changeRole` in `apps/api/src/modules/user/user.service.ts`.
+stateful rule inside a transaction is `update` in `apps/api/src/modules/user/user.service.ts` (role
+change with the last-admin rule and the permission overrides in one unit of work).
 
 ## How-to: raw SQL
 

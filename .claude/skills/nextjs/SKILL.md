@@ -30,8 +30,9 @@ The folder map is in `README.md` (the `apps/web` entry); where each kind of comp
 Route-file imports, the feature layout, default exports and the client-boundary rules are in
 `.claude/rules/ui.md` (Where components live; Server vs client components). Example:
 `app/admin/master/user/page.tsx` is a server page rendering the client
-`features/users/users-table.tsx`. A server component may import a value from a client module only to
-render it — never call or dot into it (a shared constant lives in a module without `"use client"`).
+`features/users/containers/users-container.tsx`. A server component may import a value from a client
+module only to render it — never call or dot into it (a shared constant lives in a module without
+`"use client"`).
 
 ## Adding a page
 
@@ -68,9 +69,15 @@ The four layers (proxy cookie check, `app/admin/layout.tsx`, `PageGuard`, the AP
 `credentials: "include"`). In components: `useQuery(trpc.user.list.queryOptions(...))`,
 `useMutation(trpc.user.updateProfile.mutationOptions(...))`,
 `queryClient.invalidateQueries(trpc.user.pathFilter())` — details in the `trpc` skill.
-`features/users/users-table.tsx` is the list example (`DataTable`, server-side pagination from
-`PageResult`); `features/users/user-editor.tsx` the mutation example (`ConfirmDialog` before
-deactivating, never `window.confirm`).
+`features/users/containers/users-container.tsx` is the list example: filters, page and sort in the
+URL (`useSearch`, `parseSearchParams(listUsersSchema, searchParams)`, `useTableState` from
+`apps/web/hooks/`; `.claude/rules/ui.md`, List pages), `DataTable` with server-side sorting and
+pagination from `PageResult`, `keepPreviousData` while paging; the filter fields and the status
+dialog load with `next/dynamic` only when used (`.claude/rules/ui.md`, Load only what the page
+shows). `features/users/components/user-status-dialog.tsx` is the mutation example (`ConfirmDialog`
+before deactivating, never `window.confirm`). A feature is split into `containers/` (what a route
+renders), `components/`, `hooks/`, `utils/` and `types.ts` (`.claude/rules/ui.md`, Where components
+live).
 
 ## Forms
 
@@ -81,12 +88,14 @@ mapping are in `.claude/rules/ui.md`, Forms) inside a `FieldGroup`; never hand-w
 `FieldLabel` / `Input` / `FieldError` for a standard input. Auth forms submit through `authClient`
 (`features/auth/login-form.tsx`: `signIn.email` with `callbackURL: next` and `rememberMe`; errors
 through `authErrorMessage`), everything else through a tRPC mutation
-(`features/users/profile-form.tsx`, rendered by `/admin/profile` and `/admin/master/user/[id]`;
-`emptyAs="null"` on optional nullable fields). Show server errors in an `Alert`; use `toast`
-(sonner) for mutation results. Domain pickers live in the feature that owns the data (a user picker
-wraps `ComboboxField` with `trpc.user.list` search). There is no register form: public sign-up is
-disabled (ADR 0002); users are invited (`user.invite`) and set their first password on
-`/new-password`. Password flows: skill `better-auth`.
+(`features/users/components/profile-form.tsx` on `/admin/profile`; the presentational
+`features/users/components/user-create-form.tsx` and `user-update-form.tsx` over the shared
+`user-form-fields.tsx`, whose containers own the mutations; `emptyAs="null"` on optional nullable
+fields). Show server errors in an `Alert`; use `toast` (sonner) for mutation results. Domain pickers
+live in the feature that owns the data (a user picker wraps `ComboboxField` with `trpc.user.list`
+search). There is no register form: public sign-up is disabled (ADR 0002); users are invited
+(`user.invite`) and set their first password on `/new-password`. Password flows: skill
+`better-auth`.
 
 ## Env
 

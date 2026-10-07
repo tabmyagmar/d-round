@@ -436,6 +436,13 @@ Decisions:
    `use-table-state`, `search-params`), `apps/web/components/` (shell, guard). The shell's user menu
    imports `RoleBadge` from the users feature (composition at the application level).
 
+Outcome of the round: R1 `e3ff46d`, R2 `6a0289d`, R3 as three commits (`87ce908` list, `72e5033`
+badges / labels, `339e069` profile; R3a shows 17 entries because the toolbar and row menu were
+rewritten while moving), R4 `48a2c95`, R5 as two (`38e4e10` permission field / dialog / editor,
+`55dcb12` forms), R6 this docs commit. Steps 2 and 3 were verified and committed first once Docker
+answered again (`ed256dc`, `97d5e6d`); their new tests were watched failing against the old service
+first.
+
 Commits: R1 `feat(ui)` list building blocks (OptionSelect + SelectField on it, SearchInput +
 useDebouncedCallback moved in, FilterPopover, FilterTags, ListToolbar, RowActions); R2 `feat(ui)`
 ContentDialog (+ ConfirmDialog), DescriptionList, GroupedCheckboxList; R3 `refactor(web)` users list

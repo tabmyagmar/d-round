@@ -58,9 +58,12 @@ export const updateProfileSchema = z.object({
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
-export const changeRoleSchema = z.object({
+/** 担当者情報編集: any subset, saved together; role and permission changes need `changeRole`. */
+export const updateUserSchema = z.object({
   userId: idSchema,
-  role: roleSchema,
+  name: nameSchema.optional(),
+  role: roleSchema.optional(),
+  permissionKeys: permissionKeysSchema.optional(),
 });
 
 export const listUsersSchema = paginationSchema.extend({
@@ -139,7 +142,7 @@ import { createUserRepository, translateDatabaseError, withTransaction } from "@
 import type { PageResult, Prisma, UniqueViolationError, User } from "@repo/database";
 import { accessibleUsersWhere, prismaUserSubject } from "@repo/permissions/server";
 import { ADMIN_ROLES } from "@repo/validation";
-import type { ChangeRoleInput, ListUsersQuery, UpdateProfileInput } from "@repo/validation";
+import type { ListUsersQuery, UpdateProfileInput, UpdateUserInput } from "@repo/validation";
 
 import type { RequestContext } from "../../core/context";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../core/errors";
@@ -202,33 +205,40 @@ export const updateProfile = async (ctx: RequestContext, input: UpdateProfileInp
 const isAdminRole = (role: string | null): boolean =>
   role !== null && (ADMIN_ROLES as readonly string[]).includes(role);
 
-export const changeRole = async (ctx: RequestContext, input: ChangeRoleInput): Promise<User> => {
-  // The service re-checks what the router checked (catalog row 1106, `changeRole User`).
-  if (!ctx.ability.can("changeRole", "User")) {
-    throw new ForbiddenError("Not allowed to change roles");
-  }
+export const update = async (ctx: RequestContext, input: UpdateUserInput): Promise<UserDetail> => {
+  const { user: actor } = requireUser(ctx);
   return withTransaction(ctx.db, async ({ tx }) => {
     const users = createUserRepository(tx);
     const target = await users.findById(input.userId);
     if (!target) {
       throw new NotFoundError("User", input.userId);
     }
-    // Stateful rule: the organisation must always keep one active admin-role user (ADMIN_ROLES).
-    if (
-      isAdminRole(target.role) &&
-      !isAdminRole(input.role) &&
-      (await users.countActiveAdmins(ADMIN_ROLES)) <= 1
-    ) {
-      throw new ConflictError("Cannot demote the last admin");
+    assertCan(ctx, "update", target); // the router checked `update User` at type level only
+    const role = input.role ?? target.role;
+    if (role !== target.role) {
+      // Catalog row 1106 plus the role picker rule (assignableRoles), then the stateful rule:
+      // the organisation must always keep one active admin-role user (ADMIN_ROLES).
+      assertMayChangeRoles(ctx, "Not allowed to change roles");
+      assertAssignable(actor, role, target.role);
+      if (
+        isAdminRole(target.role) &&
+        !isAdminRole(role) &&
+        (await users.countActiveAdmins(ADMIN_ROLES)) <= 1
+      ) {
+        throw new ConflictError("Cannot demote the last admin");
+      }
+      await users.updateRole(target.id, role);
     }
-    return users.updateRole(target.id, input.role);
+    // … name, permission overrides (ALLOW / DENY rows), then the user with permissionKeys.
   });
 };
 ```
 
-(Abridged: the real file also has `requireUser`, the `search` filter and `deactivate`, which checks
-`status User` at type level and `assertCan(ctx, "status", target)` on the row, then soft-deletes the
-user and deletes its sessions inside one `withTransaction`.)
+(Abridged: the real file also has `requireUser`, `assertMayChangeRoles`, `assertAssignable`
+(`assignableRoles` from `@repo/validation`), `overridesFor`, `UserDetail` (the row plus its
+effective `permissionKeys`), the `search` / `status` / sort handling of `list`, and `deactivate`,
+which checks `status User` at type level and `assertCan(ctx, "status", target)` on the row, then
+soft-deletes the user and deletes its sessions inside one `withTransaction`.)
 
 Rules:
 
@@ -256,9 +266,9 @@ Rules:
 
 ```ts
 import {
-  changeRoleSchema,
   listUsersSchema,
   updateProfileSchema,
+  updateUserSchema,
   userIdSchema,
 } from "@repo/validation";
 
@@ -281,10 +291,11 @@ export const userRouter = router({
     .input(listUsersSchema)
     .query(({ ctx, input }) => userService.list(ctx, input)),
 
-  changeRole: protectedProcedure
-    .use(requireAbility("changeRole", "User"))
-    .input(changeRoleSchema)
-    .mutation(({ ctx, input }) => userService.changeRole(ctx, input)),
+  // Role and permission changes additionally need `changeRole`; the service checks them.
+  update: protectedProcedure
+    .use(requireAbility("update", "User"))
+    .input(updateUserSchema)
+    .mutation(({ ctx, input }) => userService.update(ctx, input)),
 
   deactivate: protectedProcedure
     .use(requireAbility("status", "User"))
@@ -327,9 +338,9 @@ afterAll(async () => {
 it("maps layer-1 denials to FORBIDDEN before touching the service", async () => {
   const staff = await signedInUser(h);
   const caller = createCaller(await contextFor(h, staff.headers));
-  await expect(
-    caller.user.changeRole({ userId: staff.user.id, role: "admin" }),
-  ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  await expect(caller.user.update({ userId: staff.user.id, role: "admin" })).rejects.toMatchObject({
+    code: "FORBIDDEN",
+  });
 });
 ```
 
