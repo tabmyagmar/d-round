@@ -65,7 +65,7 @@ export const SearchInput = ({
           setText(event.target.value);
           report(event.target.value.trim());
         }}
-        className="pl-8"
+        className="bg-card pl-8"
       />
     </div>
   );

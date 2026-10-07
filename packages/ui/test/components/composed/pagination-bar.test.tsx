@@ -24,7 +24,6 @@ const renderBar = (props: Partial<PaginationBarProps> = {}) => {
     <PaginationBar
       page={5}
       totalPages={20}
-      total={200}
       hasPrev
       hasNext
       onPageChange={onPageChange}
@@ -55,11 +54,27 @@ describe("PaginationBar", () => {
     expect(onPageChange).toHaveBeenCalledWith(6);
   });
 
-  it("disables the way back on the first page and the way on at the last", () => {
-    renderBar({ page: 1, hasPrev: false, totalPages: 1, hasNext: false, total: 3 });
+  it("disables the way back on the first page", () => {
+    renderBar({ page: 1, hasPrev: false });
 
-    expect(screen.queryByRole("button", { name: "First page" })).toBeNull();
-    expect(screen.getByText(/3/)).toBeDefined();
+    expect(screen.getByRole("button", { name: "First page" })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: "Previous page" })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: "Next page" })).toHaveProperty("disabled", false);
+  });
+
+  it("renders nothing while there is one page", () => {
+    const onPageChange = vi.fn();
+    const { container } = render(
+      <PaginationBar
+        page={1}
+        totalPages={1}
+        hasPrev={false}
+        hasNext={false}
+        onPageChange={onPageChange}
+      />,
+    );
+
+    expect(container.childElementCount).toBe(0);
   });
 
   it("jumps to the page typed into the box, within the range", () => {
@@ -92,13 +107,11 @@ describe("PaginationBar", () => {
         previous: "前のページ",
         next: "次のページ",
         last: "最後のページ",
-        pageInput: "ページ番号",
-        summary: ({ total }) => `全 ${String(total)} 件`,
+        pageInput: "ページ",
       },
     });
 
-    expect(screen.getByText("全 200 件")).toBeDefined();
     expect(screen.getByRole("button", { name: "最初のページ" })).toBeDefined();
-    expect(screen.getByRole("textbox", { name: "ページ番号" })).toBeDefined();
+    expect(screen.getByRole("textbox", { name: "ページ" })).toHaveProperty("placeholder", "ページ");
   });
 });

@@ -14,12 +14,13 @@ import type {
   RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
-import { cn } from "cn";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useMemo } from "react";
 import type { ReactNode } from "react";
 
+import { Badge } from "../badge";
 import { Button } from "../button";
+import { Card, CardContent, CardHeader, CardTitle } from "../card";
 import { Checkbox } from "../checkbox";
 import { Skeleton } from "../skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../table";
@@ -28,10 +29,11 @@ import { PaginationBar } from "./pagination-bar";
 import type { PaginationBarLabels, PaginationBarProps } from "./pagination-bar";
 
 /**
- * Headless TanStack Table v9 + shadcn Table markup on one card surface (table and pagination).
- * Columns are declared with `createDataTableColumns<Row>()`; paging and sorting are server-side
- * (the API returns `PageResult` in the requested order), so the table renders the rows it is given
- * as they come and only reports page, sort and selection changes.
+ * Headless TanStack Table v9 + shadcn Table markup on one `Card`: the header carries the title with
+ * the total and the `PaginationBar`, the table sits under it. Columns are declared with
+ * `createDataTableColumns<Row>()`; paging and sorting are server-side (the API returns
+ * `PageResult` in the requested order), so the table renders the rows it is given as they come and
+ * only reports page, sort and selection changes.
  */
 export const dataTableFeatures = tableFeatures({ rowSortingFeature, rowSelectionFeature });
 export type DataTableFeatures = typeof dataTableFeatures;
@@ -46,8 +48,11 @@ export const createDataTableColumns = <TData extends RowData>() =>
 
 export type DataTablePaginationLabels = PaginationBarLabels;
 
-/** `PaginationBar`'s props: the API's `PageResult` paging fields plus `onPageChange`. */
-export type DataTablePagination = Omit<PaginationBarProps, "className">;
+/**
+ * `PaginationBar`'s props plus the `total`: the API's `PageResult` paging fields and
+ * `onPageChange`. The total is shown next to the title.
+ */
+export type DataTablePagination = Omit<PaginationBarProps, "className"> & { total: number };
 
 export type DataTableSortingState = SortingState;
 
@@ -74,6 +79,8 @@ export type DataTableRowSelection<TData extends RowData> = {
 };
 
 export type DataTableProps<TData extends RowData> = {
+  /** The card's title; the total (or the row count without pagination) is shown next to it. */
+  title?: ReactNode;
   columns: DataTableColumns<TData>;
   data: TData[] | undefined;
   isLoading?: boolean;
@@ -101,6 +108,7 @@ const SortIcon = ({ direction }: { direction: false | "asc" | "desc" }) => {
 };
 
 export const DataTable = <TData extends RowData>({
+  title,
   columns,
   data,
   isLoading = false,
@@ -122,16 +130,20 @@ export const DataTable = <TData extends RowData>({
     return [
       helper.display({
         id: "select",
-        header: ({ table: current }) => (
-          <Checkbox
-            aria-label={allLabel}
-            checked={current.getIsAllPageRowsSelected()}
-            indeterminate={current.getIsSomePageRowsSelected()}
-            onCheckedChange={(checked) => {
-              current.toggleAllPageRowsSelected(checked);
-            }}
-          />
-        ),
+        header: ({ table: current }) => {
+          // TanStack's "some" is true while every page row is selected too; mixed means "not all".
+          const all = current.getIsAllPageRowsSelected();
+          return (
+            <Checkbox
+              aria-label={allLabel}
+              checked={all}
+              indeterminate={!all && current.getIsSomePageRowsSelected()}
+              onCheckedChange={(checked) => {
+                current.toggleAllPageRowsSelected(checked);
+              }}
+            />
+          );
+        },
         cell: ({ row }) => (
           <Checkbox
             aria-label={
@@ -176,70 +188,84 @@ export const DataTable = <TData extends RowData>({
   });
   const columnCount = allColumns.length;
   const rows = table.getRowModel().rows;
+  const count = pagination?.total ?? data?.length;
 
   return (
-    <div className={cn("overflow-hidden rounded-lg border border-border bg-card", className)}>
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((group) => (
-            <TableRow key={group.id}>
-              {group.headers.map((header) => {
-                const direction = header.column.getIsSorted();
-                return (
-                  <TableHead
-                    key={header.id}
-                    aria-sort={direction ? ARIA_SORT[direction] : undefined}
-                  >
-                    {header.isPlaceholder ? null : header.column.getCanSort() ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="-ml-2.5 h-8"
-                        onClick={header.column.getToggleSortingHandler()}
-                      >
-                        <table.FlexRender header={header} />
-                        <SortIcon direction={direction} />
-                      </Button>
-                    ) : (
-                      <table.FlexRender header={header} />
-                    )}
-                  </TableHead>
-                );
-              })}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {isLoading
-            ? Array.from({ length: SKELETON_ROWS }, (_, index) => (
-                <TableRow key={`skeleton-${String(index)}`}>
-                  <TableCell colSpan={columnCount}>
-                    <Skeleton className="h-5 w-full" />
-                  </TableCell>
-                </TableRow>
-              ))
-            : rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() ? "selected" : undefined}>
-                  {row.getAllCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      <table.FlexRender cell={cell} />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-          {!isLoading && rows.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={columnCount} className="text-center text-muted-foreground">
-                {emptyMessage}
-              </TableCell>
-            </TableRow>
+    <Card className={className}>
+      {title !== undefined || pagination ? (
+        <CardHeader className="flex flex-wrap items-center justify-between gap-3">
+          {title !== undefined ? (
+            <CardTitle className="flex items-center gap-2">
+              {title}
+              {count === undefined ? null : (
+                <Badge variant="outline" className="tabular-nums">
+                  {count}
+                </Badge>
+              )}
+            </CardTitle>
           ) : null}
-        </TableBody>
-      </Table>
-
-      {pagination ? (
-        <PaginationBar {...pagination} className="border-t border-border px-4 py-3" />
+          {pagination ? <PaginationBar {...pagination} /> : null}
+        </CardHeader>
       ) : null}
-    </div>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((group) => (
+              <TableRow key={group.id}>
+                {group.headers.map((header) => {
+                  const direction = header.column.getIsSorted();
+                  return (
+                    <TableHead
+                      key={header.id}
+                      aria-sort={direction ? ARIA_SORT[direction] : undefined}
+                    >
+                      {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="-ml-2.5 h-8"
+                          onClick={header.column.getToggleSortingHandler()}
+                        >
+                          <table.FlexRender header={header} />
+                          <SortIcon direction={direction} />
+                        </Button>
+                      ) : (
+                        <table.FlexRender header={header} />
+                      )}
+                    </TableHead>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {isLoading
+              ? Array.from({ length: SKELETON_ROWS }, (_, index) => (
+                  <TableRow key={`skeleton-${String(index)}`}>
+                    <TableCell colSpan={columnCount}>
+                      <Skeleton className="h-5 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              : rows.map((row) => (
+                  <TableRow key={row.id} data-state={row.getIsSelected() ? "selected" : undefined}>
+                    {row.getAllCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        <table.FlexRender cell={cell} />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+            {!isLoading && rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columnCount} className="text-center text-muted-foreground">
+                  {emptyMessage}
+                </TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 };

@@ -34,6 +34,12 @@ describe("SearchInput", () => {
     expect(onSearch).toHaveBeenCalledWith("amy");
   });
 
+  it("sits on the card surface so it stands out from the page background", () => {
+    render(<SearchInput value="" onSearch={vi.fn()} label="検索" />);
+
+    expect(box().className.split(" ")).toContain("bg-card");
+  });
+
   it("keeps what the user typed meanwhile when its own search comes back", () => {
     const onSearch = vi.fn();
     const { rerender } = render(<SearchInput value="" onSearch={onSearch} label="検索" />);

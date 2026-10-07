@@ -3,7 +3,6 @@
 import { cn } from "cn";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useState } from "react";
-import type { ReactNode } from "react";
 
 import { Button } from "../button";
 import { Input } from "../input";
@@ -15,20 +14,15 @@ export type PaginationBarLabels = {
   last?: string;
   /** Accessible name and placeholder of the page-number box. */
   pageInput?: string;
-  /** Replaces the default "12 items · page 1 of 2" line. */
-  summary?: (page: { page: number; totalPages: number; total: number }) => ReactNode;
 };
 
 export type PaginationBarProps = {
   /** 1-based. */
   page: number;
   totalPages: number;
-  total: number;
   hasPrev: boolean;
   hasNext: boolean;
   onPageChange: (page: number) => void;
-  /** Singular noun for the default summary line, e.g. "user". */
-  itemLabel?: string;
   labels?: PaginationBarLabels;
   className?: string;
 };
@@ -53,24 +47,25 @@ export const pageItems = (page: number, totalPages: number): (number | "ellipsis
 };
 
 /**
- * Server-side pagination: summary, first / previous / numbered / next / last buttons and a box to
- * jump to a page (Enter). Maps 1:1 onto the API's `PageResult`.
+ * Server-side pagination as the legacy apps had it: first / previous / numbered / next / last
+ * buttons and a box to jump to a page (Enter); nothing while there is one page. The total belongs
+ * to the surface around it (`DataTable` shows it next to its title).
  */
 export const PaginationBar = ({
   page,
   totalPages,
-  total,
   hasPrev,
   hasNext,
   onPageChange,
-  itemLabel = "item",
   labels,
   className,
 }: PaginationBarProps) => {
   const [typed, setTyped] = useState("");
-  const lastPage = Math.max(1, totalPages);
+  if (totalPages <= 1) {
+    return null;
+  }
   const go = (target: number) => {
-    const next = Math.min(Math.max(target, 1), lastPage);
+    const next = Math.min(Math.max(target, 1), totalPages);
     if (next !== page) {
       onPageChange(next);
     }
@@ -84,100 +79,91 @@ export const PaginationBar = ({
   };
 
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between",
-        className,
+    <div className={cn("flex flex-wrap items-center gap-1 text-sm", className)}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={labels?.first ?? "First page"}
+        disabled={!hasPrev}
+        onClick={() => {
+          go(1);
+        }}
+      >
+        <ChevronsLeft />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={labels?.previous ?? "Previous page"}
+        disabled={!hasPrev}
+        onClick={() => {
+          go(page - 1);
+        }}
+      >
+        <ChevronLeft />
+      </Button>
+      {pageItems(page, totalPages).map((item, index) =>
+        item === "ellipsis" ? (
+          <span
+            key={`ellipsis-${String(index)}`}
+            aria-hidden
+            className="px-1 text-muted-foreground"
+          >
+            …
+          </span>
+        ) : (
+          <Button
+            key={item}
+            variant="ghost"
+            size="icon-sm"
+            className={cn(item === page && "border-primary text-primary hover:text-primary")}
+            aria-current={item === page ? "page" : undefined}
+            onClick={() => {
+              go(item);
+            }}
+          >
+            {item}
+          </Button>
+        ),
       )}
-    >
-      <span>
-        {labels?.summary
-          ? labels.summary({ page, totalPages: lastPage, total })
-          : `${String(total)} ${itemLabel}${total === 1 ? "" : "s"} · page ${String(page)} of ${String(lastPage)}`}
-      </span>
-      {totalPages > 1 ? (
-        <div className="flex flex-wrap items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label={labels?.first ?? "First page"}
-            disabled={!hasPrev}
-            onClick={() => {
-              go(1);
-            }}
-          >
-            <ChevronsLeft />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label={labels?.previous ?? "Previous page"}
-            disabled={!hasPrev}
-            onClick={() => {
-              go(page - 1);
-            }}
-          >
-            <ChevronLeft />
-          </Button>
-          {pageItems(page, totalPages).map((item, index) =>
-            item === "ellipsis" ? (
-              <span key={`ellipsis-${String(index)}`} aria-hidden className="px-1">
-                …
-              </span>
-            ) : (
-              <Button
-                key={item}
-                variant={item === page ? "default" : "ghost"}
-                size="icon-sm"
-                aria-current={item === page ? "page" : undefined}
-                onClick={() => {
-                  go(item);
-                }}
-              >
-                {item}
-              </Button>
-            ),
-          )}
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label={labels?.next ?? "Next page"}
-            disabled={!hasNext}
-            onClick={() => {
-              go(page + 1);
-            }}
-          >
-            <ChevronRight />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label={labels?.last ?? "Last page"}
-            disabled={!hasNext}
-            onClick={() => {
-              go(lastPage);
-            }}
-          >
-            <ChevronsRight />
-          </Button>
-          <Input
-            aria-label={labels?.pageInput ?? "Go to page"}
-            placeholder={labels?.pageInput ?? "Go to page"}
-            inputMode="numeric"
-            className="ml-1 h-7 w-20"
-            value={typed}
-            onChange={(event) => {
-              setTyped(event.target.value.replace(/\D/g, ""));
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                jump();
-              }
-            }}
-          />
-        </div>
-      ) : null}
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={labels?.next ?? "Next page"}
+        disabled={!hasNext}
+        onClick={() => {
+          go(page + 1);
+        }}
+      >
+        <ChevronRight />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={labels?.last ?? "Last page"}
+        disabled={!hasNext}
+        onClick={() => {
+          go(totalPages);
+        }}
+      >
+        <ChevronsRight />
+      </Button>
+      <Input
+        aria-label={labels?.pageInput ?? "Go to page"}
+        placeholder={labels?.pageInput ?? "Go to page"}
+        inputMode="numeric"
+        className="ml-1 h-7 w-16"
+        value={typed}
+        onChange={(event) => {
+          setTyped(event.target.value.replace(/\D/g, ""));
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            jump();
+          }
+        }}
+      />
     </div>
   );
 };

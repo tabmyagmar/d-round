@@ -84,28 +84,44 @@ describe("DataTable sorting", () => {
   });
 });
 
-describe("DataTable pagination", () => {
-  it("renders the pagination bar inside the table's card", () => {
+const PAGE = {
+  page: 1,
+  totalPages: 3,
+  total: 42,
+  hasPrev: false,
+  hasNext: true,
+  onPageChange: () => undefined,
+  labels: { next: "次のページ" },
+};
+
+/** True when `first` comes before `second` in the document. */
+const precedes = (first: Element, second: Element) =>
+  (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+
+describe("DataTable card", () => {
+  it("shows the title with the total and the pagination in the card header, above the table", () => {
     const { container } = render(
-      <DataTable
-        columns={columns}
-        data={people}
-        pagination={{
-          page: 1,
-          totalPages: 3,
-          total: 42,
-          hasPrev: false,
-          hasNext: true,
-          onPageChange: () => undefined,
-          labels: { next: "次のページ", summary: ({ total }) => `全 ${String(total)} 件` },
-        }}
-      />,
+      <DataTable columns={columns} data={people} title="People" pagination={PAGE} />,
     );
 
-    expect(screen.getByText("全 42 件")).toBeDefined();
-    expect(screen.getByRole("button", { name: "次のページ" })).toBeDefined();
-    expect(container.firstElementChild?.contains(screen.getByRole("table"))).toBe(true);
-    expect(container.firstElementChild?.contains(screen.getByText("全 42 件"))).toBe(true);
+    const title = screen.getByText("People");
+    const next = screen.getByRole("button", { name: "次のページ" });
+    expect(title.textContent).toBe("People42");
+    expect(precedes(title, screen.getByRole("table"))).toBe(true);
+    expect(precedes(next, screen.getByRole("table"))).toBe(true);
+    expect(container.firstElementChild?.contains(next)).toBe(true);
+  });
+
+  it("counts the rows it is given when there is no pagination", () => {
+    render(<DataTable columns={columns} data={people} title="People" />);
+
+    expect(screen.getByText("People").textContent).toBe("People2");
+  });
+
+  it("has no header without a title or pagination", () => {
+    const { container } = render(<DataTable columns={columns} data={people} />);
+
+    expect(container.querySelector("[data-slot=card-header]")).toBeNull();
   });
 });
 
@@ -147,6 +163,14 @@ describe("DataTable row selection", () => {
     );
     expect(screen.getByRole("checkbox", { name: "Select page" }).getAttribute("aria-checked")).toBe(
       "mixed",
+    );
+  });
+
+  it("shows the header box as checked, not mixed, once every row of the page is selected", () => {
+    renderSelectable({ "1": true, "2": true });
+
+    expect(screen.getByRole("checkbox", { name: "Select page" }).getAttribute("aria-checked")).toBe(
+      "true",
     );
   });
 
