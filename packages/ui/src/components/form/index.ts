@@ -1,5 +1,6 @@
 // react-hook-form bound fields. Each one renders label, control, description and error the
-// same way, so forms only list their fields. Import via "@repo/ui/components/form".
+// same way, so forms only list their fields; `FormActions` is the row of buttons under them.
+// Import via "@repo/ui/components/form".
 export { ArrayField } from "./array-field";
 export type { ArrayFieldProps, ArrayFieldRow } from "./array-field";
 export { CheckboxField } from "./checkbox-field";
@@ -17,6 +18,8 @@ export type { DateTimeFieldProps } from "./date-time-field";
 export { formatDate, formatDateTime, toDate, toIsoDate } from "./date-utils";
 export { FileField } from "./file-field";
 export type { FileFieldProps } from "./file-field";
+export { FormActions } from "./form-actions";
+export type { FormActionsProps } from "./form-actions";
 export { FormFieldLabel } from "./form-field-label";
 export type { FormFieldLabelProps } from "./form-field-label";
 export { FormFieldShell } from "./form-field-shell";
