@@ -84,9 +84,9 @@ describe("DataTable sorting", () => {
   });
 });
 
-describe("DataTable pagination labels", () => {
-  it("renders the summary and button labels it is given", () => {
-    render(
+describe("DataTable pagination", () => {
+  it("renders the pagination bar inside the table's card", () => {
+    const { container } = render(
       <DataTable
         columns={columns}
         data={people}
@@ -97,18 +97,78 @@ describe("DataTable pagination labels", () => {
           hasPrev: false,
           hasNext: true,
           onPageChange: () => undefined,
-          labels: {
-            previous: "前へ",
-            next: "次へ",
-            summary: ({ total, page, totalPages }) =>
-              `全 ${String(total)} 件 · ${String(page)} / ${String(totalPages)} ページ`,
-          },
+          labels: { next: "次のページ", summary: ({ total }) => `全 ${String(total)} 件` },
         }}
       />,
     );
 
-    expect(screen.getByText("全 42 件 · 1 / 3 ページ")).toBeDefined();
-    expect(screen.getByRole("button", { name: "前へ" })).toBeDefined();
-    expect(screen.getByRole("button", { name: "次へ" })).toBeDefined();
+    expect(screen.getByText("全 42 件")).toBeDefined();
+    expect(screen.getByRole("button", { name: "次のページ" })).toBeDefined();
+    expect(container.firstElementChild?.contains(screen.getByRole("table"))).toBe(true);
+    expect(container.firstElementChild?.contains(screen.getByText("全 42 件"))).toBe(true);
+  });
+});
+
+describe("DataTable row selection", () => {
+  /** Renders a selectable table and returns the `onChange` spy. */
+  const renderSelectable = (state: Record<string, true>) => {
+    const onChange = vi.fn();
+    render(
+      <DataTable
+        columns={columns}
+        data={people}
+        getRowId={(row) => row.id}
+        rowSelection={{
+          state,
+          onChange,
+          labels: { all: "Select page", row: (index) => `Select row ${String(index + 1)}` },
+        }}
+      />,
+    );
+    return onChange;
+  };
+
+  /** The value `onChange` was called with, resolving an updater against `previous`. */
+  const nextSelection = (onChange: ReturnType<typeof vi.fn>, previous: Record<string, true>) => {
+    const [arg] = onChange.mock.lastCall as [unknown];
+    return typeof arg === "function"
+      ? (arg as (old: Record<string, true>) => Record<string, true>)(previous)
+      : (arg as Record<string, true>);
+  };
+
+  it("adds a checkbox column and ticks the selected rows", () => {
+    renderSelectable({ "2": true });
+
+    expect(
+      screen.getByRole("checkbox", { name: "Select row 1" }).getAttribute("aria-checked"),
+    ).toBe("false");
+    expect(
+      screen.getByRole("checkbox", { name: "Select row 2" }).getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(screen.getByRole("checkbox", { name: "Select page" }).getAttribute("aria-checked")).toBe(
+      "mixed",
+    );
+  });
+
+  it("selects one row by its id", () => {
+    const onChange = renderSelectable({});
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select row 1" }));
+
+    expect(nextSelection(onChange, {})).toEqual({ "1": true });
+  });
+
+  it("selects every row of the page from the header", () => {
+    const onChange = renderSelectable({});
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select page" }));
+
+    expect(nextSelection(onChange, {})).toEqual({ "1": true, "2": true });
+  });
+
+  it("has no checkboxes when the table is not selectable", () => {
+    render(<DataTable columns={columns} data={people} />);
+
+    expect(screen.queryByRole("checkbox")).toBeNull();
   });
 });

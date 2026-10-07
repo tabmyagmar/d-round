@@ -21,8 +21,11 @@ export type PageSummary = {
 };
 
 export const PAGINATION_LABELS: DataTablePaginationLabels = {
-  previous: "前へ",
-  next: "次へ",
+  first: "最初のページ",
+  previous: "前のページ",
+  next: "次のページ",
+  last: "最後のページ",
+  pageInput: "ページ番号",
   summary: ({ total, page, totalPages }) =>
     `全 ${String(total)} 件 · ${String(page)} / ${String(totalPages)} ページ`,
 };
