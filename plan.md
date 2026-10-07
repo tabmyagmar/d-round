@@ -492,6 +492,28 @@ Commits: `9756931` ui (selection, PaginationBar, card), `be7286c` web selection 
 db + kana schema, `4c447a0` invite / edit / profile with the name parts, `dfed1fd` display +
 search + seeds, then this docs commit.
 
+## Review round 3 (user, 2026-10-07): selection bar, pagination, card, select-all, search
+
+1. **`SelectionBar` is gone**: the selected count had no use. The selection stays in the users store
+   (the table writes it; CSV export will read it); `clearSelection` went with its only consumer.
+2. **Pagination sits above the table**, in the card header, as the legacy `table/pagination.tsx`:
+   `<< <` pages `> >>` as ghost icon buttons, the current page outlined in primary, a ページ box, no
+   summary line, nothing with one page. `PaginationBar` lost `total`, `itemLabel` and
+   `labels.summary`.
+3. **`DataTable` is a `Card`** with a header (legacy `core/Card` + `DataTable`): `title` with the
+   total in an outline `Badge` on the left, the pagination on the right; the users list titles
+   it全担当者数.
+4. **Select-all showed mixed when every row was selected**: TanStack v9's
+   `getIsSomePageRowsSelected` is true for "all" too (v8 returned false), so the header box was
+   `checked` and `indeterminate` at once, which Base UI renders as mixed. The table now passes
+   `indeterminate` as some-and-not-all, and `checkbox.tsx` shows a minus while indeterminate (local
+   patch 5 in `.claude/rules/ui.md`).
+5. **`SearchInput` sits on `bg-card`**: the base `Input` is transparent (right for forms on cards),
+   so on the blue-grey page it blended into the background.
+
+Commits: `332c7e8` ui (card header, pagination bar, select-all, search surface), `70bfb81` web (the
+users list on it), then this docs commit.
+
 ## Out of scope (own tickets)
 
 - User profile fields (社員番号, 氏名カナ, エリア, 地域, 部署, 役職, 退職日) and the `user_profiles`

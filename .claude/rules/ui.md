@@ -42,13 +42,14 @@ There is no `api/` or `graphql/` folder (tRPC hooks are called where they are us
 `schemas/` (zod lives in `@repo/validation`, shared with the API). State goes, in this order, into
 the URL (filters, page, sort — shareable), a container's `useState` (one component's dialog target),
 or a feature store (`stores/`, zustand 5) when several components share it, as the users list's row
-selection is shared by the table and the toolbar's `SelectionBar`. A store is created per mounted
-screen by its provider (`createUsersStore` + `UsersStoreProvider`, `useState` lazy init), never as a
-module singleton, and read with selectors (`useUsersStore((store) => store.rowSelection)`). Features
-do not import each other; the app level composes them (the shell's user menu renders the users
-feature's `RoleBadge`). `auth` is small and flat (`login-form`, `auth-card`, …). Route files under
-`app/` are thin: they import only from `@/features/<feature>/containers/...`, `@/components/...`,
-`@/config/...`, `@/lib/...` and `@repo/ui`, and render one container inside `PageGuard`.
+selection: the table writes it, the toolbar's bulk actions (CSV export, own ticket) will read it. A
+store is created per mounted screen by its provider (`createUsersStore` + `UsersStoreProvider`,
+`useState` lazy init), never as a module singleton, and read with selectors
+(`useUsersStore((store) => store.rowSelection)`). Features do not import each other; the app level
+composes them (the shell's user menu renders the users feature's `RoleBadge`). `auth` is small and
+flat (`login-form`, `auth-card`, …). Route files under `app/` are thin: they import only from
+`@/features/<feature>/containers/...`, `@/components/...`, `@/config/...`, `@/lib/...` and
+`@repo/ui`, and render one container inside `PageGuard`.
 
 ### List pages: state in the URL
 
@@ -156,6 +157,9 @@ Known local patches (re-apply after `--overwrite`):
 4. `hooks/use-mobile.ts` reads the media query through `useSyncExternalStore` (server snapshot
    `false`) instead of `setState` inside `useEffect`, which `react-hooks` rejects. jsdom has no
    `window.matchMedia`: a component test that renders `SidebarProvider` must stub it.
+5. `checkbox.tsx` renders `MinusIcon` instead of `CheckIcon` while `indeterminate`, and colours the
+   box with `data-indeterminate:border-primary data-indeterminate:text-primary` (upstream shows the
+   check for both states). Two lines after `npx shadcn@4.21.0 add checkbox --overwrite`.
 
 `eslint --fix` also reorders imports in generated files; that is not a patch to re-apply.
 
@@ -197,29 +201,31 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
 ## Composed components (`packages/ui/src/components/composed/`)
 
 - `DataTable` (`data-table.tsx`) — a `Table` driven by `@tanstack/react-table` v9 (`useTable`,
-  `tableFeatures({ rowSortingFeature, rowSelectionFeature })`), on one card surface (`bg-card`,
-  border) together with its `PaginationBar`: the list's white surface on the page background, so a
-  page never wraps it in another `Card`. Props: `columns`, `data`, `isLoading` (renders `Skeleton`
-  rows), `emptyMessage`, optional `pagination`, `sorting`, `rowSelection`, `getRowId`, `className`.
-  Build columns with the typed helper `createDataTableColumns<TData>()` — `helper.columns([...])`
-  over `helper.accessor("email", { header: "Email" })` and
-  `helper.display({ id: "actions", cell })`. `DataTablePagination` is `PaginationBar`'s props
-  `{ page, totalPages, total, hasPrev, hasNext, onPageChange, itemLabel?, labels? }` — server-side
-  pagination that maps 1:1 onto the API's `PageResult`. `DataTableRowSelection` is
+  `tableFeatures({ rowSortingFeature, rowSelectionFeature })`) on one `Card`, as the legacy lists:
+  the `CardHeader` shows `title` with the total in an outline `Badge` (`pagination.total`, or the
+  row count without pagination) and the `PaginationBar` on the right; the table sits in the
+  `CardContent`. It is the list's white surface on the page background, so a page never wraps it in
+  another `Card`. Props: `title?`, `columns`, `data`, `isLoading` (renders `Skeleton` rows),
+  `emptyMessage`, optional `pagination`, `sorting`, `rowSelection`, `getRowId`, `className`. Build
+  columns with the typed helper `createDataTableColumns<TData>()` — `helper.columns([...])` over
+  `helper.accessor("email", { header: "Email" })` and `helper.display({ id: "actions", cell })`.
+  `DataTablePagination` is `PaginationBar`'s props plus the total,
+  `{ page, totalPages, total, hasPrev, hasNext, onPageChange, labels? }` — server-side pagination
+  that maps 1:1 onto the API's `PageResult`. `DataTableRowSelection` is
   `{ state, onChange, labels? }` (TanStack `RowSelectionState`, keyed by `getRowId` so it survives
-  paging): it adds a checkbox column with a page-wide select-all; `labels.row(row)` names each box.
-  `DataTableSorting` is `{ state, onChange }` (TanStack `SortingState`): sorting is server-side
+  paging): it adds a checkbox column with a page-wide select-all, checked once every row of the page
+  is selected and mixed while only some are (TanStack v9's `getIsSomePageRowsSelected` is true for
+  "all" too, so the table passes `indeterminate` as some-and-not-all); `labels.row(row)` names each
+  box. `DataTableSorting` is `{ state, onChange }` (TanStack `SortingState`): sorting is server-side
   (`manualSorting`), single-column and asc ↔ desc; a column takes part with `enableSorting: true`
   and its header becomes a toggle button with `aria-sort`. Reference:
   `apps/web/features/users/components/users-table.tsx`.
-- `PaginationBar` (`pagination-bar.tsx`) — summary, first / previous / numbered pages with ellipsis
-  (`pageItems(page, totalPages)`) / next / last, and a box to jump to a page (Enter); `labels`
-  (`first`, `previous`, `next`, `last`, `pageInput`, `summary(page)`) replace the English defaults
-  (the web's are `PAGINATION_LABELS` in `apps/web/hooks/use-table-state.ts`). Hides the buttons when
-  there is one page.
-- `SelectionBar` (`selection-bar.tsx`) — the selected-rows line: `count`, `onClear`, bulk actions as
-  `children`, `label?(count)`, `clearLabel?`; nothing while `count` is 0. Reference:
-  `apps/web/features/users/components/users-toolbar.tsx`.
+- `PaginationBar` (`pagination-bar.tsx`) — first / previous / numbered pages with ellipsis
+  (`pageItems(page, totalPages)`, the current page outlined in primary) / next / last, and a box to
+  jump to a page (Enter), as the legacy `table/pagination.tsx`; `labels` (`first`, `previous`,
+  `next`, `last`, `pageInput`) replace the English defaults (the web's are `PAGINATION_LABELS` in
+  `apps/web/hooks/use-table-state.ts`). No summary line — the total is `DataTable`'s title badge —
+  and nothing at all while there is one page.
 - `ContentDialog` (`content-dialog.tsx`) — the shell of every dialog: `open`, `onOpenChange`,
   `title`, `description?`, body (`children`, mounted only while open), `footer?`, `className?`
   (width), `showCloseButton?`. Render it only when needed (a `next/dynamic` component, or
@@ -235,7 +241,8 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   for forms. Reference: `apps/web/features/users/components/user-filter-content.tsx`.
 - `SearchInput` (`search-input.tsx`) — `value`, `onSearch(trimmed)` after a pause
   (`useDebouncedCallback`, `delayMs?`), `label`; shows a value changed elsewhere but keeps what the
-  user typed while its own search comes back.
+  user typed while its own search comes back. Sits on `bg-card`, so it stands out from the page
+  background (the base `Input` is transparent, right for forms on cards).
 - `FilterPopover` (`filter-popover.tsx`) — the filter button with the active count (`activeCount`)
   and its fields in a popover; `children(close)` is rendered only while open, so pass a
   `next/dynamic` component; `onClear?` adds the clear footer; `label?`, `clearLabel?`, `align?`.

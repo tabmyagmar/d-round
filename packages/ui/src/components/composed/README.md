@@ -3,11 +3,11 @@
 Domain-free components built from the shadcn primitives one level up, for every app and feature:
 
 - Display: `StatusBadge`, `DataTable` (`@tanstack/react-table` v9, server-side paging and sorting,
-  row selection; one card surface with its `PaginationBar`), `DescriptionList` (label / value
-  pairs), `PageHeader`, `EmptyState`, `LoadingState`.
+  row selection; one `Card` whose header shows the title, the total and its `PaginationBar`),
+  `DescriptionList` (label / value pairs), `PageHeader`, `EmptyState`, `LoadingState`.
 - Lists: `ListToolbar`, `SearchInput`, `FilterPopover` (fields rendered only while open),
   `FilterTags`, `OptionSelect` (also the base of the form `SelectField`), `RowActions`,
-  `PaginationBar` (first / previous / pages / next / last and a page box), `SelectionBar`.
+  `PaginationBar` (first / previous / pages / next / last and a page box).
 - Dialogs: `ContentDialog` (the shell; body mounted only while open) and `ConfirmDialog` on it (use
   instead of `window.confirm`).
 - Choices: `GroupedCheckboxList` (labelled groups with select-all).
