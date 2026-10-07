@@ -10,7 +10,7 @@ import { ListToolbar } from "@repo/ui/components/composed/list-toolbar";
 import { SearchInput } from "@repo/ui/components/composed/search-input";
 
 import { href, routes } from "@/config/routes";
-import { UserFilter } from "@/features/users/components/user-filter";
+import { UserFilter } from "@/features/users/components/list/user-filter";
 import { CLEARED_FILTERS, userFilterTags } from "@/features/users/utils/user-filters";
 import type { UserFilterChanges, UserListFilters } from "@/features/users/utils/user-filters";
 

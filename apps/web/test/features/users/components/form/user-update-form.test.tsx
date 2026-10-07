@@ -2,10 +2,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { UserUpdateForm } from "@/features/users/components/user-update-form";
+import { UserUpdateForm } from "@/features/users/components/form/user-update-form";
 import type { UserDetail } from "@/features/users/types";
 
-import { userRow } from "../fixtures";
+import { userRow } from "../../fixtures";
 
 afterEach(cleanup);
 

@@ -5,8 +5,8 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { Role } from "@repo/validation";
 
-import { UserFormFields } from "@/features/users/components/user-form-fields";
-import type { UserFieldValues } from "@/features/users/components/user-form-fields";
+import { UserFormFields } from "@/features/users/components/form/user-form-fields";
+import type { UserFieldValues } from "@/features/users/components/form/user-form-fields";
 
 afterEach(cleanup);
 

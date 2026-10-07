@@ -7,8 +7,8 @@ import { useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { listUsersSchema } from "@repo/validation";
 
-import { UsersTable } from "@/features/users/components/users-table";
-import { UsersToolbar } from "@/features/users/components/users-toolbar";
+import { UsersTable } from "@/features/users/components/list/users-table";
+import { UsersToolbar } from "@/features/users/components/list/users-toolbar";
 import { UsersStoreProvider } from "@/features/users/stores/users-store-provider";
 import type { UserRow } from "@/features/users/types";
 import { userFiltersOf } from "@/features/users/utils/user-filters";

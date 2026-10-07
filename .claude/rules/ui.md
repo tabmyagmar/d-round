@@ -63,7 +63,7 @@ invalid ones). `useSearch()` (`searchParams`, `set`, `setMany`) pushes the new U
 `sortBy`, `sortOrder` and `page`. The query input is `parseSearchParams(listXSchema, searchParams)`
 in the list's container. The toolbar is `ListToolbar` with a `SearchInput` (debounces the change
 event through `useDebouncedCallback`, never a value mirrored into an effect), a `FilterPopover`
-whose fields are a `next/dynamic` component (`features/users/components/user-filter.tsx`), the
+whose fields are a `next/dynamic` component (`features/users/components/list/user-filter.tsx`), the
 actions, and `FilterTags` underneath; row menus are `RowActions`. CSV import / export is not built
 yet (a TODO in `users-toolbar.tsx`).
 
@@ -166,8 +166,8 @@ Known local patches (re-apply after `--overwrite`):
 ## Promotion rule
 
 A component starts in the feature that owns it
-(`apps/web/features/users/components/users-table.tsx`); a second screen in the same feature simply
-imports it from there (`user-status-dialog.tsx` is rendered by the list and the detail page).
+(`apps/web/features/users/components/list/users-table.tsx`); a second screen in the same feature
+simply imports it from there (`user-status-dialog.tsx` is rendered by the list and the detail page).
 `apps/web/components/` holds only app-wide pieces (the `layout/` shell, `page-guard.tsx`,
 `theme-provider.tsx`) — nothing with domain knowledge beyond the user menu's `RoleBadge`. When a
 component is domain-free and reusable across apps, move it to `packages/ui/src/components/composed/`
@@ -219,7 +219,7 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   box. `DataTableSorting` is `{ state, onChange }` (TanStack `SortingState`): sorting is server-side
   (`manualSorting`), single-column and asc ↔ desc; a column takes part with `enableSorting: true`
   and its header becomes a toggle button with `aria-sort`. Reference:
-  `apps/web/features/users/components/users-table.tsx`.
+  `apps/web/features/users/components/list/users-table.tsx`.
 - `PaginationBar` (`pagination-bar.tsx`) — first / previous / numbered pages with ellipsis
   (`pageItems(page, totalPages)`, the current page outlined in primary) / next / last, and a box to
   jump to a page (Enter), as the legacy `table/pagination.tsx`; `labels` (`first`, `previous`,
@@ -229,7 +229,7 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
 - `ContentDialog` (`content-dialog.tsx`) — the shell of every dialog: `open`, `onOpenChange`,
   `title`, `description?`, body (`children`, mounted only while open), `footer?`, `className?`
   (width), `showCloseButton?`. Render it only when needed (a `next/dynamic` component, or
-  `{open ? … : null}`). Reference: `apps/web/features/users/components/permission-dialog.tsx`.
+  `{open ? … : null}`). Reference: `apps/web/features/users/components/form/permission-dialog.tsx`.
 - `ConfirmDialog` (`confirm-dialog.tsx`) — `ContentDialog` with cancel / confirm; props `open`,
   `onOpenChange`, `title`, `description?`, `confirmLabel`, `cancelLabel?`, `pendingLabel?`,
   `destructive?`, `pending?`, `onConfirm`. Use it for every confirmation; never `window.confirm`.
@@ -238,7 +238,7 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   `value` / `onValueChange` with `null` for none, `allOption?` (a first item that stands for
   `null`), `label?` (visible, or `hideLabel` for screen readers; omit when an outer label points at
   `id`), `placeholder?`, `disabled?`, `invalid?`. For filters and toolbars; `SelectField` wraps it
-  for forms. Reference: `apps/web/features/users/components/user-filter-content.tsx`.
+  for forms. Reference: `apps/web/features/users/components/list/user-filter-content.tsx`.
 - `SearchInput` (`search-input.tsx`) — `value`, `onSearch(trimmed)` after a pause
   (`useDebouncedCallback`, `delayMs?`), `label`; shows a value changed elsewhere but keeps what the
   user typed while its own search comes back. Sits on `bg-card`, so it stands out from the page
@@ -246,23 +246,23 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
 - `FilterPopover` (`filter-popover.tsx`) — the filter button with the active count (`activeCount`)
   and its fields in a popover; `children(close)` is rendered only while open, so pass a
   `next/dynamic` component; `onClear?` adds the clear footer; `label?`, `clearLabel?`, `align?`.
-  Reference: `apps/web/features/users/components/user-filter.tsx`.
+  Reference: `apps/web/features/users/components/list/user-filter.tsx`.
 - `FilterTags` (`filter-tags.tsx`) — `tags` (`{ key, label, value }`), `onRemove(key)`,
   `onClearAll`, `clearAllLabel?`, `removeLabel?(tag)`; nothing without tags.
 - `ListToolbar` (`list-toolbar.tsx`) — `search`, `filters`, `actions` slots and a row underneath
   (`children`, usually `FilterTags`). Reference:
-  `apps/web/features/users/components/users-toolbar.tsx`.
+  `apps/web/features/users/components/list/users-toolbar.tsx`.
 - `RowActions` (`row-actions.tsx`) — a row's menu: `actions`
   (`{ key, label, icon?, onSelect?, render?, destructive?, disabled? }`; `render: <Link href=… />`
   for links; pass only what the user may do), `label` (the trigger's accessible name); no actions,
-  no menu. Reference: `apps/web/features/users/components/user-row-actions.tsx`.
+  no menu. Reference: `apps/web/features/users/components/list/user-row-actions.tsx`.
 - `DescriptionList` (`description-list.tsx`) — `items` (`{ label, value }`) as a `<dl>`,
   `emptyText?` for empty values. Reference:
   `apps/web/features/users/containers/user-detail-container.tsx`.
 - `GroupedCheckboxList` (`grouped-checkbox-list.tsx`) — `groups`
   (`{ key, label, options: { value, label, hint? }[] }`), `value`, `onValueChange` (option order), a
   select-all box per group (indeterminate when partly selected), `selectAllLabel?(group)`,
-  `disabled?`. Reference: `apps/web/features/users/components/permission-editor.tsx`.
+  `disabled?`. Reference: `apps/web/features/users/components/form/permission-editor.tsx`.
 - `StatusBadge` (`status-badge.tsx`) — see above.
 - `PageHeader` (`page-header.tsx`) — `title` (the page's only `h1`), `description?`, `actions?`.
   Hook-free. For pages outside the `/admin` shell, whose header already renders the title.
@@ -353,7 +353,7 @@ bound fields from `@repo/ui/components/form`; each one binds itself with `useFor
 label, control, description and error itself:
 
 ```tsx
-// apps/web/features/users/components/profile-form.tsx
+// apps/web/features/users/components/profile/profile-form.tsx
 const form = useForm<UpdateProfileInput>({
   resolver: zodResolver(updateProfileSchema),
   defaultValues: { name: initial.name },
@@ -445,7 +445,7 @@ components through a renderer registry, so a new field type starts as a new comp
   values into API input with a pure function (`features/users/utils/user-form-input.ts`); the
   route's container owns the mutation (`user-create-container.tsx`). They test without tRPC.
 - Two forms that share fields (invite and edit) share a fields component typed over their common
-  keys (`features/users/components/user-form-fields.tsx`, whose `UserNameFields`
+  keys (`features/users/components/form/user-form-fields.tsx`, whose `UserNameFields`
   — 姓 / 名 / セイ / メイ, two per row — the profile form uses too); each form keeps its own schema
   and extra fields. Katakana readings validate with `kanaSchema` from `@repo/validation`. A decision
   that depends only on data, such as which roles the field offers, is a pure function in `utils/`

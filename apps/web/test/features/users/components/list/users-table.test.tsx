@@ -5,12 +5,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AbilityProvider } from "@repo/permissions/react";
 
 import { href, routes } from "@/config/routes";
-import { UsersTable } from "@/features/users/components/users-table";
+import { UsersTable } from "@/features/users/components/list/users-table";
 import { UsersStoreProvider } from "@/features/users/stores/users-store-provider";
 import type { UserRow } from "@/features/users/types";
 
-import { EVERY_GRANT, userWith } from "../../../support/grants";
-import { userRow } from "../fixtures";
+import { EVERY_GRANT, userWith } from "../../../../support/grants";
+import { userRow } from "../../fixtures";
 
 afterEach(cleanup);
 

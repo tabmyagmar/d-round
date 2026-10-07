@@ -11,7 +11,7 @@ import type { UserFilterChanges, UserListFilters } from "@/features/users/utils/
 // The fields load when the popover first opens, not with the list.
 const UserFilterContent = dynamic(
   () =>
-    import("@/features/users/components/user-filter-content").then(
+    import("@/features/users/components/list/user-filter-content").then(
       (module) => module.UserFilterContent,
     ),
   { ssr: false, loading: () => <Skeleton className="h-32 w-full" /> },

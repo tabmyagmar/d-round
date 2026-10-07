@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PermissionField } from "@/features/users/components/permission-field";
+import { PermissionField } from "@/features/users/components/form/permission-field";
 
 afterEach(cleanup);
 

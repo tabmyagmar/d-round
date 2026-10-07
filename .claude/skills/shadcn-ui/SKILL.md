@@ -26,7 +26,7 @@ every shadcn task. The upstream shadcn skill's convention files are vendored und
 | Primitives     | Base UI (`@base-ui/react`), not Radix: `render` instead of `asChild`, `Select` takes `items`. See `rules/base-vs-radix.md`.                                                                                                                        |
 | Style, icons   | `base-nova`, `lucide-react`, Tailwind v4 (no `tailwind.config`).                                                                                                                                                                                   |
 | `cn()`         | `@repo/ui/lib/utils` re-exports the `cn` package; generated files import `from "cn"`.                                                                                                                                                              |
-| Toast          | `import { toast } from "sonner"` (as in `apps/web/features/users/components/profile-form.tsx`), not the upstream `toast` component.                                                                                                                |
+| Toast          | `import { toast } from "sonner"` (as in `apps/web/features/users/components/profile/profile-form.tsx`), not the upstream `toast` component.                                                                                                        |
 | Installed list | `cd apps/web && npx shadcn@4.21.0 info` (`--json` for scripts). No hand-maintained list anywhere.                                                                                                                                                  |
 
 ## Adding a primitive

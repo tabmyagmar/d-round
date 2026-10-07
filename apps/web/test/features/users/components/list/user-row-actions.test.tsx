@@ -6,11 +6,11 @@ import type { PermissionGrant } from "@repo/permissions";
 import { AbilityProvider } from "@repo/permissions/react";
 
 import { href, routes } from "@/config/routes";
-import { UserRowActions } from "@/features/users/components/user-row-actions";
+import { UserRowActions } from "@/features/users/components/list/user-row-actions";
 import type { UserRow } from "@/features/users/types";
 
-import { EVERY_GRANT, userWith } from "../../../support/grants";
-import { userRow } from "../fixtures";
+import { EVERY_GRANT, userWith } from "../../../../support/grants";
+import { userRow } from "../../fixtures";
 
 afterEach(cleanup);
 

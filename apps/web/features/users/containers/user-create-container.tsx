@@ -8,7 +8,7 @@ import { useAbility } from "@repo/permissions/react";
 import type { Role } from "@repo/validation";
 
 import { href, routes } from "@/config/routes";
-import { UserCreateForm } from "@/features/users/components/user-create-form";
+import { UserCreateForm } from "@/features/users/components/form/user-create-form";
 import { roleFieldState } from "@/features/users/utils/role-field-state";
 import { useTRPC } from "@/lib/trpc/react";
 

@@ -20,9 +20,9 @@ import { Skeleton } from "@repo/ui/components/skeleton";
 import { isOverridableRole } from "@repo/validation";
 
 import { href, routes } from "@/config/routes";
+import { UserChargesPlaceholder } from "@/features/users/components/detail/user-charges-placeholder";
+import { UserDetailToolbar } from "@/features/users/components/detail/user-detail-toolbar";
 import { RoleBadge } from "@/features/users/components/role-badge";
-import { UserChargesPlaceholder } from "@/features/users/components/user-charges-placeholder";
-import { UserDetailToolbar } from "@/features/users/components/user-detail-toolbar";
 import { UserStatusBadge } from "@/features/users/components/user-status-badge";
 import { usePermissionCatalog } from "@/features/users/hooks/use-permission-catalog";
 import { readingOf, userStatusOf } from "@/features/users/utils/user-labels";
@@ -31,7 +31,7 @@ import { useTRPC } from "@/lib/trpc/react";
 // Loaded only when used: the dialogs when an action is chosen, the summary for a manager.
 const PasswordMailDialog = dynamic(
   () =>
-    import("@/features/users/components/password-mail-dialog").then(
+    import("@/features/users/components/detail/password-mail-dialog").then(
       (module) => module.PasswordMailDialog,
     ),
   { ssr: false },
@@ -45,7 +45,7 @@ const UserStatusDialog = dynamic(
 );
 const UserPermissionSummary = dynamic(
   () =>
-    import("@/features/users/components/user-permission-summary").then(
+    import("@/features/users/components/detail/user-permission-summary").then(
       (module) => module.UserPermissionSummary,
     ),
   { ssr: false, loading: () => <Skeleton className="h-24 w-full" /> },

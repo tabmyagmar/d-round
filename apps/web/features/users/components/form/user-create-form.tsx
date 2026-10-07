@@ -12,7 +12,7 @@ import { DEFAULT_ROLE, inviteUserFormSchema } from "@repo/validation";
 import type { InviteUserFormInput, InviteUserInput } from "@repo/validation";
 
 import { href, routes } from "@/config/routes";
-import { UserFormFields } from "@/features/users/components/user-form-fields";
+import { UserFormFields } from "@/features/users/components/form/user-form-fields";
 import type { RoleFieldState } from "@/features/users/utils/role-field-state";
 import { toInviteInput } from "@/features/users/utils/user-form-input";
 

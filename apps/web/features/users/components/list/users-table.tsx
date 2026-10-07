@@ -10,8 +10,8 @@ import type {
 } from "@repo/ui/components/composed/data-table";
 
 import { href, routes } from "@/config/routes";
+import { UserRowActions } from "@/features/users/components/list/user-row-actions";
 import { RoleBadge } from "@/features/users/components/role-badge";
-import { UserRowActions } from "@/features/users/components/user-row-actions";
 import { UserStatusBadge } from "@/features/users/components/user-status-badge";
 import { useUsersStore } from "@/features/users/stores/users-store-provider";
 import type { UserRow } from "@/features/users/types";

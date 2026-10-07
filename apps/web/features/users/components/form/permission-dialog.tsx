@@ -7,7 +7,7 @@ import { ContentDialog } from "@repo/ui/components/composed/content-dialog";
 import { Skeleton } from "@repo/ui/components/skeleton";
 import type { Role } from "@repo/validation";
 
-import { PermissionEditor } from "@/features/users/components/permission-editor";
+import { PermissionEditor } from "@/features/users/components/form/permission-editor";
 import { usePermissionCatalog } from "@/features/users/hooks/use-permission-catalog";
 import { roleKeysOf } from "@/features/users/utils/permission-catalog";
 import { ROLE_LABELS } from "@/features/users/utils/user-labels";

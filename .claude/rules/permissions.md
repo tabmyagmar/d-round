@@ -220,12 +220,12 @@ detail page needs `read`, a create page `create`, an update page `update` on its
 // id, role and the session's permissions, so it satisfies AbilityUser as is.
 <AbilityProvider user={user}>{children}</AbilityProvider>;
 
-// apps/web/features/users/components/user-detail-toolbar.tsx
+// apps/web/features/users/components/detail/user-detail-toolbar.tsx
 const ability = useAbility();
 const subject = userSubject({ id: user.id });
 const canUpdate = ability.can("update", subject);
 
-// apps/web/features/users/components/users-toolbar.tsx
+// apps/web/features/users/components/list/users-toolbar.tsx
 <Can I="create" a="User">
   <Button render={<Link href={href(routes.user.create)} />} nativeButton={false}>
     担当者追加

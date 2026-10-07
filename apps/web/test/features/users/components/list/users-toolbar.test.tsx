@@ -6,11 +6,11 @@ import type { PermissionGrant } from "@repo/permissions";
 import { AbilityProvider } from "@repo/permissions/react";
 
 import { href, routes } from "@/config/routes";
-import { UsersToolbar } from "@/features/users/components/users-toolbar";
+import { UsersToolbar } from "@/features/users/components/list/users-toolbar";
 import { UsersStoreProvider } from "@/features/users/stores/users-store-provider";
 import type { UserListFilters } from "@/features/users/utils/user-filters";
 
-import { userWith } from "../../../support/grants";
+import { userWith } from "../../../../support/grants";
 
 afterEach(cleanup);
 

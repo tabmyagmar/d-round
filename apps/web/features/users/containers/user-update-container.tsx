@@ -11,7 +11,7 @@ import { roleSchema } from "@repo/validation";
 import type { Role } from "@repo/validation";
 
 import { href, routes } from "@/config/routes";
-import { UserUpdateForm } from "@/features/users/components/user-update-form";
+import { UserUpdateForm } from "@/features/users/components/form/user-update-form";
 import { roleFieldState } from "@/features/users/utils/role-field-state";
 import { useTRPC } from "@/lib/trpc/react";
 

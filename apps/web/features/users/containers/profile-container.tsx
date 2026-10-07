@@ -12,8 +12,8 @@ import {
 } from "@repo/ui/components/card";
 import { Skeleton } from "@repo/ui/components/skeleton";
 
-import { PasswordChangeForm } from "@/features/users/components/password-change-form";
-import { ProfileForm } from "@/features/users/components/profile-form";
+import { PasswordChangeForm } from "@/features/users/components/profile/password-change-form";
+import { ProfileForm } from "@/features/users/components/profile/profile-form";
 import { useTRPC } from "@/lib/trpc/react";
 
 export const ProfileContainer = () => {

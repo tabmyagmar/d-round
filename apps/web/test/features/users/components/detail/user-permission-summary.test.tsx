@@ -2,9 +2,9 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { UserPermissionSummary } from "@/features/users/components/user-permission-summary";
+import { UserPermissionSummary } from "@/features/users/components/detail/user-permission-summary";
 
-import { CATALOG } from "../catalog-fixture";
+import { CATALOG } from "../../catalog-fixture";
 
 afterEach(cleanup);
 

@@ -9,7 +9,7 @@ import { SelectField, TextField } from "@repo/ui/components/form";
 import { isOverridableRole } from "@repo/validation";
 import type { Role } from "@repo/validation";
 
-import { PermissionField } from "@/features/users/components/permission-field";
+import { PermissionField } from "@/features/users/components/form/permission-field";
 import type { RoleFieldState } from "@/features/users/utils/role-field-state";
 import { ROLE_LABELS } from "@/features/users/utils/user-labels";
 

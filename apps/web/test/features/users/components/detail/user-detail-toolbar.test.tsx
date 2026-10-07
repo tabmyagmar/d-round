@@ -6,9 +6,9 @@ import type { PermissionGrant } from "@repo/permissions";
 import { AbilityProvider } from "@repo/permissions/react";
 
 import { href, routes } from "@/config/routes";
-import { UserDetailToolbar } from "@/features/users/components/user-detail-toolbar";
+import { UserDetailToolbar } from "@/features/users/components/detail/user-detail-toolbar";
 
-import { EVERY_GRANT, userWith } from "../../../support/grants";
+import { EVERY_GRANT, userWith } from "../../../../support/grants";
 
 afterEach(cleanup);
 

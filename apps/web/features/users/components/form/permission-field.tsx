@@ -11,7 +11,7 @@ import type { Role } from "@repo/validation";
 // The dialog (and the catalog query inside it) loads when the button is pressed.
 const PermissionDialog = dynamic(
   () =>
-    import("@/features/users/components/permission-dialog").then(
+    import("@/features/users/components/form/permission-dialog").then(
       (module) => module.PermissionDialog,
     ),
   { ssr: false },

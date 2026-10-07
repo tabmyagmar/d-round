@@ -88,8 +88,8 @@ mapping are in `.claude/rules/ui.md`, Forms) inside a `FieldGroup`; never hand-w
 `FieldLabel` / `Input` / `FieldError` for a standard input. Auth forms submit through `authClient`
 (`features/auth/login-form.tsx`: `signIn.email` with `callbackURL: next` and `rememberMe`; errors
 through `authErrorMessage`), everything else through a tRPC mutation
-(`features/users/components/profile-form.tsx` on `/admin/profile`; the presentational
-`features/users/components/user-create-form.tsx` and `user-update-form.tsx` over the shared
+(`features/users/components/profile/profile-form.tsx` on `/admin/profile`; the presentational
+`features/users/components/form/user-create-form.tsx` and `user-update-form.tsx` over the shared
 `user-form-fields.tsx`, whose containers own the mutations; `emptyAs="null"` on optional nullable
 fields). Show server errors in an `Alert`; use `toast` (sonner) for mutation results. Domain pickers
 live in the feature that owns the data (a user picker wraps `ComboboxField` with `trpc.user.list`

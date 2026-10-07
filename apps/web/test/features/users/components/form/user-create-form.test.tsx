@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { UserCreateForm } from "@/features/users/components/user-create-form";
+import { UserCreateForm } from "@/features/users/components/form/user-create-form";
 
 afterEach(cleanup);
 
