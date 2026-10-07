@@ -4,23 +4,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/card";
+import { CardContent, CardFooter } from "@repo/ui/components/card";
 import { FieldGroup } from "@repo/ui/components/field";
 import { PasswordField } from "@repo/ui/components/form";
 import { resetPasswordSchema } from "@repo/validation";
 import type { ResetPasswordInput } from "@repo/validation";
 
 import { href, routes } from "@/config/routes";
+import { AuthCard } from "@/features/auth/auth-card";
 import { authErrorMessage } from "@/features/auth/auth-errors";
 import { authClient } from "@/lib/auth/client";
 
@@ -28,15 +23,12 @@ const PASSWORD_RULE = "8文字以上で、英字と数字をそれぞれ1文字�
 
 /** An expired or used link (Better Auth redirected with `?error=INVALID_TOKEN`). */
 export const InvalidPasswordLink = () => (
-  <Card>
-    <CardHeader>
-      <CardTitle>{routes.auth.newPassword.title}</CardTitle>
-    </CardHeader>
+  <AuthCard title={routes.auth.newPassword.title}>
     <CardContent>
       <Alert variant="destructive">
-        <AlertTitle>このURLは無効です</AlertTitle>
+        <AlertTitle>パスワード変更用のURLはすでに使用されています。</AlertTitle>
         <AlertDescription>
-          URLの有効期限が切れているか、すでに使用されています。お手数ですが「パスワードをお忘れの方」から新しいURLを再発行してください。
+          再度パスワードを変更する場合は、「パスワードを忘れた方はこちら」から新しいURLを再発行してください。
         </AlertDescription>
       </Alert>
     </CardContent>
@@ -46,13 +38,13 @@ export const InvalidPasswordLink = () => (
         render={<Link href={href(routes.auth.forgotPassword)} />}
         nativeButton={false}
       >
-        パスワードをお忘れの方
+        パスワードを忘れた方はこちら
       </Button>
       <Link href={href(routes.auth.login)} className="text-sm underline">
-        ログインへ戻る
+        ログイン画面へ戻る
       </Link>
     </CardFooter>
-  </Card>
+  </AuthCard>
 );
 
 /**
@@ -80,6 +72,7 @@ export const NewPasswordForm = ({ token }: { token: string }) => {
       return;
     }
     setDone(true);
+    toast.success("パスワードが変更されました。");
   });
 
   if (invalidLink) {
@@ -87,19 +80,12 @@ export const NewPasswordForm = ({ token }: { token: string }) => {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{routes.auth.newPassword.title}</CardTitle>
-        <CardDescription>{done ? null : PASSWORD_RULE}</CardDescription>
-      </CardHeader>
+    <AuthCard title={routes.auth.newPassword.title} description={done ? null : PASSWORD_RULE}>
       {done ? (
         <>
           <CardContent>
             <Alert>
-              <AlertTitle>パスワードを設定しました</AlertTitle>
-              <AlertDescription>
-                ログイン画面から新しいパスワードでログインしてください。
-              </AlertDescription>
+              <AlertDescription>ログイン画面へ戻り、ログインしてください。</AlertDescription>
             </Alert>
           </CardContent>
           <CardFooter>
@@ -113,7 +99,7 @@ export const NewPasswordForm = ({ token }: { token: string }) => {
           </CardFooter>
         </>
       ) : (
-        <form onSubmit={onSubmit} noValidate>
+        <form onSubmit={onSubmit} noValidate autoComplete="off">
           <CardContent>
             <FieldGroup>
               {serverError ? (
@@ -125,23 +111,25 @@ export const NewPasswordForm = ({ token }: { token: string }) => {
                 control={form.control}
                 name="newPassword"
                 label="新しいパスワード"
+                placeholder="新しいパスワード"
                 autoComplete="new-password"
               />
               <PasswordField
                 control={form.control}
                 name="confirmPassword"
-                label="新しいパスワード（確認）"
+                label="新しいパスワード再入力"
+                placeholder="新しいパスワード再入力"
                 autoComplete="new-password"
               />
             </FieldGroup>
           </CardContent>
           <CardFooter>
             <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? "設定中…" : "設定する"}
+              {form.formState.isSubmitting ? "変更中…" : "変更"}
             </Button>
           </CardFooter>
         </form>
       )}
-    </Card>
+    </AuthCard>
   );
 };

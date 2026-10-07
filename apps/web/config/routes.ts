@@ -23,7 +23,7 @@ const allow = (action: Action, subject: SubjectName): RouteAccess => ({ action, 
 export const routes = {
   auth: {
     login: { path: "/login", title: "ログイン", access: "public" },
-    forgotPassword: { path: "/forgot-password", title: "パスワード再設定", access: "public" },
+    forgotPassword: { path: "/forgot-password", title: "パスワード再設定する", access: "public" },
     // Also mailed by the API: apps/api/src/core/web-links.ts mirrors this path.
     newPassword: { path: "/new-password", title: "パスワード設定", access: "public" },
   },

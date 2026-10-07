@@ -32,7 +32,7 @@ describe("PasswordChangeForm", () => {
 
     submitWith({ current: "Old12345", next: "New12345", confirm: "New54321" });
 
-    expect(await screen.findByText("パスワードが一致しません")).toBeDefined();
+    expect(await screen.findByText("パスワードが一致していません")).toBeDefined();
   });
 
   it("applies the password policy to the new password", async () => {

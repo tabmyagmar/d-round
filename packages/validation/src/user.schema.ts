@@ -41,12 +41,15 @@ export const passwordSchema = z
 
 export const nameSchema = z.string().trim().min(1).max(100);
 
-const confirmPasswordSchema = z.string().min(1, { error: "確認用のパスワードを入力してください" });
-const PASSWORD_MISMATCH = "パスワードが一致しません";
+const confirmPasswordSchema = z.string().min(1, { error: "パスワードを再度入力してください" });
+const PASSWORD_MISMATCH = "パスワードが一致していません";
 
 export const signInSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1, { error: "パスワードを入力してください" }).max(128),
+  password: z
+    .string()
+    .min(1, { error: "パスワードを入力してください" })
+    .max(128, { error: "パスワードは128文字以内で入力してください" }),
   /** Off: the session cookie ends with the browser (Better Auth `rememberMe`). */
   rememberMe: z.boolean(),
 });

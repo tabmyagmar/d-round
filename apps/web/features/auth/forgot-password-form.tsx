@@ -4,23 +4,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/card";
+import { CardContent, CardFooter } from "@repo/ui/components/card";
 import { FieldGroup } from "@repo/ui/components/field";
 import { TextField } from "@repo/ui/components/form";
 import { forgotPasswordSchema } from "@repo/validation";
 import type { ForgotPasswordInput } from "@repo/validation";
 
 import { href, routes } from "@/config/routes";
+import { AuthCard } from "@/features/auth/auth-card";
 import { authErrorMessage } from "@/features/auth/auth-errors";
 import { authClient } from "@/lib/auth/client";
 
@@ -48,27 +43,30 @@ export const ForgotPasswordForm = () => {
       return;
     }
     setSent(true);
+    toast.success("メールが送信されました。メールリンクから続行してください。");
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{routes.auth.forgotPassword.title}</CardTitle>
-        <CardDescription>
-          登録されているメールアドレスを入力してください。パスワード再設定用のURLをお送りします。
-        </CardDescription>
-      </CardHeader>
+    <AuthCard
+      title={routes.auth.forgotPassword.title}
+      description="登録されているメールアドレスを入力してください。パスワード変更に必要情報をお送りいたします。"
+    >
       {sent ? (
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
+          <p className="text-center text-lg font-bold">
+            メールアドレス宛に送信いたしましたので、ご確認ください。
+          </p>
           <Alert>
-            <AlertTitle>メールを送信しました。ご確認ください。</AlertTitle>
+            <AlertTitle>【ご確認のお願い】</AlertTitle>
             <AlertDescription>
-              メールが届かない場合は、入力したメールアドレスに誤りや不要なスペースがないかご確認のうえ、再度お試しください。URLの有効期限は1時間です。
+              万が一メールが届かない場合は、入力されたメールアドレスに
+              <strong>誤りや不要なスペース</strong>
+              がないかご確認のうえ、再度送信してみてください。
             </AlertDescription>
           </Alert>
         </CardContent>
       ) : (
-        <form onSubmit={onSubmit} noValidate>
+        <form onSubmit={onSubmit} noValidate autoComplete="off">
           <CardContent>
             <FieldGroup>
               {serverError ? (
@@ -80,6 +78,7 @@ export const ForgotPasswordForm = () => {
                 control={form.control}
                 name="email"
                 label="メールアドレス"
+                placeholder="メールアドレス"
                 type="email"
                 autoComplete="email"
               />
@@ -94,9 +93,9 @@ export const ForgotPasswordForm = () => {
       )}
       <CardFooter>
         <Link href={href(routes.auth.login)} className="text-sm underline">
-          ログインへ戻る
+          ログイン画面へ戻る
         </Link>
       </CardFooter>
-    </Card>
+    </AuthCard>
   );
 };

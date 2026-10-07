@@ -64,6 +64,18 @@ describe("signInSchema", () => {
       expect.arrayContaining(["password", "rememberMe"]),
     );
   });
+
+  it("caps the password at 128 characters with a Japanese message", () => {
+    const result = signInSchema.safeParse({
+      email: "taro@example.com",
+      password: "a".repeat(129),
+      rememberMe: false,
+    });
+    expect(firstIssue(result)).toEqual({
+      path: "password",
+      message: "パスワードは128文字以内で入力してください",
+    });
+  });
 });
 
 describe("forgotPasswordSchema", () => {
@@ -89,7 +101,15 @@ describe("resetPasswordSchema", () => {
     });
     expect(firstIssue(result)).toEqual({
       path: "confirmPassword",
-      message: "パスワードが一致しません",
+      message: "パスワードが一致していません",
+    });
+  });
+
+  it("asks for the confirmation when it is empty", () => {
+    const result = resetPasswordSchema.safeParse({ newPassword: "Abcd1234", confirmPassword: "" });
+    expect(firstIssue(result)).toEqual({
+      path: "confirmPassword",
+      message: "パスワードを再度入力してください",
     });
   });
 

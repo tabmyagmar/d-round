@@ -9,13 +9,13 @@ export type AuthClientError = {
   message?: string | undefined;
 };
 
-const GENERIC = "エラーが発生しました。時間をおいて再度お試しください";
+const GENERIC = "問題が発生しました。もう一度お試しください。";
 
 const MESSAGES: Record<string, string> = {
   INVALID_EMAIL_OR_PASSWORD: "メールアドレスまたはパスワードが正しくありません",
-  BANNED_USER: "現在のアカウントではログインできません",
+  BANNED_USER: "現在のアカウントではログインできません。",
   EMAIL_NOT_VERIFIED:
-    "メールアドレスの確認が完了していません。「パスワードをお忘れの方」からパスワードを設定してください",
+    "メールアドレスの確認が完了していません。「パスワードを忘れた方はこちら」からパスワードを設定してください",
   INVALID_PASSWORD: "現在のパスワードが正しくありません",
   INVALID_TOKEN: "URLの有効期限が切れているか、すでに使用されています",
 };

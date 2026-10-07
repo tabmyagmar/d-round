@@ -5,7 +5,7 @@ import { authErrorMessage } from "@/features/auth/auth-errors";
 describe("authErrorMessage", () => {
   it.each([
     ["INVALID_EMAIL_OR_PASSWORD", "メールアドレスまたはパスワードが正しくありません"],
-    ["BANNED_USER", "現在のアカウントではログインできません"],
+    ["BANNED_USER", "現在のアカウントではログインできません。"],
     ["INVALID_PASSWORD", "現在のパスワードが正しくありません"],
     ["INVALID_TOKEN", "URLの有効期限が切れているか、すでに使用されています"],
   ])("translates %s", (code, message) => {
@@ -14,7 +14,7 @@ describe("authErrorMessage", () => {
 
   it("points an unverified user at the forgot-password flow", () => {
     expect(authErrorMessage({ code: "EMAIL_NOT_VERIFIED", status: 403 })).toContain(
-      "パスワードをお忘れの方",
+      "パスワードを忘れた方はこちら",
     );
   });
 
@@ -36,10 +36,8 @@ describe("authErrorMessage", () => {
 
   it("falls back to a generic message for anything else", () => {
     expect(authErrorMessage({ code: "SOMETHING_NEW", status: 500 })).toBe(
-      "エラーが発生しました。時間をおいて再度お試しください",
+      "問題が発生しました。もう一度お試しください。",
     );
-    expect(authErrorMessage({ status: 400 })).toBe(
-      "エラーが発生しました。時間をおいて再度お試しください",
-    );
+    expect(authErrorMessage({ status: 400 })).toBe("問題が発生しました。もう一度お試しください。");
   });
 });

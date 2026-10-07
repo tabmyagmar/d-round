@@ -8,20 +8,14 @@ import { useForm } from "react-hook-form";
 
 import { Alert, AlertDescription } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/card";
+import { CardContent, CardFooter } from "@repo/ui/components/card";
 import { FieldGroup } from "@repo/ui/components/field";
 import { CheckboxField, PasswordField, TextField } from "@repo/ui/components/form";
 import { signInSchema } from "@repo/validation";
 import type { SignInInput } from "@repo/validation";
 
 import { href, routes } from "@/config/routes";
+import { AuthCard } from "@/features/auth/auth-card";
 import { authErrorMessage } from "@/features/auth/auth-errors";
 import { authClient } from "@/lib/auth/client";
 
@@ -46,14 +40,17 @@ export const LoginForm = ({ next }: { next: string }) => {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{routes.auth.login.title}</CardTitle>
-        <CardDescription>
-          メールアドレス・パスワードを付与されていない第三者の利用は禁じられています。必要な情報を入力してログインしてください。
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={onSubmit} noValidate>
+    <AuthCard
+      title={routes.auth.login.title}
+      description={
+        <>
+          メールアドレス・パスワードを付与されていない、第三者の利用は禁じられています。
+          <br />
+          必要な情報を記入してログインしてください。
+        </>
+      }
+    >
+      <form onSubmit={onSubmit} noValidate autoComplete="off">
         <CardContent>
           <FieldGroup>
             {serverError ? (
@@ -65,12 +62,14 @@ export const LoginForm = ({ next }: { next: string }) => {
               control={form.control}
               name="email"
               label="メールアドレス"
+              placeholder="メールアドレス"
               type="email"
               autoComplete="email"
             />
             <PasswordField
               control={form.control}
               name="password"
+              placeholder="パスワード"
               label="パスワード"
               autoComplete="current-password"
             />
@@ -86,10 +85,10 @@ export const LoginForm = ({ next }: { next: string }) => {
             {form.formState.isSubmitting ? "ログイン中…" : "ログイン"}
           </Button>
           <Link href={href(routes.auth.forgotPassword)} className="text-sm underline">
-            パスワードをお忘れの方
+            パスワードを忘れた方はこちら
           </Link>
         </CardFooter>
       </form>
-    </Card>
+    </AuthCard>
   );
 };
