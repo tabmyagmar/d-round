@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { grantedGroups, roleKeysOf } from "@/features/users/utils/permission-catalog";
+import {
+  grantedGroups,
+  roleKeysOf,
+  toCheckboxGroups,
+} from "@/features/users/utils/permission-catalog";
 
 import { CATALOG } from "../catalog-fixture";
 
@@ -22,5 +26,17 @@ describe("grantedGroups", () => {
       ],
     );
     expect(grantedGroups(CATALOG, ["1203"]).map((group) => group.key)).toEqual(["1200"]);
+  });
+});
+
+describe("toCheckboxGroups", () => {
+  it("turns the catalog into checkbox groups and marks the role's permissions 標準", () => {
+    const groups = toCheckboxGroups(CATALOG, ["1202"]);
+
+    expect(groups.map((group) => group.label)).toEqual(["マスタ管理", "クライアント管理"]);
+    expect(groups[1]?.options).toEqual([
+      { value: "1202", label: "クライアント情報の一覧・詳細を確認", hint: "標準" },
+      { value: "1203", label: "クライアント情報編集" },
+    ]);
   });
 });
