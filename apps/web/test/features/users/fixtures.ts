@@ -1,4 +1,4 @@
-import type { UserRow } from "@/features/users/list/users-table";
+import type { UserRow } from "@/features/users/types";
 
 /** A `user.list` row as the API returns it (superjson keeps the dates). */
 export const userRow = (overrides: Partial<UserRow> = {}): UserRow => ({

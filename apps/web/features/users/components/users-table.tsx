@@ -1,10 +1,8 @@
 "use client";
 
-import type { inferRouterOutputs } from "@trpc/server";
 import Link from "next/link";
 import { useMemo } from "react";
 
-import type { AppRouter } from "@repo/api/router";
 import { createDataTableColumns, DataTable } from "@repo/ui/components/composed/data-table";
 import type {
   DataTablePagination,
@@ -12,11 +10,10 @@ import type {
 } from "@repo/ui/components/composed/data-table";
 
 import { href, routes } from "@/config/routes";
-import { UserRowActions } from "@/features/users/list/user-row-actions";
+import { UserRowActions } from "@/features/users/components/user-row-actions";
 import { RoleBadge } from "@/features/users/role-badge";
+import type { UserRow } from "@/features/users/types";
 import { UserStatusBadge, userStatusOf } from "@/features/users/user-status-badge";
-
-export type UserRow = inferRouterOutputs<AppRouter>["user"]["list"]["items"][number];
 
 const helper = createDataTableColumns<UserRow>();
 

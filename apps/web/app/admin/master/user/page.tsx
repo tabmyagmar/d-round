@@ -1,10 +1,10 @@
 import { PageGuard } from "@/components/page-guard";
 import { routes } from "@/config/routes";
-import { UsersPage } from "@/features/users/list/users-page";
+import { UsersContainer } from "@/features/users/containers/users-container";
 
 const UserListPage = () => (
   <PageGuard route={routes.user.list}>
-    <UsersPage />
+    <UsersContainer />
   </PageGuard>
 );
 
