@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@repo/ui/components/composed/confirm-dialog";
 
-import { userStatusOf } from "@/features/users/user-status-badge";
+import { userStatusOf } from "@/features/users/utils/user-labels";
 import { useTRPC } from "@/lib/trpc/react";
 
 export type UserStatusTarget = { id: string; name: string; deletedAt: Date | null };

@@ -9,8 +9,8 @@ import { RowActions } from "@repo/ui/components/composed/row-actions";
 import type { RowAction } from "@repo/ui/components/composed/row-actions";
 
 import { href, routes } from "@/config/routes";
-import { userStatusOf } from "@/features/users/user-status-badge";
-import type { UserStatusTarget } from "@/features/users/user-status-dialog";
+import type { UserStatusTarget } from "@/features/users/components/user-status-dialog";
+import { userStatusOf } from "@/features/users/utils/user-labels";
 
 export type UserRowActionsProps<TUser extends UserStatusTarget> = {
   user: TUser;

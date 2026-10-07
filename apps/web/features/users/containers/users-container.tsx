@@ -18,7 +18,10 @@ import { useTRPC } from "@/lib/trpc/react";
 
 // Loaded when a row's 利用停止 / 利用再開 is chosen, not with the list.
 const UserStatusDialog = dynamic(
-  () => import("@/features/users/user-status-dialog").then((module) => module.UserStatusDialog),
+  () =>
+    import("@/features/users/components/user-status-dialog").then(
+      (module) => module.UserStatusDialog,
+    ),
   { ssr: false },
 );
 

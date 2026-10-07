@@ -1,8 +1,7 @@
 import type { FilterTag } from "@repo/ui/components/composed/filter-tags";
 import type { ListUsersQuery, Role, UserStatus } from "@repo/validation";
 
-import { ROLE_LABELS } from "@/features/users/role-badge";
-import { USER_STATUS_LABELS } from "@/features/users/user-status-badge";
+import { ROLE_LABELS, USER_STATUS_LABELS } from "@/features/users/utils/user-labels";
 
 /** The list's filters as the toolbar shows them; the URL holds them (`parseSearchParams`). */
 export type UserListFilters = { search: string; role: Role | null; status: UserStatus };

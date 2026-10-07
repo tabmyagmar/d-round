@@ -2,16 +2,9 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { UserStatusBadge, userStatusOf } from "@/features/users/user-status-badge";
+import { UserStatusBadge } from "@/features/users/components/user-status-badge";
 
 afterEach(cleanup);
-
-describe("userStatusOf", () => {
-  it("reads a user without deletedAt as active and one with it as deactivated", () => {
-    expect(userStatusOf({ deletedAt: null })).toBe("active");
-    expect(userStatusOf({ deletedAt: new Date() })).toBe("deactivated");
-  });
-});
 
 describe("UserStatusBadge", () => {
   it("labels the two statuses as the legacy app did", () => {

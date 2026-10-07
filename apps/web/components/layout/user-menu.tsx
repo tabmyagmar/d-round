@@ -17,7 +17,7 @@ import {
 } from "@repo/ui/components/dropdown-menu";
 
 import { href, routes } from "@/config/routes";
-import { RoleBadge } from "@/features/users/role-badge";
+import { RoleBadge } from "@/features/users/components/role-badge";
 import { authClient } from "@/lib/auth/client";
 import type { CurrentUser } from "@/lib/auth/server";
 

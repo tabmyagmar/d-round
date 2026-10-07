@@ -2,13 +2,7 @@ import { StatusBadge } from "@repo/ui/components/composed/status-badge";
 import type { StatusTone } from "@repo/ui/components/composed/status-badge";
 import type { Role } from "@repo/validation";
 
-/** アカウントタイプ labels, as in the legacy app (staff is "AM"). */
-export const ROLE_LABELS: Record<Role, string> = {
-  super_admin: "スーパーアドミン",
-  admin: "アドミン",
-  manager: "マネジャー",
-  staff: "AM",
-};
+import { ROLE_LABELS } from "@/features/users/utils/user-labels";
 
 const ROLE_TONES: Record<Role, StatusTone> = {
   super_admin: "danger",

@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { ROLES } from "@repo/validation";
 
-import { ROLE_LABELS, RoleBadge } from "@/features/users/role-badge";
+import { RoleBadge } from "@/features/users/components/role-badge";
+import { ROLE_LABELS } from "@/features/users/utils/user-labels";
 
 afterEach(cleanup);
 

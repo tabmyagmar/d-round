@@ -10,10 +10,11 @@ import type {
 } from "@repo/ui/components/composed/data-table";
 
 import { href, routes } from "@/config/routes";
+import { RoleBadge } from "@/features/users/components/role-badge";
 import { UserRowActions } from "@/features/users/components/user-row-actions";
-import { RoleBadge } from "@/features/users/role-badge";
+import { UserStatusBadge } from "@/features/users/components/user-status-badge";
 import type { UserRow } from "@/features/users/types";
-import { UserStatusBadge, userStatusOf } from "@/features/users/user-status-badge";
+import { userStatusOf } from "@/features/users/utils/user-labels";
 
 const helper = createDataTableColumns<UserRow>();
 

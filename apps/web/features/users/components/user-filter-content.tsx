@@ -3,9 +3,8 @@
 import { OptionSelect } from "@repo/ui/components/composed/option-select";
 import { ROLES, USER_STATUSES } from "@repo/validation";
 
-import { ROLE_LABELS } from "@/features/users/role-badge";
-import { USER_STATUS_LABELS } from "@/features/users/user-status-badge";
 import type { UserFilterChanges, UserListFilters } from "@/features/users/utils/user-filters";
+import { ROLE_LABELS, USER_STATUS_LABELS } from "@/features/users/utils/user-labels";
 
 const ROLE_OPTIONS = ROLES.map((role) => ({ value: role, label: ROLE_LABELS[role] }));
 const STATUS_OPTIONS = USER_STATUSES.map((status) => ({

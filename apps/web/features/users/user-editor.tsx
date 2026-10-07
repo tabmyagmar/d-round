@@ -28,8 +28,9 @@ import { Skeleton } from "@repo/ui/components/skeleton";
 import { ROLES, roleSchema } from "@repo/validation";
 
 import { href, routes } from "@/config/routes";
+import { RoleBadge } from "@/features/users/components/role-badge";
 import { ProfileForm } from "@/features/users/profile/profile-form";
-import { ROLE_LABELS, RoleBadge } from "@/features/users/role-badge";
+import { ROLE_LABELS } from "@/features/users/utils/user-labels";
 import { useTRPC } from "@/lib/trpc/react";
 
 const roleItems = ROLES.map((role) => ({ value: role, label: ROLE_LABELS[role] }));
