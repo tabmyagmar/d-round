@@ -121,7 +121,7 @@ describe("DataTable row selection", () => {
         rowSelection={{
           state,
           onChange,
-          labels: { all: "Select page", row: (index) => `Select row ${String(index + 1)}` },
+          labels: { all: "Select page", row: (person) => `Select ${person.name}` },
         }}
       />,
     );
@@ -139,12 +139,12 @@ describe("DataTable row selection", () => {
   it("adds a checkbox column and ticks the selected rows", () => {
     renderSelectable({ "2": true });
 
-    expect(
-      screen.getByRole("checkbox", { name: "Select row 1" }).getAttribute("aria-checked"),
-    ).toBe("false");
-    expect(
-      screen.getByRole("checkbox", { name: "Select row 2" }).getAttribute("aria-checked"),
-    ).toBe("true");
+    expect(screen.getByRole("checkbox", { name: "Select Amy" }).getAttribute("aria-checked")).toBe(
+      "false",
+    );
+    expect(screen.getByRole("checkbox", { name: "Select Bob" }).getAttribute("aria-checked")).toBe(
+      "true",
+    );
     expect(screen.getByRole("checkbox", { name: "Select page" }).getAttribute("aria-checked")).toBe(
       "mixed",
     );
@@ -153,7 +153,7 @@ describe("DataTable row selection", () => {
   it("selects one row by its id", () => {
     const onChange = renderSelectable({});
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "Select row 1" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select Amy" }));
 
     expect(nextSelection(onChange, {})).toEqual({ "1": true });
   });

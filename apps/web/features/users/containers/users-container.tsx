@@ -9,6 +9,7 @@ import { listUsersSchema } from "@repo/validation";
 
 import { UsersTable } from "@/features/users/components/users-table";
 import { UsersToolbar } from "@/features/users/components/users-toolbar";
+import { UsersStoreProvider } from "@/features/users/stores/users-store-provider";
 import type { UserRow } from "@/features/users/types";
 import { userFiltersOf } from "@/features/users/utils/user-filters";
 import { parseSearchParams } from "@/hooks/search-params";
@@ -27,7 +28,8 @@ const UserStatusDialog = dynamic(
 
 /**
  * 担当者管理: the URL is the list's state (search, role, status, page, sort), read through the
- * API's own input schema; the previous page stays on screen while the next one loads.
+ * API's own input schema; the previous page stays on screen while the next one loads. The selected
+ * rows live in the users store, shared by the table and the toolbar.
  */
 export const UsersContainer = () => {
   const trpc = useTRPC();
@@ -38,31 +40,33 @@ export const UsersContainer = () => {
   const [statusTarget, setStatusTarget] = useState<UserRow | null>(null);
 
   return (
-    <div className="flex flex-col gap-4">
-      <UsersToolbar filters={userFiltersOf(input)} onChange={setMany} />
-      {users.isError ? (
-        <Alert variant="destructive">
-          <AlertTitle>担当者一覧を読み込めませんでした</AlertTitle>
-          <AlertDescription>{users.error.message}</AlertDescription>
-        </Alert>
-      ) : null}
-      <UsersTable
-        data={users.data?.items}
-        isLoading={users.isPending}
-        sorting={sorting}
-        pagination={pagination}
-        onToggleStatus={setStatusTarget}
-      />
-      {statusTarget ? (
-        <UserStatusDialog
-          user={statusTarget}
-          onOpenChange={(open) => {
-            if (!open) {
-              setStatusTarget(null);
-            }
-          }}
+    <UsersStoreProvider>
+      <div className="flex flex-col gap-4">
+        <UsersToolbar filters={userFiltersOf(input)} onChange={setMany} />
+        {users.isError ? (
+          <Alert variant="destructive">
+            <AlertTitle>担当者一覧を読み込めませんでした</AlertTitle>
+            <AlertDescription>{users.error.message}</AlertDescription>
+          </Alert>
+        ) : null}
+        <UsersTable
+          data={users.data?.items}
+          isLoading={users.isPending}
+          sorting={sorting}
+          pagination={pagination}
+          onToggleStatus={setStatusTarget}
         />
-      ) : null}
-    </div>
+        {statusTarget ? (
+          <UserStatusDialog
+            user={statusTarget}
+            onOpenChange={(open) => {
+              if (!open) {
+                setStatusTarget(null);
+              }
+            }}
+          />
+        ) : null}
+      </div>
+    </UsersStoreProvider>
   );
 };

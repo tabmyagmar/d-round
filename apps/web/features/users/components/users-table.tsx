@@ -13,6 +13,7 @@ import { href, routes } from "@/config/routes";
 import { RoleBadge } from "@/features/users/components/role-badge";
 import { UserRowActions } from "@/features/users/components/user-row-actions";
 import { UserStatusBadge } from "@/features/users/components/user-status-badge";
+import { useUsersStore } from "@/features/users/stores/users-store-provider";
 import type { UserRow } from "@/features/users/types";
 import { userStatusOf } from "@/features/users/utils/user-labels";
 
@@ -64,6 +65,12 @@ const userColumns = (onToggleStatus: (user: UserRow) => void) =>
     }),
   ]);
 
+/** Module-level so the selection column is built once, not on every render. */
+const SELECTION_LABELS = {
+  all: "このページの担当者をすべて選択",
+  row: (user: UserRow) => `${user.name}を選択`,
+};
+
 export type UsersTableProps = {
   data: UserRow[] | undefined;
   isLoading: boolean;
@@ -81,6 +88,8 @@ export const UsersTable = ({
   onToggleStatus,
 }: UsersTableProps) => {
   const columns = useMemo(() => userColumns(onToggleStatus), [onToggleStatus]);
+  const rowSelection = useUsersStore((store) => store.rowSelection);
+  const setRowSelection = useUsersStore((store) => store.setRowSelection);
   return (
     <DataTable
       columns={columns}
@@ -89,6 +98,11 @@ export const UsersTable = ({
       emptyMessage="該当する担当者はいません"
       getRowId={(row) => row.id}
       sorting={sorting}
+      rowSelection={{
+        state: rowSelection,
+        onChange: setRowSelection,
+        labels: SELECTION_LABELS,
+      }}
       {...(pagination ? { pagination } : {})}
     />
   );

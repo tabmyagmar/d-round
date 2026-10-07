@@ -66,10 +66,11 @@ export type DataTableRowSelectionState = RowSelectionState;
  * Controlled row selection, keyed by `getRowId` so it survives paging. Adds a checkbox column
  * (select one row, or every row of the page from the header).
  */
-export type DataTableRowSelection = {
+export type DataTableRowSelection<TData extends RowData> = {
   state: DataTableRowSelectionState;
   onChange: OnChangeFn<DataTableRowSelectionState>;
-  labels?: { all?: string; row?: (index: number) => string };
+  /** Accessible names: the header's select-all box and each row's box. */
+  labels?: { all?: string; row?: (row: TData, index: number) => string };
 };
 
 export type DataTableProps<TData extends RowData> = {
@@ -79,7 +80,7 @@ export type DataTableProps<TData extends RowData> = {
   emptyMessage?: ReactNode;
   pagination?: DataTablePagination;
   sorting?: DataTableSorting;
-  rowSelection?: DataTableRowSelection;
+  rowSelection?: DataTableRowSelection<TData>;
   getRowId?: (row: TData, index: number) => string;
   className?: string;
 };
@@ -133,7 +134,9 @@ export const DataTable = <TData extends RowData>({
         ),
         cell: ({ row }) => (
           <Checkbox
-            aria-label={rowLabel ? rowLabel(row.index) : `Select row ${String(row.index + 1)}`}
+            aria-label={
+              rowLabel ? rowLabel(row.original, row.index) : `Select row ${String(row.index + 1)}`
+            }
             checked={row.getIsSelected()}
             onCheckedChange={(checked) => {
               row.toggleSelected(checked);

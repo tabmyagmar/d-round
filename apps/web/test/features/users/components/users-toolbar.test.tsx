@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { PermissionGrant } from "@repo/permissions";
@@ -7,6 +7,7 @@ import { AbilityProvider } from "@repo/permissions/react";
 
 import { href, routes } from "@/config/routes";
 import { UsersToolbar } from "@/features/users/components/users-toolbar";
+import { UsersStoreProvider } from "@/features/users/stores/users-store-provider";
 import type { UserListFilters } from "@/features/users/utils/user-filters";
 
 import { userWith } from "../../../support/grants";
@@ -16,11 +17,17 @@ afterEach(cleanup);
 const NO_FILTERS: UserListFilters = { search: "", role: null, status: "active" };
 const READ_USERS: readonly PermissionGrant[] = [{ action: "read", subject: "User" }];
 
-const renderToolbar = (grants: readonly PermissionGrant[], filters = NO_FILTERS) => {
+const renderToolbar = (
+  grants: readonly PermissionGrant[],
+  filters = NO_FILTERS,
+  rowSelection: Record<string, true> = {},
+) => {
   const onChange = vi.fn();
   render(
     <AbilityProvider user={userWith(grants)}>
-      <UsersToolbar filters={filters} onChange={onChange} />
+      <UsersStoreProvider initialState={{ rowSelection }}>
+        <UsersToolbar filters={filters} onChange={onChange} />
+      </UsersStoreProvider>
     </AbilityProvider>,
   );
   return onChange;
@@ -57,5 +64,14 @@ describe("UsersToolbar", () => {
     screen.getByRole("button", { name: "アカウントタイプの絞り込みを解除" }).click();
 
     expect(onChange).toHaveBeenCalledWith({ role: null });
+  });
+
+  it("shows the selected rows and clears them", () => {
+    renderToolbar(READ_USERS, NO_FILTERS, { a: true, b: true });
+
+    expect(screen.getByText("2件選択中")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "選択解除" }));
+
+    expect(screen.queryByText("2件選択中")).toBeNull();
   });
 });

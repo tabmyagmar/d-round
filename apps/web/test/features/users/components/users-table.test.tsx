@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AbilityProvider } from "@repo/permissions/react";
 
 import { href, routes } from "@/config/routes";
 import { UsersTable } from "@/features/users/components/users-table";
+import { UsersStoreProvider } from "@/features/users/stores/users-store-provider";
 import type { UserRow } from "@/features/users/types";
 
 import { EVERY_GRANT, userWith } from "../../../support/grants";
@@ -16,13 +17,15 @@ afterEach(cleanup);
 const renderTable = (rows: UserRow[]) =>
   render(
     <AbilityProvider user={userWith(EVERY_GRANT)}>
-      <UsersTable
-        data={rows}
-        isLoading={false}
-        sorting={{ state: [], onChange: vi.fn() }}
-        pagination={undefined}
-        onToggleStatus={vi.fn()}
-      />
+      <UsersStoreProvider>
+        <UsersTable
+          data={rows}
+          isLoading={false}
+          sorting={{ state: [], onChange: vi.fn() }}
+          pagination={undefined}
+          onToggleStatus={vi.fn()}
+        />
+      </UsersStoreProvider>
     </AbilityProvider>,
   );
 
@@ -31,6 +34,7 @@ describe("UsersTable", () => {
     renderTable([userRow()]);
 
     expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
+      "",
       "氏名",
       "メールアドレス",
       "アカウントタイプ",
@@ -66,5 +70,19 @@ describe("UsersTable", () => {
     expect(screen.getByText("停止")).toBeDefined();
     expect(screen.getByText("Bob")).toBeDefined();
     expect(screen.queryByRole("link", { name: "Bob" })).toBeNull();
+  });
+
+  it("selects a row with its checkbox, kept in the users store", () => {
+    renderTable([userRow({ name: "Amy" }), userRow({ name: "Bob" })]);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Amyを選択" }));
+
+    expect(screen.getByRole("checkbox", { name: "Amyを選択" }).getAttribute("aria-checked")).toBe(
+      "true",
+    );
+    expect(
+      screen
+        .getByRole("checkbox", { name: "このページの担当者をすべて選択" })
+        .getAttribute("aria-checked"),
+    ).toBe("mixed");
   });
 });
