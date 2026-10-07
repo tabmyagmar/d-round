@@ -1,11 +1,11 @@
 import { PageGuard } from "@/components/page-guard";
 import { routes } from "@/config/routes";
-import { UsersTable } from "@/features/users/users-table";
+import { UsersPage } from "@/features/users/list/users-page";
 
-const UsersPage = () => (
+const UserListPage = () => (
   <PageGuard route={routes.user.list}>
-    <UsersTable />
+    <UsersPage />
   </PageGuard>
 );
 
-export default UsersPage;
+export default UserListPage;
