@@ -4,8 +4,8 @@ import type { DataTableRowSelectionState } from "@repo/ui/components/composed/da
 
 /**
  * The users list's client state that several components share: the selected rows (by user id,
- * across pages) — read by the table and the toolbar's selection bar, and by bulk actions to come
- * (CSV export). Filters, page and sort are not here: they live in the URL.
+ * across pages) — written by the table, read by the toolbar's bulk actions to come (CSV export).
+ * Filters, page and sort are not here: they live in the URL.
  */
 export type UsersState = {
   rowSelection: DataTableRowSelectionState;
@@ -17,7 +17,6 @@ export type UsersActions = {
       | DataTableRowSelectionState
       | ((previous: DataTableRowSelectionState) => DataTableRowSelectionState),
   ) => void;
-  clearSelection: () => void;
 };
 
 export type UsersStore = UsersState & UsersActions;
@@ -32,9 +31,6 @@ export const createUsersStore = (initialState: UsersState = INITIAL_STATE) =>
       set((state) => ({
         rowSelection: typeof updater === "function" ? updater(state.rowSelection) : updater,
       }));
-    },
-    clearSelection: () => {
-      set({ rowSelection: {} });
     },
   }));
 

@@ -14,7 +14,16 @@ import { userRow } from "../fixtures";
 
 afterEach(cleanup);
 
-const renderTable = (rows: UserRow[]) =>
+const onePage = (total: number) => ({
+  page: 1,
+  totalPages: 1,
+  total,
+  hasPrev: false,
+  hasNext: false,
+  onPageChange: vi.fn(),
+});
+
+const renderTable = (rows: UserRow[], pagination?: ReturnType<typeof onePage>) =>
   render(
     <AbilityProvider user={userWith(EVERY_GRANT)}>
       <UsersStoreProvider>
@@ -22,7 +31,7 @@ const renderTable = (rows: UserRow[]) =>
           data={rows}
           isLoading={false}
           sorting={{ state: [], onChange: vi.fn() }}
-          pagination={undefined}
+          pagination={pagination}
           onToggleStatus={vi.fn()}
         />
       </UsersStoreProvider>
@@ -30,6 +39,12 @@ const renderTable = (rows: UserRow[]) =>
   );
 
 describe("UsersTable", () => {
+  it("titles the card 全担当者数 with the total from the page result", () => {
+    renderTable([userRow()], onePage(7));
+
+    expect(screen.getByText("全担当者数").textContent).toBe("全担当者数7");
+  });
+
   it("shows the legacy columns in the legacy order", () => {
     renderTable([userRow()]);
 
@@ -90,5 +105,17 @@ describe("UsersTable", () => {
         .getByRole("checkbox", { name: "このページの担当者をすべて選択" })
         .getAttribute("aria-checked"),
     ).toBe("mixed");
+  });
+
+  it("checks the header box, not mixed, once every user on the page is selected", () => {
+    renderTable([userRow({ name: "Amy" }), userRow({ name: "Bob" })]);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Amyを選択" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Bobを選択" }));
+
+    expect(
+      screen
+        .getByRole("checkbox", { name: "このページの担当者をすべて選択" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
   });
 });

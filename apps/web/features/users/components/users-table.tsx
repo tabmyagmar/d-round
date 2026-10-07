@@ -98,6 +98,7 @@ export const UsersTable = ({
   const setRowSelection = useUsersStore((store) => store.setRowSelection);
   return (
     <DataTable
+      title="全担当者数"
       columns={columns}
       data={data}
       isLoading={isLoading}

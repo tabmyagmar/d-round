@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { PermissionGrant } from "@repo/permissions";
@@ -66,12 +66,10 @@ describe("UsersToolbar", () => {
     expect(onChange).toHaveBeenCalledWith({ role: null });
   });
 
-  it("shows the selected rows and clears them", () => {
+  it("shows no selection line: the table's checkboxes are the only selection UI", () => {
     renderToolbar(READ_USERS, NO_FILTERS, { a: true, b: true });
 
-    expect(screen.getByText("2件選択中")).toBeDefined();
-    fireEvent.click(screen.getByRole("button", { name: "選択解除" }));
-
-    expect(screen.queryByText("2件選択中")).toBeNull();
+    expect(screen.queryByText(/件選択中/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "選択解除" })).toBeNull();
   });
 });

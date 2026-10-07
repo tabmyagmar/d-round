@@ -15,12 +15,4 @@ describe("users store", () => {
 
     expect(store.getState().rowSelection).toEqual({ a: true, b: true });
   });
-
-  it("clears the selection", () => {
-    const store = createUsersStore({ rowSelection: { a: true } });
-
-    store.getState().clearSelection();
-
-    expect(store.getState().rowSelection).toEqual({});
-  });
 });
