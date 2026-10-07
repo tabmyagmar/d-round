@@ -9,9 +9,9 @@ import { ROLE_LABELS, RoleBadge } from "@/features/users/role-badge";
 afterEach(cleanup);
 
 describe("RoleBadge", () => {
-  it("shows the human label for a known role", () => {
+  it("shows the legacy Japanese label for a known role", () => {
     render(<RoleBadge role="admin" />);
-    expect(screen.getByText("Admin")).toBeDefined();
+    expect(screen.getByText("アドミン")).toBeDefined();
   });
 
   it.each(ROLES)("shows the human label for %s, never the raw key", (role) => {
