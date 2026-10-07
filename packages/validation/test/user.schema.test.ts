@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  assignableRoles,
   changePasswordSchema,
   emailSchema,
   forgotPasswordSchema,
@@ -210,5 +211,20 @@ describe("listUsersSchema", () => {
     expect(listUsersSchema.safeParse({ sortBy: "role" }).success).toBe(false);
     expect(listUsersSchema.safeParse({ status: "banned" }).success).toBe(false);
     expect(listUsersSchema.safeParse({ sortOrder: "up" }).success).toBe(false);
+  });
+});
+
+describe("assignableRoles (who may give which role)", () => {
+  it("lets both admin roles assign admin, manager and staff, never super_admin", () => {
+    expect(assignableRoles("super_admin")).toEqual(["admin", "manager", "staff"]);
+    expect(assignableRoles("admin")).toEqual(["admin", "manager", "staff"]);
+  });
+
+  it("lets a manager assign manager and staff only", () => {
+    expect(assignableRoles("manager")).toEqual(["manager", "staff"]);
+  });
+
+  it("lets staff assign nothing", () => {
+    expect(assignableRoles("staff")).toEqual([]);
   });
 });

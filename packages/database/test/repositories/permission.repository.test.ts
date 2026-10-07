@@ -218,4 +218,99 @@ describe("permission repository", () => {
       });
     });
   });
+
+  describe("findVisibleCatalog", () => {
+    it("returns visible rows in key order with the roles that hold each one", async () => {
+      await inRolledBackTransaction(async (tx) => {
+        const prefix = newPrefix();
+        await createPermission(tx, `${prefix}-b`);
+        await createPermission(tx, `${prefix}-a`, { action: "all" });
+        await createPermission(tx, `${prefix}-hidden`, { visible: false });
+        await tx.permission.update({
+          where: { key: `${prefix}-b` },
+          data: { parentKey: `${prefix}-a` },
+        });
+        await grantToRole(tx, "staff", `${prefix}-b`);
+        await grantToRole(tx, "admin", `${prefix}-b`);
+
+        const catalog = await createPermissionRepository(tx).findVisibleCatalog();
+
+        expect(catalog.filter((row) => row.key.startsWith(prefix))).toEqual([
+          {
+            key: `${prefix}-a`,
+            name: `Runtime ${prefix}-a`,
+            nameJp: "ランタイム権限",
+            parentKey: null,
+            action: "all",
+            modelName: "Runtime",
+            roles: [],
+          },
+          {
+            key: `${prefix}-b`,
+            name: `Runtime ${prefix}-b`,
+            nameJp: "ランタイム権限",
+            parentKey: `${prefix}-a`,
+            action: "read",
+            modelName: "Runtime",
+            roles: [{ roleKey: "admin" }, { roleKey: "staff" }],
+          },
+        ]);
+      });
+    });
+  });
+
+  describe("user overrides", () => {
+    it("replaces a user's rows instead of adding to them, and reads them back in key order", async () => {
+      await inRolledBackTransaction(async (tx) => {
+        const prefix = newPrefix();
+        const a = await createPermission(tx, `${prefix}-a`);
+        const b = await createPermission(tx, `${prefix}-b`);
+        const c = await createPermission(tx, `${prefix}-c`);
+        const user = await createUser(tx);
+        const other = await createUser(tx);
+        const repo = createPermissionRepository(tx);
+        await repo.replaceUserOverrides(
+          other.id,
+          [{ permissionKey: a.key, effect: "ALLOW" }],
+          null,
+        );
+        await repo.replaceUserOverrides(user.id, [{ permissionKey: a.key, effect: "ALLOW" }], null);
+
+        const written = await repo.replaceUserOverrides(
+          user.id,
+          [
+            { permissionKey: c.key, effect: "DENY" },
+            { permissionKey: b.key, effect: "ALLOW" },
+          ],
+          other.id,
+        );
+
+        expect(written).toBe(2);
+        expect(await repo.findUserOverrides(user.id)).toEqual([
+          { permissionKey: b.key, effect: "ALLOW" },
+          { permissionKey: c.key, effect: "DENY" },
+        ]);
+        expect(await repo.findUserOverrides(other.id)).toEqual([
+          { permissionKey: a.key, effect: "ALLOW" },
+        ]);
+        const stored = await tx.userPermission.findFirstOrThrow({
+          where: { userId: user.id, permissionKey: b.key },
+        });
+        expect(stored.assignedBy).toBe(other.id);
+      });
+    });
+
+    it("clears every row of the user when given none", async () => {
+      await inRolledBackTransaction(async (tx) => {
+        const prefix = newPrefix();
+        const a = await createPermission(tx, `${prefix}-a`);
+        const user = await createUser(tx);
+        const repo = createPermissionRepository(tx);
+        await repo.replaceUserOverrides(user.id, [{ permissionKey: a.key, effect: "DENY" }], null);
+
+        expect(await repo.replaceUserOverrides(user.id, [], null)).toBe(0);
+        expect(await repo.findUserOverrides(user.id)).toEqual([]);
+      });
+    });
+  });
 });

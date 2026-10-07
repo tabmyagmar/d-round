@@ -18,6 +18,24 @@ export const DEFAULT_ROLE: Role = "staff";
  */
 export const ADMIN_ROLES = ["super_admin", "admin"] as const satisfies readonly Role[];
 
+/**
+ * Roles a caller may give another user (invite, role change), from the legacy role picker:
+ * `super_admin` is never assigned through the app, a manager hands out manager or staff, staff
+ * nothing. The API enforces it; the web only renders what it returns.
+ */
+const ASSIGNABLE_ROLES: Readonly<Record<Role, readonly Role[]>> = {
+  super_admin: ["admin", "manager", "staff"],
+  admin: ["admin", "manager", "staff"],
+  manager: ["manager", "staff"],
+  staff: [],
+};
+export const assignableRoles = (callerRole: Role): readonly Role[] => ASSIGNABLE_ROLES[callerRole];
+
+/** Roles whose grants may be adjusted per user (`user_permissions` ALLOW / DENY rows). */
+export const OVERRIDABLE_ROLES = ["manager"] as const satisfies readonly Role[];
+export const isOverridableRole = (role: string): boolean =>
+  (OVERRIDABLE_ROLES as readonly string[]).includes(role);
+
 export const emailSchema = z
   .email({
     error: (issue) =>
