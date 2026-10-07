@@ -58,8 +58,6 @@ export const passwordSchema = z
   .regex(/[A-Za-z]/, { error: "英字を1文字以上含めてください" })
   .regex(/\d/, { error: "数字を1文字以上含めてください" });
 
-export const nameSchema = z.string().trim().min(1).max(100);
-
 /** Full-width katakana with ー, ・ and spaces: the legacy rule for name readings (セイ / メイ). */
 export const KATAKANA_PATTERN = /^[\u30A0-\u30FF\s]+$/u;
 
@@ -131,10 +129,13 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 export const userIdSchema = z.object({ userId: idSchema });
 
+/** The name parts, each optional: an edit sends only the parts that changed. */
+const userNamePatchShape = userNameSchema.partial().shape;
+
 /** Self edit when `userId` is omitted; admins may pass another user's id. */
 export const updateProfileSchema = z.object({
   userId: idSchema.optional(),
-  name: nameSchema.optional(),
+  ...userNamePatchShape,
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
@@ -144,7 +145,7 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
  */
 export const inviteUserSchema = z.object({
   email: emailSchema,
-  name: nameSchema,
+  ...userNameSchema.shape,
   role: roleSchema,
   permissionKeys: permissionKeysSchema.optional(),
 });
@@ -160,12 +161,12 @@ export const inviteUserFormSchema = inviteUserSchema
 export type InviteUserFormInput = z.infer<typeof inviteUserFormSchema>;
 
 /**
- * Edits another user (担当者情報編集): any subset of name, role and permission keys, saved
- * together. A role or permission change needs `changeRole`; see the user service.
+ * Edits another user (担当者情報編集): any subset of the name parts, role and permission keys,
+ * saved together. A role or permission change needs `changeRole`; see the user service.
  */
 export const updateUserSchema = z.object({
   userId: idSchema,
-  name: nameSchema.optional(),
+  ...userNamePatchShape,
   role: roleSchema.optional(),
   permissionKeys: permissionKeysSchema.optional(),
 });

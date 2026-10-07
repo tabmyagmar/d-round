@@ -19,7 +19,15 @@ type HarnessProps = {
 
 /** The smallest host: a react-hook-form form with the shared user fields. */
 const Harness = ({ role, options, disabled = false, canEditPermissions }: HarnessProps) => {
-  const form = useForm<UserFieldValues>({ defaultValues: { name: "山田 太郎", role } });
+  const form = useForm<UserFieldValues>({
+    defaultValues: {
+      lastName: "山田",
+      firstName: "太郎",
+      lastNameKana: "ヤマダ",
+      firstNameKana: "タロウ",
+      role,
+    },
+  });
   return (
     <UserFormFields
       control={form.control}
@@ -30,10 +38,13 @@ const Harness = ({ role, options, disabled = false, canEditPermissions }: Harnes
 };
 
 describe("UserFormFields", () => {
-  it("shows the name and the account type with its legacy label", () => {
+  it("shows 姓, 名, セイ, メイ and the account type with its legacy label", () => {
     render(<Harness role="manager" options={["manager", "staff"]} canEditPermissions={false} />);
 
-    expect(screen.getByLabelText(/氏名/)).toHaveProperty("value", "山田 太郎");
+    expect(screen.getByLabelText(/^姓/)).toHaveProperty("value", "山田");
+    expect(screen.getByLabelText(/^名/)).toHaveProperty("value", "太郎");
+    expect(screen.getByLabelText(/^セイ/)).toHaveProperty("value", "ヤマダ");
+    expect(screen.getByLabelText(/^メイ/)).toHaveProperty("value", "タロウ");
     expect(screen.getByText("マネジャー")).toBeDefined();
   });
 

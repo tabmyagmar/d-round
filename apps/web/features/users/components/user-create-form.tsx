@@ -25,7 +25,8 @@ export type UserCreateFormProps = {
 };
 
 /**
- * 担当者追加 (invite): 氏名, the email typed twice, アカウントタイプ and a manager's permissions.
+ * 担当者追加 (invite): 姓 / 名 / セイ / メイ, the email typed twice, アカウントタイプ and a manager's
+ * permissions.
  * AM (staff) is preselected when the caller may give it.
  */
 export const UserCreateForm = ({
@@ -38,7 +39,10 @@ export const UserCreateForm = ({
   const form = useForm<InviteUserFormInput>({
     resolver: zodResolver(inviteUserFormSchema),
     defaultValues: {
-      name: "",
+      lastName: "",
+      firstName: "",
+      lastNameKana: "",
+      firstNameKana: "",
       email: "",
       emailConfirm: "",
       role: roleField.options.includes("staff") ? "staff" : (roleField.options[0] ?? DEFAULT_ROLE),

@@ -41,14 +41,14 @@ describe("UserUpdateForm", () => {
     const save = screen.getByRole("button", { name: "保存" });
     expect(save).toHaveProperty("disabled", true);
 
-    fireEvent.input(screen.getByLabelText(/^氏名/), { target: { value: "山田 花子" } });
+    fireEvent.input(screen.getByLabelText(/^名/), { target: { value: "花子" } });
     await waitFor(() => {
       expect(save).toHaveProperty("disabled", false);
     });
     fireEvent.click(save);
 
     await waitFor(() => {
-      expect(onSubmit).toHaveBeenCalledWith({ userId: USER.id, name: "山田 花子" });
+      expect(onSubmit).toHaveBeenCalledWith({ userId: USER.id, firstName: "花子" });
     });
   });
 });

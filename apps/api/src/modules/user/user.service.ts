@@ -11,11 +11,13 @@ import type {
   UniqueViolationError,
   User,
   UserPermissionOverride,
+  UserProfileUpdate,
 } from "@repo/database";
 import { accessibleUsersWhere, prismaUserSubject } from "@repo/permissions/server";
 import {
   ADMIN_ROLES,
   assignableRoles,
+  fullName,
   isOverridableRole,
   OVERRIDABLE_ROLES,
 } from "@repo/validation";
@@ -26,6 +28,7 @@ import type {
   SortOrder,
   UpdateProfileInput,
   UpdateUserInput,
+  UserNameInput,
   UserSortField,
 } from "@repo/validation";
 
@@ -204,6 +207,34 @@ export const list = async (
   );
 };
 
+const NAME_PARTS = ["lastName", "firstName", "lastNameKana", "firstNameKana"] as const;
+
+/**
+ * The profile changes for the name parts in `input`: the parts given, and the display name
+ * `name` = "姓 名" (Better Auth's, used by the session and mails) whenever a part changes and both
+ * 姓 and 名 are known — from the input or, for a part not given, from the stored user.
+ */
+type NamePatch = Partial<Record<(typeof NAME_PARTS)[number], string | undefined>>;
+
+const nameChanges = (target: User, input: NamePatch): UserProfileUpdate => {
+  const parts: Partial<UserNameInput> = {};
+  for (const key of NAME_PARTS) {
+    const value = input[key];
+    if (value !== undefined) {
+      parts[key] = value;
+    }
+  }
+  if (Object.keys(parts).length === 0) {
+    return {};
+  }
+  const lastName = parts.lastName ?? target.lastName;
+  const firstName = parts.firstName ?? target.firstName;
+  return {
+    ...parts,
+    ...(lastName && firstName ? { name: fullName({ lastName, firstName }) } : {}),
+  };
+};
+
 export const updateProfile = async (
   ctx: RequestContext,
   input: UpdateProfileInput,
@@ -212,9 +243,10 @@ export const updateProfile = async (
   const target = await loadUser(ctx, input.userId ?? actor.id);
   assertCan(ctx, "update", target);
 
-  const data = {
-    ...(input.name !== undefined ? { name: input.name } : {}),
-  };
+  const data = nameChanges(target, input);
+  if (Object.keys(data).length === 0) {
+    return target;
+  }
 
   // Unique violations become ConflictError here, never in the repository or the router. The
   // profile fields above carry no unique constraint today; keep the translation when you add one.
@@ -251,8 +283,9 @@ export const update = async (ctx: RequestContext, input: UpdateUserInput): Promi
     assertCan(ctx, "update", target);
 
     let updated = target;
-    if (input.name !== undefined && input.name !== target.name) {
-      updated = await users.updateProfile(target.id, { name: input.name });
+    const changes = nameChanges(target, input);
+    if (Object.keys(changes).length > 0) {
+      updated = await users.updateProfile(target.id, changes);
     }
 
     const role = input.role ?? target.role;
@@ -361,8 +394,9 @@ const mailPasswordLink = async (ctx: RequestContext, email: string): Promise<voi
  * Creates a user without a password and mails the invitation; the user sets the first password
  * from the link (which also verifies the email). Catalog row 1101 (`create User`) and a role the
  * caller may assign; `permissionKeys` also need `changeRole` and an overridable role. Better Auth
- * creates the user, so the overrides are a second write: if it fails, the user exists with the
- * role's permissions and the error says to set them on the edit page.
+ * creates the user with `name` = "姓 名"; the name parts and the overrides are a second write
+ * before the mail: if it fails, the user exists without them and the error says to complete the
+ * user and re-send the invitation.
  */
 export const invite = async (ctx: RequestContext, input: InviteUserInput): Promise<UserDetail> => {
   const { user: actor } = requireUser(ctx);
@@ -379,7 +413,7 @@ export const invite = async (ctx: RequestContext, input: InviteUserInput): Promi
   let createdId: string;
   try {
     const created = await ctx.auth.api.createUser({
-      body: { email: input.email, name: input.name, role: input.role },
+      body: { email: input.email, name: fullName(input), role: input.role },
     });
     createdId = created.user.id;
   } catch (error) {
@@ -389,21 +423,30 @@ export const invite = async (ctx: RequestContext, input: InviteUserInput): Promi
     throw error;
   }
 
+  // Our own columns (the name parts) and the overrides, in one unit of work, before the
+  // invitation goes out. Better Auth created the user, so a failure here leaves the user without
+  // them and without a mail: the error says to complete the user and re-send.
+  try {
+    await withTransaction(ctx.db, async ({ tx }) => {
+      await createUserRepository(tx).updateProfile(createdId, {
+        lastName: input.lastName,
+        firstName: input.firstName,
+        lastNameKana: input.lastNameKana,
+        firstNameKana: input.firstNameKana,
+      });
+      if (overrides) {
+        await createPermissionRepository(tx).replaceUserOverrides(createdId, overrides, actor.id);
+      }
+    });
+  } catch (error) {
+    throw new ConflictError(
+      "The user was created, but their details were not saved; complete them on the edit page and send the invitation again",
+      { cause: error },
+    );
+  }
+
   // The user exists even if the mail cannot be queued; the admin re-sends from the user page.
   await mailPasswordLink(ctx, input.email);
-  if (overrides) {
-    const rows = overrides;
-    try {
-      await withTransaction(ctx.db, ({ tx }) =>
-        createPermissionRepository(tx).replaceUserOverrides(createdId, rows, actor.id),
-      );
-    } catch (error) {
-      throw new ConflictError(
-        "The user was created, but their permissions were not saved; set them on the edit page",
-        { cause: error },
-      );
-    }
-  }
   return withPermissionKeys(ctx.db, await loadUser(ctx, createdId));
 };
 

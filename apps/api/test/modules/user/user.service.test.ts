@@ -25,6 +25,14 @@ afterAll(async () => {
 
 const tag = () => `tag-${crypto.randomUUID().slice(0, 8)}`;
 
+/** 姓 / 名 with valid readings, for inputs that need a full name. */
+const names = (lastName: string, firstName: string) => ({
+  lastName,
+  firstName,
+  lastNameKana: "テスト",
+  firstNameKana: "タロウ",
+});
+
 /** The query exactly as the router hands it to the service: parsed, defaults applied. */
 const listQuery = (input: ListUsersInput) => listUsersSchema.parse(input);
 
@@ -150,15 +158,20 @@ describe("updateProfile", () => {
     const staff = await signedInUser(h);
 
     const self = await userService.updateProfile(await contextFor(h, staff.headers), {
-      name: "Renamed Self",
+      lastName: "自分",
+      firstName: "改名",
     });
-    expect(self.name).toBe("Renamed Self");
+    expect(self).toMatchObject({ name: "自分 改名", lastName: "自分", firstName: "改名" });
 
     const byAdmin = await userService.updateProfile(await contextFor(h, admin.headers), {
       userId: staff.user.id,
-      name: "Renamed By Admin",
+      ...names("管理", "改名"),
     });
-    expect(byAdmin.name).toBe("Renamed By Admin");
+    expect(byAdmin).toMatchObject({
+      name: "管理 改名",
+      lastNameKana: "テスト",
+      firstNameKana: "タロウ",
+    });
   });
 
   it("forbids staff from editing other users", async () => {
@@ -168,7 +181,7 @@ describe("updateProfile", () => {
     await expect(
       userService.updateProfile(await contextFor(h, staff.headers), {
         userId: other.user.id,
-        name: "Nope",
+        lastName: "不可",
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
@@ -196,11 +209,32 @@ describe("update", () => {
 
     const renamed = await userService.update(await contextFor(h, staff.headers), {
       userId: staff.user.id,
-      name: "After",
+      ...names("後", "名前"),
     });
 
-    expect(renamed.name).toBe("After");
+    expect(renamed).toMatchObject({ name: "後 名前", lastName: "後", firstName: "名前" });
     expect(renamed.role).toBe("staff");
+  });
+
+  it("keeps the stored parts when only some change, and the display name follows", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const staff = await signedInUser(h);
+    const ctx = await contextFor(h, admin.headers);
+    await userService.update(ctx, { userId: staff.user.id, ...names("山田", "太郎") });
+
+    const updated = await userService.update(ctx, {
+      userId: staff.user.id,
+      firstName: "花子",
+      firstNameKana: "ハナコ",
+    });
+
+    expect(updated).toMatchObject({
+      name: "山田 花子",
+      lastName: "山田",
+      firstName: "花子",
+      lastNameKana: "テスト",
+      firstNameKana: "ハナコ",
+    });
   });
 
   it("changes roles for callers holding `changeRole` and refuses to demote the last admin", async () => {
@@ -517,13 +551,20 @@ describe("invite", () => {
 
     const invited = await userService.invite(await contextFor(h, admin.headers), {
       email,
-      name: "招待 花子",
+      lastName: "招待",
+      firstName: "花子",
+      lastNameKana: "ショウタイ",
+      firstNameKana: "ハナコ",
       role: "manager",
     });
 
     expect(invited).toMatchObject({
       email,
       name: "招待 花子",
+      lastName: "招待",
+      firstName: "花子",
+      lastNameKana: "ショウタイ",
+      firstNameKana: "ハナコ",
       role: "manager",
       emailVerified: false,
     });
@@ -540,7 +581,7 @@ describe("invite", () => {
     await expect(
       userService.invite(await contextFor(h, admin.headers), {
         email: existing.email,
-        name: "Again",
+        ...names("再度", "登録"),
         role: "staff",
       }),
     ).rejects.toBeInstanceOf(ConflictError);
@@ -553,7 +594,7 @@ describe("invite", () => {
     await expect(
       userService.invite(await contextFor(h, admin.headers), {
         email,
-        name: "Boss",
+        ...names("上司", "太郎"),
         role: "super_admin",
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
@@ -566,7 +607,7 @@ describe("invite", () => {
 
     const invited = await userService.invite(await contextFor(h, admin.headers), {
       email: `${crypto.randomUUID()}@example.com`,
-      name: "権限 付き",
+      ...names("権限", "付き"),
       role: "manager",
       permissionKeys: selected,
     });
@@ -581,7 +622,7 @@ describe("invite", () => {
     await expect(
       userService.invite(await contextFor(h, admin.headers), {
         email,
-        name: "No overrides",
+        ...names("権限", "無し"),
         role: "staff",
         permissionKeys: ["1101"],
       }),
@@ -594,7 +635,11 @@ describe("invite", () => {
     const email = `${crypto.randomUUID()}@example.com`;
 
     await expect(
-      userService.invite(await contextFor(h, staff.headers), { email, name: "No", role: "staff" }),
+      userService.invite(await contextFor(h, staff.headers), {
+        email,
+        ...names("不可", "太郎"),
+        role: "staff",
+      }),
     ).rejects.toBeInstanceOf(ForbiddenError);
     expect(await h.db.user.findUnique({ where: { email } })).toBeNull();
   });
@@ -616,7 +661,11 @@ describe("sendPasswordReset", () => {
     const admin = await signedInUser(h, { role: "admin" });
     const ctx = await contextFor(h, admin.headers);
     const email = `${crypto.randomUUID()}@example.com`;
-    const invited = await userService.invite(ctx, { email, name: "Late", role: "staff" });
+    const invited = await userService.invite(ctx, {
+      email,
+      ...names("遅延", "太郎"),
+      role: "staff",
+    });
 
     await userService.sendPasswordReset(ctx, invited.id);
 

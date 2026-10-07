@@ -9,6 +9,14 @@ import type { TestHarness } from "../../support";
 let h: TestHarness;
 const createCaller = createCallerFactory(appRouter);
 
+/** A valid 姓 / 名 / セイ / メイ for invites. */
+const NAMES = {
+  lastName: "招待",
+  firstName: "太郎",
+  lastNameKana: "ショウタイ",
+  firstNameKana: "タロウ",
+};
+
 beforeAll(async () => {
   h = await createHarness();
 });
@@ -130,21 +138,35 @@ describe("user router", () => {
     const email = `${crypto.randomUUID()}@example.com`;
 
     const staffCaller = createCaller(await contextFor(h, staff.headers));
-    await expect(
-      staffCaller.user.invite({ email, name: "Nope", role: "staff" }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(staffCaller.user.invite({ email, ...NAMES, role: "staff" })).rejects.toMatchObject(
+      { code: "FORBIDDEN" },
+    );
 
     const caller = createCaller(await contextFor(h, admin.headers));
-    const invited = await caller.user.invite({ email, name: "Router Invitee", role: "staff" });
+    const invited = await caller.user.invite({ email, ...NAMES, role: "staff" });
     expect(invited.email).toBe(email);
 
-    await expect(caller.user.invite({ email, name: "Twice", role: "staff" })).rejects.toMatchObject(
-      { code: "CONFLICT" },
-    );
+    await expect(caller.user.invite({ email, ...NAMES, role: "staff" })).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
     await expect(
-      caller.user.invite({ email: "not-an-email", name: "Bad", role: "staff" }),
+      caller.user.invite({ email: "not-an-email", ...NAMES, role: "staff" }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
 
     await expect(caller.user.sendPasswordReset({ userId: invited.id })).resolves.toBeUndefined();
+  });
+
+  it("refuses a reading that is not katakana", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const caller = createCaller(await contextFor(h, admin.headers));
+
+    await expect(
+      caller.user.invite({
+        email: `${crypto.randomUUID()}@example.com`,
+        ...NAMES,
+        lastNameKana: "しょうたい",
+        role: "staff",
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 });

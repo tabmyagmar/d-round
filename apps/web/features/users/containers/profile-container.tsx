@@ -36,7 +36,15 @@ export const ProfileContainer = () => {
     <div className="flex max-w-xl flex-col gap-4">
       <Card>
         <CardContent>
-          <ProfileForm key={me.data.updatedAt.toISOString()} initial={{ name: me.data.name }} />
+          <ProfileForm
+            key={me.data.updatedAt.toISOString()}
+            initial={{
+              lastName: me.data.lastName,
+              firstName: me.data.firstName,
+              lastNameKana: me.data.lastNameKana,
+              firstNameKana: me.data.firstNameKana,
+            }}
+          />
         </CardContent>
       </Card>
       <Card>

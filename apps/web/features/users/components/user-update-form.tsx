@@ -27,7 +27,8 @@ export type UserUpdateFormProps = {
 };
 
 /**
- * 担当者情報編集: 氏名, アカウントタイプ and a manager's permissions; the email is shown, not edited.
+ * 担当者情報編集: 姓 / 名 / セイ / メイ, アカウントタイプ and a manager's permissions; the email is
+ * shown, not edited.
  * 保存 is enabled once something changed and sends only the changes.
  */
 export const UserUpdateForm = ({
@@ -44,7 +45,11 @@ export const UserUpdateForm = ({
     resolver: zodResolver(updateUserSchema),
     defaultValues: {
       userId: user.id,
-      name: user.name,
+      // A user from before the name parts has none: the form asks for them.
+      lastName: user.lastName ?? "",
+      firstName: user.firstName ?? "",
+      lastNameKana: user.lastNameKana ?? "",
+      firstNameKana: user.firstNameKana ?? "",
       role: currentRole,
       ...(isOverridableRole(currentRole) ? { permissionKeys: user.permissionKeys } : {}),
     },

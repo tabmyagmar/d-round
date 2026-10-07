@@ -13,9 +13,16 @@ import { PermissionField } from "@/features/users/components/permission-field";
 import type { RoleFieldState } from "@/features/users/utils/role-field-state";
 import { ROLE_LABELS } from "@/features/users/utils/user-labels";
 
+/** 姓 / 名 / セイ / メイ: the name fields every user form has (invite, edit, profile). */
+export type UserNameValues = {
+  lastName?: string | undefined;
+  firstName?: string | undefined;
+  lastNameKana?: string | undefined;
+  firstNameKana?: string | undefined;
+};
+
 /** The fields both user forms share; each form's values have at least these keys. */
-export type UserFieldValues = {
-  name?: string | undefined;
+export type UserFieldValues = UserNameValues & {
   role?: Role | undefined;
   permissionKeys?: string[] | undefined;
 };
@@ -24,19 +31,69 @@ export type UserFieldValues = {
 const path = <TValues extends UserFieldValues>(name: keyof UserFieldValues) =>
   name as FieldPath<TValues>;
 
+/**
+ * 姓 / 名 and their katakana readings セイ / メイ, two per row as in the legacy form. The
+ * schema (`userNameSchema`) requires all four and full-width katakana for the readings.
+ */
+export const UserNameFields = <TValues extends UserNameValues>({
+  control,
+  disabled = false,
+}: {
+  control: Control<TValues>;
+  disabled?: boolean;
+}) => {
+  const name = (key: keyof UserNameValues) => key as FieldPath<TValues>;
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <TextField
+        control={control}
+        name={name("lastName")}
+        label="姓"
+        autoComplete="family-name"
+        disabled={disabled}
+        required
+      />
+      <TextField
+        control={control}
+        name={name("firstName")}
+        label="名"
+        autoComplete="given-name"
+        disabled={disabled}
+        required
+      />
+      <TextField
+        control={control}
+        name={name("lastNameKana")}
+        label="セイ"
+        placeholder="ヤマダ"
+        disabled={disabled}
+        required
+      />
+      <TextField
+        control={control}
+        name={name("firstNameKana")}
+        label="メイ"
+        placeholder="タロウ"
+        disabled={disabled}
+        required
+      />
+    </div>
+  );
+};
+
 export type UserFormFieldsProps<TValues extends UserFieldValues> = {
   control: Control<TValues>;
   /** Which account types the caller may choose (`roleFieldState`). */
   roleField: RoleFieldState;
   /** The caller holds `changeRole` (and is not editing themselves). */
   canEditPermissions: boolean;
-  /** Rendered between 氏名 and アカウントタイプ (the invite form's email fields). */
+  /** Rendered between the name and アカウントタイプ (the invite form's email fields). */
   children?: ReactNode;
 };
 
 /**
- * 氏名, アカウントタイプ and, for a manager, 権限（詳細設定）: what the invite form and the edit form
- * share. Each form owns its schema, submit and email fields.
+ * 姓 / 名 / セイ / メイ, アカウントタイプ and, for a manager, 権限（詳細設定）: what the invite form and
+ * the edit form share. Each form owns its schema, submit and email fields.
  */
 export const UserFormFields = <TValues extends UserFieldValues>({
   control,
@@ -49,7 +106,7 @@ export const UserFormFields = <TValues extends UserFieldValues>({
 
   return (
     <FieldGroup>
-      <TextField control={control} name={path<TValues>("name")} label="氏名" required />
+      <UserNameFields control={control} />
       {children}
       <SelectField
         control={control}

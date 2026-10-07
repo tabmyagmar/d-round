@@ -174,17 +174,27 @@ describe("changePasswordSchema", () => {
 });
 
 describe("inviteUserSchema", () => {
-  it("accepts an email, a name and a catalog role", () => {
+  it("accepts an email, 姓 / 名 with their readings and a catalog role", () => {
     const result = inviteUserSchema.safeParse({
       email: "hanako@example.com",
-      name: "山田 花子",
+      lastName: "山田",
+      firstName: "花子",
+      lastNameKana: "ヤマダ",
+      firstNameKana: "ハナコ",
       role: "staff",
     });
     expect(result.success).toBe(true);
   });
 
   it("rejects a role outside the catalog and a malformed email", () => {
-    const result = inviteUserSchema.safeParse({ email: "hanako", name: "花子", role: "owner" });
+    const result = inviteUserSchema.safeParse({
+      email: "hanako",
+      lastName: "山田",
+      firstName: "花子",
+      lastNameKana: "ヤマダ",
+      firstNameKana: "ハナコ",
+      role: "owner",
+    });
     expect(result.error?.issues.map((issue) => issue.path.join("."))).toEqual(
       expect.arrayContaining(["email", "role"]),
     );
@@ -238,7 +248,10 @@ describe("inviteUserFormSchema", () => {
   const valid = {
     email: "new@example.com",
     emailConfirm: "new@example.com",
-    name: "新規",
+    lastName: "新規",
+    firstName: "太郎",
+    lastNameKana: "シンキ",
+    firstNameKana: "タロウ",
     role: "staff",
   };
 
@@ -259,9 +272,18 @@ describe("updateUserSchema", () => {
   it("accepts any subset of name, role and permission keys", () => {
     expect(updateUserSchema.safeParse({ userId }).success).toBe(true);
     expect(
-      updateUserSchema.safeParse({ userId, name: "A", role: "manager", permissionKeys: ["1101"] })
-        .success,
+      updateUserSchema.safeParse({
+        userId,
+        firstName: "太郎",
+        firstNameKana: "タロウ",
+        role: "manager",
+        permissionKeys: ["1101"],
+      }).success,
     ).toBe(true);
+  });
+
+  it("rejects a reading that is not katakana", () => {
+    expect(updateUserSchema.safeParse({ userId, lastNameKana: "やまだ" }).success).toBe(false);
   });
 
   it("rejects an empty permission key and a role outside the catalog", () => {
