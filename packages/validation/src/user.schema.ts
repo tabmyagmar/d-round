@@ -106,9 +106,21 @@ export const changeRoleSchema = z.object({
 });
 export type ChangeRoleInput = z.infer<typeof changeRoleSchema>;
 
+/** Columns the user list may be sorted by; anything else is rejected, never passed to Prisma. */
+export const USER_SORT_FIELDS = ["name", "email", "createdAt"] as const;
+export type UserSortField = (typeof USER_SORT_FIELDS)[number];
+export const SORT_ORDERS = ["asc", "desc"] as const;
+export type SortOrder = (typeof SORT_ORDERS)[number];
+/** `active` users can sign in; `deactivated` ones are soft-deleted (`deletedAt` set). */
+export const USER_STATUSES = ["active", "deactivated"] as const;
+export type UserStatus = (typeof USER_STATUSES)[number];
+
 export const listUsersSchema = paginationSchema.extend({
   search: z.string().trim().min(1).max(100).optional(),
   role: roleSchema.optional(),
+  status: z.enum(USER_STATUSES).default("active"),
+  sortBy: z.enum(USER_SORT_FIELDS).default("createdAt"),
+  sortOrder: z.enum(SORT_ORDERS).default("desc"),
 });
 export type ListUsersInput = z.input<typeof listUsersSchema>;
 export type ListUsersQuery = z.output<typeof listUsersSchema>;

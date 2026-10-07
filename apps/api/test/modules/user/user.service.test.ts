@@ -1,10 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { ADMIN_ROLES } from "@repo/validation";
+import { ADMIN_ROLES, listUsersSchema } from "@repo/validation";
+import type { ListUsersInput } from "@repo/validation";
 
 import { ConflictError, ForbiddenError, NotFoundError } from "../../../src/core/errors";
 import * as userService from "../../../src/modules/user/user.service";
-import { contextFor, createHarness, signedInUser } from "../../support";
+import { contextFor, createHarness, signedInUser, TEST_PASSWORD } from "../../support";
 import type { TestHarness } from "../../support";
 
 let h: TestHarness;
@@ -18,6 +19,9 @@ afterAll(async () => {
 });
 
 const tag = () => `tag-${crypto.randomUUID().slice(0, 8)}`;
+
+/** The query exactly as the router hands it to the service: parsed, defaults applied. */
+const listQuery = (input: ListUsersInput) => listUsersSchema.parse(input);
 
 /**
  * Leaves only `keep` active among the admin roles: every other active admin-role user becomes
@@ -80,26 +84,47 @@ describe("list", () => {
     const admin = await signedInUser(h, { role: "admin", name: "Admin Person" });
     const staff = await signedInUser(h, { name: `Zed ${marker}` });
 
-    const asAdmin = await userService.list(await contextFor(h, admin.headers), {
-      page: 1,
-      perPage: 50,
-      search: marker,
-    });
+    const asAdmin = await userService.list(
+      await contextFor(h, admin.headers),
+      listQuery({ page: 1, perPage: 50, search: marker }),
+    );
     expect(asAdmin.items.map((u) => u.id)).toEqual([staff.user.id]);
 
-    const asStaff = await userService.list(await contextFor(h, staff.headers), {
-      page: 1,
-      perPage: 50,
-    });
+    const asStaff = await userService.list(
+      await contextFor(h, staff.headers),
+      listQuery({ page: 1, perPage: 50 }),
+    );
     expect(asStaff.total).toBe(1);
     expect(asStaff.items[0]?.id).toBe(staff.user.id);
 
-    const onlyAdmins = await userService.list(await contextFor(h, admin.headers), {
-      page: 1,
-      perPage: 5,
-      role: "admin",
-    });
+    const onlyAdmins = await userService.list(
+      await contextFor(h, admin.headers),
+      listQuery({ page: 1, perPage: 5, role: "admin" }),
+    );
     expect(onlyAdmins.items.every((u) => u.role === "admin")).toBe(true);
+  });
+
+  it("lists deactivated users only when asked, in the requested order", async () => {
+    const marker = tag();
+    const admin = await signedInUser(h, { role: "admin" });
+    const ctx = await contextFor(h, admin.headers);
+    // Created A then B, so the default newest-first order (B, A) differs from name ascending.
+    const amy = await signedInUser(h, { name: `Amy ${marker}` });
+    const bob = await signedInUser(h, { name: `Bob ${marker}` });
+    const cid = await signedInUser(h, { name: `Cid ${marker}` });
+    await userService.deactivate(ctx, cid.user.id);
+
+    const active = await userService.list(
+      ctx,
+      listQuery({ search: marker, sortBy: "name", sortOrder: "asc" }),
+    );
+    const deactivated = await userService.list(
+      ctx,
+      listQuery({ search: marker, status: "deactivated" }),
+    );
+
+    expect(active.items.map((u) => u.id)).toEqual([amy.user.id, bob.user.id]);
+    expect(deactivated.items.map((u) => u.id)).toEqual([cid.user.id]);
   });
 });
 
@@ -289,6 +314,44 @@ describe("deactivate", () => {
     } finally {
       await restore();
     }
+  });
+});
+
+describe("reactivate", () => {
+  it("restores a deactivated user, who can sign in again", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const ctx = await contextFor(h, admin.headers);
+    const target = await signedInUser(h);
+    await userService.deactivate(ctx, target.user.id);
+
+    const restored = await userService.reactivate(ctx, target.user.id);
+
+    expect(restored.deletedAt).toBeNull();
+    expect(restored.banned).toBe(false);
+    expect((await userService.getById(ctx, target.user.id)).id).toBe(target.user.id);
+    await expect(
+      h.auth.api.signInEmail({ body: { email: target.email, password: TEST_PASSWORD } }),
+    ).resolves.toMatchObject({ user: { id: target.user.id } });
+  });
+
+  it("treats an active user as not found, as deactivate treats a deactivated one", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const target = await signedInUser(h);
+
+    await expect(
+      userService.reactivate(await contextFor(h, admin.headers), target.user.id),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("refuses a caller without `status User`", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const staff = await signedInUser(h);
+    const target = await signedInUser(h);
+    await userService.deactivate(await contextFor(h, admin.headers), target.user.id);
+
+    await expect(
+      userService.reactivate(await contextFor(h, staff.headers), target.user.id),
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 });
 

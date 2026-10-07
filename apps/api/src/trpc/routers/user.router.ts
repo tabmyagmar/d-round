@@ -40,6 +40,11 @@ export const userRouter = router({
     .input(userIdSchema)
     .mutation(({ ctx, input }) => userService.deactivate(ctx, input.userId)),
 
+  reactivate: protectedProcedure
+    .use(requireAbility("status", "User"))
+    .input(userIdSchema)
+    .mutation(({ ctx, input }) => userService.reactivate(ctx, input.userId)),
+
   invite: protectedProcedure
     .use(requireAbility("create", "User"))
     .input(inviteUserSchema)

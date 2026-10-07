@@ -96,6 +96,28 @@ describe("user router", () => {
     expect(gone.deletedAt).toBeInstanceOf(Date);
   });
 
+  it("reactivates through user.reactivate for a caller holding `status User` only", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const staff = await signedInUser(h);
+    const victim = await signedInUser(h);
+    const caller = createCaller(await contextFor(h, admin.headers));
+    await caller.user.deactivate({ userId: victim.user.id });
+
+    const staffCaller = createCaller(await contextFor(h, staff.headers));
+    await expect(staffCaller.user.reactivate({ userId: victim.user.id })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "Not allowed to status User",
+    });
+
+    const back = await caller.user.reactivate({ userId: victim.user.id });
+    expect(back.deletedAt).toBeNull();
+    await expect(caller.user.reactivate({ userId: victim.user.id })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+    const listed = await caller.user.list({ status: "deactivated", perPage: 100 });
+    expect(listed.items.map((u) => u.id)).not.toContain(victim.user.id);
+  });
+
   it("invites through user.invite and re-sends through user.sendPasswordReset for an admin only", async () => {
     const admin = await signedInUser(h, { role: "admin" });
     const staff = await signedInUser(h);

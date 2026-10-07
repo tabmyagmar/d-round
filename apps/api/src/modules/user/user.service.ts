@@ -6,7 +6,9 @@ import type {
   ChangeRoleInput,
   InviteUserInput,
   ListUsersQuery,
+  SortOrder,
   UpdateProfileInput,
+  UserSortField,
 } from "@repo/validation";
 
 import type { RequestContext } from "../../core/context";
@@ -60,6 +62,16 @@ export const getById = async (ctx: RequestContext, userId: string): Promise<User
   return user;
 };
 
+/** The allow-listed sort columns (`USER_SORT_FIELDS`) as Prisma orderings. */
+const USER_ORDER_BY: Record<
+  UserSortField,
+  (direction: SortOrder) => Prisma.UserOrderByWithRelationInput
+> = {
+  name: (direction) => ({ name: direction }),
+  email: (direction) => ({ email: direction }),
+  createdAt: (direction) => ({ createdAt: direction }),
+};
+
 export const list = async (
   ctx: RequestContext,
   query: ListUsersQuery,
@@ -82,6 +94,10 @@ export const list = async (
   return createUserRepository(ctx.db).findMany(
     { page: query.page, perPage: query.perPage },
     { AND: filters },
+    {
+      orderBy: USER_ORDER_BY[query.sortBy](query.sortOrder),
+      deleted: query.status === "deactivated" ? "only" : "exclude",
+    },
   );
 };
 
@@ -166,6 +182,28 @@ export const deactivate = async (ctx: RequestContext, userId: string): Promise<U
     // and no Better Auth admin call (which checks the caller's own role) is needed.
     await users.deleteSessions(target.id);
     return softDeleted;
+  });
+};
+
+/**
+ * Lifts a deactivation (catalog row 1105, `status User`): clears the soft delete and the ban, so
+ * the user can sign in again. Only deactivated users are found here, just as `deactivate` does
+ * not find a user who already is.
+ */
+export const reactivate = async (ctx: RequestContext, userId: string): Promise<User> => {
+  requireUser(ctx);
+  if (!ctx.ability.can("status", "User")) {
+    throw new ForbiddenError("Not allowed to change user status");
+  }
+
+  return withTransaction(ctx.db, async ({ tx }) => {
+    const users = createUserRepository(tx);
+    const target = await users.findByIdIncludingDeleted(userId);
+    if (!target?.deletedAt) {
+      throw new NotFoundError("User", userId);
+    }
+    assertCan(ctx, "status", target);
+    return users.restore(target.id);
   });
 };
 

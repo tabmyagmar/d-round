@@ -8,9 +8,16 @@ export type UserProfileUpdate = {
   name?: string;
 };
 
+export type UserListOptions = {
+  /** Default `createdAt desc`; `id` is appended as a tie-breaker so pages never overlap. */
+  orderBy?: Prisma.UserOrderByWithRelationInput;
+  /** `exclude` (default) lists active users, `only` the soft-deleted (deactivated) ones. */
+  deleted?: "exclude" | "only";
+};
+
 /**
- * Pure data access for users. Read methods exclude soft-deleted rows unless the name says
- * otherwise. Business rules (who may do what, last admin) live in the service.
+ * Pure data access for users. Read methods exclude soft-deleted rows unless the name or an
+ * option says otherwise. Business rules (who may do what, last admin) live in the service.
  */
 export const createUserRepository = (db: DbClient) => ({
   findById: (id: string): Promise<User | null> =>
@@ -25,11 +32,18 @@ export const createUserRepository = (db: DbClient) => ({
   findMany: async (
     params: Partial<PageParams>,
     where: Prisma.UserWhereInput = {},
+    { orderBy = { createdAt: "desc" }, deleted = "exclude" }: UserListOptions = {},
   ): Promise<PageResult<User>> => {
     const page = normalizePage(params);
-    const scoped: Prisma.UserWhereInput = { AND: [where, { deletedAt: null }] };
+    const scoped: Prisma.UserWhereInput = {
+      AND: [where, { deletedAt: deleted === "only" ? { not: null } : null }],
+    };
     const [items, total] = await Promise.all([
-      db.user.findMany({ where: scoped, ...toSkipTake(page), orderBy: { createdAt: "desc" } }),
+      db.user.findMany({
+        where: scoped,
+        ...toSkipTake(page),
+        orderBy: [orderBy, { id: "asc" }],
+      }),
       db.user.count({ where: scoped }),
     ]);
     return buildPage(items, total, page);
@@ -53,6 +67,13 @@ export const createUserRepository = (db: DbClient) => ({
     db.user.update({
       where: { id },
       data: { deletedAt: new Date(), banned: true, banReason: "deactivated" },
+    }),
+
+  /** Reverses `softDelete`: clears the soft delete and the ban, so the user can sign in again. */
+  restore: (id: string): Promise<User> =>
+    db.user.update({
+      where: { id },
+      data: { deletedAt: null, banned: false, banReason: null, banExpires: null },
     }),
 
   /**

@@ -5,6 +5,7 @@ import {
   emailSchema,
   forgotPasswordSchema,
   inviteUserSchema,
+  listUsersSchema,
   passwordSchema,
   resetPasswordSchema,
   signInSchema,
@@ -181,5 +182,33 @@ describe("inviteUserSchema", () => {
     expect(result.error?.issues.map((issue) => issue.path.join("."))).toEqual(
       expect.arrayContaining(["email", "role"]),
     );
+  });
+});
+
+describe("listUsersSchema", () => {
+  it("lists active users newest first by default", () => {
+    expect(listUsersSchema.parse({})).toEqual({
+      page: 1,
+      perPage: 20,
+      status: "active",
+      sortBy: "createdAt",
+      sortOrder: "desc",
+    });
+  });
+
+  it("accepts the deactivated status and an allow-listed sort column", () => {
+    const parsed = listUsersSchema.parse({
+      status: "deactivated",
+      sortBy: "name",
+      sortOrder: "asc",
+    });
+
+    expect(parsed).toMatchObject({ status: "deactivated", sortBy: "name", sortOrder: "asc" });
+  });
+
+  it("rejects a sort column outside the allow-list, an unknown status and an unknown direction", () => {
+    expect(listUsersSchema.safeParse({ sortBy: "role" }).success).toBe(false);
+    expect(listUsersSchema.safeParse({ status: "banned" }).success).toBe(false);
+    expect(listUsersSchema.safeParse({ sortOrder: "up" }).success).toBe(false);
   });
 });

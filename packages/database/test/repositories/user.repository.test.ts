@@ -67,6 +67,56 @@ describe("user repository", () => {
     expect(first.items[0]?.name).toBe(`${prefix} 2`);
   });
 
+  it("orders by the requested column", async () => {
+    const repo = createUserRepository(prisma);
+    const prefix = group();
+    for (const index of [2, 0, 1]) {
+      await createUser({ group: prefix, index });
+    }
+
+    const byNameAsc = await repo.findMany({ page: 1, perPage: 10 }, inGroup(prefix), {
+      orderBy: { name: "asc" },
+    });
+    const byNameDesc = await repo.findMany({ page: 1, perPage: 10 }, inGroup(prefix), {
+      orderBy: { name: "desc" },
+    });
+
+    expect(byNameAsc.items.map((u) => u.name)).toEqual(
+      [0, 1, 2].map((i) => `${prefix} ${String(i)}`),
+    );
+    expect(byNameDesc.items.map((u) => u.name)).toEqual(
+      [2, 1, 0].map((i) => `${prefix} ${String(i)}`),
+    );
+  });
+
+  it("lists only soft-deleted users when asked for them", async () => {
+    const repo = createUserRepository(prisma);
+    const prefix = group();
+    await createUser({ group: prefix });
+    const gone = await createUser({ group: prefix });
+    await repo.softDelete(gone.id);
+
+    const deactivated = await repo.findMany({ page: 1, perPage: 10 }, inGroup(prefix), {
+      deleted: "only",
+    });
+
+    expect(deactivated.total).toBe(1);
+    expect(deactivated.items.map((u) => u.id)).toEqual([gone.id]);
+  });
+
+  it("restores a soft-deleted user and lifts the deactivation ban", async () => {
+    const repo = createUserRepository(prisma);
+    const user = await createUser({ group: group() });
+    await repo.softDelete(user.id);
+
+    const restored = await repo.restore(user.id);
+
+    expect(restored.deletedAt).toBeNull();
+    expect(restored.banned).toBe(false);
+    expect(restored.banReason).toBeNull();
+    expect((await repo.findById(user.id))?.id).toBe(user.id);
+  });
+
   it("counts active users of the given admin roles only", async () => {
     // The count is global and other test files create admins in parallel: a RepeatableRead
     // snapshot makes the before/after delta see only the rows this transaction writes.
