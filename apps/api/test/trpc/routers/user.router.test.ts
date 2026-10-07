@@ -38,7 +38,7 @@ describe("user router", () => {
     const caller = createCaller(await contextFor(h, staff.headers));
 
     await expect(
-      caller.user.changeRole({ userId: staff.user.id, role: "admin" }),
+      caller.user.update({ userId: staff.user.id, role: "admin" }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     // `requireAbility("status", "User")` words its message differently from the service, so the
     // message proves the denial happened in the router.
@@ -84,8 +84,14 @@ describe("user router", () => {
     const page = await caller.user.list({ page: 1, perPage: 100 });
     expect(page.items.map((u) => u.id)).toContain(staff.user.id);
 
-    const changed = await caller.user.changeRole({ userId: staff.user.id, role: "admin" });
+    const changed = await caller.user.update({ userId: staff.user.id, role: "admin" });
     expect(changed.role).toBe("admin");
+    await expect(
+      caller.user.update({ userId: staff.user.id, permissionKeys: ["9999"] }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(
+      caller.user.update({ userId: staff.user.id, role: "manager", permissionKeys: ["9999"] }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
 
     await expect(caller.user.deactivate({ userId: admin.user.id })).rejects.toMatchObject({
       code: "CONFLICT",

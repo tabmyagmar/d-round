@@ -5,11 +5,13 @@ import {
   changePasswordSchema,
   emailSchema,
   forgotPasswordSchema,
+  inviteUserFormSchema,
   inviteUserSchema,
   listUsersSchema,
   passwordSchema,
   resetPasswordSchema,
   signInSchema,
+  updateUserSchema,
 } from "../src/user.schema";
 
 /** The first issue's path and message, or null when the value parses. */
@@ -226,5 +228,41 @@ describe("assignableRoles (who may give which role)", () => {
 
   it("lets staff assign nothing", () => {
     expect(assignableRoles("staff")).toEqual([]);
+  });
+});
+
+describe("inviteUserFormSchema", () => {
+  const valid = {
+    email: "new@example.com",
+    emailConfirm: "new@example.com",
+    name: "新規",
+    role: "staff",
+  };
+
+  it("accepts a confirmed email", () => {
+    expect(inviteUserFormSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("reports a confirmation that differs on emailConfirm", () => {
+    expect(
+      firstIssue(inviteUserFormSchema.safeParse({ ...valid, emailConfirm: "old@example.com" })),
+    ).toEqual({ path: "emailConfirm", message: "メールアドレスが一致していません" });
+  });
+});
+
+describe("updateUserSchema", () => {
+  const userId = "019187d5-0d76-7d1a-9a4c-4f7d2a1f3b6e";
+
+  it("accepts any subset of name, role and permission keys", () => {
+    expect(updateUserSchema.safeParse({ userId }).success).toBe(true);
+    expect(
+      updateUserSchema.safeParse({ userId, name: "A", role: "manager", permissionKeys: ["1101"] })
+        .success,
+    ).toBe(true);
+  });
+
+  it("rejects an empty permission key and a role outside the catalog", () => {
+    expect(updateUserSchema.safeParse({ userId, permissionKeys: [""] }).success).toBe(false);
+    expect(updateUserSchema.safeParse({ userId, role: "owner" }).success).toBe(false);
   });
 });

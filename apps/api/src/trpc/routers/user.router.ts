@@ -1,8 +1,8 @@
 import {
-  changeRoleSchema,
   inviteUserSchema,
   listUsersSchema,
   updateProfileSchema,
+  updateUserSchema,
   userIdSchema,
 } from "@repo/validation";
 
@@ -30,10 +30,11 @@ export const userRouter = router({
     .input(updateProfileSchema)
     .mutation(({ ctx, input }) => userService.updateProfile(ctx, input)),
 
-  changeRole: protectedProcedure
-    .use(requireAbility("changeRole", "User"))
-    .input(changeRoleSchema)
-    .mutation(({ ctx, input }) => userService.changeRole(ctx, input)),
+  // Role and permission changes additionally need `changeRole`; the service checks them.
+  update: protectedProcedure
+    .use(requireAbility("update", "User"))
+    .input(updateUserSchema)
+    .mutation(({ ctx, input }) => userService.update(ctx, input)),
 
   deactivate: protectedProcedure
     .use(requireAbility("status", "User"))

@@ -1,18 +1,36 @@
-import { createUserRepository, translateDatabaseError, withTransaction } from "@repo/database";
-import type { PageResult, Prisma, UniqueViolationError, User } from "@repo/database";
-import { accessibleUsersWhere, prismaUserSubject } from "@repo/permissions/server";
-import { ADMIN_ROLES } from "@repo/validation";
+import {
+  createPermissionRepository,
+  createUserRepository,
+  translateDatabaseError,
+  withTransaction,
+} from "@repo/database";
 import type {
-  ChangeRoleInput,
+  DbClient,
+  PageResult,
+  Prisma,
+  UniqueViolationError,
+  User,
+  UserPermissionOverride,
+} from "@repo/database";
+import { accessibleUsersWhere, prismaUserSubject } from "@repo/permissions/server";
+import {
+  ADMIN_ROLES,
+  assignableRoles,
+  isOverridableRole,
+  OVERRIDABLE_ROLES,
+} from "@repo/validation";
+import type {
   InviteUserInput,
   ListUsersQuery,
+  Role,
   SortOrder,
   UpdateProfileInput,
+  UpdateUserInput,
   UserSortField,
 } from "@repo/validation";
 
-import type { RequestContext } from "../../core/context";
-import { ConflictError, ForbiddenError, NotFoundError } from "../../core/errors";
+import type { AuthUser, RequestContext } from "../../core/context";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../core/errors";
 import { webLinks } from "../../core/web-links";
 
 /**
@@ -56,10 +74,95 @@ const assertCan = (ctx: RequestContext, action: RowAction, user: User): void => 
   }
 };
 
-export const getById = async (ctx: RequestContext, userId: string): Promise<User> => {
+/** A user as the detail and edit screens need it: the row and its effective permission keys. */
+export type UserDetail = User & { permissionKeys: string[] };
+
+/** Effective grants (role ∪ ALLOW − DENY, ADR 0003) as catalog keys, ascending. */
+const withPermissionKeys = async (db: DbClient, user: User): Promise<UserDetail> => {
+  const grants = await createPermissionRepository(db).findEffectiveGrants(user.id, user.role);
+  return { ...user, permissionKeys: grants.map((grant) => grant.key) };
+};
+
+export const getById = async (ctx: RequestContext, userId: string): Promise<UserDetail> => {
   const user = await loadUser(ctx, userId);
   assertCan(ctx, "read", user);
-  return user;
+  return withPermissionKeys(ctx.db, user);
+};
+
+/** Role and permission edits need catalog row 1106 (`changeRole User`). */
+const assertMayChangeRoles = (ctx: RequestContext, message: string): void => {
+  if (!ctx.ability.can("changeRole", "User")) {
+    throw new ForbiddenError(message);
+  }
+};
+
+/**
+ * The legacy role picker as a rule (`assignableRoles`): the caller may give `role`, and — for an
+ * existing user — may give the role the user holds now, so a manager never demotes an admin and
+ * nobody changes a super_admin's role in the app.
+ */
+const assertAssignable = (actor: { role: Role }, role: string, currentRole?: string): void => {
+  const assignable: readonly string[] = assignableRoles(actor.role);
+  if (currentRole !== undefined && !assignable.includes(currentRole)) {
+    throw new ForbiddenError(`Not allowed to change the role of a ${currentRole}`);
+  }
+  if (!assignable.includes(role)) {
+    throw new ForbiddenError(`Not allowed to assign the role ${role}`);
+  }
+};
+
+/**
+ * The override rows for the selected child permissions of a user with `role`: a selected key the
+ * role does not grant becomes ALLOW, a key the role grants but that was not selected becomes DENY;
+ * everything else needs no row (ADR 0003). Only `OVERRIDABLE_ROLES` take overrides, and the caller
+ * may only ALLOW what their own session grants them, so overrides never pass on more than the
+ * caller holds.
+ */
+const overridesFor = async (
+  db: DbClient,
+  actor: AuthUser,
+  role: string,
+  selected: readonly string[],
+): Promise<UserPermissionOverride[]> => {
+  if (!isOverridableRole(role)) {
+    throw new ConflictError(
+      `Permissions can only be adjusted for ${OVERRIDABLE_ROLES.join(", ")} users`,
+    );
+  }
+  const children = (await createPermissionRepository(db).findVisibleCatalog()).filter(
+    (row) => row.parentKey !== null,
+  );
+  const known = new Set(children.map((row) => row.key));
+  const unknown = [...new Set(selected.filter((key) => !known.has(key)))];
+  if (unknown.length > 0) {
+    throw new ValidationError(`Unknown permissions: ${unknown.join(", ")}`);
+  }
+  const chosen = new Set(selected);
+  const notHeld = children
+    .filter(
+      (row) =>
+        chosen.has(row.key) &&
+        !row.roles.some((grant) => grant.roleKey === role) &&
+        !actor.permissions.some(
+          (grant) => grant.action === row.action && grant.subject === row.modelName,
+        ),
+    )
+    .map((row) => row.key);
+  if (notHeld.length > 0) {
+    throw new ForbiddenError(
+      `Not allowed to grant permissions you do not hold: ${notHeld.join(", ")}`,
+    );
+  }
+  return children.flatMap((row): UserPermissionOverride[] => {
+    const granted = row.roles.some((grant) => grant.roleKey === role);
+    if (chosen.has(row.key) && !granted) {
+      return [{ permissionKey: row.key, effect: "ALLOW" }];
+    }
+    if (!chosen.has(row.key) && granted) {
+      return [{ permissionKey: row.key, effect: "DENY" }];
+    }
+    return [];
+  });
 };
 
 /** The allow-listed sort columns (`USER_SORT_FIELDS`) as Prisma orderings. */
@@ -129,31 +232,57 @@ export const updateProfile = async (
   }
 };
 
-export const changeRole = async (ctx: RequestContext, input: ChangeRoleInput): Promise<User> => {
-  requireUser(ctx);
-  if (!ctx.ability.can("changeRole", "User")) {
-    throw new ForbiddenError("Not allowed to change roles");
-  }
+/**
+ * 担当者情報編集: name, role and permission overrides of one user, saved together. Any field may be
+ * omitted. Updating the row needs `update` on it; a role change or `permissionKeys` also needs
+ * `changeRole` and a role the caller may assign. The last active admin-role user keeps an admin
+ * role. Leaving an overridable role drops the user's overrides.
+ */
+export const update = async (ctx: RequestContext, input: UpdateUserInput): Promise<UserDetail> => {
+  const { user: actor } = requireUser(ctx);
 
   return withTransaction(ctx.db, async ({ tx }) => {
     const users = createUserRepository(tx);
+    const permissions = createPermissionRepository(tx);
     const target = await users.findById(input.userId);
     if (!target) {
       throw new NotFoundError("User", input.userId);
     }
-    if (target.role === input.role) {
-      return target;
+    assertCan(ctx, "update", target);
+
+    let updated = target;
+    if (input.name !== undefined && input.name !== target.name) {
+      updated = await users.updateProfile(target.id, { name: input.name });
     }
-    // Stateful rule: the organisation must always keep at least one active admin-role user.
-    // Moving between admin roles (admin -> super_admin) keeps the count and is allowed.
-    if (
-      isAdminRole(target.role) &&
-      !isAdminRole(input.role) &&
-      (await users.countActiveAdmins(ADMIN_ROLES)) <= 1
-    ) {
-      throw new ConflictError("Cannot demote the last admin");
+
+    const role = input.role ?? target.role;
+    if (role !== target.role) {
+      assertMayChangeRoles(ctx, "Not allowed to change roles");
+      assertAssignable(actor, role, target.role);
+      // Stateful rule: the organisation must always keep at least one active admin-role user.
+      if (
+        isAdminRole(target.role) &&
+        !isAdminRole(role) &&
+        (await users.countActiveAdmins(ADMIN_ROLES)) <= 1
+      ) {
+        throw new ConflictError("Cannot demote the last admin");
+      }
+      updated = await users.updateRole(target.id, role);
     }
-    return users.updateRole(target.id, input.role);
+
+    if (input.permissionKeys !== undefined) {
+      assertMayChangeRoles(ctx, "Not allowed to change permissions");
+      if (target.id === actor.id) {
+        throw new ForbiddenError("You cannot change your own permissions");
+      }
+      assertAssignable(actor, role, target.role);
+      const overrides = await overridesFor(tx, actor, role, input.permissionKeys);
+      await permissions.replaceUserOverrides(target.id, overrides, actor.id);
+    } else if (role !== target.role && !isOverridableRole(role)) {
+      await permissions.replaceUserOverrides(target.id, [], actor.id);
+    }
+
+    return withPermissionKeys(tx, updated);
   });
 };
 
@@ -230,12 +359,21 @@ const mailPasswordLink = async (ctx: RequestContext, email: string): Promise<voi
 
 /**
  * Creates a user without a password and mails the invitation; the user sets the first password
- * from the link (which also verifies the email). Catalog row 1101 (`create User`).
+ * from the link (which also verifies the email). Catalog row 1101 (`create User`) and a role the
+ * caller may assign; `permissionKeys` also need `changeRole` and an overridable role. Better Auth
+ * creates the user, so the overrides are a second write: if it fails, the user exists with the
+ * role's permissions and the error says to set them on the edit page.
  */
-export const invite = async (ctx: RequestContext, input: InviteUserInput): Promise<User> => {
-  requireUser(ctx);
+export const invite = async (ctx: RequestContext, input: InviteUserInput): Promise<UserDetail> => {
+  const { user: actor } = requireUser(ctx);
   if (!ctx.ability.can("create", "User")) {
     throw new ForbiddenError("Not allowed to create users");
+  }
+  assertAssignable(actor, input.role);
+  let overrides: UserPermissionOverride[] | undefined;
+  if (input.permissionKeys !== undefined) {
+    assertMayChangeRoles(ctx, "Not allowed to change permissions");
+    overrides = await overridesFor(ctx.db, actor, input.role, input.permissionKeys);
   }
 
   let createdId: string;
@@ -253,7 +391,20 @@ export const invite = async (ctx: RequestContext, input: InviteUserInput): Promi
 
   // The user exists even if the mail cannot be queued; the admin re-sends from the user page.
   await mailPasswordLink(ctx, input.email);
-  return loadUser(ctx, createdId);
+  if (overrides) {
+    const rows = overrides;
+    try {
+      await withTransaction(ctx.db, ({ tx }) =>
+        createPermissionRepository(tx).replaceUserOverrides(createdId, rows, actor.id),
+      );
+    } catch (error) {
+      throw new ConflictError(
+        "The user was created, but their permissions were not saved; set them on the edit page",
+        { cause: error },
+      );
+    }
+  }
+  return withPermissionKeys(ctx.db, await loadUser(ctx, createdId));
 };
 
 /**

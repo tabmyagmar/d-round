@@ -87,3 +87,19 @@ lint error. Changing a permission means changing the matrix test first.
   guards in sync. It replaces `visibleNavItems` (`apps/web/components/app-shell.tsx`) as the web's
   navigation check and keeps the Decision's "browser ability only hides UI": the API's
   `requireAbility` and the service rules stay the guard.
+- **2026-10-07** — Role and permission edits follow the legacy role picker. `assignableRoles(role)`
+  (`@repo/validation`, next to `ROLES`) is the rule: `super_admin` and `admin` give admin, manager
+  and staff; a manager gives manager and staff; staff gives nothing; `super_admin` is never given in
+  the app. `user.invite` (row 1101) requires an assignable role. `user.changeRole` is replaced by
+  `user.update` (`name?`, `role?`, `permissionKeys?`, one transaction, row `update` at layer 1): a
+  role change also needs `changeRole` (row 1106), an assignable new role and an assignable current
+  role — so a manager holding `changeRole` never demotes an admin and nobody changes a super_admin —
+  plus the last-admin rule. Per-user overrides are written only for `OVERRIDABLE_ROLES` (`manager`,
+  the legacy 権限（詳細設定） dialog) and only by callers holding `changeRole`: the client sends the
+  ticked child keys and the service stores the difference to the role's grants as ALLOW / DENY rows
+  (replace-all, `assigned_by` = the caller), so the storage semantics of the 2026-10-05 entry are
+  unchanged; a user leaving an overridable role loses their rows. `permission.catalog`
+  (`changeRole User`) serves the visible catalog grouped by parent with each child's roles;
+  `user.byId` returns the user's effective keys (`permissionKeys`). Two escalation guards: nobody
+  changes their own overrides, and a caller may only ALLOW a permission their own session grants
+  (admins hold every catalog row, so it narrows only managers holding `changeRole`).

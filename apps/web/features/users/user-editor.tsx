@@ -44,7 +44,7 @@ export const UserEditor = ({ userId }: { userId: string }) => {
   const user = useQuery(trpc.user.byId.queryOptions({ userId }));
 
   const changeRole = useMutation(
-    trpc.user.changeRole.mutationOptions({
+    trpc.user.update.mutationOptions({
       onSuccess: async () => {
         toast.success("Role updated");
         await queryClient.invalidateQueries(trpc.user.pathFilter());

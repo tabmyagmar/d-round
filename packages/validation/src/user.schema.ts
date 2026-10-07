@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { idSchema, paginationSchema } from "./common.schema";
+import { permissionKeysSchema } from "./permission.schema";
 
 /**
  * Single-tenant role set: the keys of the role catalog (`roles` table, seeded from
@@ -110,19 +111,38 @@ export const updateProfileSchema = z.object({
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
-/** An admin creates a user without a password; the user sets one from the invitation mail. */
+/**
+ * An admin creates a user without a password; the user sets one from the invitation mail.
+ * `permissionKeys` (the ticked child permissions) only for an overridable role (`OVERRIDABLE_ROLES`).
+ */
 export const inviteUserSchema = z.object({
   email: emailSchema,
   name: nameSchema,
   role: roleSchema,
+  permissionKeys: permissionKeysSchema.optional(),
 });
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
 
-export const changeRoleSchema = z.object({
+/** The invite form: the email typed twice, since the invitation goes to that address. */
+export const inviteUserFormSchema = inviteUserSchema
+  .extend({ emailConfirm: emailSchema })
+  .refine((value) => value.email === value.emailConfirm, {
+    path: ["emailConfirm"],
+    error: "メールアドレスが一致していません",
+  });
+export type InviteUserFormInput = z.infer<typeof inviteUserFormSchema>;
+
+/**
+ * Edits another user (担当者情報編集): any subset of name, role and permission keys, saved
+ * together. A role or permission change needs `changeRole`; see the user service.
+ */
+export const updateUserSchema = z.object({
   userId: idSchema,
-  role: roleSchema,
+  name: nameSchema.optional(),
+  role: roleSchema.optional(),
+  permissionKeys: permissionKeysSchema.optional(),
 });
-export type ChangeRoleInput = z.infer<typeof changeRoleSchema>;
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 
 /** Columns the user list may be sorted by; anything else is rejected, never passed to Prisma. */
 export const USER_SORT_FIELDS = ["name", "email", "createdAt"] as const;
