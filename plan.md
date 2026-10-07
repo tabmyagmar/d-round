@@ -514,6 +514,28 @@ search + seeds, then this docs commit.
 Commits: `332c7e8` ui (card header, pagination bar, select-all, search surface), `70bfb81` web (the
 users list on it), then this docs commit.
 
+## Review round 4 (user, 2026-10-07): folders, filter button, form actions
+
+1. **`components/` grouped by screen**: 20 files in one folder were past the point where flat helps.
+   `users` now has `list/`, `form/`, `detail/` and `profile/`, with the badges and the status dialog
+   (several screens) at the root; tests mirror it. romuten-v3 keeps small features flat and groups
+   larger ones (`company/components/create/`, `worker/detail/`); the legacy d-round-web grouped
+   every feature by screen. The rule (flat up to about eight, then by screen) is in
+   `.claude/rules/ui.md`.
+2. **Filter button**: outline buttons used `bg-background`, the page's own colour. The `outline`
+   variant now uses `bg-card` (local patch 6), which fixes the filter trigger and every other
+   outline button on the page background at once.
+3. **Create / update actions at the bottom**: romuten-v3 has `StickyFormPage` (a form with its own
+   scroll area, which needs the layout to be `h-svh overflow-hidden`) and a `sticky bottom-0` bar
+   inside the normal page scroll (`HelloWorkBulkSendContainer`). The second fits this shell without
+   changing how every page scrolls: composed `StickyBar` (reaches across the shell's new
+   `--page-gutter`) and `FormActions` in `@repo/ui/components/form` (キャンセル as a child, submit
+   with pending label, spinner and `aria-busy`). The invite and edit forms use them; the profile
+   page keeps its inline buttons.
+
+Commits: `a50c2fc` folders, `fc78e05` ui (outline, FormActions, StickyBar), `a848c95` web (shell
+gutter, forms), then this docs commit.
+
 ## Out of scope (own tickets)
 
 - User profile fields (社員番号, 氏名カナ, エリア, 地域, 部署, 役職, 退職日) and the `user_profiles`

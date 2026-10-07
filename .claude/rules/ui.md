@@ -31,12 +31,19 @@ by role as in bulletproof-react and romuten-v3 — only the folders a feature ne
 | Folder        | Holds                                                                           | `users` example                                                       |
 | ------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | `containers/` | one entry per route, the only files pages import; they call tRPC and compose    | `users-container`, `user-detail-container`, `user-update-container`   |
-| `components/` | everything the containers render; presentational where possible (forms take     | `users-table`, `user-filter`, `user-create-form`, `permission-dialog` |
+| `components/` | everything the containers render; presentational where possible (forms take     | `list/users-table`, `form/user-create-form`, `detail/…`, `role-badge` |
 |               | `onSubmit` / `pending`); a dialog may own its own mutation or query             |                                                                       |
 | `hooks/`      | the feature's hooks shared by several components                                | `use-permission-catalog`                                              |
 | `stores/`     | zustand state several components of one screen share (vanilla store + provider) | `users-store` (row selection), `users-store-provider`                 |
 | `utils/`      | pure functions and labels, node-tested                                          | `user-filters`, `user-form-input`, `role-field-state`, `user-labels`  |
 | `types.ts`    | the router output types (`inferRouterOutputs<AppRouter>`)                       | `UserRow`, `UserDetail`, `PermissionCatalog`                          |
+
+`components/` starts flat. Once a feature has more than about eight components, group them by the
+screen that renders them — `users` has `list/`, `form/` (create and update), `detail/` and
+`profile/` — as the legacy d-round-web and romuten-v3's larger features do
+(`company/components/create/`, `worker/detail/`). A component several screens render stays at the
+root (`role-badge`, `user-status-badge`, `user-status-dialog`). Tests mirror the folders.
+`containers/` stays flat: one file per route already names the screen.
 
 There is no `api/` or `graphql/` folder (tRPC hooks are called where they are used) and no
 `schemas/` (zod lives in `@repo/validation`, shared with the API). State goes, in this order, into
@@ -160,6 +167,9 @@ Known local patches (re-apply after `--overwrite`):
 5. `checkbox.tsx` renders `MinusIcon` instead of `CheckIcon` while `indeterminate`, and colours the
    box with `data-indeterminate:border-primary data-indeterminate:text-primary` (upstream shows the
    check for both states). Two lines after `npx shadcn@4.21.0 add checkbox --overwrite`.
+6. `button.tsx`: the `outline` variant uses `bg-card` instead of `bg-background`, so outline buttons
+   (the filter trigger, toolbar buttons, キャンセル) stand out from the blue-grey page; on a card
+   nothing changes. One word after `npx shadcn@4.21.0 add button --overwrite`.
 
 `eslint --fix` also reorders imports in generated files; that is not a patch to re-apply.
 
@@ -243,6 +253,12 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   (`useDebouncedCallback`, `delayMs?`), `label`; shows a value changed elsewhere but keeps what the
   user typed while its own search comes back. Sits on `bg-card`, so it stands out from the page
   background (the base `Input` is transparent, right for forms on cards).
+- `StickyBar` (`sticky-bar.tsx`) — the bar at the bottom of a page for its main actions, as
+  romuten-v3's create and update pages. Render it last in a flex column that fills the page
+  (`flex flex-1 flex-col`): `mt-auto` keeps it at the bottom of a short page, `sticky bottom-0` in
+  view while a long one scrolls, and it reaches across the shell's `--page-gutter`
+  (`apps/web/components/layout/app-shell.tsx`). Usually holds a `FormActions` (Forms). Reference:
+  `apps/web/features/users/components/form/user-create-form.tsx`.
 - `FilterPopover` (`filter-popover.tsx`) — the filter button with the active count (`activeCount`)
   and its fields in a popover; `children(close)` is rendered only while open, so pass a
   `next/dynamic` component; `onClear?` adds the clear footer; `label?`, `clearLabel?`, `align?`.
@@ -363,6 +379,17 @@ const form = useForm<UpdateProfileInput>({
   <TextField control={form.control} name="name" label="Full name" required />
 </FieldGroup>;
 ```
+
+### Create and update pages
+
+The form is the page's flex column (`<form className="flex flex-1 flex-col gap-6">`): the fields in
+a `Card` (`max-w-2xl`), then a `StickyBar` holding `FormActions` from `@repo/ui/components/form`
+with `className="max-w-2xl"`, so the buttons line up with the card's right edge. キャンセル (an
+outline `Button` rendering a `Link`) is its child; the submit button takes `submitLabel`,
+`pendingLabel`, `pending` (the mutation's) and `disabled` (nothing changed, nothing allowed), and
+shows a spinner with `aria-busy` while pending. Reference:
+`apps/web/features/users/components/form/user-update-form.tsx`. A small form among other content
+(`profile/profile-form.tsx`) keeps its button inline.
 
 ### Shared props (`BaseFieldProps`, `form/types.ts`)
 
