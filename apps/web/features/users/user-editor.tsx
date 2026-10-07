@@ -28,7 +28,7 @@ import { Skeleton } from "@repo/ui/components/skeleton";
 import { ROLES, roleSchema } from "@repo/validation";
 
 import { href, routes } from "@/config/routes";
-import { ProfileForm } from "@/features/users/profile-form";
+import { ProfileForm } from "@/features/users/profile/profile-form";
 import { ROLE_LABELS, RoleBadge } from "@/features/users/role-badge";
 import { useTRPC } from "@/lib/trpc/react";
 

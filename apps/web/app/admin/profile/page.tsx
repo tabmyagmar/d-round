@@ -1,6 +1,6 @@
 import { PageGuard } from "@/components/page-guard";
 import { routes } from "@/config/routes";
-import { ProfileEditor } from "@/features/users/profile-editor";
+import { ProfileEditor } from "@/features/users/profile/profile-editor";
 
 const ProfilePage = () => (
   <PageGuard route={routes.profile}>
