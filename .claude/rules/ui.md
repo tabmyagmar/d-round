@@ -25,10 +25,10 @@ paths:
 `proxy.ts` sit at the workspace root and are imported through the `@/` alias
 (`@/features/users/role-badge`). The web app is feature-based: everything with domain knowledge
 lives in `features/<feature>/` (`auth`: `login-form`, `forgot-password-form`, `new-password-form`,
-`auth-errors`, `new-password-state`; `users`: `users-table`, `password-change-form`, `user-editor`,
-`profile-form`, `profile-editor`, `role-badge`). Route files under `app/` are thin: they import only
-from `@/features/<feature>/...`, `@/components/...`, `@/config/...`, `@/lib/...` and `@repo/ui`, and
-render one feature component inside `PageGuard`.
+`auth-card`, `auth-errors`, `new-password-state`; `users`: `users-table`, `password-change-form`,
+`user-editor`, `profile-form`, `profile-editor`, `role-badge`). Route files under `app/` are thin:
+they import only from `@/features/<feature>/...`, `@/components/...`, `@/config/...`, `@/lib/...`
+and `@repo/ui`, and render one feature component inside `PageGuard`.
 
 ### Pages, the route catalog and the sidebar
 

@@ -93,8 +93,9 @@ missing or malformed value.
 | `NEXT_PUBLIC_API_URL` | web        | API origin the browser and the server components call (must be http(s))                                  |
 | `POSTGRES_IMAGE`      | docker     | Postgres image for compose (default `postgres:18-alpine`; `TEST_POSTGRES_IMAGE` for tests)               |
 
-The web app's name, description, `<html lang>` and logo (`apps/web/public/logo.png`, shown in the
-sidebar) live in `apps/web/lib/brand.ts`.
+The web app's name, description, `<html lang>`, logo (`apps/web/public/logo.png`, shown in the
+sidebar and on the auth card) and auth background (`apps/web/public/auth-background.webp`) live in
+`apps/web/lib/brand.ts`.
 
 ## What is included
 

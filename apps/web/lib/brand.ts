@@ -8,8 +8,11 @@ export const brand = {
   /** `<html lang>` — BCP 47 tag such as "en" or "ja". */
   htmlLang: "ja",
   /**
-   * The sidebar logo (`name` is its alt text). Another product replaces `public/logo.png` and
-   * these intrinsic pixel sizes, which `next/image` uses for the aspect ratio.
+   * The logo in the sidebar and on the auth card (`name` is its alt text). Another product
+   * replaces `public/logo.png` and these intrinsic pixel sizes, which `next/image` uses for the
+   * aspect ratio.
    */
   logo: { src: "/logo.png", width: 300, height: 100 },
+  /** Full-screen background of the login, forgot-password and new-password pages. */
+  authBackground: "/auth-background.webp",
 } as const;
