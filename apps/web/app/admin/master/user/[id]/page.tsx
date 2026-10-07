@@ -1,12 +1,12 @@
 import { PageGuard } from "@/components/page-guard";
 import { routes } from "@/config/routes";
-import { UserEditor } from "@/features/users/user-editor";
+import { UserDetailContainer } from "@/features/users/containers/user-detail-container";
 
 const UserDetailPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   return (
     <PageGuard route={routes.user.detail}>
-      <UserEditor userId={id} />
+      <UserDetailContainer userId={id} />
     </PageGuard>
   );
 };

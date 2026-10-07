@@ -69,6 +69,7 @@ export const UserStatusDialog = ({ user, onOpenChange, onDone }: UserStatusDialo
       }
       confirmLabel={active ? "停止" : "再開"}
       cancelLabel="キャンセル"
+      pendingLabel="処理中…"
       destructive={active}
       pending={deactivate.isPending || reactivate.isPending}
       onConfirm={() => {
