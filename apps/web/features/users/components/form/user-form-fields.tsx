@@ -81,6 +81,29 @@ export const UserNameFields = <TValues extends UserNameValues>({
   );
 };
 
+/**
+ * 権限（詳細設定） bound to `permissionKeys`. Registered only while it is shown: a form that never
+ * shows it (a staff or admin user) keeps no `permissionKeys` value, so its `isDirty` stays false —
+ * registering it everywhere left an `undefined` key behind after StrictMode's remount, which made
+ * an untouched edit form dirty.
+ */
+const PermissionKeysField = <TValues extends UserFieldValues>({
+  control,
+  role,
+}: {
+  control: Control<TValues>;
+  role: Role;
+}) => {
+  const permissions = useController({ control, name: path<TValues>("permissionKeys") });
+  return (
+    <PermissionField
+      role={role}
+      value={permissions.field.value as string[] | undefined}
+      onChange={permissions.field.onChange}
+    />
+  );
+};
+
 export type UserFormFieldsProps<TValues extends UserFieldValues> = {
   control: Control<TValues>;
   /** Which account types the caller may choose (`roleFieldState`). */
@@ -102,7 +125,6 @@ export const UserFormFields = <TValues extends UserFieldValues>({
   children,
 }: UserFormFieldsProps<TValues>) => {
   const role = useWatch({ control, name: path<TValues>("role") }) as Role | undefined;
-  const permissions = useController({ control, name: path<TValues>("permissionKeys") });
 
   return (
     <FieldGroup>
@@ -117,11 +139,7 @@ export const UserFormFields = <TValues extends UserFieldValues>({
         required
       />
       {canEditPermissions && role !== undefined && isOverridableRole(role) ? (
-        <PermissionField
-          role={role}
-          value={permissions.field.value as string[] | undefined}
-          onChange={permissions.field.onChange}
-        />
+        <PermissionKeysField control={control} role={role} />
       ) : null}
     </FieldGroup>
   );

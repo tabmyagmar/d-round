@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { href, routes } from "@/config/routes";
@@ -15,16 +16,19 @@ const USER: UserDetail = {
   permissionKeys: ["1202"],
 };
 
-const renderForm = () => {
+/** Rendered in StrictMode, as `next dev` does: effects mount, unmount and mount again. */
+const renderForm = (user: UserDetail = USER) => {
   const onSubmit = vi.fn();
   render(
-    <UserUpdateForm
-      user={USER}
-      roleField={{ options: ["admin", "manager", "staff"], disabled: false }}
-      canEditPermissions
-      pending={false}
-      onSubmit={onSubmit}
-    />,
+    <StrictMode>
+      <UserUpdateForm
+        user={user}
+        roleField={{ options: ["admin", "manager", "staff"], disabled: false }}
+        canEditPermissions
+        pending={false}
+        onSubmit={onSubmit}
+      />
+    </StrictMode>,
   );
   return onSubmit;
 };
@@ -46,6 +50,16 @@ describe("UserUpdateForm", () => {
     expect(screen.getByText("taro@example.com")).toBeDefined();
     expect(screen.queryByRole("textbox", { name: /メールアドレス/ })).toBeNull();
   });
+
+  it.each(["staff", "admin"] as const)(
+    "keeps 保存 disabled for an untouched %s, who has no permission field",
+    (role) => {
+      renderForm({ ...userRow({ role }), permissionKeys: [] });
+
+      expect(screen.queryByRole("button", { name: "権限（詳細設定）" })).toBeNull();
+      expect(screen.getByRole("button", { name: "保存" })).toHaveProperty("disabled", true);
+    },
+  );
 
   it("saves only once something changed, and sends only the change", async () => {
     const onSubmit = renderForm();
