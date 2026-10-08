@@ -43,13 +43,21 @@ round.
   router output types — `types.ts`.
 
 Dialogs load with `next/dynamic` and render only while they have a target. Row selection and a
-`stores/` zustand store exist only when a bulk action reads the selection.
+`stores/` zustand store exist only when a bulk action reads the selection. A status with more than
+two values is changed in a `ConfirmDialog` holding the select
+(`features/staff/components/staff-status-dialog.tsx`; the legacy changed it inside the row). A
+dialog the list and the detail both open takes a callback for what follows (`StaffDeleteDialog`'s
+`onDeleted`: the list unselects, the detail leaves); a list that must read its own selection renders
+inside its `RowSelectionProvider` (`containers/staffs-container.tsx`).
 
 ## 3. Detail screen
 
 The container (`containers/user-detail-container.tsx`) owns the queries and the dialogs; the
 components under `components/detail/` are presentational: `DescriptionList` inside `Card`s, a
 toolbar with the actions the ability allows. A card some roles never see loads with `next/dynamic`.
+A long legacy detail keeps its cards as components (`features/staff/components/detail/`); a card
+showing another feature's data comes from that feature as a container the page hands in (the user
+detail's 担当スタッフ, `.claude/rules/ui.md`).
 
 ## 4. Create and update screens
 

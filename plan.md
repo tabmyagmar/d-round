@@ -929,3 +929,35 @@ arrays; `@casl/prisma` with a third model in `Subjects`; Base UI Combobox chips 
   the fast-forward: the testcontainers suites, the drift gate, the dev-database deploy of the three
   migrations and the browser check of the user screens as every role — all wait on the Docker
   Desktop API. Phase B starts meanwhile on this branch.
+- 2026-10-08, B1–B3: B1 went over the 15-file cap and was split into `508287c` (schema, migration,
+  ADR 0008) and `7604efa` (repository). B2 adds no browser `staffSubject`: Staff has no row rule, so
+  the web asks `ability.can(action, "Staff")`. B3's test support builds the input (`staffInput`) and
+  makes sure the test post code exists (`ensureTestPostCode`) instead of a `createStaff` helper; the
+  tests create staff through the service.
+- 2026-10-08, B4: the shared row selection came first (`45ddbbe`, `09885ca`:
+  `apps/web/stores/row-selection.tsx`, a provider and a hook instead of per-feature wrappers), so
+  `features/staff` has no `stores/`. The status dialog is a `ConfirmDialog` holding the legacy
+  status select (`OptionSelect`: the legacy row held a select, and no standalone radio group
+  exists); `ConfirmDialog` gained `children` and `confirmDisabled`. `StaffDeleteDialog` takes
+  `onDeleted`, so the list unselects and the detail leaves; the list container renders the list
+  inside its `RowSelectionProvider` to reach the store. The row menu's 削除 stays disabled
+  until 停止 (legacy `isDeleteAble`), the toolbar's 削除 shows while 停止 is filtered (legacy
+  `showDelete`), and the API's refusals are named (not 停止, over 50). `areaNamesOf` /
+  `regionNamesOf` moved to `components/source/source-labels.ts` (second consumer). Commits
+  `e691da0`, `7233d7e`, `2ba7b4a`.
+- 2026-10-08, B5: `POSITION_LABELS` moved to `apps/web/lib/position-labels.ts` (`2912bc0`; the
+  legacy kept its enum labels in a shared `lib/enums/values.ts`). The detail shows 役職 (the legacy
+  form asked for it, its detail left it out), the whole address (master part and typed line; the
+  legacy showed the typed line) and every current 担当者. 在籍情報's 担当者 are those in charge at
+  some point of the period (`chargersDuring`); the legacy counted the assignments made inside it,
+  having no end date. `ageOf` comes from `@repo/validation`, so there is no `staff-age.ts`.
+  `DescriptionList` items take a `key` (memos share the label メモ, `f6d5e24`).
+  The 担当スタッフ card lives in the staff feature (`UserStaffsCard`, `UserStaffsContainer`) and the
+  user detail page hands it to `UserDetailContainer`'s `staffs` slot, instead of
+  `features/users/components/detail/user-staffs-card.tsx`: features do not import each other (ui.md;
+  bulletproof-react's discussion route composes the comments feature). Its rows open the staff
+  detail page, not a dialog. Commits `2912bc0`, `cdaf662`, `f6d5e24`, `e9da9af`, `0b0ca69`.
+- 2026-10-08, phase B status: implemented and green on every Docker-free check. The testcontainers
+  suites, the drift gate, the dev-database deploy and the browser check (four roles on
+  `/admin/staff`, a staff detail, a user detail) wait on the Docker Desktop API, as for phase A.
+  Phase C starts meanwhile.

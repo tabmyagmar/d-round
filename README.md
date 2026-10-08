@@ -112,12 +112,20 @@ deployment places them, and a developer copies them from the legacy d-round-web 
   user page. One password policy for forms and API, Japanese mails through the outbox (Mailpit at
   `localhost:8025` in development). Seeded test accounts: `yarn db:seed`.
 - **User module** (the reference module):
-  `user.me / byId / list / updateProfile / update / deactivate / reactivate / invite / sendPasswordReset`
+  `user.me / byId / list / updateProfile / update / deactivate / reactivate / invite / sendPasswordReset / employeeNumberAvailable / chargerOptions`
   and `permission.catalog` behind two-layer authorization — CASL abilities built from the catalog
   grants in the session (`packages/permissions`; spec: `packages/permissions/test/ability.test.ts`
   and `apps/api/test/permission-catalog.test.ts`) plus stateful service rules (the last active admin
   cannot be demoted or deactivated; deactivation soft-deletes the user and deletes its sessions in
-  one transaction). Web: `/admin/master/user`, `/admin/master/user/[id]`, `/admin/profile`.
+  one transaction). A 担当者 has a
+  profile: 社員番号, 部署名, 役職, エリア and 地域 (`docs/adr/0007-user-profiles.md`). Web:
+  `/admin/master/user`, `/admin/master/user/[id]`, `/admin/profile`.
+- **Staff module** (`docs/adr/0008-staff.md`):
+  `staff.list / byId / create / update / changeStatus / deleteMany / employeeNumberAvailable / byCharger`,
+  and `source.regions / prefectures / addressByPostCode` for the reference data. A staff
+  has 担当者 (users covering its regions, with history), an address checked against the post-code
+  master, family members, memos and employment periods; スタッフ削除 soft-deletes a 停止 staff. Web:
+  `/admin/staff`, `/admin/staff/[id]` and the user detail's 担当スタッフ.
 - **Web shell**: a shadcn sidebar under `/admin` with every page of the legacy d-round-web app
   (workflow, templates, users, audit log, clients, branches, staff, settings), most of them
   placeholders; `/admin/workflow` is the landing page. One route catalog
@@ -162,7 +170,7 @@ model and how a role is added.
 apps/
   api/        Hono + tRPC server. src/core (context with session + ability, errors, error-mapping),
               src/trpc (transport: init with requireAbility, routers/), src/modules (user, source,
-              comment-template, permission, email, health services), src/middleware (rate limit,
+              staff, comment-template, permission, email, health services), src/middleware (rate limit,
               request logger), src/health, src/lib,
               test/ (mirrors src/: test/modules, test/trpc, test/core; HTTP + auth integration
               tests at the root, support.ts harness, global-setup.ts)
@@ -173,12 +181,13 @@ apps/
               app/(auth) (login, forgot-password, new-password), app/admin (sidebar
               layout, one page per route), config/ (routes.ts: the route catalog, nav.ts: the
               sidebar), features/auth (login-form, forgot-password-form, new-password-form,
-              auth-errors), features/users (containers/, components/, hooks/, stores/, utils/,
-              types.ts), hooks/ (search-params, use-search, use-table-state),
+              auth-errors), features/users (containers/, components/, hooks/, utils/, types.ts),
+              features/staff (the same shape), features/comment-templates, features/help,
+              hooks/ (search-params, use-search, use-table-state), stores/ (row-selection),
               components/ (layout/: app-shell, app-sidebar, nav-main, app-header, page-title, user-menu;
               source/: エリア → 地域 → 都道府県 fields, filter fields and useSourceHierarchy, shared by
               the features; page-guard, access-denied, placeholder-page, theme-provider), lib/auth (client,
-              server, route-access), lib/trpc, lib/env, lib/brand,
+              server, route-access), lib/trpc, lib/env, lib/brand, lib/position-labels,
               test/ (vitest + Testing Library, jsdom per file)
 packages/
   auth/       Better Auth: createAuth (server), createAuthReactClient (browser), admin-plugin
