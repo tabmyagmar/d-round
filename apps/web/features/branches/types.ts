@@ -12,3 +12,12 @@ export type BranchRow = BranchOutputs["list"]["items"][number];
 
 /** `branch.byId`. */
 export type BranchDetail = BranchOutputs["byId"];
+
+/** `user.chargerOptions`: a user the branch form may offer as 担当者. */
+export type ChargerOption = inferRouterOutputs<AppRouter>["user"]["chargerOptions"][number];
+
+/** A 担当者 as the branch form offers and names it: an option, or a stored 担当者's user. */
+export type ChargerChoice = Pick<ChargerOption, "id" | "name">;
+
+/** `client.options`: a client the branch form's クライアント名 offers (read from AppRouter). */
+export type ClientOption = inferRouterOutputs<AppRouter>["client"]["options"][number];
