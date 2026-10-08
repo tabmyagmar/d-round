@@ -27,9 +27,9 @@ const BranchDetailDialog = dynamic(
 
 /**
  * The client detail's 就業先部署情報 (legacy ClientBranches): the client's branches in every status
- * (the legacy clientBranches ignored it), searched and paged through the page's URL, a row opening
- * in a dialog. The client detail page hands it to `ClientDetailContainer`: features do not import
- * each other, the page composes them. Nothing for a caller who may not read branches.
+ * (the legacy clientBranches ignored it), searched and paged (10 a page) through the page's URL, a
+ * row opening in a dialog. The client detail page hands it to `ClientDetailContainer`: features do
+ * not import each other, the page composes them. Nothing for a caller who may not read branches.
  */
 export const ClientBranchesContainer = ({ clientId }: { clientId: string }) => {
   const trpc = useTRPC();
@@ -37,6 +37,8 @@ export const ClientBranchesContainer = ({ clientId }: { clientId: string }) => {
   const { searchParams, setMany } = useSearch();
   const input = useMemo(
     () => ({
+      // Ten rows a page, as the legacy clientBranches (`take` 10).
+      perPage: 10,
       ...parseSearchParams(listBranchesSchema, searchParams),
       clientId,
       statuses: [...GENERAL_STATUSES],
@@ -59,7 +61,7 @@ export const ClientBranchesContainer = ({ clientId }: { clientId: string }) => {
         onSearch={(search) => {
           setMany({ search });
         }}
-        label="番号・名前で検索"
+        label="番号・名前・担当者で検索"
         className="max-w-xs"
       />
       {branches.isError ? (
