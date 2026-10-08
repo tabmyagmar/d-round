@@ -9,3 +9,6 @@ export type StaffRow = StaffOutputs["list"]["items"][number];
 
 /** `staff.byId`: the staff with its address, regions, prefectures, 担当者 history and lists. */
 export type StaffDetail = StaffOutputs["byId"];
+
+/** A row of `staff.byCharger`: a staff a user is in charge of, with its regions. */
+export type ChargedStaff = StaffOutputs["byCharger"][number];

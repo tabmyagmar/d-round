@@ -55,12 +55,15 @@ writes it and the toolbar's bulk actions (削除, the CSV export to come) read i
 `useRowSelection((store) => store.rowSelection)`. Other shared screen state goes into a feature
 store (`stores/`) built the same way: created per mounted screen by its provider (`useState` lazy
 init), never as a module singleton, read with selectors. Features do not import each other; the app
-level composes them (the shell's user menu renders the users feature's `RoleBadge`). A feature is a
-domain slice, not a menu group: the 設定 group's two screens are `comment-templates` and `help`
-(romuten-v3 `features/help`, `features/settings`), which share nothing. `auth` is small and flat
-(`login-form`, `auth-card`, …). Route files under `app/` are thin: they import only from
+level composes them (the shell's user menu renders the users feature's `RoleBadge`; the user detail
+page hands the staff feature's `UserStaffsContainer` to `UserDetailContainer`'s `staffs` slot, as
+bulletproof-react's discussion route composes the comments feature). A feature is a domain slice,
+not a menu group: the 設定 group's two screens are `comment-templates` and `help` (romuten-v3
+`features/help`, `features/settings`), which share nothing. `auth` is small and flat (`login-form`,
+`auth-card`, …). Route files under `app/` are thin: they import only from
 `@/features/<feature>/containers/...`, `@/components/...`, `@/config/...`, `@/lib/...` and
-`@repo/ui`, and render one container inside `PageGuard`.
+`@repo/ui`, and render one container inside `PageGuard` (another feature's container goes in as a
+slot prop).
 
 ### List pages: state in the URL
 

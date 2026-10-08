@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import type { ReactNode } from "react";
 
 import { useAbility } from "@repo/permissions/react";
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
@@ -55,12 +56,18 @@ const UserPermissionSummary = dynamic(
 
 type OpenDialog = "password-mail" | "status" | null;
 
+export type UserDetailContainerProps = {
+  userId: string;
+  /** 担当スタッフ, from the staff feature: the page composes the features. */
+  staffs: ReactNode;
+};
+
 /**
  * 担当者情報詳細 (read-only, as in the legacy app): 基本情報, the 権限 of a manager for those who
- * may change them, and the 担当クライアント / 担当スタッフ placeholders. Editing is on the update
- * page; after 利用停止 the user is gone from this page (`user.byId` does not find them).
+ * may change them, then 担当クライアント (a placeholder) next to 担当スタッフ. Editing is on the
+ * update page; after 利用停止 the user is gone from this page (`user.byId` does not find them).
  */
-export const UserDetailContainer = ({ userId }: { userId: string }) => {
+export const UserDetailContainer = ({ userId, staffs }: UserDetailContainerProps) => {
   const trpc = useTRPC();
   const router = useRouter();
   const ability = useAbility();
@@ -167,7 +174,10 @@ export const UserDetailContainer = ({ userId }: { userId: string }) => {
         ) : null}
       </div>
 
-      <UserChargesPlaceholder />
+      <div className="grid items-start gap-4 md:grid-cols-2">
+        <UserChargesPlaceholder />
+        {staffs}
+      </div>
 
       {dialog === "password-mail" ? (
         <PasswordMailDialog user={detail} onOpenChange={closeDialog} />
