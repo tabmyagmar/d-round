@@ -1,10 +1,10 @@
 import { PageGuard } from "@/components/page-guard";
-import { PlaceholderPage } from "@/components/placeholder-page";
 import { routes } from "@/config/routes";
+import { StaffsContainer } from "@/features/staff/containers/staffs-container";
 
 const StaffListPage = () => (
   <PageGuard route={routes.staff.list}>
-    <PlaceholderPage route={routes.staff.list} />
+    <StaffsContainer />
   </PageGuard>
 );
 
