@@ -31,7 +31,7 @@ export type BranchFormProps = {
   hierarchy: SourceHierarchy;
   /** The clients matching a search (`client.options`: first 20 by reading). */
   findClients: (search: string) => Promise<ClientOption[]>;
-  /** An edited branch's client: kept on offer, so it is named whatever the search returns. */
+  /** An edited branch's client: on offer until another is chosen, whatever the search returns. */
   storedClient?: ClientOption;
   /** The chosen client's next 就業先番号 (legacy nextBranchNumber); create only. */
   findNextNumber?: (clientId: string) => Promise<number>;
@@ -87,24 +87,36 @@ export const BranchForm = ({
     placeholderData: keepPreviousData,
   });
   const found = clients.data ?? [];
+  const clientId = useWatch({ control: form.control, name: "clientId" });
+  // The chosen client stays on offer, so a later search that does not return it neither unnames
+  // nor clears the choice: the edited branch's client to begin with, then the one picked.
+  const [chosenClient, setChosenClient] = useState(storedClient);
+  const picked = found.find((client) => client.id === clientId);
+  if (picked && picked.id !== chosenClient?.id) {
+    setChosenClient(picked);
+  }
   const clientOptions =
-    storedClient && !found.some((client) => client.id === storedClient.id)
-      ? [...found, storedClient]
+    chosenClient && !found.some((client) => client.id === chosenClient.id)
+      ? [...found, chosenClient]
       : found;
 
-  const clientId = useWatch({ control: form.control, name: "clientId" });
   const nextNumber = useQuery({
     queryKey: ["branch-form", "next-number", clientId],
     queryFn: async () => (await findNextNumber?.(clientId)) ?? null,
     enabled: findNextNumber !== undefined && clientId !== "",
-    staleTime: 0,
+    // Asked again whenever a client is chosen, never answered from an earlier choice's cache.
+    gcTime: 0,
   });
+  // 就業先番号 takes the chosen client's next number once per choice, as the legacy select did: the
+  // lookup answering again (the window regaining focus) never overwrites a number typed since.
+  const numberFilledForRef = useRef("");
   const { setValue } = form;
   useEffect(() => {
-    if (typeof nextNumber.data === "number") {
+    if (typeof nextNumber.data === "number" && numberFilledForRef.current !== clientId) {
+      numberFilledForRef.current = clientId;
       setValue("number", nextNumber.data, { shouldDirty: true, shouldValidate: true });
     }
-  }, [nextNumber.data, setValue]);
+  }, [nextNumber.data, clientId, setValue]);
 
   // How many clicks the submit button's last click counted: a click that is part of a double
   // click never moves on or saves, else its second click lands on the button the first one

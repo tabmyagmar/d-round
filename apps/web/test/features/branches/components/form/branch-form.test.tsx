@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -108,6 +108,66 @@ describe("BranchForm", () => {
       expect(screen.getByLabelText(/^就業先番号/)).toHaveProperty("value", "8");
     });
     expect(findNextNumber).toHaveBeenCalledWith(CLIENT.id);
+  });
+
+  it("fills 就業先番号 once per chosen client: a lookup answered again keeps a typed number", async () => {
+    const findNextNumber = vi
+      .fn<(clientId: string) => Promise<number>>()
+      .mockResolvedValueOnce(8)
+      .mockResolvedValue(9);
+    renderForm({ defaultValues: { ...emptyBranchValues(), clientId: CLIENT.id }, findNextNumber });
+    const number = screen.getByLabelText(/^就業先番号/);
+    await vi.waitFor(() => {
+      expect(number).toHaveProperty("value", "8");
+    });
+    fireEvent.change(number, { target: { value: "5" } });
+
+    // The window regaining focus asks again, and another branch took 8 meanwhile.
+    const asked = findNextNumber.mock.calls.length;
+    try {
+      act(() => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      });
+      await vi.waitFor(() => {
+        expect(findNextNumber.mock.calls.length).toBeGreaterThan(asked);
+      });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+    } finally {
+      focusManager.setFocused(undefined);
+    }
+    expect(number).toHaveProperty("value", "5");
+  });
+
+  it("keeps the chosen client when a later search does not return it", async () => {
+    const other = { id: "019a0000-0000-7000-8000-0000000000a2", name: "別会社" };
+    // Only the search 別 finds it, not the first 20 by reading the empty search returns.
+    const findClients = vi.fn((search: string) => Promise.resolve(search === "別" ? [other] : []));
+    renderForm({ findClients });
+    const picker = screen.getByLabelText(/^クライアント名/);
+    const search = async (text: string) => {
+      fireEvent.focus(picker);
+      fireEvent.keyDown(picker, { key: "ArrowDown" });
+      fireEvent.change(picker, { target: { value: text } });
+      await vi.waitFor(() => {
+        expect(findClients).toHaveBeenCalledWith(text);
+      });
+    };
+
+    await search("別");
+    choose(await screen.findByRole("option", { name: other.name }));
+    await search("該当なし");
+    // Closing the list puts the chosen name back in the box, which searches again.
+    fireEvent.keyDown(picker, { key: "Escape" });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    next();
+    expect(await screen.findByText(other.name)).toBeDefined();
+    expect(currentStep()).toContain("確認");
   });
 
   it("drops the 地域 the chosen エリア no longer covers", async () => {
