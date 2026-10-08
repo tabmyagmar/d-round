@@ -373,3 +373,26 @@ list, "personal subjects keep `access: \"signed-in\"`"), `.claude/skills/feature
 - 2026-10-08 — plan drafted (planner role done inline: auto mode denies subagent launches).
 - 2026-10-08 — approved by the user ("heregjuul") with every decision as written, including the
   git-ignored help PDF and the two features.
+- 2026-10-08, branch: commit `3d96ba2` (`permissions.defaultMode: "auto"` in
+  `.claude/settings.json`, made by the user in another session) sits on this branch and ships with
+  the MR.
+- 2026-10-08, step 1a: `migrations.md` also gained the missing `20261007000000_add_user_name_parts`
+  row. The migration was generated read-only with `prisma migrate diff` against the dev database (in
+  sync) and applied there with `migrate deploy`, so the running dev server kept working.
+- 2026-10-08, step 1b: CASL types rule conditions per literal subject; a `CanFn` callback over every
+  subject gets the union of `id` and `createdBy`, which no single subject shares, so the browser
+  builder widens the conditions to `MongoQuery` with a comment. A generic `CanFn` was tried and
+  broke CASL's action inference in both builders.
+- 2026-10-08, step 2: the delete limit stays 50 (the legacy refused `>= 50`, read as an off-by-one).
+  The service and router tests were written before the module but not run red on their own.
+- 2026-10-08, step 3a: two thin forms (`comment-template-create-form`, `-update-form`) over
+  `comment-template-fields` instead of one form with defaults, as the `feature-screen` skill says
+  (no mode prop); the update form computes the changes inline (no `form-input` util: one consumer).
+  Thirteen files instead of ten.
+- 2026-10-08, step 3b: the delete dialog clears the deleted ids from the list's store itself (it
+  always renders inside the provider) instead of an `onDone` prop. Browser check (headless
+  Playwright against the running dev server, staff and admin): every scenario of the step passed;
+  the only console entries were the 409 of the deliberate duplicate title. Difference left: the
+  legacy modal centred its title, `ContentDialog` aligns it left as every other dialog here.
+- 2026-10-08, step 4: Base UI keeps `role="button"` on the download `<a>`; the help container is a
+  server component (static list), the table a client component.

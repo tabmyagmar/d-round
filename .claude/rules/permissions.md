@@ -36,8 +36,10 @@ twice:
 Actions `create | read | update | delete | status | changeRole` (the catalog's `permissions.action`;
 parent rows carry `all` and never grant). Subjects are the catalog's `modelName` values
 (`SUBJECT_NAMES`: `User`, `Client`, `Staff`, `Branch`, `AuditLog`, `Workflow`, `WorkflowTemplate`,
-`SourceCsvHistory`; only `User` has a Prisma model today). Conditions are plain equalities on
-subject attributes (today only `id`) so both engines interpret them identically.
+`SourceCsvHistory`), then the personal subjects no catalog row grants (`CommentTemplate`, a user's
+own 定型文, ADR 0006); `User` and `CommentTemplate` have Prisma models today. Conditions are plain
+equalities on subject attributes (`id` on `User`, `createdBy` on `CommentTemplate`) so both engines
+interpret them identically.
 
 ### The rule set (`rules.ts`)
 
@@ -51,8 +53,18 @@ export const defineRules = (can: CanFn, user: AbilityUser): void => {
   }
   // Everyone may see and edit their own profile.
   can(["read", "update"], "User", { id: user.id });
+
+  // Personal data: everyone keeps their own 定型文 and nobody else's (ADR 0006).
+  can(["create", "read", "update", "delete"], "CommentTemplate", { createdBy: user.id });
 };
 ```
+
+A personal subject (data a user owns, not data the organisation administers) is a row rule like the
+second one, not a catalog row. Its procedures still use `requireAbility(action, subject)` — the
+conditional rule passes every signed-in user — and its service filters lists and deletes with the
+owner `where` (`accessibleCommentTemplatesWhere`) and checks a row before an update
+(`prismaCommentTemplateSubject`). Its pages keep `access: "signed-in"`: `canUnscoped` is false for a
+conditional rule.
 
 `user.permissions` comes from Better Auth's `customSession` (`session.user.permissions`, built by
 `findEffectiveGrants` in `@repo/database`): the role's `role_permissions` plus the user's `ALLOW`
@@ -158,10 +170,11 @@ marker condition that Prisma rejects at query time — the guard turns that into
 ## The permission spec is two tests
 
 - `packages/permissions/test/ability.test.ts` is the grant-driven unit spec: for every action ×
-  subject a user holding only that grant `can` exactly that cell on other rows plus the self rule on
-  their own row; grants with `all` or an unknown subject are ignored; empty grants → self only;
-  anonymous → nothing; the Prisma ability answers exactly like the browser ability;
-  `accessibleUsersWhere` and `canUnscoped` are covered. It knows nothing about roles.
+  subject a user holding only that grant `can` exactly that cell on other rows plus the row rules on
+  their own rows (`User` and `CommentTemplate` are asked on an own and a foreign row); grants with
+  `all` or an unknown subject are ignored; empty grants → the row rules only; anonymous → nothing;
+  the Prisma ability answers exactly like the browser ability; `accessibleUsersWhere`,
+  `accessibleCommentTemplatesWhere` and `canUnscoped` are covered. It knows nothing about roles.
 - `apps/api/test/permission-catalog.test.ts` is the DB-backed catalog spec: after the seed, for
   every role × catalog row, `ctx.ability.can(action, modelName)` equals "a `role_permissions` row
   exists" (never for `all`), a user `ALLOW` adds and a `DENY` removes, and every catalog action and

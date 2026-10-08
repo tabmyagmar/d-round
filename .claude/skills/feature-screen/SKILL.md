@@ -54,6 +54,8 @@ toolbar with the actions the ability allows. A card some roles never see loads w
 - The form is presentational (`onSubmit`, `pending`, `errorMessage`); the container owns the
   mutation, the toast and the redirect. Update sends only what changed.
 - Actions: `FormActions` inside a `StickyBar` (`components/form/user-update-form.tsx`).
+- A legacy modal stays a dialog: `ContentDialog` via `next/dynamic` owning the mutation, the same
+  thin forms inside (`features/comment-templates/components/comment-template-dialog.tsx`).
 - Tests render the form in `StrictMode` (`.claude/rules/testing.md`).
 
 ## 5. Before hand-over

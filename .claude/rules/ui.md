@@ -53,8 +53,10 @@ selection: the table writes it, the toolbar's bulk actions (CSV export, own tick
 store is created per mounted screen by its provider (`createUsersStore` + `UsersStoreProvider`,
 `useState` lazy init), never as a module singleton, and read with selectors
 (`useUsersStore((store) => store.rowSelection)`). Features do not import each other; the app level
-composes them (the shell's user menu renders the users feature's `RoleBadge`). `auth` is small and
-flat (`login-form`, `auth-card`, …). Route files under `app/` are thin: they import only from
+composes them (the shell's user menu renders the users feature's `RoleBadge`). A feature is a domain
+slice, not a menu group: the 設定 group's two screens are `comment-templates` and `help` (romuten-v3
+`features/help`, `features/settings`), which share nothing. `auth` is small and flat (`login-form`,
+`auth-card`, …). Route files under `app/` are thin: they import only from
 `@/features/<feature>/containers/...`, `@/components/...`, `@/config/...`, `@/lib/...` and
 `@repo/ui`, and render one container inside `PageGuard`.
 
@@ -395,7 +397,11 @@ outline `Button` rendering a `Link`) is its child; the submit button takes `subm
 `pendingLabel`, `pending` (the mutation's) and `disabled` (nothing changed, nothing allowed), and
 shows a spinner with `aria-busy` while pending. Reference:
 `apps/web/features/users/components/form/user-update-form.tsx`. A small form among other content
-(`profile/profile-form.tsx`) keeps its button inline.
+(`profile/profile-form.tsx`) keeps its button inline. Where the legacy screen created or edited in a
+modal, the form sits in a `ContentDialog` loaded with `next/dynamic`: the dialog owns the mutation,
+the toast and the list refresh, the two thin forms (create, update) share a fields component, and
+`FormActions` takes `className="*:flex-1"` for the legacy side-by-side キャンセル / submit
+(`apps/web/features/comment-templates/components/comment-template-dialog.tsx`).
 
 ### Shared props (`BaseFieldProps`, `form/types.ts`)
 
