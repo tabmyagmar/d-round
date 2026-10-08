@@ -1,11 +1,14 @@
 import { PageGuard } from "@/components/page-guard";
-import { PlaceholderPage } from "@/components/placeholder-page";
 import { routes } from "@/config/routes";
+import { ClientDetailContainer } from "@/features/clients/containers/client-detail-container";
 
-const ClientDetailPage = () => (
-  <PageGuard route={routes.client.detail}>
-    <PlaceholderPage route={routes.client.detail} />
-  </PageGuard>
-);
+const ClientDetailPage = async ({ params }: { params: Promise<{ id: string }> }) => {
+  const { id } = await params;
+  return (
+    <PageGuard route={routes.client.detail}>
+      <ClientDetailContainer clientId={id} />
+    </PageGuard>
+  );
+};
 
 export default ClientDetailPage;
