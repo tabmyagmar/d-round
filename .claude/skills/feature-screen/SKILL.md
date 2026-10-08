@@ -82,6 +82,12 @@ detail's 担当スタッフ, `.claude/rules/ui.md`).
   set once its data loaded (`HierarchyFields`); a uniqueness the legacy checked before saving
   (社員番号) is an `isEmployeeNumberFree`-style async prop the form awaits in its submit handler and
   reports with `setError` on the field.
+- A single dependent select (one 地域 on one エリア) is a `SelectField` with `valueAs="number"` and
+  `pruneToOptions`. A choice among another feature's rows (クライアント名 in the 就業先部署 form) is
+  a `ComboboxField` with `onSearch` + `serverFiltered`, fed by a `findClients(search)`-style lookup
+  the container passes and debounced in the form, the edited row's own choice kept on offer; a value
+  that follows it (the next 就業先番号) is a lookup the form runs when the choice changes
+  (`features/branches/components/form/branch-form.tsx`).
 
 ## 5. Before hand-over
 
