@@ -2,12 +2,9 @@ import type { FilterTag } from "@repo/ui/components/composed/filter-tags";
 import type { ListUsersQuery, Position, Role, SourceArea, UserStatus } from "@repo/validation";
 
 import { AREA_LABELS } from "@/components/source/source-labels";
-import {
-  POSITION_LABELS,
-  ROLE_LABELS,
-  USER_STATUS_LABELS,
-} from "@/features/users/utils/user-labels";
+import { ROLE_LABELS, USER_STATUS_LABELS } from "@/features/users/utils/user-labels";
 import type { SearchParamValue } from "@/hooks/search-params";
+import { POSITION_LABELS } from "@/lib/position-labels";
 
 /** The list's filters as the toolbar shows them; the URL holds them (`parseSearchParams`). */
 export type UserListFilters = {

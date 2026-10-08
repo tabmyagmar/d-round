@@ -26,7 +26,8 @@ import { UserDetailToolbar } from "@/features/users/components/detail/user-detai
 import { RoleBadge } from "@/features/users/components/role-badge";
 import { UserStatusBadge } from "@/features/users/components/user-status-badge";
 import { usePermissionCatalog } from "@/features/users/hooks/use-permission-catalog";
-import { POSITION_LABELS, readingOf, userStatusOf } from "@/features/users/utils/user-labels";
+import { readingOf, userStatusOf } from "@/features/users/utils/user-labels";
+import { POSITION_LABELS } from "@/lib/position-labels";
 import { useTRPC } from "@/lib/trpc/react";
 
 // Loaded only when used: the dialogs when an action is chosen, the summary for a manager.

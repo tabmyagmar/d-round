@@ -15,7 +15,8 @@ import type { SourceHierarchy } from "@/components/source/hierarchy-options";
 import { PermissionField } from "@/features/users/components/form/permission-field";
 import type { RoleFieldState } from "@/features/users/utils/role-field-state";
 import type { ProfileFormValues } from "@/features/users/utils/user-form-input";
-import { POSITION_OPTIONS, ROLE_LABELS } from "@/features/users/utils/user-labels";
+import { ROLE_LABELS } from "@/features/users/utils/user-labels";
+import { POSITION_OPTIONS } from "@/lib/position-labels";
 
 /** 姓 / 名 / セイ / メイ: the name fields every user form has (invite, edit, profile). */
 export type UserNameValues = {

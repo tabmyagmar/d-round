@@ -8,11 +8,8 @@ import type { Position } from "@repo/validation";
 import { HierarchyFilterFields } from "@/components/source/hierarchy-filter-fields";
 import type { SourceHierarchy } from "@/components/source/hierarchy-options";
 import type { UserFilterChanges, UserListFilters } from "@/features/users/utils/user-filters";
-import {
-  POSITION_OPTIONS,
-  ROLE_LABELS,
-  USER_STATUS_LABELS,
-} from "@/features/users/utils/user-labels";
+import { ROLE_LABELS, USER_STATUS_LABELS } from "@/features/users/utils/user-labels";
+import { POSITION_OPTIONS } from "@/lib/position-labels";
 
 const ROLE_OPTIONS = ROLES.map((role) => ({ value: role, label: ROLE_LABELS[role] }));
 const STATUS_OPTIONS = USER_STATUSES.map((status) => ({
