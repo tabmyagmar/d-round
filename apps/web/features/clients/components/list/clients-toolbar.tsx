@@ -50,7 +50,7 @@ export const ClientsToolbar = ({
           onSearch={(search) => {
             onChange({ search });
           }}
-          label="クライアント番号・クライアント名・フリガナ・担当者名で検索"
+          label="番号・名前・担当者で検索"
         />
       }
       filters={<ClientFilter filters={filters} onChange={onChange} />}
