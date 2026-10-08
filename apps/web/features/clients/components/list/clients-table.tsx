@@ -14,7 +14,8 @@ import { addressLineOf, postCodeLabel } from "@/components/source/source-labels"
 import { href, routes } from "@/config/routes";
 import { ClientRowActions } from "@/features/clients/components/list/client-row-actions";
 import type { ClientRow } from "@/features/clients/types";
-import { chargerNamesOf, orderTypeNamesOf } from "@/features/clients/utils/client-labels";
+import { orderTypeNamesOf } from "@/features/clients/utils/client-labels";
+import { chargerNamesOf } from "@/lib/charger-labels";
 import { useRowSelection } from "@/stores/row-selection";
 
 const helper = createDataTableColumns<ClientRow>();

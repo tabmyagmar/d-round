@@ -8,7 +8,8 @@ import {
   regionNamesOf,
 } from "@/components/source/source-labels";
 import type { ClientDetail } from "@/features/clients/types";
-import { chargerNamesOf, orderTypeNamesOf } from "@/features/clients/utils/client-labels";
+import { orderTypeNamesOf } from "@/features/clients/utils/client-labels";
+import { chargerNamesOf } from "@/lib/charger-labels";
 
 /**
  * クライアント情報, the legacy ClientInfo's rows and order. The post code is labelled 郵便番号 (the

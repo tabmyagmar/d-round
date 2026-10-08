@@ -17,10 +17,6 @@ export const CLIENT_ORDER_TYPE_OPTIONS: SelectOption<ClientOrderType>[] = CLIENT
 export const orderTypeNamesOf = (types: readonly ClientOrderType[]): string | null =>
   types.length > 0 ? types.map((type) => CLIENT_ORDER_TYPE_LABELS[type]).join("、") : null;
 
-/** The 担当者 by name, as the list and the detail show them, or `null` with none. */
-export const chargerNamesOf = (chargers: readonly { user: { name: string } }[]): string | null =>
-  chargers.length > 0 ? chargers.map((charger) => charger.user.name).join("、") : null;
-
 /** What the client form says when another client holds the クライアント番号 (legacy wording). */
 export const CLIENT_NUMBER_TAKEN = "このクライアント番号は既に使用されています";
 

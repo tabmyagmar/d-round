@@ -5,7 +5,6 @@ import { CLIENT_ORDER_TYPES } from "@repo/validation";
 import {
   CLIENT_ORDER_TYPE_LABELS,
   CLIENT_ORDER_TYPE_OPTIONS,
-  chargerNamesOf,
   orderTypeNamesOf,
 } from "@/features/clients/utils/client-labels";
 
@@ -21,12 +20,8 @@ describe("client labels", () => {
     ]);
   });
 
-  it("joins the 受注区分 and the 担当者 by name, and names nothing without them", () => {
+  it("joins the 受注区分 by name, and names nothing without them", () => {
     expect(orderTypeNamesOf(["CONTRACT_WORK", "SPOT_WORK"])).toBe("業務請負、スポット");
     expect(orderTypeNamesOf([])).toBeNull();
-    expect(chargerNamesOf([{ user: { name: "佐藤 一郎" } }, { user: { name: "鈴木 花子" } }])).toBe(
-      "佐藤 一郎、鈴木 花子",
-    );
-    expect(chargerNamesOf([])).toBeNull();
   });
 });
