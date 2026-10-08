@@ -5,6 +5,7 @@ import {
   changePasswordSchema,
   chargerOptionsSchema,
   emailSchema,
+  employeeNumberOfSearch,
   forgotPasswordSchema,
   fullName,
   inviteUserFormSchema,
@@ -454,5 +455,18 @@ describe("userNameSchema", () => {
 describe("fullName", () => {
   it("is 姓 and 名 with a space, the display name Better Auth keeps", () => {
     expect(fullName({ lastName: "山田", firstName: "太郎" })).toBe("山田 太郎");
+  });
+});
+
+describe("employeeNumberOfSearch", () => {
+  it("reads one to nine digits as the employee number a list search also matches", () => {
+    expect(employeeNumberOfSearch("0042")).toBe(42);
+    expect(employeeNumberOfSearch("999999999")).toBe(999_999_999);
+  });
+
+  it("reads no number from zero, ten digits or text", () => {
+    for (const search of ["0", "000", "1234567890", "12a", "山田"]) {
+      expect(employeeNumberOfSearch(search)).toBeNull();
+    }
   });
 });

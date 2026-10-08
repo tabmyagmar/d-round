@@ -108,6 +108,15 @@ export type Position = z.infer<typeof positionSchema>;
 export const EMPLOYEE_NUMBER_MAX = 999_999_999;
 
 /** A required positive whole number with the legacy messages, e.g. `employeeNumberSchema("社員番号")`. */
+/**
+ * A list search that is an employee number (one to nine digits, not zero) also matches the 社員番号
+ * or スタッフ番号 (the legacy numeric search); `null` for any other search.
+ */
+export const employeeNumberOfSearch = (search: string): number | null => {
+  const value = /^\d{1,9}$/.test(search) ? Number(search) : 0;
+  return value > 0 ? value : null;
+};
+
 export const employeeNumberSchema = (label: string) =>
   z
     .number({ error: `${label}は必須です` })

@@ -244,9 +244,13 @@ export const createStaffRepository = (db: DbClient) => ({
       },
     }),
 
-  findStatuses: (ids: readonly string[]): Promise<{ id: string; status: StaffStatus }[]> =>
+  /** The statuses of these non-deleted staff, within `where` (the caller's rows). */
+  findStatuses: (
+    ids: readonly string[],
+    where: Prisma.StaffWhereInput = {},
+  ): Promise<{ id: string; status: StaffStatus }[]> =>
     db.staff.findMany({
-      where: { id: { in: [...ids] }, deletedAt: null },
+      where: { AND: [where, { id: { in: [...ids] }, deletedAt: null }] },
       select: { id: true, status: true },
     }),
 
@@ -262,10 +266,15 @@ export const createStaffRepository = (db: DbClient) => ({
       })
     ).count,
 
-  /** The non-deleted staff `userId` is currently in charge of, in kana order. */
-  findManyByCharger: (userId: string): Promise<ChargedStaffRow[]> =>
+  /** The non-deleted staff `userId` is currently in charge of, within `where`, in kana order. */
+  findManyByCharger: (
+    userId: string,
+    where: Prisma.StaffWhereInput = {},
+  ): Promise<ChargedStaffRow[]> =>
     db.staff.findMany({
-      where: { deletedAt: null, chargers: { some: { userId, unassignedAt: null } } },
+      where: {
+        AND: [where, { deletedAt: null, chargers: { some: { userId, unassignedAt: null } } }],
+      },
       select: CHARGED_STAFF_SELECT,
       orderBy: [{ lastNameKana: "asc" }, { firstNameKana: "asc" }, { id: "asc" }],
     }),

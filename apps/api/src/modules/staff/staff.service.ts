@@ -14,6 +14,7 @@ import type {
   StaffWrite,
 } from "@repo/database";
 import { accessibleStaffWhere, prismaStaffSubject } from "@repo/permissions/server";
+import { employeeNumberOfSearch } from "@repo/validation";
 import type {
   ChangeStaffStatusInput,
   CreateStaffInput,
@@ -32,8 +33,9 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from ".
 
 /**
  * スタッフ (ADR 0008). The router checked the catalog action on the type; this service checks the
- * row (no row rule today, so the answer equals the type's), the スタッフ番号 among non-deleted staff,
- * the reference data and the 担当者, and writes a staff and its lists in one transaction.
+ * row (`prismaStaffSubject` for one staff, `accessibleStaffWhere` for lists and deletes — no row
+ * rule today, so the answer equals the type's), the スタッフ番号 among non-deleted staff, the
+ * reference data and the 担当者, and writes a staff and its lists in one transaction.
  */
 
 type StaffAction = "create" | "read" | "update" | "delete" | "status";
@@ -68,12 +70,6 @@ const STAFF_ORDER_BY: Record<
   createdAt: (direction) => [{ createdAt: direction }],
 };
 
-/** A search of digits only also matches the スタッフ番号 (legacy). */
-const employeeNumberOf = (search: string): number | null => {
-  const value = /^\d{1,9}$/.test(search) ? Number(search) : null;
-  return value !== null && value > 0 ? value : null;
-};
-
 const SUSPENDED: StaffStatus = "SUSPENDED";
 
 export const list = async (
@@ -87,7 +83,7 @@ export const list = async (
     query.statuses?.length ? { status: { in: query.statuses } } : { status: { not: SUSPENDED } },
   ];
   if (query.search) {
-    const employeeNumber = employeeNumberOf(query.search);
+    const employeeNumber = employeeNumberOfSearch(query.search);
     filters.push({
       OR: [
         ...(employeeNumber === null ? [] : [{ employeeNumber }]),
@@ -134,7 +130,7 @@ const STAFF_NUMBER_TAKEN = "This staff number is already in use";
 
 /**
  * What a write needs beyond its schema: the スタッフ番号 free among non-deleted staff, the regions,
- * prefectures and post code known, every 担当者 an active user other than a super_admin.
+ * prefectures and post code known. The 担当者 are checked apart (`assertChargersActive`).
  */
 const assertWritable = async (
   db: DbClient,
@@ -165,12 +161,22 @@ const assertWritable = async (
   if (!(await source.findAddressByPostCode(input.address.postCode))) {
     throw new ValidationError(`Unknown post code ${input.address.postCode}`);
   }
+};
+
+/**
+ * A 担当者 being assigned must be an active user other than a super_admin. Only new ones are
+ * asked: one deactivated since keeps the history row, and the staff stays editable.
+ */
+const assertChargersActive = async (db: DbClient, userIds: readonly string[]): Promise<void> => {
+  if (userIds.length === 0) {
+    return;
+  }
   const superAdmin: Role = "super_admin";
   const chargers = await createUserRepository(db).findChargerOptions(
-    { id: { in: input.chargerUserIds }, role: { not: superAdmin } },
-    input.chargerUserIds.length,
+    { id: { in: [...userIds] }, role: { not: superAdmin } },
+    userIds.length,
   );
-  if (chargers.length !== input.chargerUserIds.length) {
+  if (chargers.length !== userIds.length) {
     throw new ValidationError("Every 担当者 must be an active user");
   }
 };
@@ -217,6 +223,7 @@ export const create = async (
   assertMay(ctx, "create");
   return withTransaction(ctx.db, async ({ tx }) => {
     await assertWritable(tx, input);
+    await assertChargersActive(tx, input.chargerUserIds);
     const { id } = await createStaffRepository(tx).create(toWrite(input));
     return loadStaff(tx, id);
   });
@@ -224,7 +231,7 @@ export const create = async (
 
 /**
  * スタッフ情報編集 (row 1303): the fields and address, the code sets and lists replaced, and the
- * 担当者 moved — the removed ones closed (their history stays), the new ones added.
+ * 担当者 moved — the removed ones closed (their history stays), the new ones added and checked.
  */
 export const update = async (
   ctx: RequestContext,
@@ -237,15 +244,16 @@ export const update = async (
     assertCanRow(ctx, "update", current);
     await assertWritable(tx, input, current.id);
     const write = toWrite(input);
+    const before = await staffs.findCurrentChargerIds(current.id);
+    const removed = before.filter((userId) => !write.chargerUserIds.includes(userId));
+    const added = write.chargerUserIds.filter((userId) => !before.includes(userId));
+    await assertChargersActive(tx, added);
     await staffs.updateFields(current.id, write.fields, write.address);
     await staffs.replaceRegions(current.id, write.regionCodes);
     await staffs.replacePrefectures(current.id, write.prefectureCodes);
     await staffs.replaceFamilyMembers(current.id, write.familyMembers);
     await staffs.replaceMemos(current.id, write.memos);
     await staffs.replaceJobHistories(current.id, write.jobHistories);
-    const before = await staffs.findCurrentChargerIds(current.id);
-    const removed = before.filter((userId) => !write.chargerUserIds.includes(userId));
-    const added = write.chargerUserIds.filter((userId) => !before.includes(userId));
     if (removed.length > 0) {
       await staffs.closeChargers(current.id, removed);
     }
@@ -270,7 +278,10 @@ export const changeStatus = async (
   return createStaffRepository(ctx.db).updateStatus(staff.id, input.status);
 };
 
-/** スタッフ削除 (row 1304): every one of them must exist and be 停止 (legacy rule); soft delete. */
+/**
+ * スタッフ削除 (row 1304): every one of them must be a staff the caller may delete and be 停止
+ * (legacy rule, `deleteStaffs where status DELETE`); soft delete.
+ */
 export const removeMany = async (
   ctx: RequestContext,
   input: DeleteStaffsInput,
@@ -279,7 +290,7 @@ export const removeMany = async (
   return withTransaction(ctx.db, async ({ tx }) => {
     const staffs = createStaffRepository(tx);
     const ids = [...new Set(input.staffIds)];
-    const rows = await staffs.findStatuses(ids);
+    const rows = await staffs.findStatuses(ids, accessibleStaffWhere(ctx.ability, "delete"));
     if (rows.length !== ids.length) {
       throw new NotFoundError("Staff");
     }
@@ -311,5 +322,8 @@ export const listByCharger = async (
   userId: string,
 ): Promise<ChargedStaffRow[]> => {
   assertMay(ctx, "read");
-  return createStaffRepository(ctx.db).findManyByCharger(userId);
+  return createStaffRepository(ctx.db).findManyByCharger(
+    userId,
+    accessibleStaffWhere(ctx.ability, "read"),
+  );
 };

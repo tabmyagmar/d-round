@@ -140,6 +140,30 @@ describe("staff service: update", () => {
       ["後任 次郎", true],
     ]);
   });
+
+  it("keeps a 担当者 deactivated since and checks only the 担当者 being added", async () => {
+    const { ctx, chargerId } = await adminWithCharger();
+    const staff = await staffService.create(ctx, staffInput([chargerId]));
+    await h.db.user.update({ where: { id: chargerId }, data: { deletedAt: new Date() } });
+
+    const updated = await staffService.update(ctx, {
+      ...staffInput([chargerId], { employeeNumber: staff.employeeNumber, branchName: "池袋支店" }),
+      staffId: staff.id,
+    });
+
+    expect(updated.branchName).toBe("池袋支店");
+    expect(updated.chargers.map((row) => [row.userId, row.unassignedAt])).toEqual([
+      [chargerId, null],
+    ]);
+    const gone = await signedInUser(h);
+    await h.db.user.update({ where: { id: gone.user.id }, data: { deletedAt: new Date() } });
+    await expect(
+      staffService.update(ctx, {
+        ...staffInput([chargerId, gone.user.id], { employeeNumber: staff.employeeNumber }),
+        staffId: staff.id,
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
 });
 
 describe("staff service: list", () => {

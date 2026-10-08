@@ -225,4 +225,15 @@ describe("user router: profile and 担当者 lookups", () => {
       admin.user.employeeNumberAvailable({ employeeNumber: uniqueEmployeeNumber() }),
     ).resolves.toBe(true);
   });
+
+  it("answers chargerOptions within the caller's user read rules: an AM finds only themselves", async () => {
+    const am = await signedInUser(h, { profile: {} });
+    const colleague = await signedInUser(h, { profile: {} });
+    const caller = createCaller(await contextFor(h, am.headers));
+
+    const ids = (await caller.user.chargerOptions({ regionCodes: [4] })).map((user) => user.id);
+
+    expect(ids).toEqual([am.user.id]);
+    expect(ids).not.toContain(colleague.user.id);
+  });
 });

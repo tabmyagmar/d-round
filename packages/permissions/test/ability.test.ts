@@ -444,9 +444,15 @@ describe("Staff on the server: grant-driven, no row rule", () => {
     expect(none.can("update", prismaStaffSubject(staffRow()))).toBe(false);
   });
 
-  it("leaves a list with the `read Staff` grant unrestricted", () => {
-    const ability = definePrismaAbilityFor(holder([{ action: "read", subject: "Staff" }]));
+  it("leaves a list and a delete with their grant unrestricted: an empty where", () => {
+    const ability = definePrismaAbilityFor(
+      holder([
+        { action: "read", subject: "Staff" },
+        { action: "delete", subject: "Staff" },
+      ]),
+    );
     expect(ability.can("read", "Staff")).toBe(true);
-    expect(JSON.stringify(accessibleStaffWhere(ability))).not.toContain(ME_ID);
+    expect(accessibleStaffWhere(ability)).toEqual({});
+    expect(accessibleStaffWhere(ability, "delete")).toEqual({});
   });
 });

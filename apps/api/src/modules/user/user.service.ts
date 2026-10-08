@@ -22,6 +22,7 @@ import { accessibleUsersWhere, canUnscoped, prismaUserSubject } from "@repo/perm
 import {
   ADMIN_ROLES,
   assignableRoles,
+  employeeNumberOfSearch,
   fullName,
   isOverridableRole,
   OVERRIDABLE_ROLES,
@@ -193,12 +194,6 @@ const USER_ORDER_BY: Record<
   createdAt: (direction) => ({ createdAt: direction }),
 };
 
-/** A search of digits only also matches the 社員番号 (legacy: numeric search on the number). */
-const employeeNumberOf = (search: string): number | null => {
-  const value = /^\d{1,9}$/.test(search) ? Number(search) : null;
-  return value !== null && value > 0 ? value : null;
-};
-
 export const list = async (
   ctx: RequestContext,
   query: ListUsersQuery,
@@ -211,7 +206,7 @@ export const list = async (
     filters.push({ role: query.role });
   }
   if (query.search) {
-    const employeeNumber = employeeNumberOf(query.search);
+    const employeeNumber = employeeNumberOfSearch(query.search);
     filters.push({
       OR: [
         ...(employeeNumber === null ? [] : [{ profile: { employeeNumber } }]),

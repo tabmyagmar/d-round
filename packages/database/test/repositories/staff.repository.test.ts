@@ -220,7 +220,7 @@ describe("staff repository", () => {
     });
   });
 
-  it("changes the status and finds the staff a user is in charge of", async () => {
+  it("changes the status and finds the staff a user is in charge of, within the caller's where", async () => {
     await scenario(async (tx) => {
       const repo = createStaffRepository(tx);
       const charger = await createUser(tx, "担当");
@@ -228,9 +228,11 @@ describe("staff repository", () => {
 
       expect(await repo.updateStatus(id, "SUSPENDED")).toEqual({ id, status: "SUSPENDED" });
       expect(await repo.findStatuses([id])).toEqual([{ id, status: "SUSPENDED" }]);
+      expect(await repo.findStatuses([id], { status: "ACTIVE" })).toEqual([]);
       const charged = await repo.findManyByCharger(charger.id);
       expect(charged.map((staff) => staff.id)).toEqual([id]);
       expect(charged[0]?.regions).toEqual([{ regionCode: 4, region: { name: "南関東" } }]);
+      expect(await repo.findManyByCharger(charger.id, { employeeType: "PART_TIME" })).toEqual([]);
 
       await repo.closeChargers(id, [charger.id]);
       expect(await repo.findManyByCharger(charger.id)).toEqual([]);
