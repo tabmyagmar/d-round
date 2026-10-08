@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   addressByPostCodeSchema,
+  addressFormSchema,
   postCodeSchema,
   regionCodeSchema,
   sourceAreaSchema,
@@ -43,5 +44,31 @@ describe("sourceAreaSchema", () => {
   it("accepts the two legacy areas only", () => {
     expect(sourceAreaSchema.parse("EAST")).toBe("EAST");
     expect(sourceAreaSchema.safeParse("NORTH").success).toBe(false);
+  });
+});
+
+describe("addressFormSchema", () => {
+  it("keeps the lookup's 県名 and 市町村名 beside the API's post code and line", () => {
+    expect(
+      addressFormSchema.parse({
+        postCode: "160-0022",
+        address1: "1-2-3",
+        pref: "東京都",
+        cityTown: "新宿区新宿",
+      }),
+    ).toEqual({ postCode: "1600022", address1: "1-2-3", pref: "東京都", cityTown: "新宿区新宿" });
+  });
+
+  it("refuses an address whose post code was not found: no 県名", () => {
+    const result = addressFormSchema.safeParse({
+      postCode: "0000000",
+      address1: "1-2-3",
+      pref: "",
+      cityTown: "",
+    });
+
+    expect(result.error?.issues.map((issue) => [issue.path.join("."), issue.message])).toEqual([
+      ["pref", "郵便番号を入力してください"],
+    ]);
   });
 });

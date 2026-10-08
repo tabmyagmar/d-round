@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { idSchema, paginationSchema, requiredText } from "./common.schema";
 import {
+  addressFormSchema,
   addressSchema,
   areasSchema,
   prefectureCodeSchema,
@@ -185,8 +186,11 @@ export const createStaffSchema = z.object({
   familyMembers: z.array(familyMemberSchema),
   memos: z.array(staffMemoSchema),
 });
-export type CreateStaffFormValues = z.input<typeof createStaffSchema>;
 export type CreateStaffInput = z.output<typeof createStaffSchema>;
+
+/** The staff form (create and edit): the API's fields with the address as `AddressFields` edits it. */
+export const staffFormSchema = createStaffSchema.extend({ address: addressFormSchema });
+export type StaffFormValues = z.input<typeof staffFormSchema>;
 
 /** スタッフ情報編集: the whole form again (the lists are replaced, ADR 0008). */
 export const updateStaffSchema = createStaffSchema.extend({ staffId: idSchema });

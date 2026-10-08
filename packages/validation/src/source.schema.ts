@@ -53,3 +53,13 @@ export const addressSchema = z.object({
     .max(200, { error: "住所は200文字以内で入力してください" }),
 });
 export type AddressInput = z.output<typeof addressSchema>;
+
+/**
+ * The address as a form edits it (`AddressFields`): the API's fields plus 住所(県名) and
+ * 住所(市町村名), which the post-code lookup fills and the form shows; an empty 県名 means the code
+ * was not found (the legacy AddressSchema's message). The API never takes them.
+ */
+export const addressFormSchema = addressSchema.extend({
+  pref: z.string().min(1, { error: "郵便番号を入力してください" }),
+  cityTown: z.string(),
+});

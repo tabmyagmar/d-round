@@ -5,6 +5,7 @@ import {
   createStaffSchema,
   listStaffsSchema,
   phoneSchema,
+  staffFormSchema,
   updateStaffSchema,
 } from "../src/staff.schema";
 
@@ -117,6 +118,25 @@ describe("createStaffSchema", () => {
         }),
       ),
     ).toEqual({ path: "jobHistories.0.hireDate", message: "日付は必須です" });
+  });
+});
+
+describe("staffFormSchema", () => {
+  it("takes the address as the form edits it and refuses one whose post code was not found", () => {
+    const address = { ...STAFF.address, pref: "東京都", cityTown: "新宿区新宿" };
+
+    expect(staffFormSchema.parse({ ...STAFF, address }).address).toEqual({
+      postCode: "1600022",
+      address1: "新宿1-2-3",
+      pref: "東京都",
+      cityTown: "新宿区新宿",
+    });
+    expect(
+      firstIssue(staffFormSchema.safeParse({ ...STAFF, address: { ...address, pref: "" } })),
+    ).toEqual({
+      path: "address.pref",
+      message: "郵便番号を入力してください",
+    });
   });
 });
 
