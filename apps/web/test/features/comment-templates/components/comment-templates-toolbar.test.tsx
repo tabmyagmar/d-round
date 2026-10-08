@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CommentTemplatesToolbar } from "@/features/comment-templates/components/comment-templates-toolbar";
@@ -8,19 +8,20 @@ import { CommentTemplatesStoreProvider } from "@/features/comment-templates/stor
 afterEach(cleanup);
 
 const renderToolbar = (rowSelection: Record<string, true> = {}) => {
+  const onSearch = vi.fn();
   const onCreate = vi.fn();
   const onDeleteSelected = vi.fn();
   render(
     <CommentTemplatesStoreProvider initialState={{ rowSelection }}>
       <CommentTemplatesToolbar
         search=""
-        onSearch={vi.fn()}
+        onSearch={onSearch}
         onCreate={onCreate}
         onDeleteSelected={onDeleteSelected}
       />
     </CommentTemplatesStoreProvider>,
   );
-  return { onCreate, onDeleteSelected };
+  return { onSearch, onCreate, onDeleteSelected };
 };
 
 const deleteButton = () => screen.getByRole("button", { name: "選択した定型文を削除" });
@@ -32,6 +33,25 @@ describe("CommentTemplatesToolbar", () => {
     expect(screen.getByRole("searchbox", { name: "タイトル・テキストで検索" })).toBeDefined();
     fireEvent.click(screen.getByRole("button", { name: "新規作成" }));
     expect(onCreate).toHaveBeenCalled();
+  });
+
+  it("searches with the trimmed text once typing pauses", () => {
+    vi.useFakeTimers();
+    try {
+      const { onSearch } = renderToolbar();
+
+      fireEvent.change(screen.getByRole("searchbox", { name: "タイトル・テキストで検索" }), {
+        target: { value: " 挨拶 " },
+      });
+      expect(onSearch).not.toHaveBeenCalled();
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(onSearch).toHaveBeenCalledWith("挨拶");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps 削除 disabled while nothing is selected", () => {

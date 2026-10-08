@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   COMMENT_FOR_OPTIONS,
-  createdOn,
   typesLabel,
 } from "@/features/comment-templates/utils/comment-template-labels";
 
@@ -19,9 +18,5 @@ describe("comment template labels", () => {
   it("joins a row's menus in the legacy order", () => {
     expect(typesLabel(["STAFF", "WORKFLOW"])).toBe("ワークフロー承認画面用コメント、スタッフ管理");
     expect(typesLabel([])).toBe("");
-  });
-
-  it("shows the creation date as the legacy YYYY/MM/DD", () => {
-    expect(createdOn(new Date(2026, 9, 8, 23, 59))).toBe("2026/10/08");
   });
 });

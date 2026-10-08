@@ -1,4 +1,3 @@
-import { formatDate } from "@repo/ui/components/form";
 import type { SelectOption } from "@repo/ui/components/form";
 import { COMMENT_FOR } from "@repo/validation";
 import type { CommentFor } from "@repo/validation";
@@ -22,6 +21,3 @@ export const typesLabel = (types: readonly CommentFor[]): string =>
   COMMENT_FOR.filter((type) => types.includes(type))
     .map((type) => COMMENT_FOR_LABELS[type])
     .join("、");
-
-/** 作成日 as the legacy list showed it: YYYY/MM/DD. */
-export const createdOn = (date: Date): string => formatDate(date, "ja-JP");

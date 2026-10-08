@@ -8,6 +8,7 @@ export type {
   CanFn,
   CommentTemplateConditions,
   PermissionGrant,
+  RuleConditions,
   SubjectName,
   UserConditions,
 } from "./rules";

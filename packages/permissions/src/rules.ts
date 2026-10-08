@@ -64,12 +64,22 @@ export type CommentTemplateConditions = {
   createdBy?: string;
 };
 
-/** Each rule passes the conditions of its own subject (`id` on User, `createdBy` on CommentTemplate). */
-export type CanFn = (
-  action: Action | Action[],
-  subject: SubjectName,
-  conditions?: UserConditions | CommentTemplateConditions,
-) => void;
+/** Any rule's conditions; the builders receive this union (see `CanFn`). */
+export type RuleConditions = UserConditions | CommentTemplateConditions;
+
+/**
+ * How `defineRules` grants: a subject on its type, or a row subject with its own conditions only
+ * (`id` on User, `createdBy` on CommentTemplate) — a mismatched pair does not compile.
+ */
+export type CanFn = {
+  (action: Action | Action[], subject: SubjectName): void;
+  (action: Action | Action[], subject: "User", conditions: UserConditions): void;
+  (
+    action: Action | Action[],
+    subject: "CommentTemplate",
+    conditions: CommentTemplateConditions,
+  ): void;
+};
 
 export const defineRules = (can: CanFn, user: AbilityUser): void => {
   // Catalog grants from the session (role grants ∪ user ALLOW − user DENY), validated once: a

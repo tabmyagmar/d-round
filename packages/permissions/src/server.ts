@@ -6,7 +6,7 @@ import type { Model, PrismaQueryOf, Subjects } from "@casl/prisma/runtime";
 import type { CommentTemplate, Prisma, User } from "@repo/database";
 
 import { defineRules } from "./rules";
-import type { AbilityUser, Action, SubjectName } from "./rules";
+import type { AbilityUser, Action, RuleConditions, SubjectName } from "./rules";
 
 /**
  * Server-side ability with Prisma where-conditions, so list endpoints can filter with
@@ -33,9 +33,12 @@ export const prismaCommentTemplateSubject = (
 export const definePrismaAbilityFor = (user: AbilityUser | null): ServerAbility => {
   const builder = new AbilityBuilder<ServerAbility>(createPrismaAbility);
   if (user) {
-    defineRules((action, subjectName, conditions) => {
-      builder.can(action, subjectName, conditions);
-    }, user);
+    defineRules(
+      (action: Action | Action[], subjectName: SubjectName, conditions?: RuleConditions) => {
+        builder.can(action, subjectName, conditions);
+      },
+      user,
+    );
   }
   return builder.build();
 };

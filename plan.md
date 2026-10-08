@@ -396,3 +396,13 @@ list, "personal subjects keep `access: \"signed-in\"`"), `.claude/skills/feature
   legacy modal centred its title, `ContentDialog` aligns it left as every other dialog here.
 - 2026-10-08, step 4: Base UI keeps `role="button"` on the download `<a>`; the help container is a
   server component (static list), the table a client component.
+- 2026-10-08, review (reviewer agent, 0 BLOCKER / 2 SHOULD / 5 NIT; verifier agent PASS:
+  `yarn verify --force` 37/37 and the drift gate). Fixed: the router test proves `create` makes the
+  caller the owner whatever `createdBy` the client sends; the toolbar test types into the search box
+  and sees the trimmed text after the pause; `update` maps a template deleted between read and write
+  (P2025) to `NotFoundError`; `CanFn` has one signature per row subject, so `rules.ts` cannot pair
+  `createdBy` with `User`; the single-use `createdOn` is inlined in the table. Recorded, not
+  changed: ダウンロード opens the PDF in a new tab without `download` (the legacy `window.open`),
+  the toolbar's 削除 uses `variant="destructive"` (the legacy red tinted button, not an outline),
+  and the repository test persists its owners (no seed test counts users). Declined: moving the
+  CONFLICT message to a tested util — one consumer, covered by the browser check.

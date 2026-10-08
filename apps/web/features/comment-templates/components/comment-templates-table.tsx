@@ -4,11 +4,12 @@ import { useMemo } from "react";
 
 import { createDataTableColumns, DataTable } from "@repo/ui/components/composed/data-table";
 import type { DataTablePagination } from "@repo/ui/components/composed/data-table";
+import { formatDate } from "@repo/ui/components/form";
 
 import { CommentTemplateRowActions } from "@/features/comment-templates/components/comment-template-row-actions";
 import { useCommentTemplatesStore } from "@/features/comment-templates/stores/comment-templates-store-provider";
 import type { CommentTemplateRow } from "@/features/comment-templates/types";
-import { createdOn, typesLabel } from "@/features/comment-templates/utils/comment-template-labels";
+import { typesLabel } from "@/features/comment-templates/utils/comment-template-labels";
 
 const helper = createDataTableColumns<CommentTemplateRow>();
 
@@ -27,9 +28,9 @@ const templateColumns = (
       cell: ({ getValue }) => <span className="font-medium">{getValue()}</span>,
     }),
     helper.accessor("createdAt", {
-      header: "作成日",
+      header: "作成日", // YYYY/MM/DD, as the legacy list
       cell: ({ getValue }) => (
-        <span className="text-muted-foreground">{createdOn(getValue())}</span>
+        <span className="text-muted-foreground">{formatDate(getValue(), "ja-JP")}</span>
       ),
     }),
     helper.display({

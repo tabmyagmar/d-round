@@ -1,4 +1,8 @@
-import { createCommentTemplateRepository, isUniqueViolation } from "@repo/database";
+import {
+  createCommentTemplateRepository,
+  isRecordNotFound,
+  isUniqueViolation,
+} from "@repo/database";
 import type { CommentTemplate, CommentTemplateUpdate, PageResult, Prisma } from "@repo/database";
 import {
   accessibleCommentTemplatesWhere,
@@ -102,6 +106,10 @@ export const update = async (
   try {
     return await templates.update(template.id, data);
   } catch (error) {
+    // Deleted in another tab between the read and the write.
+    if (isRecordNotFound(error)) {
+      throw new NotFoundError("CommentTemplate", commentTemplateId, { cause: error });
+    }
     return rethrowDuplicateTitle(error);
   }
 };

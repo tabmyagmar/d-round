@@ -49,6 +49,24 @@ describe("comment template router", () => {
     expect(deleted).toEqual({ deleted: 1 });
   });
 
+  it("makes the caller the owner, whatever owner the client sends", async () => {
+    const victim = await signedInUser(h);
+    const caller = await callerFor();
+    // A variable, not a literal: the extra key reaches the router as a client could send it.
+    const input = {
+      types: ["STAFF" as const],
+      short: "乗っ取り",
+      content: "本文",
+      createdBy: victim.user.id,
+    };
+
+    const created = await caller.commentTemplate.create(input);
+
+    expect(created.createdBy).not.toBe(victim.user.id);
+    const victimCaller = createCaller(await contextFor(h, victim.headers));
+    expect((await victimCaller.commentTemplate.list({})).items).toEqual([]);
+  });
+
   it("maps another user's row to FORBIDDEN and a repeated title to CONFLICT", async () => {
     const owner = await callerFor();
     const intruder = await callerFor();

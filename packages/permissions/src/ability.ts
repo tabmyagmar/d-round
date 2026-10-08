@@ -2,7 +2,7 @@ import { AbilityBuilder, createMongoAbility, subject } from "@casl/ability";
 import type { ForcedSubject, MongoAbility, MongoQuery } from "@casl/ability";
 
 import { defineRules } from "./rules";
-import type { AbilityUser, Action, SubjectName } from "./rules";
+import type { AbilityUser, Action, RuleConditions, SubjectName } from "./rules";
 
 /** Shape a User record must have for attribute conditions to be evaluated. */
 export type UserSubject = {
@@ -34,11 +34,14 @@ export const commentTemplateSubject = (
 export const defineAbilityFor = (user: AbilityUser | null): AppAbility => {
   const builder = new AbilityBuilder<AppAbility>(createMongoAbility);
   if (user) {
-    defineRules((action, subjectName, conditions) => {
-      // CASL types conditions per literal subject; a callback over every subject gets their union,
-      // whose keys (`id`, `createdBy`) no single subject shares, hence the widening.
-      builder.can(action, subjectName, conditions as MongoQuery | undefined);
-    }, user);
+    defineRules(
+      (action: Action | Action[], subjectName: SubjectName, conditions?: RuleConditions) => {
+        // CASL types conditions per literal subject; a callback over every subject gets their union,
+        // whose keys (`id`, `createdBy`) no single subject shares, hence the widening.
+        builder.can(action, subjectName, conditions as MongoQuery | undefined);
+      },
+      user,
+    );
   }
   return builder.build();
 };
