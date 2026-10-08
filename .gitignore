@@ -19,6 +19,9 @@ next-env.d.ts
 # generated code (rebuilt by `yarn db:generate` / postinstall)
 packages/database/src/generated/
 
+# large static documents (操作方法 guide books): placed by the deployment, see README
+apps/web/public/help/*.pdf
+
 # environment — only .env.example is committed
 .env
 .env.*

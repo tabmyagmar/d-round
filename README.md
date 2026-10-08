@@ -97,6 +97,11 @@ The web app's name, description, `<html lang>`, logo (`apps/web/public/logo.png`
 sidebar and on the auth card) and auth background (`apps/web/public/auth-background.webp`) live in
 `apps/web/lib/brand.ts`.
 
+The 操作方法 page links guide books under `apps/web/public/help/` (`guidebook.pdf`, list in
+`apps/web/features/help/utils/help-guides.ts`). They are too large for git and are ignored: a
+deployment places them, and a developer copies them from the legacy d-round-web checkout
+(`public/help/ガイドブック.pdf`).
+
 ## What is included
 
 - **Auth** (`packages/auth`, Better Auth; how it behaves at runtime: `docs/auth.md`): email +

@@ -1,10 +1,10 @@
 import { PageGuard } from "@/components/page-guard";
-import { PlaceholderPage } from "@/components/placeholder-page";
 import { routes } from "@/config/routes";
+import { HelpContainer } from "@/features/help/containers/help-container";
 
 const SettingsHelpPage = () => (
   <PageGuard route={routes.settings.help}>
-    <PlaceholderPage route={routes.settings.help} />
+    <HelpContainer />
   </PageGuard>
 );
 
