@@ -39,6 +39,11 @@ describe("client router", () => {
 
     const created = await admin.client.create(clientInput([charger.user.id]));
     expect((await admin.client.byId({ clientId: created.id })).id).toBe(created.id);
+    const updated = await admin.client.update({
+      ...clientInput([charger.user.id], { number: created.number, name: "株式会社テスト改" }),
+      clientId: created.id,
+    });
+    expect(updated.name).toBe("株式会社テスト改");
     await expect(admin.client.numberAvailable({ number: created.number })).resolves.toBe(false);
     expect(
       (await admin.client.options({ search: String(created.number) })).map((client) => client.id),
@@ -62,7 +67,24 @@ describe("client router", () => {
       await contextFor(h, (await signedInUser(h, { role: "admin" })).headers),
     );
 
+    const client = await admin.client.create(clientInput([am.user.id]));
+
     await expect(caller.client.create(clientInput([am.user.id]))).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await expect(
+      caller.client.update({
+        ...clientInput([am.user.id], { number: client.number }),
+        clientId: client.id,
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      caller.client.changeStatus({ clientId: client.id, status: "SUSPENDED" }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.client.deleteMany({ clientIds: [client.id] })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await expect(caller.client.numberAvailable({ number: client.number })).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
     await expect(caller.client.list({})).resolves.toBeDefined();

@@ -42,6 +42,11 @@ describe("branch router", () => {
 
     const created = await admin.branch.create(branchInput(client.id, [charger.user.id]));
     expect((await admin.branch.byId({ branchId: created.id })).id).toBe(created.id);
+    const updated = await admin.branch.update({
+      ...branchInput(client.id, [charger.user.id], { name: "新宿店改" }),
+      branchId: created.id,
+    });
+    expect(updated.name).toBe("新宿店改");
     await expect(admin.branch.nextNumber({ clientId: client.id })).resolves.toBe(2);
     await expect(
       admin.branch.create(branchInput(client.id, [charger.user.id])),
@@ -65,13 +70,29 @@ describe("branch router", () => {
     const caller = createCaller(await contextFor(h, am.headers));
     const admin = await adminCaller();
     const client = await admin.client.create(clientInput([am.user.id]));
+    const branch = await admin.branch.create(branchInput(client.id, [am.user.id]));
 
-    await expect(caller.branch.create(branchInput(client.id, [am.user.id]))).rejects.toMatchObject({
+    await expect(
+      caller.branch.create(branchInput(client.id, [am.user.id], { number: 2 })),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      caller.branch.update({ ...branchInput(client.id, [am.user.id]), branchId: branch.id }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      caller.branch.changeStatus({ branchId: branch.id, status: "SUSPENDED" }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.branch.deleteMany({ branchIds: [branch.id] })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await expect(caller.branch.nextNumber({ clientId: client.id })).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
     await expect(caller.branch.list({ clientId: client.id })).resolves.toBeDefined();
     await expect(
-      admin.branch.create({ ...branchInput(client.id, [am.user.id]), contactEmail: "x" }),
+      admin.branch.create({
+        ...branchInput(client.id, [am.user.id], { number: 2 }),
+        contactEmail: "x",
+      }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 });

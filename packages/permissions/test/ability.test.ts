@@ -497,6 +497,13 @@ describe("Client on the server: grant-driven, no row rule", () => {
     expect(accessibleClientsWhere(ability)).toEqual({});
     expect(accessibleClientsWhere(ability, "delete")).toEqual({});
   });
+
+  it("fails closed without the grant: a where no row matches", () => {
+    const reader = definePrismaAbilityFor(holder([{ action: "read", subject: "Client" }]));
+
+    expect(accessibleClientsWhere(definePrismaAbilityFor(holder([])))).toEqual({ OR: [] });
+    expect(accessibleClientsWhere(reader, "delete")).toEqual({ OR: [] });
+  });
 });
 
 describe("Branch on the server: grant-driven, no row rule", () => {
@@ -543,5 +550,12 @@ describe("Branch on the server: grant-driven, no row rule", () => {
     expect(ability.can("read", "Branch")).toBe(true);
     expect(accessibleBranchesWhere(ability)).toEqual({});
     expect(accessibleBranchesWhere(ability, "delete")).toEqual({});
+  });
+
+  it("fails closed without the grant: a where no row matches", () => {
+    const reader = definePrismaAbilityFor(holder([{ action: "read", subject: "Branch" }]));
+
+    expect(accessibleBranchesWhere(definePrismaAbilityFor(holder([])))).toEqual({ OR: [] });
+    expect(accessibleBranchesWhere(reader, "delete")).toEqual({ OR: [] });
   });
 });
