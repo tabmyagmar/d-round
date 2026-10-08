@@ -23,3 +23,13 @@ export const chargerNamesOf = (chargers: readonly { user: { name: string } }[]):
 
 /** What the client form says when another client holds the クライアント番号 (legacy wording). */
 export const CLIENT_NUMBER_TAKEN = "このクライアント番号は既に使用されています";
+
+/**
+ * A failed save as the legacy said it: a クライアント番号 another client took while the form was
+ * open, otherwise the API's message (as the comment-template dialog's own `onError`).
+ */
+export const clientSaveErrorOf = (error: {
+  message: string;
+  data?: { code: string } | null | undefined;
+}): string =>
+  error.data?.code === "CONFLICT" ? "クライアント番号が既に登録されています" : error.message;
