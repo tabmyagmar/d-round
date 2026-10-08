@@ -4,4 +4,5 @@
 export * from "./comment-template.repository";
 export * from "./outbox-email.repository";
 export * from "./permission.repository";
+export * from "./source.repository";
 export * from "./user.repository";

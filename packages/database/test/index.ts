@@ -6,6 +6,8 @@ import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 
 import { seedPermissions } from "../prisma/seed/permissions.seed";
 import { seedRoles } from "../prisma/seed/roles.seed";
+import { seedSourcePrefectures } from "../prisma/seed/source-prefectures.seed";
+import { seedSourceRegions } from "../prisma/seed/source-regions.seed";
 import { createPrismaClient } from "../src/client";
 import type { PrismaClient } from "../src/client";
 
@@ -37,10 +39,10 @@ export const runMigrations = (connectionString: string): void => {
 
 export type StartTestDatabaseOptions = {
   /**
-   * Also load the role and permission catalog (`seedRoles` + `seedPermissions`, ~1 s; never users
-   * or addresses) once the migrations are applied, for packages whose tests need real grants
-   * (`@repo/auth`, `@repo/api`). Defaults to `false`: the `database` package's seed tests seed
-   * themselves and assert exact row counts.
+   * Also load the role and permission catalog (`seedRoles` + `seedPermissions`) and the regions
+   * and prefectures (~1 s together; never users or addresses) once the migrations are applied, for
+   * packages whose tests need real grants and region codes (`@repo/auth`, `@repo/api`). Defaults to
+   * `false`: the `database` package's seed tests seed themselves and assert exact row counts.
    */
   seedReferenceData?: boolean;
 };
@@ -63,6 +65,8 @@ export const startTestDatabase = async (
   if (options.seedReferenceData === true) {
     await seedRoles(prisma);
     await seedPermissions(prisma);
+    await seedSourceRegions(prisma);
+    await seedSourcePrefectures(prisma);
   }
 
   return {

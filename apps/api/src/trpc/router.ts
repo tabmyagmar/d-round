@@ -2,12 +2,14 @@ import { router } from "./init";
 import { commentTemplateRouter } from "./routers/comment-template.router";
 import { healthRouter } from "./routers/health.router";
 import { permissionRouter } from "./routers/permission.router";
+import { sourceRouter } from "./routers/source.router";
 import { userRouter } from "./routers/user.router";
 
 export const appRouter = router({
   commentTemplate: commentTemplateRouter,
   health: healthRouter,
   permission: permissionRouter,
+  source: sourceRouter,
   user: userRouter,
 });
 
