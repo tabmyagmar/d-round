@@ -55,7 +55,12 @@ export const CheckboxGroup = <TValue extends string>({
       {options.map((option) => {
         const id = `${prefix}-${option.value}`;
         return (
-          <Field key={option.value} orientation="horizontal">
+          <Field
+            key={option.value}
+            orientation="horizontal"
+            // A Field takes the full width; side by side, each box takes only its own.
+            {...(orientation === "horizontal" ? { className: "w-auto" } : {})}
+          >
             <Checkbox
               id={id}
               name={name}

@@ -101,6 +101,19 @@ describe("StaffForm", () => {
     expect(currentStep()).toContain("基本情報");
   });
 
+  it("clears a field's error as soon as the field is corrected after a refused 次へ", async () => {
+    renderForm({ defaultValues: { ...emptyStaffValues(), branchName: "" } });
+
+    next();
+    expect(await screen.findByText("支店名を入力してください")).toBeDefined();
+    fireEvent.change(screen.getByLabelText(/支店名/), { target: { value: "新宿支店" } });
+
+    await vi.waitFor(() => {
+      expect(screen.queryByText("支店名を入力してください")).toBeNull();
+    });
+    expect(screen.getByText("雇用区分を選択してください")).toBeDefined();
+  });
+
   it("keeps the first step when the スタッフ番号 is taken, with the legacy message", async () => {
     renderForm({ isEmployeeNumberFree: () => Promise.resolve(false) });
 

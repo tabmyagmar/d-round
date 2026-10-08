@@ -46,7 +46,12 @@ export const RadioField = <TValues extends FieldValues>({
         className={orientation === "horizontal" ? "flex flex-row flex-wrap gap-4" : undefined}
       >
         {options.map((option) => (
-          <Field key={option.value} orientation="horizontal">
+          <Field
+            key={option.value}
+            orientation="horizontal"
+            // A Field takes the full width; side by side, each option takes only its own.
+            {...(orientation === "horizontal" ? { className: "w-auto" } : {})}
+          >
             <RadioGroupItem
               id={`${field.name}-${option.value}`}
               value={option.value}

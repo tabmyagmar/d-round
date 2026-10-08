@@ -75,7 +75,14 @@ export const StaffForm = ({
   errorMessage,
   onSubmit,
 }: StaffFormProps) => {
-  const form = useForm<StaffFormValues>({ resolver: zodResolver(staffFormSchema), defaultValues });
+  // 次へ validates through `trigger`, never a submit, so the form re-validates each change itself
+  // and a corrected field loses its error at once (the legacy StaffForm's `mode: 'onChange'`).
+  const form = useForm<StaffFormValues>({
+    resolver: zodResolver(staffFormSchema),
+    defaultValues,
+    mode: "onChange",
+  });
+
   const stepper = useStepper<StaffFormValues>({ steps: STAFF_STEP_FIELDS });
   const regionCodes = useWatch({ control: form.control, name: "regionCodes" });
   const chargers = useQuery({
