@@ -13,18 +13,20 @@
 import { AbilityBuilder, createMongoAbility } from "@casl/ability";
 import { describe, expect, it } from "vitest";
 
-import type { CommentTemplate, Staff, User } from "@repo/database";
+import type { Client, CommentTemplate, Staff, User } from "@repo/database";
 
 import { canUnscoped, commentTemplateSubject, defineAbilityFor, userSubject } from "../src/ability";
 import type { AppAbility } from "../src/ability";
 import { ACTIONS, SUBJECT_NAMES, isAction, isSubjectName } from "../src/rules";
 import type { AbilityUser, Action, PermissionGrant, SubjectName } from "../src/rules";
 import {
+  accessibleClientsWhere,
   accessibleCommentTemplatesWhere,
   accessibleStaffWhere,
   accessibleUsersWhere,
   canUnscoped as serverCanUnscoped,
   definePrismaAbilityFor,
+  prismaClientSubject,
   prismaCommentTemplateSubject,
   prismaStaffSubject,
   prismaUserSubject,
@@ -454,5 +456,43 @@ describe("Staff on the server: grant-driven, no row rule", () => {
     expect(ability.can("read", "Staff")).toBe(true);
     expect(accessibleStaffWhere(ability)).toEqual({});
     expect(accessibleStaffWhere(ability, "delete")).toEqual({});
+  });
+});
+
+describe("Client on the server: grant-driven, no row rule", () => {
+  const clientRow = (): Client => ({
+    id: "019187d5-0d76-7d1a-9a4c-000000000301",
+    number: 1,
+    name: "株式会社テスト",
+    nameKana: "カブシキガイシャテスト",
+    areas: [],
+    orderTypes: [],
+    phoneNumber: "03-1234-5678",
+    fax: null,
+    webUrl: null,
+    status: "ACTIVE",
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+    deletedAt: null,
+  });
+
+  it("answers a row check like the type: the grant opens every row, no grant none", () => {
+    const granted = definePrismaAbilityFor(holder([{ action: "update", subject: "Client" }]));
+    const none = definePrismaAbilityFor(holder([]));
+
+    expect(granted.can("update", prismaClientSubject(clientRow()))).toBe(true);
+    expect(none.can("update", prismaClientSubject(clientRow()))).toBe(false);
+  });
+
+  it("leaves a list and a delete with their grant unrestricted: an empty where", () => {
+    const ability = definePrismaAbilityFor(
+      holder([
+        { action: "read", subject: "Client" },
+        { action: "delete", subject: "Client" },
+      ]),
+    );
+    expect(ability.can("read", "Client")).toBe(true);
+    expect(accessibleClientsWhere(ability)).toEqual({});
+    expect(accessibleClientsWhere(ability, "delete")).toEqual({});
   });
 });
