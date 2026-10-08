@@ -13,7 +13,7 @@
 import { AbilityBuilder, createMongoAbility } from "@casl/ability";
 import { describe, expect, it } from "vitest";
 
-import type { CommentTemplate, User } from "@repo/database";
+import type { CommentTemplate, Staff, User } from "@repo/database";
 
 import { canUnscoped, commentTemplateSubject, defineAbilityFor, userSubject } from "../src/ability";
 import type { AppAbility } from "../src/ability";
@@ -21,10 +21,12 @@ import { ACTIONS, SUBJECT_NAMES, isAction, isSubjectName } from "../src/rules";
 import type { AbilityUser, Action, PermissionGrant, SubjectName } from "../src/rules";
 import {
   accessibleCommentTemplatesWhere,
+  accessibleStaffWhere,
   accessibleUsersWhere,
   canUnscoped as serverCanUnscoped,
   definePrismaAbilityFor,
   prismaCommentTemplateSubject,
+  prismaStaffSubject,
   prismaUserSubject,
 } from "../src/server";
 import type { ServerAbility } from "../src/server";
@@ -408,5 +410,43 @@ describe("accessibleCommentTemplatesWhere", () => {
       expect(where).toContain(ME_ID);
       expect(where).not.toContain(OTHER_ID);
     }
+  });
+});
+
+describe("Staff on the server: grant-driven, no row rule", () => {
+  const staffRow = (): Staff => ({
+    id: "019187d5-0d76-7d1a-9a4c-000000000201",
+    employeeType: "FULL_TIME",
+    employeeNumber: 1,
+    lastName: "山田",
+    firstName: "花子",
+    lastNameKana: "ヤマダ",
+    firstNameKana: "ハナコ",
+    gender: "FEMALE",
+    birthday: null,
+    position: null,
+    branchName: null,
+    email: null,
+    phoneNumber: null,
+    emergencyPhoneNumber: null,
+    areas: [],
+    status: "ACTIVE",
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+    deletedAt: null,
+  });
+
+  it("answers a row check like the type: the grant opens every row, no grant none", () => {
+    const granted = definePrismaAbilityFor(holder([{ action: "update", subject: "Staff" }]));
+    const none = definePrismaAbilityFor(holder([]));
+
+    expect(granted.can("update", prismaStaffSubject(staffRow()))).toBe(true);
+    expect(none.can("update", prismaStaffSubject(staffRow()))).toBe(false);
+  });
+
+  it("leaves a list with the `read Staff` grant unrestricted", () => {
+    const ability = definePrismaAbilityFor(holder([{ action: "read", subject: "Staff" }]));
+    expect(ability.can("read", "Staff")).toBe(true);
+    expect(JSON.stringify(accessibleStaffWhere(ability))).not.toContain(ME_ID);
   });
 });

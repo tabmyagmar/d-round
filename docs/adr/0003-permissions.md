@@ -121,3 +121,8 @@ lint error. Changing a permission means changing the matrix test first.
   for every signed-in holder. `canUnscoped` now takes any ability with `rulesFor` and is exported
   from `@repo/permissions/server` too: the user service requires the unconditional `update User`
   grant for 担当者 profile fields (ADR 0007), which the self rule does not give.
+- **2026-10-08** — `Staff` gets the server helpers the user module has: `prismaStaffSubject` (row
+  checks) and `accessibleStaffWhere` (list filtering), with `Staff` in `ServerSubjects`. No row rule
+  exists for it — the catalog grants (`Admin_Staff`, rows 1301–1305) decide — so both answer like
+  the type; a later rule (a 担当者 reading the staff they are in charge of) applies through them
+  without touching the staff service (ADR 0008).

@@ -3,7 +3,7 @@ import type { Ability } from "@casl/ability";
 import { accessibleBy, createPrismaAbility } from "@casl/prisma/runtime";
 import type { Model, PrismaQueryOf, Subjects } from "@casl/prisma/runtime";
 
-import type { CommentTemplate, Prisma, User } from "@repo/database";
+import type { CommentTemplate, Prisma, Staff, User } from "@repo/database";
 
 import { canUnscoped } from "./ability";
 import { defineRules } from "./rules";
@@ -17,14 +17,20 @@ import type { AbilityUser, Action, RuleConditions, SubjectName } from "./rules";
 
 export type PrismaQuery = PrismaQueryOf<Prisma.TypeMap>;
 
-/** Every subject by name; the row-rule subjects also as tagged Prisma rows for row conditions. */
+/** Every subject by name; the subjects with Prisma models also as tagged rows for row checks. */
 export type ServerSubjects =
-  SubjectName | Subjects<{ User: User; CommentTemplate: CommentTemplate }>;
+  SubjectName | Subjects<{ User: User; CommentTemplate: CommentTemplate; Staff: Staff }>;
 
 export type ServerAbility = Ability<[Action, ServerSubjects], PrismaQuery>;
 
 /** Tags a Prisma User row so the server ability can evaluate row conditions. */
 export const prismaUserSubject = (user: User): Model<User, "User"> => subject("User", user);
+
+/**
+ * Tags a Prisma Staff row for a row check. Staff has no row rule today (the catalog grants decide),
+ * so the answer equals the type's; a later rule (a 担当者 reading their staff) applies through it.
+ */
+export const prismaStaffSubject = (staff: Staff): Model<Staff, "Staff"> => subject("Staff", staff);
 
 /** Tags a Prisma CommentTemplate row so the owner rule can be evaluated. */
 export const prismaCommentTemplateSubject = (
@@ -62,5 +68,14 @@ export const accessibleCommentTemplatesWhere = (
   ability: ServerAbility,
   action: Action = "read",
 ): Prisma.CommentTemplateWhereInput => accessibleBy(ability, action).ofType("CommentTemplate");
+
+/**
+ * Prisma `where` restricting a Staff query to the rows the ability allows (everything with the
+ * grant today). Callers check `ability.can(action, "Staff")` first, as for users.
+ */
+export const accessibleStaffWhere = (
+  ability: ServerAbility,
+  action: Action = "read",
+): Prisma.StaffWhereInput => accessibleBy(ability, action).ofType("Staff");
 
 export { accessibleBy, canUnscoped };
