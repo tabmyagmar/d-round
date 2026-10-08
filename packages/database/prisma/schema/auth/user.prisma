@@ -35,6 +35,8 @@ model User {
   accounts         Account[]
   permissions      UserPermission[]
   commentTemplates CommentTemplate[]
+  /// スタッフ this user is or was 担当者 of (ADR 0008).
+  staffCharges     StaffCharger[]
 
   @@index([role])
   @@map("users")

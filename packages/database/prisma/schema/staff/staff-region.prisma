@@ -1,0 +1,14 @@
+// The 地域 of a スタッフ, keyed by the region's natural `code` (ADR 0005).
+
+model StaffRegion {
+  staffId    String   @map("staff_id") @db.Uuid
+  regionCode Int      @map("region_code")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  staff  Staff        @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  region SourceRegion @relation(fields: [regionCode], references: [code], onDelete: Restrict)
+
+  @@id([staffId, regionCode])
+  @@index([regionCode])
+  @@map("staff_regions")
+}

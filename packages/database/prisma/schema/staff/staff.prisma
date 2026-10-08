@@ -1,0 +1,82 @@
+// A スタッフ (legacy Staff without employeeType USER): the people the organisation places. They do
+// not sign in today; a later login links a user (docs/adr/0008-staff.md). The children live in their
+// own files beside this one.
+
+/// 雇用区分 (legacy EnumEmployeeType without USER).
+enum EmployeeType {
+  /// 役員
+  EXECUTIVE
+  /// 正社員
+  FULL_TIME
+  /// 契約社員
+  CONTRACT
+  /// アルバイト
+  PART_TIME
+  /// その他
+  OTHER
+
+  @@map("employee_type")
+}
+
+/// 性別
+enum Gender {
+  /// 男性
+  MALE
+  /// 女性
+  FEMALE
+  /// その他
+  OTHER
+
+  @@map("gender")
+}
+
+/// 利用中 / 保留 / 停止 (legacy ACTIVE / INACTIVE / DELETE); deletion is `deleted_at`.
+enum StaffStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+
+  @@map("staff_status")
+}
+
+model Staff {
+  id                   String       @id @default(uuid(7)) @db.Uuid
+  /// 雇用区分
+  employeeType         EmployeeType @map("employee_type")
+  /// スタッフ番号 — unique among non-deleted staff (a service rule, ADR 0008).
+  employeeNumber       Int          @map("employee_number")
+  lastName             String       @map("last_name") @db.VarChar(80)
+  firstName            String       @map("first_name") @db.VarChar(80)
+  lastNameKana         String       @map("last_name_kana") @db.VarChar(80)
+  firstNameKana        String       @map("first_name_kana") @db.VarChar(80)
+  gender               Gender
+  birthday             DateTime?    @db.Date
+  /// 役職
+  position             Position?
+  /// 支店名
+  branchName           String?      @map("branch_name") @db.VarChar(100)
+  email                String?      @db.VarChar(255)
+  phoneNumber          String?      @map("phone_number") @db.VarChar(20)
+  /// 緊急連絡先（電話番号）
+  emergencyPhoneNumber String?      @map("emergency_phone_number") @db.VarChar(20)
+  /// エリア
+  areas                SourceArea[]
+  status               StaffStatus  @default(ACTIVE)
+  createdAt            DateTime     @default(now()) @map("created_at")
+  updatedAt            DateTime     @updatedAt @map("updated_at")
+  /// スタッフ削除 (soft): only a 停止 staff; frees the スタッフ番号.
+  deletedAt            DateTime?    @map("deleted_at")
+
+  address       StaffAddress?
+  regions       StaffRegion[]
+  prefectures   StaffPrefecture[]
+  chargers      StaffCharger[]
+  familyMembers StaffFamilyMember[]
+  memos         StaffMemo[]
+  jobHistories  StaffJobHistory[]
+
+  @@index([employeeNumber])
+  @@index([status])
+  @@index([lastNameKana, firstNameKana])
+  @@map("staffs")
+}

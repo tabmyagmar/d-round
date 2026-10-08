@@ -19,6 +19,7 @@ model SourceRegion {
 
   prefectures        SourcePrefecture[]
   userProfileRegions UserProfileRegion[]
+  staffRegions       StaffRegion[]
 
   @@map("source_regions")
 }

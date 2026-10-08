@@ -8,8 +8,10 @@ model SourcePrefecture {
   nameEn     String       @map("name_en")
   regionCode Int          @map("region_code")
   region     SourceRegion @relation(fields: [regionCode], references: [code], onDelete: Restrict)
-  createdAt  DateTime     @default(now()) @map("created_at")
-  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  staffPrefectures StaffPrefecture[]
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
 
   @@index([regionCode])
   @@map("source_prefectures")

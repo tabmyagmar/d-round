@@ -1,0 +1,14 @@
+// The 都道府県 of a スタッフ, keyed by the prefecture's natural `code` (ADR 0005).
+
+model StaffPrefecture {
+  staffId        String   @map("staff_id") @db.Uuid
+  prefectureCode Int      @map("prefecture_code")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  staff      Staff            @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  prefecture SourcePrefecture @relation(fields: [prefectureCode], references: [code], onDelete: Restrict)
+
+  @@id([staffId, prefectureCode])
+  @@index([prefectureCode])
+  @@map("staff_prefectures")
+}

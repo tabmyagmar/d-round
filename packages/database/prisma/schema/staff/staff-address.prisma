@@ -1,0 +1,19 @@
+// A スタッフ's address: the post code into the Japan Post master (都道府県 / 市区町村 / 町域 come from
+// there) and the typed line. Legacy StaffAddress stored the master's text a second time.
+
+model StaffAddress {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  staffId   String   @unique @map("staff_id") @db.Uuid
+  /// 郵便番号, seven digits: the master's key.
+  postCode  String   @map("post_code")
+  /// 番地・建物名 (legacy address2).
+  address1  String   @db.VarChar(200)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  staff         Staff         @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  sourceAddress SourceAddress @relation(fields: [postCode], references: [postCode], onDelete: Restrict)
+
+  @@index([postCode])
+  @@map("staff_addresses")
+}

@@ -1,0 +1,20 @@
+// A スタッフ's employment period (在籍情報). The form sends the list whole; `sort_order` keeps it.
+
+model StaffJobHistory {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  staffId           String    @map("staff_id") @db.Uuid
+  sortOrder         Int       @map("sort_order")
+  /// 入社日
+  hireDate          DateTime  @map("hire_date") @db.Date
+  /// 退職日
+  resignationDate   DateTime? @map("resignation_date") @db.Date
+  /// 退職理由
+  resignationReason String?   @map("resignation_reason")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
+  @@map("staff_job_histories")
+}

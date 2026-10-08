@@ -1,0 +1,35 @@
+// A スタッフ memo: the five fixed types the form always shows and custom ones (メモ). Only memos with
+// text are stored; `sort_order` keeps the form's order.
+
+/// The memo's slot (legacy EnumStaffMemoType).
+enum StaffMemoType {
+  /// スタッフメモ
+  STAFF_MEMO
+  /// 入退社情報
+  ENTRY_EXIT
+  /// 住所変更
+  ADDRESS_CHANGE
+  /// 保険関係
+  INSURANCE
+  /// その他
+  OTHER
+  /// メモ (added by the user)
+  CUSTOM
+
+  @@map("staff_memo_type")
+}
+
+model StaffMemo {
+  id        String        @id @default(uuid(7)) @db.Uuid
+  staffId   String        @map("staff_id") @db.Uuid
+  sortOrder Int           @map("sort_order")
+  memoType  StaffMemoType @map("memo_type")
+  content   String
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
+  @@map("staff_memos")
+}

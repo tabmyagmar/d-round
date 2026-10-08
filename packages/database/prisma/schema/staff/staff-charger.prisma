@@ -1,0 +1,18 @@
+// A 担当者 of a スタッフ over time (legacy StaffCharger): `created_at` is the assignment and
+// `unassigned_at` closes it, so 在籍情報 can name who was in charge during an employment period.
+
+model StaffCharger {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  staffId      String    @map("staff_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  /// `null` while the user is in charge.
+  unassignedAt DateTime? @map("unassigned_at")
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([staffId])
+  @@index([userId])
+  @@map("staff_chargers")
+}

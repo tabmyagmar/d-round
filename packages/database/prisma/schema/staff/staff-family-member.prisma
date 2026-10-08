@@ -1,0 +1,73 @@
+// A スタッフ's family member (家族情報). The form sends the list whole; `sort_order` keeps its order.
+
+/// 続柄 (legacy EnumFamilyRelation).
+enum FamilyRelation {
+  /// 夫
+  HUSBAND
+  /// 妻
+  WIFE
+  /// 父
+  FATHER
+  /// 母
+  MOTHER
+  /// 義父
+  FATHER_IN_LAW
+  /// 義母
+  MOTHER_IN_LAW
+  /// 祖父
+  GRANDFATHER
+  /// 祖母
+  GRANDMOTHER
+  /// 長男
+  ELDEST_SON
+  /// 次男
+  SECOND_SON
+  /// 三男
+  THIRD_SON
+  /// 長女
+  ELDEST_DAUGHTER
+  /// 次女
+  SECOND_DAUGHTER
+  /// 三女
+  THIRD_DAUGHTER
+  /// 孫
+  GRANDCHILD
+  /// 甥
+  NEPHEW
+  /// 姪
+  NIECE
+  /// 伯父
+  PARENTAL_UNCLE
+  /// 伯母
+  PARENTAL_AUNT
+  /// 叔父
+  UNCLE
+  /// 叔母
+  AUNT
+  /// 曽祖父
+  GREAT_GRANDFATHER
+  /// 曽祖母
+  GREAT_GRANDMOTHER
+
+  @@map("family_relation")
+}
+
+model StaffFamilyMember {
+  id            String          @id @default(uuid(7)) @db.Uuid
+  staffId       String          @map("staff_id") @db.Uuid
+  sortOrder     Int             @map("sort_order")
+  lastName      String          @map("last_name") @db.VarChar(80)
+  firstName     String          @map("first_name") @db.VarChar(80)
+  lastNameKana  String?         @map("last_name_kana") @db.VarChar(80)
+  firstNameKana String?         @map("first_name_kana") @db.VarChar(80)
+  /// 続柄
+  relation      FamilyRelation?
+  birthday      DateTime?       @db.Date
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
+  @@map("staff_family_members")
+}
