@@ -78,7 +78,7 @@ yet (a TODO in `users-toolbar.tsx`).
 
 A page first loads its container and what it renders on arrival. Everything shown only after a user
 action is a `next/dynamic` client component (`ssr: false`) rendered only while it is needed: filter
-fields (inside `FilterPopover`, which renders its content only while open), dialogs
+fields (inside `FilterPopover`, which renders its content only while it is shown), dialogs
 (`{target ? <UserStatusDialog … /> : null}`; `ContentDialog` also mounts its body only while open),
 cards shown to some users only (the detail page's permission summary), and a dialog's data
 (`PermissionField` loads `PermissionDialog`, whose catalog query runs only while it is open). Row
@@ -163,13 +163,16 @@ Known local patches (re-apply after `--overwrite`):
    reassigning the parameter.
 4. `hooks/use-mobile.ts` reads the media query through `useSyncExternalStore` (server snapshot
    `false`) instead of `setState` inside `useEffect`, which `react-hooks` rejects. jsdom has no
-   `window.matchMedia`: a component test that renders `SidebarProvider` must stub it.
+   `window.matchMedia`: a component test that renders `SidebarProvider` or `FilterPopover` must stub
+   it.
 5. `checkbox.tsx` renders `MinusIcon` instead of `CheckIcon` while `indeterminate`, and colours the
    box with `data-indeterminate:border-primary data-indeterminate:text-primary` (upstream shows the
    check for both states). Two lines after `npx shadcn@4.21.0 add checkbox --overwrite`.
 6. `button.tsx`: the `outline` variant uses `bg-card` instead of `bg-background`, so outline buttons
    (the filter trigger, toolbar buttons, キャンセル) stand out from the blue-grey page; on a card
-   nothing changes. One word after `npx shadcn@4.21.0 add button --overwrite`.
+   nothing changes. Its hover and open (`aria-expanded`) states use `bg-secondary` instead of
+   `bg-muted`, which is the page background's colour, so the hover shows on the page too. Three
+   words after `npx shadcn@4.21.0 add button --overwrite`.
 
 `eslint --fix` also reorders imports in generated files; that is not a patch to re-apply.
 
@@ -260,9 +263,12 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   (`apps/web/components/layout/app-shell.tsx`). Usually holds a `FormActions` (Forms). Reference:
   `apps/web/features/users/components/form/user-create-form.tsx`.
 - `FilterPopover` (`filter-popover.tsx`) — the filter button with the active count (`activeCount`)
-  and its fields in a popover; `children(close)` is rendered only while open, so pass a
-  `next/dynamic` component; `onClear?` adds the clear footer; `label?`, `clearLabel?`, `align?`.
-  Reference: `apps/web/features/users/components/list/user-filter.tsx`.
+  and its fields in a popover; below `md` (`useIsMobile`) the button shows only its icon (the label
+  stays for screen readers) and the fields open in a `Drawer` from the bottom, titled with `label`,
+  as the legacy `ResponsiveOverlay`. `children(close)` is rendered only while the popover or drawer
+  is shown, so pass a `next/dynamic` component; `onClear?` adds the clear footer; `label?`,
+  `clearLabel?`, `align?`. A test that renders it stubs `matchMedia` (patch 4). Reference:
+  `apps/web/features/users/components/list/user-filter.tsx`.
 - `FilterTags` (`filter-tags.tsx`) — `tags` (`{ key, label, value }`), `onRemove(key)`,
   `onClearAll`, `clearAllLabel?`, `removeLabel?(tag)`; nothing without tags.
 - `ListToolbar` (`list-toolbar.tsx`) — `search`, `filters`, `actions` slots and a row underneath
