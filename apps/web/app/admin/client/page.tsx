@@ -1,10 +1,10 @@
 import { PageGuard } from "@/components/page-guard";
-import { PlaceholderPage } from "@/components/placeholder-page";
 import { routes } from "@/config/routes";
+import { ClientsContainer } from "@/features/clients/containers/clients-container";
 
 const ClientListPage = () => (
   <PageGuard route={routes.client.list}>
-    <PlaceholderPage route={routes.client.list} />
+    <ClientsContainer />
   </PageGuard>
 );
 
