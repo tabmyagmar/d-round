@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import type { DefaultValues } from "react-hook-form";
 
@@ -88,6 +89,11 @@ export const StaffForm = ({
     ...storedChargers.filter((stored) => !offered.some((charger) => charger.id === stored.id)),
   ];
 
+  // How many clicks the submit button's last click counted: a click that is part of a double
+  // click never moves on or saves, else its second click lands on the button the first one
+  // relabelled (次へ → 追加) and sends the form unseen. Enter counts none.
+  const submitClicksRef = useRef(0);
+
   const isNumberFree = async () => {
     if (await isEmployeeNumberFree(form.getValues("employeeNumber"))) {
       return true;
@@ -104,7 +110,19 @@ export const StaffForm = ({
     <form
       noValidate
       className="flex flex-1 flex-col gap-6"
+      onClickCapture={(event) => {
+        submitClicksRef.current =
+          event.target instanceof Element && event.target.closest('button[type="submit"]')
+            ? event.detail
+            : 0;
+      }}
       onSubmit={(event) => {
+        const clicks = submitClicksRef.current;
+        submitClicksRef.current = 0;
+        if (clicks > 1) {
+          event.preventDefault();
+          return;
+        }
         if (stepper.isLast) {
           void form.handleSubmit(
             (values) => {

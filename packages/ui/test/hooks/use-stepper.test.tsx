@@ -61,6 +61,33 @@ describe("useStepper", () => {
     expect(result.current.stepper.current).toBe(1);
   });
 
+  it("ignores a goNext asked while one runs: a double click moves one step", async () => {
+    const { result } = renderStepper({ name: "Amy", city: "Tokyo" });
+    // The guard of the first call answers only when told, so the second call comes while it runs.
+    let release: (agreed: boolean) => void = () => undefined;
+    let asked: () => void = () => undefined;
+    const guardAsked = new Promise<void>((resolve) => {
+      asked = resolve;
+    });
+    const guard = () =>
+      new Promise<boolean>((resolve) => {
+        release = resolve;
+        asked();
+      });
+
+    let second = true;
+    await act(async () => {
+      const first = result.current.stepper.goNext(result.current.form.trigger, guard);
+      second = await result.current.stepper.goNext(result.current.form.trigger, guard);
+      await guardAsked;
+      release(true);
+      await first;
+    });
+
+    expect(second).toBe(false);
+    expect(result.current.stepper.current).toBe(1);
+  });
+
   it("reaches the last step, goes back one or to an earlier step, never forward by goTo", async () => {
     const { result } = renderStepper({ name: "Amy", city: "Tokyo" });
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -214,5 +214,35 @@ describe("StaffForm", () => {
 
     expect(await screen.findByText("姓を入力してください")).toBeDefined();
     expect(currentStep()).toContain("家族情報・メモ");
+  });
+
+  it("moves one step for a double click on 次へ and never saves on its second click", async () => {
+    const { onSubmit } = renderForm();
+    await screen.findByText("佐藤 一郎");
+    /** A double click's second click lands on the button the first one relabelled. */
+    const secondClick = () => {
+      fireEvent.click(screen.getByRole("button", { name: /^(次へ|追加)$/ }), { detail: 2 });
+    };
+    const settle = () =>
+      act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+
+    fireEvent.click(screen.getByRole("button", { name: "次へ" }), { detail: 1 });
+    await screen.findByText("家族情報登録");
+    secondClick();
+    await settle();
+    expect(currentStep()).toContain("家族情報・メモ");
+
+    fireEvent.click(screen.getByRole("button", { name: "次へ" }), { detail: 1 });
+    await screen.findByText("〒160-0022");
+    secondClick();
+    await settle();
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "追加" }), { detail: 1 });
+    await vi.waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
   });
 });
