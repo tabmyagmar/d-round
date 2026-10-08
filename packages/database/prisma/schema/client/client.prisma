@@ -49,6 +49,8 @@ model Client {
   address  ClientAddress?
   regions  ClientRegion[]
   chargers ClientCharger[]
+  /// 就業先部署
+  branches Branch[]
 
   @@index([number])
   @@index([status])

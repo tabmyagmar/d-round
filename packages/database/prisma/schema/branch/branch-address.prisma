@@ -1,0 +1,19 @@
+// A 就業先部署's address (legacy DepartmentAddress), as a クライアント's: the post code into the Japan
+// Post master and the typed line.
+
+model BranchAddress {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  branchId  String   @unique @map("branch_id") @db.Uuid
+  /// 郵便番号, seven digits: the master's key.
+  postCode  String   @map("post_code")
+  /// 番地・建物名 (legacy address2).
+  address1  String   @db.VarChar(200)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  branch        Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  sourceAddress SourceAddress @relation(fields: [postCode], references: [postCode], onDelete: Restrict)
+
+  @@index([postCode])
+  @@map("branch_addresses")
+}

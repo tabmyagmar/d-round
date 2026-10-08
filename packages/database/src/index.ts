@@ -16,6 +16,9 @@ export {
 } from "./generated/prisma/client";
 export type {
   Account,
+  Branch,
+  BranchAddress,
+  BranchCharger,
   Client,
   ClientAddress,
   ClientCharger,

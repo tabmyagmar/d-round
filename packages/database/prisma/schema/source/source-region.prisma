@@ -21,6 +21,7 @@ model SourceRegion {
   userProfileRegions UserProfileRegion[]
   staffRegions       StaffRegion[]
   clientRegions      ClientRegion[]
+  branches           Branch[]
 
   @@map("source_regions")
 }

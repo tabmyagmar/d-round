@@ -34,6 +34,7 @@ model SourceAddress {
 
   staffAddresses  StaffAddress[]
   clientAddresses ClientAddress[]
+  branchAddresses BranchAddress[]
 
   @@map("source_addresses")
 }
