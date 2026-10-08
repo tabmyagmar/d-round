@@ -961,3 +961,24 @@ arrays; `@casl/prisma` with a third model in `Subjects`; Base UI Combobox chips 
   suites, the drift gate, the dev-database deploy and the browser check (four roles on
   `/admin/staff`, a staff detail, a user detail) wait on the Docker Desktop API, as for phase A.
   Phase C starts meanwhile.
+- 2026-10-08, C1–C4: as planned, with these differences. C1's `useStepper.goTo` goes back only (the
+  legacy `Steps` let completed steps be clicked; forward is `goNext`), and `goNext` focuses the
+  first error. C2 is `AddressFields` alone: the 定型文 shortcuts are a row of buttons inside
+  `staff-memo-fields.tsx` (one consumer, no app-level component yet); the lookup runs as the post
+  code is typed (`TextField` gained `onValueChange`), so the legacy 検索 button is dropped; an
+  unknown code shows the legacy toast 郵便番号が見つかりません。 and leaves 住所(県名) empty, which
+  the form schema refuses (`addressFormSchema`, `staffFormSchema` in `@repo/validation`). Two small
+  promotions came with their second consumer: `NameFields` (`apps/web/components/name-fields.tsx`,
+  was the users feature's `UserNameFields`) and `ArrayField`'s `hideLabel` (the card title names the
+  rows). C3/C4: one `StaffForm` for create and edit, configured by props; its steps are
+  `StaffBasicStep`, `StaffFamilyMemberFields` + `StaffMemoFields` and `StaffFormConfirm` (repeated
+  rows numbered, not separated). The 担当者 on offer are looked up inside the form (`findChargers`,
+  React Query keyed by the chosen regions), because they depend on the form's own values; an edited
+  staff's stored 担当者 stay on offer so opening and saving never drops one. 年齢 is 生年月日's
+  description. The edit returns to the staff detail, where the legacy toast points (the legacy
+  opened the list); its キャンセル goes there too. Commits `5c403e1`, `1bc49cd`, `c8456d4`,
+  `2436818`, `fd5ba8e`, `478bd34`, `c64bf57`.
+- 2026-10-08, phase C status: implemented and green on every Docker-free check. Pending with phases
+  A and B: the testcontainers suites, the drift gate, the dev-database deploy, the browser check
+  (staff create and edit next to the legacy form), the verifier, and the move of this plan to
+  `docs/plans/2026-10-08-staff.md` at Close.

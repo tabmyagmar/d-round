@@ -125,7 +125,8 @@ deployment places them, and a developer copies them from the legacy d-round-web 
   and `source.regions / prefectures / addressByPostCode` for the reference data. A staff
   has 担当者 (users covering its regions, with history), an address checked against the post-code
   master, family members, memos and employment periods; スタッフ削除 soft-deletes a 停止 staff. Web:
-  `/admin/staff`, `/admin/staff/[id]` and the user detail's 担当スタッフ.
+  `/admin/staff`, `/admin/staff/[id]`, the three-step form on `/admin/staff/create` and
+  `/admin/staff/update/[id]`, and the user detail's 担当スタッフ.
 - **Web shell**: a shadcn sidebar under `/admin` with every page of the legacy d-round-web app
   (workflow, templates, users, audit log, clients, branches, staff, settings), most of them
   placeholders; `/admin/workflow` is the landing page. One route catalog

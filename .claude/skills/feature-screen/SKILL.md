@@ -69,6 +69,14 @@ detail's 担当スタッフ, `.claude/rules/ui.md`).
 - A legacy modal stays a dialog: `ContentDialog` via `next/dynamic` owning the mutation, the same
   thin forms inside (`features/comment-templates/components/comment-template-dialog.tsx`).
 - Tests render the form in `StrictMode` (`.claude/rules/testing.md`).
+- A legacy stepped form is one form over one schema on the composed `Stepper` and `useStepper`
+  (`features/staff/components/form/staff-form.tsx`): `utils/<name>-steps.ts` lists each step's
+  fields (a test checks every schema field belongs to a step), 次へ is `goNext(trigger, guard)` with
+  a legacy pre-check as the guard, the confirm step renders `getValues()` read-only, and create and
+  edit share the form through props (title, defaults, labels), not a mode.
+- Data that depends on the form's own values (the 担当者 of the chosen 地域) is looked up inside the
+  form through a function the container passes (`findChargers`, `findAddress`), so the form stays
+  testable without tRPC; a post code fills the address through `AddressFields`.
 - A select that depends on another (地域 on エリア) is a `MultiSelectField` with `pruneToOptions`
   set once its data loaded (`HierarchyFields`); a uniqueness the legacy checked before saving
   (社員番号) is an `isEmployeeNumberFree`-style async prop the form awaits in its submit handler and
