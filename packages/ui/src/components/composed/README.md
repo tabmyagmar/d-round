@@ -9,14 +9,15 @@ Domain-free components built from the shadcn primitives one level up, for every 
   `FilterTags`, `OptionSelect` (also the base of the form `SelectField`), `MultiOptionSelect` (the
   chips combobox, base of `MultiSelectField`), `CheckboxGroup` (base of `CheckboxGroupField`),
   `RowActions`, `PaginationBar` (first / previous / pages / next / last and a page box).
-- Pages: `StickyBar` (the action bar at the bottom of a page; holds a form's `FormActions`).
+- Pages: `StickyBar` (the action bar at the bottom of a page; holds a form's `FormActions`),
+  `Stepper` (the steps of a multi-step form; `useStepper` in `../../hooks/` moves between them).
 - Dialogs: `ContentDialog` (the shell; body mounted only while open) and `ConfirmDialog` on it (use
   instead of `window.confirm`).
 - Choices: `GroupedCheckboxList` (labelled groups with select-all).
 
 Defaults are English; apps pass their own labels. `PageHeader`, `EmptyState`, `LoadingState`,
-`DescriptionList` and `ListToolbar` use no hooks, so server components render them directly. A
-component starts in `apps/web/features/<feature>/` and moves here once it is domain-free and
-reusable across apps; react-hook-form field wrappers and `FormActions` live in `../form/` instead.
-House style applies (arrow functions, kebab-case files, named exports). Props and references:
-`.claude/rules/ui.md`.
+`DescriptionList`, `ListToolbar` and `Stepper` use no hooks, so server components render them
+directly. A component starts in `apps/web/features/<feature>/` and moves here once it is domain-free
+and reusable across apps; react-hook-form field wrappers and `FormActions` live in `../form/`
+instead. House style applies (arrow functions, kebab-case files, named exports). Props and
+references: `.claude/rules/ui.md`.

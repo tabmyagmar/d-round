@@ -274,6 +274,14 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   (`useDebouncedCallback`, `delayMs?`), `label`; shows a value changed elsewhere but keeps what the
   user typed while its own search comes back. Sits on `bg-card`, so it stands out from the page
   background (the base `Input` is transparent, right for forms on cards).
+- `Stepper` (`stepper.tsx`) — the steps of a multi-step form, as romuten-v3's: `steps` (labels),
+  `current` (index), `onStepClick?` (the completed steps become buttons back to themselves, as the
+  legacy `Steps`), `label?`; hook-free. `useStepper({ steps })`
+  (`packages/ui/src/hooks/use-stepper.ts`) holds the index over one schema: `steps` lists each
+  step's field paths, `goNext(trigger, beforeNext?)` validates them with react-hook-form's `trigger`
+  and then runs the async guard (a uniqueness check that sets its own field error) before moving on;
+  `goPrev`, `goTo(earlier)`, `isFirst`, `isLast`. Reference:
+  `apps/web/features/staff/components/form/staff-form.tsx`.
 - `StickyBar` (`sticky-bar.tsx`) — the bar at the bottom of a page for its main actions, as
   romuten-v3's create and update pages. Render it last in a flex column that fills the page
   (`flex flex-1 flex-col`): `mt-auto` keeps it at the bottom of a short page, `sticky bottom-0` in
