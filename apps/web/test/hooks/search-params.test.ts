@@ -109,4 +109,26 @@ describe("parseSearchParams", () => {
   it("leaves absent parameters out, so the schema's defaults apply where it is parsed", () => {
     expect(parseSearchParams(schema, params("unrelated=1"))).toEqual({});
   });
+
+  const listSchema = z.object({
+    areas: z.array(z.enum(["EAST", "WEST"])).optional(),
+    regionCodes: z.array(z.coerce.number().int().min(1)).optional(),
+  });
+
+  it("reads a repeated parameter as a list, each item through the element schema", () => {
+    expect(
+      parseSearchParams(listSchema, params("areas=WEST&areas=EAST&regionCodes=4&regionCodes=7")),
+    ).toEqual({ areas: ["WEST", "EAST"], regionCodes: [4, 7] });
+    expect(parseSearchParams(listSchema, params("regionCodes=9"))).toEqual({ regionCodes: [9] });
+  });
+
+  it("drops invalid list items and leaves a list with none out", () => {
+    expect(
+      parseSearchParams(
+        listSchema,
+        params("areas=NORTH&regionCodes=4&regionCodes=x&regionCodes=0"),
+      ),
+    ).toEqual({ regionCodes: [4] });
+    expect(parseSearchParams(listSchema, params(""))).toEqual({});
+  });
 });

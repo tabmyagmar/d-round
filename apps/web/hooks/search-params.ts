@@ -1,5 +1,5 @@
 import type { DataTableSortingState } from "@repo/ui/components/composed/data-table";
-import type { z } from "@repo/validation";
+import { z } from "@repo/validation";
 
 /**
  * URL query helpers for list pages: filters, paging and sorting live in the URL so a link
@@ -61,10 +61,35 @@ export const sortingToParams = (
     : { sortBy: null, sortOrder: null };
 };
 
+/** The array schema inside an optional or defaulted list field (`areas`), or `null`. */
+const arrayOf = (field: z.ZodType): z.ZodArray | null => {
+  if (field instanceof z.ZodArray) {
+    return field;
+  }
+  if (field instanceof z.ZodOptional || field instanceof z.ZodDefault) {
+    return arrayOf(field.unwrap() as z.ZodType);
+  }
+  return null;
+};
+
+/** A list parameter (`?areas=EAST&areas=WEST`): each valid item kept, none at all left out. */
+const parseList = (field: z.ZodType, array: z.ZodArray, raw: readonly string[]): unknown[] => {
+  const items = raw.flatMap((item) => {
+    const parsed = (array.element as z.ZodType).safeParse(item);
+    return parsed.success ? [parsed.data] : [];
+  });
+  if (items.length === 0) {
+    return [];
+  }
+  const parsed = field.safeParse(items);
+  return parsed.success ? [parsed.data] : [];
+};
+
 /**
  * Reads the parameters a list schema knows, each through its own field schema: a valid value is
  * kept (coerced, trimmed), an invalid or absent one is left out so the schema's default applies
- * where the input is parsed (the API). A hand-edited URL never breaks the page.
+ * where the input is parsed (the API). An array field reads its repeated parameter and keeps the
+ * valid items. A hand-edited URL never breaks the page.
  */
 export const parseSearchParams = <TSchema extends z.ZodObject>(
   schema: TSchema,
@@ -72,6 +97,10 @@ export const parseSearchParams = <TSchema extends z.ZodObject>(
 ): Partial<z.output<TSchema>> => {
   const entries = Object.entries(schema.shape as Record<string, z.ZodType>).flatMap(
     ([name, field]) => {
+      const array = arrayOf(field);
+      if (array) {
+        return parseList(field, array, params.getAll(name)).map((value) => [name, value] as const);
+      }
       const raw = params.get(name);
       if (raw === null) {
         return [];

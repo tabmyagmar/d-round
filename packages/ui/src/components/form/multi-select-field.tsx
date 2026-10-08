@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import type { FieldValues } from "react-hook-form";
 
 import { MultiOptionSelect } from "../composed/multi-option-select";
@@ -22,6 +23,12 @@ export type MultiSelectFieldProps<TValues extends FieldValues> = BaseFieldProps<
    * codes the schema keeps as numbers (`z.array(z.number())`, e.g. region codes).
    */
   valueAs?: "string" | "number";
+  /**
+   * Drop selected values that `options` no longer offers — for a select that depends on another
+   * (地域 on エリア, 担当者 on 地域). Pass `true` only once the options are authoritative (their
+   * data loaded), or a stored selection is lost while they load.
+   */
+  pruneToOptions?: boolean;
 };
 
 const toStringArray = (value: unknown): string[] =>
@@ -53,8 +60,26 @@ export const MultiSelectField = <TValues extends FieldValues>({
   serverFiltered = false,
   loading = false,
   valueAs = "string",
+  pruneToOptions = false,
 }: MultiSelectFieldProps<TValues>) => {
   const { ref, field, fieldState } = useFormField({ control, name, disabled });
+  const selected = toStringArray(field.value);
+
+  const offeredKey = options.map((option) => option.value).join("\n");
+  const selectedKey = selected.join("\n");
+  const { onChange } = field;
+
+  useEffect(() => {
+    if (!pruneToOptions || selectedKey === "") {
+      return;
+    }
+    const offered = new Set(offeredKey.split("\n"));
+    const values = selectedKey.split("\n");
+    const kept = values.filter((value) => offered.has(value));
+    if (kept.length < values.length) {
+      onChange(valueAs === "number" ? kept.map(Number) : kept);
+    }
+  }, [pruneToOptions, offeredKey, selectedKey, onChange, valueAs]);
 
   return (
     <FormFieldShell
@@ -71,7 +96,7 @@ export const MultiSelectField = <TValues extends FieldValues>({
         name={field.name}
         inputRef={ref}
         options={options}
-        value={toStringArray(field.value)}
+        value={selected}
         onValueChange={(next) => {
           field.onChange(valueAs === "number" ? next.map(Number) : next);
         }}
