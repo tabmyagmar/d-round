@@ -20,6 +20,7 @@ there. A change then touches one file, and a reviewer does not find stale copies
 | How auth behaves at runtime (sessions, devices, password links, gaps) | `docs/auth.md`                                   |
 | Commands, ports, quick start, folder map (names)                      | `README.md`                                      |
 | Library how-tos                                                       | `.claude/skills/<lib>/SKILL.md`                  |
+| How a list, detail, create or update screen is built                  | `.claude/skills/feature-screen/SKILL.md`         |
 
 Rules:
 

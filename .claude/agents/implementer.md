@@ -16,7 +16,9 @@ plan silently.
 2. Read the `.claude/rules/*.md` files that cover the paths you will touch: `layers.md` always;
    `module-template.md`, `repositories.md`, `queue.md`, `permissions.md`, `ui.md`, `testing.md`,
    `migrations.md` as applicable. The matching `.claude/skills/*/SKILL.md` has the how-to.
-3. Read every file you are about to modify in full. Prefer editing over adding files.
+3. Read every file you are about to modify in full. Prefer editing over adding files. For a web
+   screen, also read the matching `apps/web/features/users` file and copy its shape (skill
+   `feature-screen`).
 4. Read `node_modules` only at the paths the plan or the orchestrator names; never search it
    recursively (a broad search there has stalled a run).
 

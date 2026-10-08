@@ -1,0 +1,71 @@
+---
+name: feature-screen
+description:
+  Use when adding a list, detail, create or update screen to apps/web, porting a legacy d-round-web
+  screen, or deciding where a new UI piece belongs (feature folder, form field or composed
+  component).
+---
+
+# Feature screens — copy `features/users`, do not redesign
+
+`apps/web/features/users` is the reference implementation; the rules behind it are in
+`.claude/rules/ui.md` (folders, URL state, lazy loading, composed components, forms). A new feature
+copies its shape file by file. A choice that differs needs one line in the plan naming its source (a
+romuten-v3 path, the legacy file, bulletproof-react), decided before the plan, not after a review
+round.
+
+## 1. Before the plan: the legacy screen
+
+1. Read the legacy screen in `../d-round-web/src/features/<name>/` (columns, toolbar, filters,
+   pagination, dialogs, form fields and their order, button placement) and the romuten-v3 equivalent
+   when one exists.
+2. Fill the plan's `## Legacy → new` table: every legacy piece is kept, changed or dropped, with the
+   reason. The reviewer checks the screen against that table.
+3. Build only what the table and the ticket contain. No extra bar, counter, transition or option.
+
+## 2. List screen
+
+- Container — `containers/users-container.tsx`: the query input is `parseSearchParams` over the
+  list's zod schema from `@repo/validation`, `useSearch`, `useTableState`, the dialogs' target
+  state.
+- Table — `components/list/users-table.tsx`: `DataTable` is the card (`title`, total badge,
+  `PaginationBar`), the columns, `RowActions`.
+- Toolbar — `components/list/users-toolbar.tsx`: `ListToolbar` with `SearchInput`, `FilterPopover`,
+  the actions, `FilterTags`.
+- Filter fields — `components/list/user-filter.tsx` loads `user-filter-content.tsx` with
+  `next/dynamic` inside the popover.
+- Row menu — `components/list/user-row-actions.tsx`, actions filtered by ability.
+- Labels and filter helpers (pure, node-tested) — `utils/user-labels.ts`, `utils/user-filters.ts`;
+  router output types — `types.ts`.
+
+Dialogs load with `next/dynamic` and render only while they have a target. Row selection and a
+`stores/` zustand store exist only when a bulk action reads the selection.
+
+## 3. Detail screen
+
+The container (`containers/user-detail-container.tsx`) owns the queries and the dialogs; the
+components under `components/detail/` are presentational: `DescriptionList` inside `Card`s, a
+toolbar with the actions the ability allows. A card some roles never see loads with `next/dynamic`.
+
+## 4. Create and update screens
+
+- Schema from `@repo/validation`; fields from `@repo/ui/components/form` in a `FieldGroup`; shared
+  fields in `components/form/<name>-form-fields.tsx`; one thin form per mode, no `mode` prop.
+- The form is presentational (`onSubmit`, `pending`, `errorMessage`); the container owns the
+  mutation, the toast and the redirect. Update sends only what changed.
+- Actions: `FormActions` inside a `StickyBar` (`components/form/user-update-form.tsx`).
+- Tests render the form in `StrictMode` (`.claude/rules/testing.md`).
+
+## 5. Before hand-over
+
+1. `yarn verify` green.
+2. Open every changed screen in the browser, signed in as each role it serves, next to the legacy
+   screen: nothing missing, nothing extra; outline buttons and the search box visible on the page
+   background; select-all, an untouched form's submit button, empty and error states behave.
+3. Only then ask for review.
+
+## 6. When a piece becomes reusable
+
+A second screen needs it: move it to `packages/ui/src/components/composed/` (domain-free, English
+defaults, a jsdom test) and import it from there. Until then it stays in the feature. The existing
+composed components and form fields are listed in `.claude/rules/ui.md`.

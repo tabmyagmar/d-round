@@ -41,6 +41,11 @@ the ticket branch after the human approves it.
 
 One paragraph restating the goal, then a bullet list of verifiable criteria.
 
+## Legacy → new (ported screens only)
+
+| Legacy piece (file) | New | Kept / changed / dropped — why |
+| ------------------- | --- | ------------------------------ |
+
 ## Files to touch (≤15 per commit; one table per commit when the plan has several)
 
 | #   | File                                     | Action | Layer      | Purpose |
@@ -73,6 +78,10 @@ docs/adr/.
 ## Out of scope
 
 - ...
+
+## Log
+
+Dated amendments and review rounds. The implementer does not read this section.
 ```
 
 ## Rules for a good plan
@@ -93,7 +102,12 @@ docs/adr/.
 - Tag steps that touch disjoint files with the same `[parallel: N]` so the orchestrator can run them
   together; documentation steps usually parallel the code step they describe.
 - Keep the plan under 250 lines. Detail belongs in the step that needs it; do not restate rules the
-  implementer reads anyway.
+  implementer reads anyway. Amendments and review rounds go under `## Log`.
+- Name the reference for every structural choice (folder, state, component): the `users` feature, a
+  romuten-v3 path, the legacy file or bulletproof-react. Research before deciding, never after a
+  review round. A ported screen gets the `Legacy → new` table (skill `feature-screen`).
+- Plan only what the ticket and the legacy screen contain: no bar, counter, transition or option
+  they lack, and no hook, store or helper file without a second consumer.
 - Every non-public tRPC procedure in the plan has an ability check step.
 - A new dependency is a risk item: name it, say why, and note that its exact version must be checked
   with `npm view <pkg> version` before it is added.

@@ -24,6 +24,14 @@ docs/conventions.md for rationale, protocol.md for how agents work here.
 - Prefer editing over adding. No new dependency without stating why and checking
   `npm view <pkg> version`. Use Context7 for library docs; do not rely on memory
   for Prisma, Better Auth, tRPC, BullMQ, shadcn APIs.
+- Ported screen: read the legacy source (../d-round-web, ../d-round-api) and romuten-v3 before
+  designing; the plan carries a `Legacy → new` table. A new web screen copies the shape of
+  apps/web/features/users (skill feature-screen). Build only what the ticket or the legacy has.
+- Simple over clever: a file reads top to bottom; no helper, hook or store without a second
+  consumer; a choice that differs from the reference names its source (romuten-v3 path, legacy
+  file, bulletproof-react) in the plan.
+- A web step is done only after each changed screen was opened in the browser as every role it
+  serves and compared with the legacy screen.
 - Do not touch: prisma migrations already applied, .env files, CI secrets.
 - Schema changes require an ADR note (docs/adr) and expand-contract safe migration.
 - Commits: Conventional Commits. AI-assisted commits carry the attribution trailer

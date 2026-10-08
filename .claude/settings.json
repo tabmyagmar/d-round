@@ -28,5 +28,8 @@
       "Read(**/.env)",
       "Read(**/.env.local)"
     ]
+  },
+  "enabledPlugins": {
+    "security-guidance@claude-plugins-official": false
   }
 }

@@ -30,7 +30,10 @@ and text (`screen.getByLabelText`, `getByText`), and call `cleanup` in `afterEac
 Testing Library does not clean up by itself). Both configs set the JSX runtime through `oxc` (Next's
 tsconfig says `jsx: "preserve"`) and mirror the tsconfig path alias (`@/` in web, `@repo/ui/*` in
 ui). Examples: `apps/web/test/features/users/components/role-badge.test.tsx`,
-`packages/ui/test/components/form/text-field.test.tsx`.
+`packages/ui/test/components/form/text-field.test.tsx`. Forms and dialogs render inside React
+`StrictMode`, as `next dev` does (effects mount, unmount and mount again):
+`apps/web/test/features/users/components/form/user-update-form.test.tsx`. A bug seen only under
+StrictMode is a real bug, never a test artefact.
 
 ## Real infrastructure, not mocks
 

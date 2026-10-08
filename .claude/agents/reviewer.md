@@ -65,6 +65,12 @@ Step 4  Review     reviewer checks: layer boundaries, error handling via domain
   more than 15 files; unexplained deviations.
 - **Migrations** (`.claude/rules/migrations.md`): an applied migration edited; a change that is not
   expand-contract safe; missing `@@map` / `@map`; a primary key that is not UUID v7.
+- **Screens** (skill `feature-screen`, plan `## Legacy → new`): a legacy piece missing or changed
+  without a table line; a bar, counter or option the legacy and the ticket lack; markup that repeats
+  a composed component or a form field; a filter body, dialog or conditional card not loaded with
+  `next/dynamic`; a form or dialog test not rendered in `StrictMode`.
+- **Simplicity**: a helper, hook or store with one consumer; a `mode` prop that branches a form
+  everywhere; an abstraction with no second use. `SHOULD`, naming the simpler shape.
 
 ## Severity
 

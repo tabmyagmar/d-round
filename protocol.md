@@ -19,6 +19,8 @@ Step 1  Plan       planner → plan.md in the ticket branch: commits, files to
                    approves. Hard limits: ≤15 files per commit (an MR may hold
                    several commits); schema change ⇒ ADR line. Steps tagged
                    `[parallel: N]` touch disjoint files and may run at once.
+                   A ported screen gets a `Legacy → new` table (skill
+                   feature-screen) before any design is written.
 Step 2  Implement  implementer executes plan steps in order (parallel groups
                    together). After each step: lint + typecheck + affected
                    tests. Stops on the first failure it cannot fix in 2
@@ -27,7 +29,9 @@ Step 3  Verify     Per commit the orchestrator runs `yarn verify` itself and
                    reads only the failures. The verifier agent runs once per
                    MR (last commit): `yarn verify` fresh (`--force`), the
                    schema drift gate when `prisma/schema` changed, docker
-                   smoke when asked.
+                   smoke when asked. Web screens: before Step 4 the
+                   orchestrator opens each changed screen in the browser as
+                   every role it serves and compares it with the legacy screen.
 Step 4  Review     reviewer, per commit when the commit touches
                    `packages/database/prisma/schema`, `packages/auth`,
                    `packages/permissions` or `apps/api/src/trpc`; otherwise
@@ -40,8 +44,11 @@ Step 4  Review     reviewer, per commit when the commit touches
 Step 5  Fix loop   implementer addresses BLOCKER+SHOULD (the orchestrator may
                    fix documentation itself); back to Step 3.
                    Budget: 2 rounds per reviewer↔implementer pair, then
-                   escalate to the human with the open question.
-Step 6  Close      Orchestrator writes the MR description (summary, test
+                   escalate to the human with the open question. Review notes
+                   and amendments go under `## Log` at the end of plan.md; the
+                   implementer reads `## Design` and its own step only.
+Step 6  Close      Orchestrator runs `/security-review` once for the MR, then
+                   writes the MR description (summary, test
                    evidence, ADR links, AI attribution), moves plan.md to
                    docs/plans/<date>-<ticket>.md, and records what slowed the
                    ticket down (a stalled agent, a stale rule, a missing
