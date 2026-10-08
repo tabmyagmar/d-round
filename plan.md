@@ -336,3 +336,6 @@ process); Step 5 exercises the fatal path for real.
   worker's start-up failure now exits 1 (`shutdown("startup failure", 1)`); it exited 0 whenever
   every shutdown step succeeded. Like the router test, the processor alert test passed before the
   worker code changed: it pins the fold for a real failed job.
+- 2026-10-08, step 4: the README folder map also names `createDiscordAlertStream` under `logger/`.
+  `docs/conventions.md` points to ADR 0010 for the numbers (fold window, repeat window, cap) instead
+  of repeating them, and says when a new identifier key belongs in `ALERT_CONTEXT_KEYS`.
