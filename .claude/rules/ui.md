@@ -293,9 +293,9 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   (`{ key, label, icon?, onSelect?, render?, destructive?, disabled? }`; `render: <Link href=… />`
   for links; pass only what the user may do), `label` (the trigger's accessible name); no actions,
   no menu. Reference: `apps/web/features/users/components/list/user-row-actions.tsx`.
-- `DescriptionList` (`description-list.tsx`) — `items` (`{ label, value }`) as a `<dl>`,
-  `emptyText?` for empty values. Reference:
-  `apps/web/features/users/containers/user-detail-container.tsx`.
+- `DescriptionList` (`description-list.tsx`) — `items` (`{ key?, label, value }`; `key` tells apart
+  items that share a label, such as several メモ) as a `<dl>`, `emptyText?` for empty values.
+  Reference: `apps/web/features/users/containers/user-detail-container.tsx`.
 - `GroupedCheckboxList` (`grouped-checkbox-list.tsx`) — `groups`
   (`{ key, label, options: { value, label, hint? }[] }`), `value`, `onValueChange` (option order), a
   select-all box per group (indeterminate when partly selected), `selectAllLabel?(group)`,

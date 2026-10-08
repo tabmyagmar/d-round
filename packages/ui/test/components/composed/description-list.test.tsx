@@ -28,4 +28,17 @@ describe("DescriptionList", () => {
 
     expect(screen.getByRole("definition").textContent).toBe("Not set");
   });
+
+  it("keeps items that share a label apart by their key, also when they move", () => {
+    const first = { key: "a", label: "Memo", value: "First" };
+    const second = { key: "b", label: "Memo", value: "Second" };
+    const { rerender } = render(<DescriptionList items={[first, second]} />);
+
+    expect(screen.getAllByRole("definition").map((value) => value.textContent)).toEqual([
+      "First",
+      "Second",
+    ]);
+    rerender(<DescriptionList items={[second]} />);
+    expect(screen.getAllByRole("definition").map((value) => value.textContent)).toEqual(["Second"]);
+  });
 });

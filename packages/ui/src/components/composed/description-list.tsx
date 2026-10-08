@@ -3,6 +3,8 @@ import { Fragment } from "react";
 import type { ReactNode } from "react";
 
 export type DescriptionItem = {
+  /** Tells apart items that share a label (several memos titled メモ); the label otherwise. */
+  key?: string;
   label: string;
   /** `null`, `undefined` and `""` show `emptyText`. */
   value: ReactNode;
@@ -26,7 +28,7 @@ export const DescriptionList = ({ items, emptyText = "—", className }: Descrip
     )}
   >
     {items.map((item) => (
-      <Fragment key={item.label}>
+      <Fragment key={item.key ?? item.label}>
         <dt className="text-muted-foreground">{item.label}</dt>
         <dd className="min-w-0 break-words">
           {isEmpty(item.value) ? (
