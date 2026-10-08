@@ -12,7 +12,6 @@ import {
   EMPLOYEE_TYPE_LABELS,
   FAMILY_RELATION_LABELS,
   GENDER_LABELS,
-  postCodeLabel,
   STAFF_MEMO_TYPE_LABELS,
   STAFF_STATUS_LABELS,
   staffNameOf,
@@ -70,11 +69,6 @@ describe("staff labels", () => {
       "その他",
       "メモ",
     ]);
-  });
-
-  it("writes a post code with 〒 and the hyphen, stored or typed with it", () => {
-    expect(postCodeLabel("1600022")).toBe("〒160-0022");
-    expect(postCodeLabel("160-0022")).toBe("〒160-0022");
   });
 
   it("writes the name and the reading family name first", () => {

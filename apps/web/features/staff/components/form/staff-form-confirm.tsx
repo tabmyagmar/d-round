@@ -5,13 +5,12 @@ import { ageOf } from "@repo/validation";
 import type { StaffFormValues } from "@repo/validation";
 
 import type { SourceHierarchy } from "@/components/source/hierarchy-options";
-import { areaNamesOf } from "@/components/source/source-labels";
+import { areaNamesOf, postCodeLabel } from "@/components/source/source-labels";
 import type { ChargerChoice } from "@/features/staff/types";
 import {
   EMPLOYEE_TYPE_LABELS,
   FAMILY_RELATION_LABELS,
   GENDER_LABELS,
-  postCodeLabel,
   STAFF_MEMO_TYPE_LABELS,
 } from "@/features/staff/utils/staff-labels";
 import { POSITION_LABELS } from "@/lib/position-labels";
