@@ -114,6 +114,16 @@ describe("StaffForm", () => {
     expect(screen.getByText("雇用区分を選択してください")).toBeDefined();
   });
 
+  it("formats the phone numbers as they are typed", () => {
+    renderForm({ defaultValues: emptyStaffValues() });
+
+    fireEvent.change(screen.getByLabelText(/^電話番号/), { target: { value: "09012345678" } });
+    fireEvent.change(screen.getByLabelText(/緊急連絡先/), { target: { value: "0312345678" } });
+
+    expect(screen.getByLabelText(/^電話番号/)).toHaveProperty("value", "090-1234-5678");
+    expect(screen.getByLabelText(/緊急連絡先/)).toHaveProperty("value", "03-1234-5678");
+  });
+
   it("keeps the first step when the スタッフ番号 is taken, with the legacy message", async () => {
     renderForm({ isEmployeeNumberFree: () => Promise.resolve(false) });
 

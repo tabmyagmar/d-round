@@ -18,7 +18,7 @@ import {
   TextField,
 } from "@repo/ui/components/form";
 import { ja } from "@repo/ui/lib/calendar-locale";
-import { ageOf, STAFF_LIST_MAX } from "@repo/validation";
+import { ageOf, formatPhoneNumber, STAFF_LIST_MAX } from "@repo/validation";
 import type { StaffFormValues } from "@repo/validation";
 
 import { NameFields } from "@/components/name-fields";
@@ -183,6 +183,7 @@ export const StaffBasicStep = ({
                 type="tel"
                 label="電話番号"
                 placeholder="090-1234-5678"
+                format={formatPhoneNumber}
                 autoComplete="tel"
                 required
               />
@@ -192,6 +193,7 @@ export const StaffBasicStep = ({
                 type="tel"
                 label="緊急連絡先（電話番号）"
                 placeholder="090-1234-5678"
+                format={formatPhoneNumber}
                 emptyAs="null"
               />
             </div>

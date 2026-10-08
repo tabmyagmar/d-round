@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { FieldGroup } from "@repo/ui/components/field";
 import { ReadOnlyField, TextField } from "@repo/ui/components/form";
-import { postCodeSchema } from "@repo/validation";
+import { formatPostCode, postCodeSchema } from "@repo/validation";
 
 /** The post-code master's answer: 都道府県, 市区町村, 町域. */
 export type AddressParts = { pref: string; city: string; town: string };
@@ -28,8 +28,9 @@ export type AddressFieldsProps<TValues extends FieldValues> = {
 };
 
 /**
- * 郵便番号 → 住所, as the legacy FormAddressField: a complete post code (seven digits, with or
- * without the hyphen) is looked up at once and fills the read-only 住所(県名) and 住所(市町村名);
+ * 郵便番号 → 住所, as the legacy FormAddressField: the post code takes its hyphen as it is typed
+ * (`160-0022`), and a complete one is looked up at once and fills the read-only 住所(県名) and 住所(市町村名);
+
  * an unknown one empties them and says 郵便番号が見つかりません。 (the legacy toast). The legacy
  * 検索 button is not carried over: the lookup runs as the code is typed.
  */
@@ -82,6 +83,8 @@ export const AddressFields = <TValues extends FieldValues>({
           required
           placeholder="160-0022"
           autoComplete="postal-code"
+          format={formatPostCode}
+
           {...(disabled === undefined ? {} : { disabled })}
           onValueChange={(text) => {
             void lookUp(text);

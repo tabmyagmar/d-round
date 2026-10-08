@@ -44,7 +44,7 @@ describe("staffValuesOf", () => {
       regionCodes: [4],
       prefectureCodes: [13],
       chargerUserIds: [staff.chargers[1]!.userId],
-      address: { postCode: "1600022", address1: "1-2-3", pref: "東京都", cityTown: "新宿区新宿" },
+      address: { postCode: "160-0022", address1: "1-2-3", pref: "東京都", cityTown: "新宿区新宿" },
       jobHistories: [{ hireDate: "2026-04-01", resignationDate: null, resignationReason: null }],
     });
   });

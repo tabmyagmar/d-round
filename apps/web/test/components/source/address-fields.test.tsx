@@ -93,6 +93,15 @@ describe("AddressFields", () => {
     expect(shown(/住所\(市町村名\)/)).toBe("—");
   });
 
+  it("puts the hyphen in as the post code is typed, full-width digits too", async () => {
+    renderFields();
+
+    typePostCode("１６０００２２");
+
+    expect(screen.getByLabelText(/郵便番号/)).toHaveProperty("value", "160-0022");
+    expect(await screen.findByText("東京都")).toBeDefined();
+  });
+
   it("empties them while the post code is incomplete", async () => {
     renderFields();
     typePostCode("1600022");

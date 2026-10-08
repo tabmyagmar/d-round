@@ -1,7 +1,7 @@
 import type { DefaultValues } from "react-hook-form";
 
 import { todayIsoDay, toIsoDay } from "@repo/dayjs";
-import { FIXED_MEMO_TYPES } from "@repo/validation";
+import { FIXED_MEMO_TYPES, formatPostCode } from "@repo/validation";
 import type { CreateStaffInput, StaffFormValues } from "@repo/validation";
 
 import type { StaffDetail } from "@/features/staff/types";
@@ -73,7 +73,7 @@ export const staffValuesOf = (staff: StaffDetail): DefaultValues<StaffFormValues
     .map((charger) => charger.userId),
   address: staff.address
     ? {
-        postCode: staff.address.postCode,
+        postCode: formatPostCode(staff.address.postCode),
         address1: staff.address.address1,
         pref: staff.address.sourceAddress.pref,
         cityTown: `${staff.address.sourceAddress.city}${staff.address.sourceAddress.town}`,
