@@ -581,3 +581,27 @@ user, 有効化 brings them back; create a manager with two extra permissions �
 `permission-catalog` ability reflects them; edit → staff → overrides gone. manager:
 `/admin/master/user` 403 (no `read User` grant), unchanged. admin: role select on create shows all
 four.
+
+## Outcome (2026-10-08)
+
+- Branch `feature/D_ROUND-TBD_user-feature`: 36 commits on `develop` (this plan, API steps 1–3, the
+  ui / web steps, four review rounds, the agent-training commit `5b2fc4c` and this close).
+  Fast-forwarded into `develop` on 2026-10-08. Not pushed.
+- `yarn verify` on `5b2fc4c`: 37/37 tasks (35 replayed from the green runs of the review rounds; the
+  last commits are documentation only).
+- Browser check: the users screens were opened in a headless browser against `next dev` during
+  review round 4; that is how the untouched-edit-form bug (`a888dce`) was found.
+- Review by the user: four rounds, recorded above — structure and reusable components (1),
+  selection, pagination, card and name parts (2), selection bar, pagination position, select-all and
+  search surface (3), folders, outline buttons and the sticky form actions (4).
+- Security: `/security-review` was not run separately; the security-guidance plugin reviewed every
+  turn of this branch on 2026-10-07 before it was switched off for the repo in `5b2fc4c`.
+- Open (own tickets): CSV import / export on the users toolbar; 社員番号 / エリア / 地域 columns
+  once `user_profiles` exists; the staff vs user split (`Staff.employeeType=USER`) is a proposal
+  only; the auth `?next=` gap stays as listed in `docs/auth.md`.
+- What slowed the ticket, and where it went: the legacy screen was not read before the design (three
+  rounds of parity fixes), the feature layout was decided late (five move / group commits), screens
+  went to review without a browser check, and pieces the legacy never had were built — now the
+  `Legacy → new` table, the reference-first rule, the browser check and the `feature-screen` skill
+  in `5b2fc4c`. Also: the Docker daemon's API hung during step 2 (steps reordered) and auto mode
+  denied the implementer / reviewer subagents (steps done inline).
