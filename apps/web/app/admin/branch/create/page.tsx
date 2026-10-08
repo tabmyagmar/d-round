@@ -1,10 +1,10 @@
 import { PageGuard } from "@/components/page-guard";
-import { PlaceholderPage } from "@/components/placeholder-page";
 import { routes } from "@/config/routes";
+import { BranchCreateContainer } from "@/features/branches/containers/branch-create-container";
 
 const BranchCreatePage = () => (
   <PageGuard route={routes.branch.create}>
-    <PlaceholderPage route={routes.branch.create} />
+    <BranchCreateContainer />
   </PageGuard>
 );
 
