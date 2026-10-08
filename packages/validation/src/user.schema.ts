@@ -1,8 +1,13 @@
 import { z } from "zod";
 
-import { idSchema, paginationSchema } from "./common.schema";
+import { idSchema, paginationSchema, requiredText } from "./common.schema";
 import { permissionKeysSchema } from "./permission.schema";
-import { regionCodeSchema, SOURCE_AREAS, sourceAreaSchema } from "./source.schema";
+import {
+  areasSchema,
+  regionCodeSchema,
+  regionCodesSchema,
+  sourceAreaSchema,
+} from "./source.schema";
 
 /**
  * Single-tenant role set: the keys of the role catalog (`roles` table, seeded from
@@ -63,13 +68,6 @@ export const passwordSchema = z
 /** Full-width katakana with ー, ・ and spaces: the legacy rule for name readings (セイ / メイ). */
 export const KATAKANA_PATTERN = /^[\u30A0-\u30FF\s]+$/u;
 
-const requiredText = (label: string, max: number) =>
-  z
-    .string()
-    .trim()
-    .min(1, { error: `${label}を入力してください` })
-    .max(max, { error: `${label}は${String(max)}文字以内で入力してください` });
-
 /** A required katakana reading, e.g. `kanaSchema("セイ")`. */
 export const kanaSchema = (label: string) =>
   requiredText(label, 80).regex(KATAKANA_PATTERN, { error: "全角カタカナで入力してください" });
@@ -116,19 +114,6 @@ export const employeeNumberSchema = (label: string) =>
     .int({ error: `${label}は正の整数で入力してください` })
     .min(1, { error: `${label}は正の整数で入力してください` })
     .max(EMPLOYEE_NUMBER_MAX, { error: `${label}は9桁以内で入力してください` });
-
-/**
- * Region codes as a form or the API sends them (numbers; a URL filter uses `regionCodeSchema`),
- * distinct and ascending: a code twice would break the join table's key.
- */
-export const regionCodesSchema = z
-  .array(z.number().int().min(1))
-  .transform((codes) => [...new Set(codes)].sort((a, b) => a - b));
-
-/** Distinct areas in the legacy order. */
-export const areasSchema = z
-  .array(sourceAreaSchema)
-  .transform((areas) => SOURCE_AREAS.filter((area) => areas.includes(area)));
 
 /**
  * A 担当者's HR fields (ADR 0007): 社員番号, 部署名, 役職, 退職日 (optional) and the エリア / 地域

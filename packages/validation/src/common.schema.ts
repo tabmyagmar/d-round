@@ -12,3 +12,11 @@ export const paginationSchema = z.object({
 
 export type PaginationInput = z.input<typeof paginationSchema>;
 export type Pagination = z.output<typeof paginationSchema>;
+
+/** Trimmed text that must not be empty, with the legacy messages, e.g. `requiredText("姓", 80)`. */
+export const requiredText = (label: string, max: number) =>
+  z
+    .string()
+    .trim()
+    .min(1, { error: `${label}を入力してください` })
+    .max(max, { error: `${label}は${String(max)}文字以内で入力してください` });

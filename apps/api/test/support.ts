@@ -11,7 +11,7 @@ import type { Logger } from "@repo/logger";
 import { createEmailQueue, createRedisConnection, waitForRedis } from "@repo/queue";
 import type { EmailQueue, RedisConnection } from "@repo/queue";
 import { DEFAULT_ROLE } from "@repo/validation";
-import type { Role } from "@repo/validation";
+import type { CreateStaffInput, Role } from "@repo/validation";
 
 import { buildRequestContext } from "../src/core/context";
 import type { RequestContext } from "../src/core/context";
@@ -157,3 +157,66 @@ export const contextFor = (
       webOrigin: TEST_WEB_ORIGIN,
     },
   );
+
+/** The post code the staff tests use; the harness database has no Japan Post master of its own. */
+export const TEST_POST_CODE = "1600022";
+
+/** Makes sure `TEST_POST_CODE` exists in `source_addresses` (東京都 新宿区 新宿). */
+export const ensureTestPostCode = async (harness: TestHarness): Promise<void> => {
+  await harness.db.sourceAddress.upsert({
+    where: { postCode: TEST_POST_CODE },
+    update: {},
+    create: {
+      jisCode: 13104,
+      postCode: TEST_POST_CODE,
+      pref: "東京都",
+      city: "新宿区",
+      town: "新宿",
+    },
+  });
+};
+
+/**
+ * A parsed スタッフ追加 input (as the router hands it to the service): a unique スタッフ番号, 南関東 /
+ * 東京都 at `TEST_POST_CODE`, the given 担当者, one employment, one family member and two memos (one
+ * without text). Call `ensureTestPostCode` first.
+ */
+export const staffInput = (
+  chargerUserIds: string[],
+  overrides: Partial<CreateStaffInput> = {},
+): CreateStaffInput => ({
+  employeeType: "FULL_TIME",
+  employeeNumber: uniqueEmployeeNumber(),
+  lastName: "山田",
+  firstName: "花子",
+  lastNameKana: "ヤマダ",
+  firstNameKana: "ハナコ",
+  gender: "FEMALE",
+  birthday: "1990-04-01",
+  position: "STAFF",
+  branchName: "新宿支店",
+  email: null,
+  phoneNumber: "090-1234-5678",
+  emergencyPhoneNumber: null,
+  areas: ["EAST"],
+  regionCodes: [4],
+  prefectureCodes: [13],
+  chargerUserIds,
+  address: { postCode: TEST_POST_CODE, address1: "1-2-3" },
+  jobHistories: [{ hireDate: "2020-04-01", resignationDate: null, resignationReason: null }],
+  familyMembers: [
+    {
+      lastName: "山田",
+      firstName: "太郎",
+      lastNameKana: null,
+      firstNameKana: null,
+      relation: "HUSBAND",
+      birthday: null,
+    },
+  ],
+  memos: [
+    { memoType: "STAFF_MEMO", content: "面談済み" },
+    { memoType: "ENTRY_EXIT", content: "" },
+  ],
+  ...overrides,
+});
