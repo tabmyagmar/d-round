@@ -317,3 +317,16 @@ process); Step 5 exercises the fatal path for real.
   rejects `fetch` like a network failure (tested), and the flush test covers a webhook that never
   answers. Checked under `tsx`: pretty output in-process with colours, JSON to stdout with alerts
   on, and the plain logger unchanged.
+- 2026-10-08, branch: another session switched the shared working tree to
+  `feature/D_ROUND-TBD_client-branch` at 22:01 while step 1 was uncommitted, so commit `78401e9`
+  landed on that branch. `feature/D_ROUND-TBD_discord-alerts` was moved to `78401e9` and the work
+  continues in a worktree in the session scratchpad. Moving `client-branch` back to `b3a1f29`
+  (`git reset --keep`) was denied by auto mode: the user decides; the other session was told.
+- 2026-10-08, step 2: the `uncaughtException` / `unhandledRejection` handlers live in
+  `registerGracefulShutdown` (both apps), beside the signal handlers, instead of `index.ts`: the
+  function already owns "process event → ordered steps → exit", the existing fake process tests
+  them, and a crash must exit 1 — `shutdown(reason, exitCode)` gained the code (a failed step still
+  exits 1). The API gets `test/lib/graceful-shutdown.test.ts` for that (eight files in commit 2).
+  `.env.example` carries the variable commented out, like `COOKIE_DOMAIN`: an empty value would fail
+  the URL check at start-up. The router alert test passed before the API code changed: it pins the
+  wiring from commit 1 (a domain error never alerts, an unknown one alerts once).

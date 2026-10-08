@@ -24,6 +24,8 @@ export const apiEnvShape = {
   BETTER_AUTH_SECRET: z.string().min(32),
   /** Parent domain for shared cookies in production (see docs/adr/0002-auth.md). */
   COOKIE_DOMAIN: z.string().min(1).optional(),
+  /** Discord webhook for error and fatal log lines; unset = no alerts (docs/adr/0010-alerts.md). */
+  DISCORD_ALERT_WEBHOOK_URL: urlSchema.optional(),
 };
 
 export type ApiEnv = ReturnType<typeof loadApiEnv>;
