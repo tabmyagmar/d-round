@@ -27,4 +27,11 @@ describe("loadWorkerEnv", () => {
     const { MAIL_SMTP_URL: _smtp, ...withoutSmtp } = complete;
     expect(() => loadWorkerEnv(withoutSmtp)).toThrow(EnvValidationError);
   });
+
+  it("starts without a Discord webhook and refuses a value that is not a URL", () => {
+    expect(loadWorkerEnv(complete).DISCORD_ALERT_WEBHOOK_URL).toBeUndefined();
+    expect(() => loadWorkerEnv({ ...complete, DISCORD_ALERT_WEBHOOK_URL: "not a url" })).toThrow(
+      EnvValidationError,
+    );
+  });
 });

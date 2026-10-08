@@ -1,5 +1,8 @@
+import { Writable } from "node:stream";
+
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { createDiscordAlertStream, createLogger } from "@repo/logger";
 import { enqueueEmailJob } from "@repo/queue";
 
 import { createMemoryMailProvider } from "../../src/mail/memory-mail-provider";
@@ -134,6 +137,61 @@ describe("email processor", () => {
 
       await sleep(100);
       expect(provider.attempts).toBe(1); // no retries for permanent failures
+    } finally {
+      await worker.close();
+      await queue.obliterate({ force: true });
+      await queue.close();
+    }
+  });
+
+  it("alerts Discord once for a permanent failure: the processor's line and job failed are one incident", async () => {
+    const bodies: string[] = [];
+    const alerts = createDiscordAlertStream({
+      webhookUrl: "https://discord.test/api/webhooks/1/secret",
+      fetch: (_url, init) => {
+        bodies.push(init?.body as string);
+        return Promise.resolve(new Response(null, { status: 204 }));
+      },
+    });
+    const logger = createLogger(
+      { name: "worker", alerts },
+      new Writable({
+        write: (_chunk, _encoding, callback) => {
+          callback();
+        },
+      }),
+    );
+    const { name, queue } = isolatedEmailQueue(h.connection, { attempts: 5 });
+    const provider = createMemoryMailProvider({ alwaysFailPermanently: true });
+    const worker = createEmailWorker({ ...h, logger, provider, queueName: name });
+    try {
+      // createWorker's own "failed" listener, which writes the job failed line, runs first.
+      const failed = new Promise((resolve) => {
+        worker.once("failed", resolve);
+      });
+      const row = await createPendingEmail(h.db);
+      await enqueueEmailJob(queue, row.id);
+      await failed;
+      await alerts.flush();
+
+      expect(bodies).toHaveLength(1);
+      const [embed] = (
+        JSON.parse(bodies[0]!) as {
+          embeds: {
+            title: string;
+            description: string;
+            fields: { name: string; value: string }[];
+          }[];
+        }
+      ).embeds;
+      expect(embed?.title).toBe("🟠 email delivery failed permanently; row marked FAILED");
+      expect(embed?.description).toContain("mailbox does not exist");
+      expect(embed?.fields).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: "jobId", value: `\`email-${row.id}\`` }),
+          expect.objectContaining({ name: "outboxEmailId", value: `\`${row.id}\`` }),
+        ]),
+      );
     } finally {
       await worker.close();
       await queue.obliterate({ force: true });

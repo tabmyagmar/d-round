@@ -330,3 +330,9 @@ process); Step 5 exercises the fatal path for real.
   `.env.example` carries the variable commented out, like `COOKIE_DOMAIN`: an empty value would fail
   the URL check at start-up. The router alert test passed before the API code changed: it pins the
   wiring from commit 1 (a domain error never alerts, an unknown one alerts once).
+- 2026-10-08, step 3: the processor test names the job and the outbox row, not the queue: the
+  processor's line comes first and carries `jobId`, `outboxEmailId` and `traceId`, and `job failed`
+  (which names the queue) folds into it; the `email-` prefix of the job id names the queue. The
+  worker's start-up failure now exits 1 (`shutdown("startup failure", 1)`); it exited 0 whenever
+  every shutdown step succeeded. Like the router test, the processor alert test passed before the
+  worker code changed: it pins the fold for a real failed job.
