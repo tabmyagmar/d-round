@@ -250,6 +250,7 @@ describe("user repository", () => {
       areas: ["EAST", "WEST"],
     });
     expect(found?.profile?.regions.map((region) => region.regionCode)).toEqual([4, 7]);
+    expect(found?.profile?.regions.map((region) => region.region.name)).toEqual(["南関東", "関西"]);
     expect((await repo.findById(without.id))?.profile).toBeNull();
     const page = await repo.findMany({ page: 1, perPage: 10 }, inGroup(prefix), {
       orderBy: { name: "asc" },

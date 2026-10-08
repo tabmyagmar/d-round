@@ -43,6 +43,9 @@ describe("withParams", () => {
       "area=east&area=west",
     );
     expect(withParams(params("area=x&b=1"), { area: [] }).toString()).toBe("b=1");
+    expect(withParams(params(""), { regionCodes: [4, 7] }).toString()).toBe(
+      "regionCodes=4&regionCodes=7",
+    );
   });
 
   it("never changes the parameters it was given", () => {

@@ -6,7 +6,8 @@ import { z } from "@repo/validation";
  * reproduces the view and back/forward works. Pure functions; the hooks in this folder wrap them.
  */
 
-export type SearchParamValue = string | number | boolean | readonly string[] | null | undefined;
+export type SearchParamValue =
+  string | number | boolean | readonly (string | number)[] | null | undefined;
 
 /** Paging and ordering. Changing any other parameter is a filter change and returns to page 1. */
 export const NON_RESET_KEYS: readonly string[] = ["page", "perPage", "sortBy", "sortOrder"];
@@ -26,8 +27,8 @@ export const withParams = (
   for (const [name, value] of Object.entries(changes)) {
     if (Array.isArray(value)) {
       next.delete(name);
-      for (const item of value as readonly string[]) {
-        next.append(name, item);
+      for (const item of value as readonly (string | number)[]) {
+        next.append(name, String(item));
       }
     } else if (isEmpty(value)) {
       next.delete(name);

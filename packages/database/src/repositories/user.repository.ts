@@ -3,9 +3,19 @@ import { buildPage, normalizePage, toSkipTake } from "../utils/pagination";
 import type { PageParams, PageResult } from "../utils/pagination";
 import type { DbClient } from "../utils/transaction";
 
-/** Every user read carries the 担当者 profile (ADR 0007) with its regions, ascending by code. */
+/**
+ * Every user read carries the 担当者 profile (ADR 0007) with its regions, ascending by code, each
+ * with its name, so lists and detail pages show 地域 without a lookup of their own.
+ */
 const WITH_PROFILE = {
-  profile: { include: { regions: { orderBy: { regionCode: "asc" } } } },
+  profile: {
+    include: {
+      regions: {
+        include: { region: { select: { name: true } } },
+        orderBy: { regionCode: "asc" },
+      },
+    },
+  },
 } satisfies Prisma.UserInclude;
 
 /** A user with their HR profile (`null` until an invite or an edit adds it). */
