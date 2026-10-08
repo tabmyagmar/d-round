@@ -13,7 +13,6 @@ import { href, routes } from "@/config/routes";
 import { UserRowActions } from "@/features/users/components/list/user-row-actions";
 import { RoleBadge } from "@/features/users/components/role-badge";
 import { UserStatusBadge } from "@/features/users/components/user-status-badge";
-import { useUsersStore } from "@/features/users/stores/users-store-provider";
 import type { UserRow } from "@/features/users/types";
 import {
   areaNamesOf,
@@ -21,6 +20,7 @@ import {
   regionNamesOf,
   userStatusOf,
 } from "@/features/users/utils/user-labels";
+import { useRowSelection } from "@/stores/row-selection";
 
 const helper = createDataTableColumns<UserRow>();
 
@@ -115,8 +115,8 @@ export const UsersTable = ({
   onToggleStatus,
 }: UsersTableProps) => {
   const columns = useMemo(() => userColumns(onToggleStatus), [onToggleStatus]);
-  const rowSelection = useUsersStore((store) => store.rowSelection);
-  const setRowSelection = useUsersStore((store) => store.setRowSelection);
+  const rowSelection = useRowSelection((store) => store.rowSelection);
+  const setRowSelection = useRowSelection((store) => store.setRowSelection);
   return (
     <DataTable
       title="全担当者数"

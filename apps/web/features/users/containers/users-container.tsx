@@ -10,13 +10,13 @@ import { listUsersSchema } from "@repo/validation";
 import { useSourceHierarchy } from "@/components/source/use-source-hierarchy";
 import { UsersTable } from "@/features/users/components/list/users-table";
 import { UsersToolbar } from "@/features/users/components/list/users-toolbar";
-import { UsersStoreProvider } from "@/features/users/stores/users-store-provider";
 import type { UserRow } from "@/features/users/types";
 import { userFiltersOf } from "@/features/users/utils/user-filters";
 import { parseSearchParams } from "@/hooks/search-params";
 import { useSearch } from "@/hooks/use-search";
 import { useTableState } from "@/hooks/use-table-state";
 import { useTRPC } from "@/lib/trpc/react";
+import { RowSelectionProvider } from "@/stores/row-selection";
 
 // Loaded when a row's 利用停止 / 利用再開 is chosen, not with the list.
 const UserStatusDialog = dynamic(
@@ -30,7 +30,7 @@ const UserStatusDialog = dynamic(
 /**
  * 担当者管理: the URL is the list's state (search, role, status, page, sort), read through the
  * API's own input schema; the previous page stays on screen while the next one loads. The selected
- * rows live in the users store, shared by the table and the toolbar.
+ * rows live in the list's row selection (`RowSelectionProvider`), shared by the table and toolbar.
  */
 export const UsersContainer = () => {
   const trpc = useTRPC();
@@ -44,7 +44,7 @@ export const UsersContainer = () => {
   const hierarchy = useSourceHierarchy(filters.regionCodes.length > 0);
 
   return (
-    <UsersStoreProvider>
+    <RowSelectionProvider>
       <div className="flex flex-col gap-4">
         <UsersToolbar filters={filters} regions={hierarchy.regions} onChange={setMany} />
         {users.isError ? (
@@ -71,6 +71,6 @@ export const UsersContainer = () => {
           />
         ) : null}
       </div>
-    </UsersStoreProvider>
+    </RowSelectionProvider>
   );
 };

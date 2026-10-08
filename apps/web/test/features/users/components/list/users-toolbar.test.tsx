@@ -7,8 +7,8 @@ import { AbilityProvider } from "@repo/permissions/react";
 
 import { href, routes } from "@/config/routes";
 import { UsersToolbar } from "@/features/users/components/list/users-toolbar";
-import { UsersStoreProvider } from "@/features/users/stores/users-store-provider";
 import type { UserListFilters } from "@/features/users/utils/user-filters";
+import { RowSelectionProvider } from "@/stores/row-selection";
 
 import { userWith } from "../../../../support/grants";
 
@@ -46,13 +46,13 @@ const renderToolbar = (
   const onChange = vi.fn();
   render(
     <AbilityProvider user={userWith(grants)}>
-      <UsersStoreProvider initialState={{ rowSelection }}>
+      <RowSelectionProvider initialState={{ rowSelection }}>
         <UsersToolbar
           filters={filters}
           regions={[{ code: 4, name: "南関東" }]}
           onChange={onChange}
         />
-      </UsersStoreProvider>
+      </RowSelectionProvider>
     </AbilityProvider>,
   );
   return onChange;

@@ -37,7 +37,7 @@ export const UsersToolbar = ({ filters, regions, onChange }: UsersToolbarProps) 
     filters={<UserFilter filters={filters} onChange={onChange} />}
     actions={
       // TODO(D_ROUND-TBD): CSV upload / download (legacy CsvMenus, CsvDownloadDialog) — own ticket;
-      // the download takes the selected ids from the users store.
+      // the download takes the selected ids from the list's row selection (useRowSelection).
       <Can I="create" a="User">
         <Button render={<Link href={href(routes.user.create)} />} nativeButton={false}>
           <Plus data-icon="inline-start" />

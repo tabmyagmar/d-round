@@ -6,8 +6,8 @@ import { AbilityProvider } from "@repo/permissions/react";
 
 import { href, routes } from "@/config/routes";
 import { UsersTable } from "@/features/users/components/list/users-table";
-import { UsersStoreProvider } from "@/features/users/stores/users-store-provider";
 import type { UserRow } from "@/features/users/types";
+import { RowSelectionProvider } from "@/stores/row-selection";
 
 import { EVERY_GRANT, userWith } from "../../../../support/grants";
 import { userProfile, userRow } from "../../fixtures";
@@ -26,7 +26,7 @@ const onePage = (total: number) => ({
 const renderTable = (rows: UserRow[], pagination?: ReturnType<typeof onePage>) =>
   render(
     <AbilityProvider user={userWith(EVERY_GRANT)}>
-      <UsersStoreProvider>
+      <RowSelectionProvider>
         <UsersTable
           data={rows}
           isLoading={false}
@@ -34,7 +34,7 @@ const renderTable = (rows: UserRow[], pagination?: ReturnType<typeof onePage>) =
           pagination={pagination}
           onToggleStatus={vi.fn()}
         />
-      </UsersStoreProvider>
+      </RowSelectionProvider>
     </AbilityProvider>,
   );
 
@@ -112,7 +112,7 @@ describe("UsersTable", () => {
     expect(screen.queryByRole("link", { name: "Bob" })).toBeNull();
   });
 
-  it("selects a row with its checkbox, kept in the users store", () => {
+  it("selects a row with its checkbox, kept in the list's row selection", () => {
     renderTable([userRow({ name: "Amy" }), userRow({ name: "Bob" })]);
     fireEvent.click(screen.getByRole("checkbox", { name: "Amyを選択" }));
 

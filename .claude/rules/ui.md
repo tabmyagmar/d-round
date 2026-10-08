@@ -29,15 +29,15 @@ paths:
 `hooks/`, `lib/`, `config/`); everything with domain knowledge lives in `features/<feature>/`, split
 by role as in bulletproof-react and romuten-v3 — only the folders a feature needs:
 
-| Folder        | Holds                                                                           | `users` example                                                       |
-| ------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `containers/` | one entry per route, the only files pages import; they call tRPC and compose    | `users-container`, `user-detail-container`, `user-update-container`   |
-| `components/` | everything the containers render; presentational where possible (forms take     | `list/users-table`, `form/user-create-form`, `detail/…`, `role-badge` |
-|               | `onSubmit` / `pending`); a dialog may own its own mutation or query             |                                                                       |
-| `hooks/`      | the feature's hooks shared by several components                                | `use-permission-catalog`                                              |
-| `stores/`     | zustand state several components of one screen share (vanilla store + provider) | `users-store` (row selection), `users-store-provider`                 |
-| `utils/`      | pure functions and labels, node-tested                                          | `user-filters`, `user-form-input`, `role-field-state`, `user-labels`  |
-| `types.ts`    | the router output types (`inferRouterOutputs<AppRouter>`)                       | `UserRow`, `UserDetail`, `PermissionCatalog`                          |
+| Folder        | Holds                                                                                                                     | `users` example                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `containers/` | one entry per route, the only files pages import; they call tRPC and compose                                              | `users-container`, `user-detail-container`, `user-update-container`   |
+| `components/` | everything the containers render; presentational where possible (forms take                                               | `list/users-table`, `form/user-create-form`, `detail/…`, `role-badge` |
+|               | `onSubmit` / `pending`); a dialog may own its own mutation or query                                                       |                                                                       |
+| `hooks/`      | the feature's hooks shared by several components                                                                          | `use-permission-catalog`                                              |
+| `stores/`     | zustand state several components of one screen share, other than the row selection (app-level `stores/row-selection.tsx`) | — (none yet)                                                          |
+| `utils/`      | pure functions and labels, node-tested                                                                                    | `user-filters`, `user-form-input`, `role-field-state`, `user-labels`  |
+| `types.ts`    | the router output types (`inferRouterOutputs<AppRouter>`)                                                                 | `UserRow`, `UserDetail`, `PermissionCatalog`                          |
 
 `components/` starts flat. Once a feature has more than about eight components, group them by the
 screen that renders them — `users` has `list/`, `form/` (create and update), `detail/` and
@@ -49,15 +49,16 @@ root (`role-badge`, `user-status-badge`, `user-status-dialog`). Tests mirror the
 There is no `api/` or `graphql/` folder (tRPC hooks are called where they are used) and no
 `schemas/` (zod lives in `@repo/validation`, shared with the API). State goes, in this order, into
 the URL (filters, page, sort — shareable), a container's `useState` (one component's dialog target),
-or a feature store (`stores/`, zustand 5) when several components share it, as the users list's row
-selection: the table writes it, the toolbar's bulk actions (CSV export, own ticket) will read it. A
-store is created per mounted screen by its provider (`createUsersStore` + `UsersStoreProvider`,
-`useState` lazy init), never as a module singleton, and read with selectors
-(`useUsersStore((store) => store.rowSelection)`). Features do not import each other; the app level
-composes them (the shell's user menu renders the users feature's `RoleBadge`). A feature is a domain
-slice, not a menu group: the 設定 group's two screens are `comment-templates` and `help` (romuten-v3
-`features/help`, `features/settings`), which share nothing. `auth` is small and flat (`login-form`,
-`auth-card`, …). Route files under `app/` are thin: they import only from
+or a store (zustand 5) when several components share it. A list's row selection is the app-level
+`apps/web/stores/row-selection.tsx`: the list's container mounts a `RowSelectionProvider`, the table
+writes it and the toolbar's bulk actions (削除, the CSV export to come) read it with
+`useRowSelection((store) => store.rowSelection)`. Other shared screen state goes into a feature
+store (`stores/`) built the same way: created per mounted screen by its provider (`useState` lazy
+init), never as a module singleton, read with selectors. Features do not import each other; the app
+level composes them (the shell's user menu renders the users feature's `RoleBadge`). A feature is a
+domain slice, not a menu group: the 設定 group's two screens are `comment-templates` and `help`
+(romuten-v3 `features/help`, `features/settings`), which share nothing. `auth` is small and flat
+(`login-form`, `auth-card`, …). Route files under `app/` are thin: they import only from
 `@/features/<feature>/containers/...`, `@/components/...`, `@/config/...`, `@/lib/...` and
 `@repo/ui`, and render one container inside `PageGuard`.
 
