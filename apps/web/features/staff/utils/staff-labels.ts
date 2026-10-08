@@ -1,5 +1,5 @@
 import type { SelectOption } from "@repo/ui/components/form";
-import { EMPLOYEE_TYPES, GENDERS, STAFF_STATUSES } from "@repo/validation";
+import { EMPLOYEE_TYPES, FAMILY_RELATIONS, GENDERS, STAFF_STATUSES } from "@repo/validation";
 import type {
   EmployeeType,
   FamilyRelation,
@@ -81,6 +81,10 @@ export const FAMILY_RELATION_LABELS: Record<FamilyRelation, string> = {
   GREAT_GRANDMOTHER: "曽祖母",
 };
 
+export const FAMILY_RELATION_OPTIONS: SelectOption<FamilyRelation>[] = FAMILY_RELATIONS.map(
+  (relation) => ({ value: relation, label: FAMILY_RELATION_LABELS[relation] }),
+);
+
 /** メモ labels, as in the legacy app: a memo the user added (`CUSTOM`) is just メモ. */
 export const STAFF_MEMO_TYPE_LABELS: Record<StaffMemoType, string> = {
   STAFF_MEMO: "スタッフメモ",
@@ -91,6 +95,11 @@ export const STAFF_MEMO_TYPE_LABELS: Record<StaffMemoType, string> = {
   CUSTOM: "メモ",
 };
 
-/** 郵便番号 as the legacy detail wrote it: the stored seven digits become 〒160-0022. */
-export const postCodeLabel = (postCode: string): string =>
-  `〒${postCode.slice(0, 3)}-${postCode.slice(3)}`;
+/** 郵便番号 as the legacy wrote it: seven digits, typed with or without the hyphen, as 〒160-0022. */
+export const postCodeLabel = (postCode: string): string => {
+  const digits = postCode.replace("-", "");
+  return `〒${digits.slice(0, 3)}-${digits.slice(3)}`;
+};
+
+/** What the staff form says when another staff holds the スタッフ番号 (legacy wording). */
+export const STAFF_NUMBER_TAKEN = "このスタッフ番号は既に使用されています";

@@ -12,3 +12,12 @@ export type StaffDetail = StaffOutputs["byId"];
 
 /** A row of `staff.byCharger`: a staff a user is in charge of, with its regions. */
 export type ChargedStaff = StaffOutputs["byCharger"][number];
+
+/** `user.chargerOptions`: a user who may be a staff's 担当者 (covers one of its regions). */
+export type ChargerOption = inferRouterOutputs<AppRouter>["user"]["chargerOptions"][number];
+
+/** A 定型文 the memo fields offer as a shortcut (`commentTemplate.list` for STAFF). */
+export type MemoTemplate = Pick<
+  inferRouterOutputs<AppRouter>["commentTemplate"]["list"]["items"][number],
+  "id" | "short" | "content"
+>;

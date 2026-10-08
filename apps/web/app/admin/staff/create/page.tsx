@@ -1,10 +1,10 @@
 import { PageGuard } from "@/components/page-guard";
-import { PlaceholderPage } from "@/components/placeholder-page";
 import { routes } from "@/config/routes";
+import { StaffCreateContainer } from "@/features/staff/containers/staff-create-container";
 
 const StaffCreatePage = () => (
   <PageGuard route={routes.staff.create}>
-    <PlaceholderPage route={routes.staff.create} />
+    <StaffCreateContainer />
   </PageGuard>
 );
 

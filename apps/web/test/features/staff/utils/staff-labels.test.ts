@@ -72,8 +72,9 @@ describe("staff labels", () => {
     ]);
   });
 
-  it("writes the stored post code with 〒 and the hyphen", () => {
+  it("writes a post code with 〒 and the hyphen, stored or typed with it", () => {
     expect(postCodeLabel("1600022")).toBe("〒160-0022");
+    expect(postCodeLabel("160-0022")).toBe("〒160-0022");
   });
 
   it("writes the name and the reading family name first", () => {
