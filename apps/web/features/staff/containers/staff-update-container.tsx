@@ -85,7 +85,6 @@ export const StaffUpdateContainer = ({ staffId }: { staffId: string }) => {
       submitLabel="保存"
       pendingLabel="保存中…"
       pending={update.isPending}
-      errorMessage={update.isError ? update.error.message : undefined}
       onSubmit={(input) => {
         update.mutate({ staffId, ...input });
       }}

@@ -155,20 +155,4 @@ describe("UserCreateForm", () => {
     expect(await screen.findByText("全角カタカナで入力してください")).toBeDefined();
     expect(onSubmit).not.toHaveBeenCalled();
   });
-
-  it("shows the server's error", () => {
-    render(
-      <UserCreateForm
-        roleField={{ options: ["am"], disabled: false }}
-        canEditPermissions={false}
-        hierarchy={HIERARCHY}
-        isEmployeeNumberFree={vi.fn()}
-        pending={false}
-        errorMessage="A user with this email already exists"
-        onSubmit={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText("A user with this email already exists")).toBeDefined();
-  });
 });

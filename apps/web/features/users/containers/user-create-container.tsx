@@ -48,7 +48,6 @@ export const UserCreateContainer = ({ callerRole }: { callerRole: Role }) => {
           .catch(() => true)
       }
       pending={invite.isPending}
-      errorMessage={invite.isError ? invite.error.message : undefined}
       onSubmit={(input) => {
         invite.mutate(input);
       }}

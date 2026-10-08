@@ -65,7 +65,6 @@ export const StaffCreateContainer = () => {
       submitLabel="追加"
       pendingLabel="追加中…"
       pending={create.isPending}
-      errorMessage={create.isError ? create.error.message : undefined}
       onSubmit={(input) => {
         create.mutate(input);
       }}

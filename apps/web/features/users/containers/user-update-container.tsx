@@ -75,7 +75,6 @@ export const UserUpdateContainer = ({ userId, caller }: { userId: string; caller
           .catch(() => true)
       }
       pending={update.isPending}
-      errorMessage={update.isError ? update.error.message : undefined}
       onSubmit={(input) => {
         update.mutate(input);
       }}

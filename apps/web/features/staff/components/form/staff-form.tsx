@@ -7,7 +7,6 @@ import { useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import type { DefaultValues } from "react-hook-form";
 
-import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
 import { Stepper } from "@repo/ui/components/composed/stepper";
 import { StickyBar } from "@repo/ui/components/composed/sticky-bar";
@@ -49,7 +48,6 @@ export type StaffFormProps = {
   submitLabel: string;
   pendingLabel: string;
   pending: boolean;
-  errorMessage?: string | undefined;
   onSubmit: (input: CreateStaffInput) => void;
 };
 
@@ -72,7 +70,6 @@ export const StaffForm = ({
   submitLabel,
   pendingLabel,
   pending,
-  errorMessage,
   onSubmit,
 }: StaffFormProps) => {
   // 次へ validates through `trigger`, never a submit, so the form re-validates each change itself
@@ -154,12 +151,6 @@ export const StaffForm = ({
         className="w-full max-w-4xl"
       />
       <div className="flex w-full max-w-4xl flex-col gap-6">
-        {errorMessage ? (
-          <Alert variant="destructive">
-            <AlertTitle>スタッフを保存できませんでした</AlertTitle>
-            <AlertDescription>{errorMessage}</AlertDescription>
-          </Alert>
-        ) : null}
         {stepper.current === 0 ? (
           <StaffBasicStep
             control={form.control}

@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 
-import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent } from "@repo/ui/components/card";
 import { StickyBar } from "@repo/ui/components/composed/sticky-bar";
@@ -28,7 +27,6 @@ export type UserUpdateFormProps = {
   /** Asked before saving a changed 社員番号 (legacy userNumberExists, the user left out). */
   isEmployeeNumberFree: (employeeNumber: number) => Promise<boolean>;
   pending: boolean;
-  errorMessage?: string | undefined;
   onSubmit: (input: UpdateUserInput) => void;
 };
 
@@ -44,7 +42,6 @@ export const UserUpdateForm = ({
   hierarchy,
   isEmployeeNumberFree,
   pending,
-  errorMessage,
   onSubmit,
 }: UserUpdateFormProps) => {
   // users.role references the role catalog, whose keys are exactly ROLES (role-catalog parity test).
@@ -86,12 +83,6 @@ export const UserUpdateForm = ({
     >
       <Card className="max-w-2xl">
         <CardContent className="flex flex-col gap-6">
-          {errorMessage ? (
-            <Alert variant="destructive">
-              <AlertTitle>担当者情報を更新できませんでした</AlertTitle>
-              <AlertDescription>{errorMessage}</AlertDescription>
-            </Alert>
-          ) : null}
           <UserFormFields
             control={form.control}
             roleField={roleField}
