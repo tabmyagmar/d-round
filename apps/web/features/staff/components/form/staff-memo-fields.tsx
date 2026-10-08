@@ -7,6 +7,7 @@ import type { Control } from "react-hook-form";
 import { Button } from "@repo/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/card";
 import { TextareaField } from "@repo/ui/components/form";
+import { STAFF_LIST_MAX } from "@repo/validation";
 import type { StaffFormValues } from "@repo/validation";
 
 import type { MemoTemplate } from "@/features/staff/types";
@@ -113,6 +114,7 @@ export const StaffMemoFields = ({ control, templates }: StaffMemoFieldsProps) =>
             type="button"
             variant="outline"
             size="sm"
+            disabled={fields.length >= STAFF_LIST_MAX}
             onClick={() => {
               append({ memoType: "CUSTOM", content: "" });
             }}

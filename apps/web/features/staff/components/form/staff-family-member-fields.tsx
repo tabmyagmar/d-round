@@ -6,6 +6,7 @@ import type { Control } from "react-hook-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/card";
 import { ArrayField, DateField, SelectField, TextField } from "@repo/ui/components/form";
 import { ja } from "@repo/ui/lib/calendar-locale";
+import { STAFF_LIST_MAX } from "@repo/validation";
 import type { StaffFormValues } from "@repo/validation";
 
 import { FAMILY_RELATION_OPTIONS } from "@/features/staff/utils/staff-labels";
@@ -35,6 +36,7 @@ export const StaffFamilyMemberFields = ({ control }: { control: Control<StaffFor
           label="家族情報"
           hideLabel
           newItem={newFamilyMember}
+          max={STAFF_LIST_MAX}
           addLabel="家族情報を追加"
           emptyMessage="家族情報はありません"
           renderRow={({ index }) => (

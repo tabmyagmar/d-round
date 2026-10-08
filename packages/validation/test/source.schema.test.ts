@@ -4,6 +4,8 @@ import {
   addressByPostCodeSchema,
   addressFormSchema,
   postCodeSchema,
+  regionCodesSchema,
+  SOURCE_CODES_MAX,
   regionCodeSchema,
   sourceAreaSchema,
 } from "../src/source.schema";
@@ -70,5 +72,15 @@ describe("addressFormSchema", () => {
     expect(result.error?.issues.map((issue) => [issue.path.join("."), issue.message])).toEqual([
       ["pref", "郵便番号を入力してください"],
     ]);
+  });
+});
+
+describe("regionCodesSchema", () => {
+  it("dedupes and orders the codes, and bounds how many one request may send", () => {
+    expect(regionCodesSchema.parse([7, 4, 4])).toEqual([4, 7]);
+    const tooMany = Array.from({ length: SOURCE_CODES_MAX + 1 }, (_, index) => index + 1);
+    expect(regionCodesSchema.safeParse(tooMany).error?.issues[0]?.message).toBe(
+      `${String(SOURCE_CODES_MAX)}件以内で選択してください`,
+    );
   });
 });

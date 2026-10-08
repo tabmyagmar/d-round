@@ -1013,3 +1013,17 @@ arrays; `@casl/prisma` with a third model in `Subjects`; Base UI Combobox chips 
   finding resolved or recorded; its one new NIT (the `employeeNumberSchema` doc comment had moved
   above the new helper) fixed. `employeeNumberOfSearch` stays in `user.schema.ts`, beside
   `employeeNumberSchema` and `EMPLOYEE_NUMBER_MAX`, which the staff schema imports too.
+- 2026-10-08, security review (by hand: `/security-review` needs `origin/HEAD`, absent while
+  `develop` is local only, as on the settings ticket):
+  - Every new procedure has `requireAbility`, and the services re-check the row
+    (`prismaStaffSubject`, `accessibleStaffWhere`, `accessibleUsersWhere`). A 担当者 cannot edit
+    their own profile (it needs the `update User` grant), so nobody widens their own regions into
+    the 担当者 picker.
+  - All queries go through Prisma: no raw SQL, no new secrets or env. React escapes memo text.
+    `staff.employeeNumberAvailable` tells staff editors whether a number is taken (legacy parity).
+  - Found and fixed: the staff form's lists and the code lists had no upper bound, and the API has
+    no request body limit. The schemas now bound them (`STAFF_LIST_MAX` 100 rows, `SOURCE_CODES_MAX`
+    100 codes; the master has 47 prefectures and 9 regions), and the form's add buttons
+    and 担当者 picker stop there. `areasSchema` keeps no bound: its transform leaves at most the two
+    areas.
+  - Follow-up, its own ticket: a request body limit for the whole API (Hono `bodyLimit`).

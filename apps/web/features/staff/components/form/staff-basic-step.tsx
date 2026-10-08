@@ -17,7 +17,7 @@ import {
   TextField,
 } from "@repo/ui/components/form";
 import { ja } from "@repo/ui/lib/calendar-locale";
-import { ageOf } from "@repo/validation";
+import { ageOf, STAFF_LIST_MAX } from "@repo/validation";
 import type { StaffFormValues } from "@repo/validation";
 
 import { NameFields } from "@/components/name-fields";
@@ -114,6 +114,7 @@ export const StaffBasicStep = ({
                   label: charger.name,
                 }))}
                 emptyMessage={regionCodes.length > 0 ? "該当なし" : "地域を選択してください"}
+                max={STAFF_LIST_MAX}
                 loading={chargersLoading}
                 pruneToOptions={chargersReady}
                 required
@@ -216,6 +217,7 @@ export const StaffBasicStep = ({
             label="在籍情報"
             hideLabel
             newItem={newJobHistory}
+            max={STAFF_LIST_MAX}
             addLabel="在籍情報を追加"
             emptyMessage="在籍情報はありません"
             renderRow={({ index }) => (

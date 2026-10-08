@@ -17,8 +17,15 @@ export const regionCodeSchema = z.coerce.number().int().min(1);
 export const prefectureCodeSchema = z.coerce.number().int().min(1);
 
 /** Distinct codes in ascending order (a code twice would break a join table's key). */
+/**
+ * The most codes one field takes: the master has 47 prefectures and 9 regions, so this only bounds
+ * an oversized request.
+ */
+export const SOURCE_CODES_MAX = 100;
+
 const codesSchema = z
   .array(z.number().int().min(1))
+  .max(SOURCE_CODES_MAX, { error: `${String(SOURCE_CODES_MAX)}件以内で選択してください` })
   .transform((codes) => [...new Set(codes)].sort((a, b) => a - b));
 
 /** Region codes as a form or the API sends them (numbers; a URL filter uses `regionCodeSchema`). */

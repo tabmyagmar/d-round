@@ -87,6 +87,14 @@ export const FIXED_MEMO_TYPES = [
 /** Staff in one delete (the legacy limit). */
 export const STAFF_DELETE_MAX = 50;
 
+/**
+ * The most rows one list of the staff form takes (在籍情報, 家族情報, メモ, 担当者): far above any
+ * real staff, it bounds an oversized request; the form's add buttons stop there.
+ */
+export const STAFF_LIST_MAX = 100;
+
+const LIST_TOO_LONG = `${String(STAFF_LIST_MAX)}件以内で入力してください`;
+
 /** The youngest a スタッフ may be (legacy AgeSchema(16)). */
 export const STAFF_MIN_AGE = 16;
 
@@ -179,12 +187,13 @@ export const createStaffSchema = z.object({
   /** 担当者: user ids, distinct. */
   chargerUserIds: z
     .array(idSchema)
+    .max(STAFF_LIST_MAX, { error: LIST_TOO_LONG })
     .transform((ids) => [...new Set(ids)])
     .refine((ids) => ids.length > 0, { error: "担当者を選択してください" }),
   address: addressSchema,
-  jobHistories: z.array(jobHistorySchema),
-  familyMembers: z.array(familyMemberSchema),
-  memos: z.array(staffMemoSchema),
+  jobHistories: z.array(jobHistorySchema).max(STAFF_LIST_MAX, { error: LIST_TOO_LONG }),
+  familyMembers: z.array(familyMemberSchema).max(STAFF_LIST_MAX, { error: LIST_TOO_LONG }),
+  memos: z.array(staffMemoSchema).max(STAFF_LIST_MAX, { error: LIST_TOO_LONG }),
 });
 export type CreateStaffInput = z.output<typeof createStaffSchema>;
 

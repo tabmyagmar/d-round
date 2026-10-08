@@ -5,6 +5,7 @@ import {
   createStaffSchema,
   listStaffsSchema,
   phoneSchema,
+  STAFF_LIST_MAX,
   staffFormSchema,
   updateStaffSchema,
 } from "../src/staff.schema";
@@ -118,6 +119,20 @@ describe("createStaffSchema", () => {
         }),
       ),
     ).toEqual({ path: "jobHistories.0.hireDate", message: "日付は必須です" });
+  });
+});
+
+describe("createStaffSchema list bounds", () => {
+  it("refuses a list longer than STAFF_LIST_MAX rows", () => {
+    const memos = Array.from({ length: STAFF_LIST_MAX + 1 }, () => ({
+      memoType: "CUSTOM" as const,
+      content: "x",
+    }));
+
+    expect(firstIssue(createStaffSchema.safeParse({ ...STAFF, memos }))).toEqual({
+      path: "memos",
+      message: `${String(STAFF_LIST_MAX)}件以内で入力してください`,
+    });
   });
 });
 
