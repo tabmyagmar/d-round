@@ -271,7 +271,11 @@ describe("userProfileSchema (担当者 HR fields)", () => {
 });
 
 describe("chargerOptionsSchema", () => {
-  it("needs at least one region code", () => {
+  it("takes no region code (every 担当者) but never an empty list", () => {
+    expect(chargerOptionsSchema.parse({})).toEqual({});
+  });
+
+  it("needs at least one region code when it takes them", () => {
     expect(chargerOptionsSchema.parse({ regionCodes: [4, 3, 4] })).toEqual({ regionCodes: [3, 4] });
     expect(chargerOptionsSchema.safeParse({ regionCodes: ["4"] }).success).toBe(false);
     expect(firstIssue(chargerOptionsSchema.safeParse({ regionCodes: [] }))).toEqual({
@@ -421,6 +425,17 @@ describe("kanaSchema (セイ / メイ)", () => {
   it("asks for the reading when it is empty or blank", () => {
     expect(firstIssue(sei.safeParse(""))?.message).toBe("セイを入力してください");
     expect(firstIssue(sei.safeParse("  "))?.message).toBe("セイを入力してください");
+  });
+
+  it("caps the reading at 80 characters unless told otherwise", () => {
+    expect(firstIssue(sei.safeParse("ア".repeat(81)))?.message).toBe(
+      "セイは80文字以内で入力してください",
+    );
+    const longer = kanaSchema("クライアント名（カタカナ）", 100);
+    expect(longer.safeParse("ア".repeat(100)).success).toBe(true);
+    expect(firstIssue(longer.safeParse("ア".repeat(101)))?.message).toBe(
+      "クライアント名（カタカナ）は100文字以内で入力してください",
+    );
   });
 });
 

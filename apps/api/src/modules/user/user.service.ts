@@ -568,8 +568,9 @@ export const sendPasswordReset = async (ctx: RequestContext, userId: string): Pr
 export const CHARGER_OPTIONS_MAX = 200;
 
 /**
- * The users the スタッフ form may offer as 担当者 (legacy getChargerUsers): active, never a
- * super_admin, covering one of `regionCodes`, among the users the caller may read, in kana order.
+ * The users a form may offer as 担当者 (legacy getChargerUsers): active, never a super_admin, among
+ * the users the caller may read, in kana order; with `regionCodes` only those covering one of them
+ * (the スタッフ form), without them every one (the クライアント and 就業先部署 forms).
  */
 export const chargerOptions = async (
   ctx: RequestContext,
@@ -579,16 +580,37 @@ export const chargerOptions = async (
     throw new ForbiddenError("Not allowed to list users");
   }
   const superAdmin: Role = "super_admin";
-  return createUserRepository(ctx.db).findChargerOptions(
-    {
-      AND: [
-        accessibleUsersWhere(ctx.ability, "read"),
-        { role: { not: superAdmin } },
-        { profile: { regions: { some: { regionCode: { in: input.regionCodes } } } } },
-      ],
-    },
-    CHARGER_OPTIONS_MAX,
+  const filters: Prisma.UserWhereInput[] = [
+    accessibleUsersWhere(ctx.ability, "read"),
+    { role: { not: superAdmin } },
+  ];
+  if (input.regionCodes) {
+    filters.push({ profile: { regions: { some: { regionCode: { in: input.regionCodes } } } } });
+  }
+  return createUserRepository(ctx.db).findChargerOptions({ AND: filters }, CHARGER_OPTIONS_MAX);
+};
+
+/**
+ * A 担当者 being assigned (to a スタッフ, a クライアント or a 就業先部署) must be an active user other
+ * than a super_admin. The callers ask only for the new ones: one deactivated since keeps their
+ * assignment, and the record stays editable. It runs inside the caller's write transaction, so it
+ * takes that transaction's client rather than a request context.
+ */
+export const assertChargersActive = async (
+  db: DbClient,
+  userIds: readonly string[],
+): Promise<void> => {
+  if (userIds.length === 0) {
+    return;
+  }
+  const superAdmin: Role = "super_admin";
+  const chargers = await createUserRepository(db).findChargerOptions(
+    { id: { in: [...userIds] }, role: { not: superAdmin } },
+    userIds.length,
   );
+  if (chargers.length !== userIds.length) {
+    throw new ValidationError("Every 担当者 must be an active user");
+  }
 };
 
 /**

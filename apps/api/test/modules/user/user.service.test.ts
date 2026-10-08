@@ -938,6 +938,23 @@ describe("担当者 profile (ADR 0007)", () => {
     expect(options.map((option) => option.id).filter((id) => mine.has(id))).toEqual([abe, yamada]);
   });
 
+  it("offers every active user but the super_admins when no region is given, profile or not", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const ctx = await contextFor(h, admin.headers);
+    const east = await signedInUser(h, { profile: { regionCodes: [4] } });
+    const west = await signedInUser(h, { profile: { regionCodes: [7] } });
+    const noProfile = await signedInUser(h);
+    const superAdmin = await signedInUser(h, { role: "super_admin" });
+    const gone = await signedInUser(h);
+    await h.db.user.update({ where: { id: gone.user.id }, data: { deletedAt: new Date() } });
+
+    const ids = new Set((await userService.chargerOptions(ctx, {})).map((option) => option.id));
+
+    expect([east, west, noProfile].every(({ user }) => ids.has(user.id))).toBe(true);
+    expect(ids.has(superAdmin.user.id)).toBe(false);
+    expect(ids.has(gone.user.id)).toBe(false);
+  });
+
   it("tells an admin whether a 社員番号 is free, and refuses an AM", async () => {
     const admin = await signedInUser(h, { role: "admin" });
     const am = await signedInUser(h);

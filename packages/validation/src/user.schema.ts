@@ -68,9 +68,12 @@ export const passwordSchema = z
 /** Full-width katakana with ー, ・ and spaces: the legacy rule for name readings (セイ / メイ). */
 export const KATAKANA_PATTERN = /^[\u30A0-\u30FF\s]+$/u;
 
-/** A required katakana reading, e.g. `kanaSchema("セイ")`. */
-export const kanaSchema = (label: string) =>
-  requiredText(label, 80).regex(KATAKANA_PATTERN, { error: "全角カタカナで入力してください" });
+/**
+ * A required katakana reading, e.g. `kanaSchema("セイ")`; `max` for longer names (a クライアント's
+ * reading takes 100).
+ */
+export const kanaSchema = (label: string, max = 80) =>
+  requiredText(label, max).regex(KATAKANA_PATTERN, { error: "全角カタカナで入力してください" });
 
 /** 姓 / 名 and their readings セイ / メイ (legacy limits: 80 characters each). */
 export const userNameSchema = z.object({
@@ -270,10 +273,13 @@ export const employeeNumberAvailableSchema = z.object({
 });
 export type EmployeeNumberAvailableInput = z.output<typeof employeeNumberAvailableSchema>;
 
-/** The users the スタッフ form may offer as 担当者: those covering one of these regions. */
+/**
+ * The users a form may offer as 担当者: with `regionCodes` those covering one of them (the スタッフ
+ * form), without every one (the クライアント and 就業先部署 forms, as the legacy).
+ */
 export const chargerOptionsSchema = z.object({
-  regionCodes: regionCodesSchema.refine((codes) => codes.length > 0, {
-    error: "地域を選択してください",
-  }),
+  regionCodes: regionCodesSchema
+    .refine((codes) => codes.length > 0, { error: "地域を選択してください" })
+    .optional(),
 });
 export type ChargerOptionsInput = z.output<typeof chargerOptionsSchema>;

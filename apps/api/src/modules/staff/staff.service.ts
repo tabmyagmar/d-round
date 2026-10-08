@@ -1,9 +1,4 @@
-import {
-  createSourceRepository,
-  createStaffRepository,
-  createUserRepository,
-  withTransaction,
-} from "@repo/database";
+import { createStaffRepository, withTransaction } from "@repo/database";
 import type {
   ChargedStaffRow,
   DbClient,
@@ -21,7 +16,6 @@ import type {
   CreateStaffInput,
   DeleteStaffsInput,
   ListStaffsQuery,
-  Role,
   SortOrder,
   StaffNumberAvailableInput,
   StaffSortField,
@@ -30,7 +24,9 @@ import type {
 } from "@repo/validation";
 
 import type { RequestContext } from "../../core/context";
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../core/errors";
+import { ConflictError, ForbiddenError, NotFoundError } from "../../core/errors";
+import { assertKnownSource } from "../source/source.service";
+import { assertChargersActive } from "../user/user.service";
 
 /**
  * スタッフ (ADR 0008). The router checked the catalog action on the type; this service checks the
@@ -142,41 +138,11 @@ const assertWritable = async (
   if (holders > 0) {
     throw new ConflictError(STAFF_NUMBER_TAKEN);
   }
-  const source = createSourceRepository(db);
-  const regions = new Set((await source.findRegions()).map((region) => region.code));
-  const prefectures = new Set((await source.findPrefectures()).map((item) => item.code));
-  const unknown = [
-    ...input.regionCodes
-      .filter((code) => !regions.has(code))
-      .map((code) => `region ${String(code)}`),
-    ...input.prefectureCodes
-      .filter((code) => !prefectures.has(code))
-      .map((code) => `prefecture ${String(code)}`),
-  ];
-  if (unknown.length > 0) {
-    throw new ValidationError(`Unknown ${unknown.join(", ")}`);
-  }
-  if (!(await source.findAddressByPostCode(input.address.postCode))) {
-    throw new ValidationError(`Unknown post code ${input.address.postCode}`);
-  }
-};
-
-/**
- * A 担当者 being assigned must be an active user other than a super_admin. Only new ones are
- * asked: one deactivated since keeps the history row, and the staff stays editable.
- */
-const assertChargersActive = async (db: DbClient, userIds: readonly string[]): Promise<void> => {
-  if (userIds.length === 0) {
-    return;
-  }
-  const superAdmin: Role = "super_admin";
-  const chargers = await createUserRepository(db).findChargerOptions(
-    { id: { in: [...userIds] }, role: { not: superAdmin } },
-    userIds.length,
-  );
-  if (chargers.length !== userIds.length) {
-    throw new ValidationError("Every 担当者 must be an active user");
-  }
+  await assertKnownSource(db, {
+    regionCodes: input.regionCodes,
+    prefectureCodes: input.prefectureCodes,
+    postCode: input.address.postCode,
+  });
 };
 
 /** The parsed form as the repository writes it; memos without text are not stored. */
