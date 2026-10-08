@@ -1,4 +1,4 @@
-import type { StaffRow } from "@/features/staff/types";
+import type { StaffDetail, StaffRow } from "@/features/staff/types";
 
 const CREATED = new Date("2026-10-01T00:00:00Z");
 
@@ -34,6 +34,67 @@ export const staffRow = (overrides: Partial<StaffRow> = {}): StaffRow => {
         createdAt: CREATED,
         unassignedAt: null,
         user: { id: "charger-1", name: "佐藤 一郎" },
+      },
+    ],
+    ...overrides,
+  };
+};
+
+/** A charger row as `staff.byId` returns it: assigned at `from`, unassigned at `to` (or not). */
+export const chargerRow = (
+  staffId: string,
+  name: string,
+  from: string,
+  to: string | null = null,
+): StaffDetail["chargers"][number] => {
+  const userId = crypto.randomUUID();
+  return {
+    id: crypto.randomUUID(),
+    staffId,
+    userId,
+    createdAt: new Date(from),
+    unassignedAt: to === null ? null : new Date(to),
+    user: { id: userId, name },
+  };
+};
+
+/**
+ * `staff.byId` for スタッフ番号 101 山田 花子: 〒160-0022 東京都新宿区新宿, 東京都, one 担当者 now
+ * and one before, one employment period, no family members or memos.
+ */
+export const staffDetail = (overrides: Partial<StaffDetail> = {}): StaffDetail => {
+  const id = overrides.id ?? crypto.randomUUID();
+  const { chargers: _listChargers, ...row } = staffRow({ id });
+  return {
+    ...row,
+    address: {
+      id: crypto.randomUUID(),
+      staffId: id,
+      postCode: "1600022",
+      address1: "1-2-3",
+      createdAt: CREATED,
+      updatedAt: CREATED,
+      sourceAddress: { pref: "東京都", city: "新宿区", town: "新宿" },
+    },
+    prefectures: [
+      { staffId: id, prefectureCode: 13, createdAt: CREATED, prefecture: { name: "東京都" } },
+    ],
+    chargers: [
+      chargerRow(id, "前任 太郎", "2026-01-05T00:00:00Z", "2026-06-30T00:00:00Z"),
+      chargerRow(id, "佐藤 一郎", "2026-07-01T00:00:00Z"),
+    ],
+    familyMembers: [],
+    memos: [],
+    jobHistories: [
+      {
+        id: crypto.randomUUID(),
+        staffId: id,
+        sortOrder: 0,
+        hireDate: new Date("2026-04-01T00:00:00Z"),
+        resignationDate: null,
+        resignationReason: null,
+        createdAt: CREATED,
+        updatedAt: CREATED,
       },
     ],
     ...overrides,
