@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { PermissionGrant } from "@repo/permissions";
 import { AbilityProvider } from "@repo/permissions/react";
@@ -12,7 +12,21 @@ import type { UserListFilters } from "@/features/users/utils/user-filters";
 
 import { userWith } from "../../../../support/grants";
 
+beforeAll(() => {
+  // jsdom has no matchMedia; the filter button's useIsMobile subscribes to one (desktop width here).
+  vi.stubGlobal("matchMedia", (media: string) => ({
+    matches: false,
+    media,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+});
+
 afterEach(cleanup);
+
+afterAll(() => {
+  vi.unstubAllGlobals();
+});
 
 const NO_FILTERS: UserListFilters = { search: "", role: null, status: "active" };
 const READ_USERS: readonly PermissionGrant[] = [{ action: "read", subject: "User" }];
