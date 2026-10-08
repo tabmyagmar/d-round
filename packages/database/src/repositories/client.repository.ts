@@ -115,12 +115,6 @@ export const createClientRepository = (db: DbClient) => ({
     });
   },
 
-  /** The users in charge of the client. */
-  findChargerIds: async (clientId: string): Promise<string[]> =>
-    (await db.clientCharger.findMany({ where: { clientId }, select: { userId: true } })).map(
-      (charger) => charger.userId,
-    ),
-
   /** The 担当者 become `userIds`: the others are removed, the ones still chosen keep their row. */
   replaceChargers: async (clientId: string, userIds: readonly string[]): Promise<void> => {
     await db.clientCharger.deleteMany({ where: { clientId, userId: { notIn: [...userIds] } } });

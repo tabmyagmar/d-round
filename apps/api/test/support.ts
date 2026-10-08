@@ -11,7 +11,7 @@ import type { Logger } from "@repo/logger";
 import { createEmailQueue, createRedisConnection, waitForRedis } from "@repo/queue";
 import type { EmailQueue, RedisConnection } from "@repo/queue";
 import { DEFAULT_ROLE } from "@repo/validation";
-import type { CreateStaffInput, Role } from "@repo/validation";
+import type { CreateClientInput, CreateStaffInput, Role } from "@repo/validation";
 
 import { buildRequestContext } from "../src/core/context";
 import type { RequestContext } from "../src/core/context";
@@ -218,5 +218,27 @@ export const staffInput = (
     { memoType: "STAFF_MEMO", content: "面談済み" },
     { memoType: "ENTRY_EXIT", content: "" },
   ],
+  ...overrides,
+});
+
+/**
+ * A parsed クライアント追加 input (as the router hands it to the service): a unique クライアント番号,
+ * 東日本 / 南関東 at `TEST_POST_CODE`, the given 担当者, 派遣. Call `ensureTestPostCode` first.
+ */
+export const clientInput = (
+  chargerUserIds: string[],
+  overrides: Partial<CreateClientInput> = {},
+): CreateClientInput => ({
+  number: uniqueEmployeeNumber(),
+  name: "株式会社テスト",
+  nameKana: "カブシキガイシャテスト",
+  areas: ["EAST"],
+  regionCodes: [4],
+  chargerUserIds,
+  address: { postCode: TEST_POST_CODE, address1: "1-2-3" },
+  phoneNumber: "03-1234-5678",
+  fax: null,
+  webUrl: null,
+  orderTypes: ["DISPATCH"],
   ...overrides,
 });

@@ -283,3 +283,13 @@ export const chargerOptionsSchema = z.object({
     .optional(),
 });
 export type ChargerOptionsInput = z.output<typeof chargerOptionsSchema>;
+
+/** The most 担当者 a クライアント or a 就業先部署 takes: far above any real case, it bounds a request. */
+export const CHARGERS_MAX = 100;
+
+/** The 担当者 of a クライアント or a 就業先部署: user ids, distinct, at least one. */
+export const chargerUserIdsSchema = z
+  .array(idSchema)
+  .max(CHARGERS_MAX, { error: `${String(CHARGERS_MAX)}件以内で選択してください` })
+  .transform((ids) => [...new Set(ids)])
+  .refine((ids) => ids.length > 0, { error: "担当者を選択してください" });

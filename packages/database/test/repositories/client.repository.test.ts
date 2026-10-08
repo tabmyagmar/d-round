@@ -114,7 +114,6 @@ describe("client repository", () => {
       expect(client?.address?.address1).toBe("4-5-6");
       expect(client?.regions.map((region) => region.regionCode)).toEqual([7]);
       expect(client?.chargers.map((row) => row.user.name)).toEqual(["継続", "追加"]);
-      expect(new Set(await repo.findChargerIds(id))).toEqual(new Set([kept.id, added.id]));
     });
   });
 
