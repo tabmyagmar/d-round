@@ -20,3 +20,12 @@ export const requiredText = (label: string, max: number) =>
     .trim()
     .min(1, { error: `${label}を入力してください` })
     .max(max, { error: `${label}は${String(max)}文字以内で入力してください` });
+
+/**
+ * Full-width digits and dashes, as a Japanese IME types them, in half width (the legacy
+ * `normalizeFullWidth`): `０９０ー１２３４` → `090-1234`.
+ */
+export const toHalfWidthDigits = (text: string): string =>
+  text
+    .replace(/[０-９]/g, (digit) => String.fromCharCode(digit.charCodeAt(0) - 0xfee0))
+    .replace(/[ー－−―‐]/g, "-");

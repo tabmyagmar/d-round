@@ -6,6 +6,7 @@ export type { ZodError, ZodType } from "zod";
 export * from "./comment-template.schema";
 export * from "./common.schema";
 export * from "./permission.schema";
+export * from "./phone.schema";
 export * from "./source.schema";
 export * from "./staff.schema";
 export * from "./user.schema";

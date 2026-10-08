@@ -52,4 +52,34 @@ describe("TextField", () => {
 
     expect(seen).toEqual([{ text: "Amy", stored: "Amy" }]);
   });
+
+  it("rewrites the text as it is typed with format, and waits for an IME to finish composing", () => {
+    const Formatting = () => {
+      const form = useForm<Values>({ defaultValues: { name: "" } });
+      return (
+        <TextField
+          control={form.control}
+          name="name"
+          label="Post code"
+          format={(text) =>
+            text
+              .replace(/[０-９]/g, (digit) => String.fromCharCode(digit.charCodeAt(0) - 0xfee0))
+              .replace(/\D/g, "")
+              .replace(/^(\d{3})(\d)/, "$1-$2")
+          }
+        />
+      );
+    };
+    render(<Formatting />);
+    const input = screen.getByLabelText("Post code");
+
+    fireEvent.change(input, { target: { value: "1600022" } });
+    expect(input).toHaveProperty("value", "160-0022");
+
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: "１６０" } });
+    expect(input).toHaveProperty("value", "１６０");
+    fireEvent.compositionEnd(input, { target: { value: "１６０" } });
+    expect(input).toHaveProperty("value", "160");
+  });
 });

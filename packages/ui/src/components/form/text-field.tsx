@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import type { ComponentProps } from "react";
 import type { FieldValues } from "react-hook-form";
 
@@ -20,6 +21,11 @@ export type TextFieldProps<TValues extends FieldValues> = BaseFieldProps<TValues
   emptyAs?: EmptyAs;
   /** Called with the typed text after the field changed, e.g. to look something up as it is typed. */
   onValueChange?: (text: string) => void;
+  /**
+   * Rewrites the text as it is typed (`formatPostCode`, `formatPhoneNumber`). While an IME
+   * composes, the raw text stays; the composed text is formatted when the composition ends.
+   */
+  format?: (text: string) => string;
 };
 
 /** Label + input + description + error, wired to react-hook-form. Numbers: see `NumberField`. */
@@ -38,8 +44,15 @@ export const TextField = <TValues extends FieldValues>({
   maxLength,
   emptyAs = "string",
   onValueChange,
+  format,
 }: TextFieldProps<TValues>) => {
   const { ref, field, fieldState } = useFormField({ control, name, disabled });
+  const composingRef = useRef(false);
+  const commit = (typed: string) => {
+    const next = format ? format(typed) : typed;
+    field.onChange(next === "" ? EMPTY_VALUES[emptyAs] : next);
+    onValueChange?.(next);
+  };
   const value: unknown = field.value;
   const text = typeof value === "string" ? value : "";
 
@@ -66,10 +79,22 @@ export const TextField = <TValues extends FieldValues>({
         aria-invalid={fieldState.invalid}
         value={text}
         onChange={(event) => {
-          const next = event.target.value;
-          field.onChange(next === "" ? EMPTY_VALUES[emptyAs] : next);
-          onValueChange?.(next);
+          if (format && composingRef.current) {
+            field.onChange(event.target.value);
+            return;
+          }
+          commit(event.target.value);
         }}
+        onCompositionStart={() => {
+          composingRef.current = true;
+        }}
+        onCompositionEnd={(event) => {
+          composingRef.current = false;
+          if (format) {
+            commit(event.currentTarget.value);
+          }
+        }}
+
         onBlur={field.onBlur}
       />
     </FormFieldShell>

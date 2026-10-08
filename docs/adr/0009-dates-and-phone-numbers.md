@@ -23,11 +23,12 @@ and libphonenumber-js (`shared/lib/schemas/stringSchemas.ts`,
   bundles keep node_modules external and Node's ESM resolver needs the extension. `@repo/ui` keeps
   `Date` and `Intl` at the react-day-picker boundary: `DateField` emits `yyyy-MM-dd`, `formatDate`
   follows the template's locale.
-- **Phone numbers:** libphonenumber-js 1.13.14 in `@repo/validation`. `phoneSchema` accepts a number
-  libphonenumber-js parses as valid for Japan and stores its national format (`090-1234-5678`);
-  `faxSchema` keeps the legacy fixed-line rule (ten digits, not 050 / 070 / 080 / 090) and stores
-  the same format. The forms format as the user types (`formatPhoneNumber`, `formatFaxNumber`,
-  `formatPostCode`), as the legacy fields did.
+- **Phone numbers:** libphonenumber-js 1.13.14 in `@repo/validation`, with the "max" metadata (the
+  "min" one takes a 090 number of ten digits as valid). `phoneSchema` accepts a number
+  libphonenumber-js finds valid for Japan and stores its national format (`090-1234-5678`);
+  `faxSchema` adds the legacy fixed-line rule (ten digits, not 050 / 070 / 080 / 090) and stores the
+  same format. The forms format as the user types — `formatPhoneNumber` for phone and FAX,
+  `formatPostCode` for the post code — through `TextField`'s `format`, as the legacy fields did.
 
 ## Alternatives
 
@@ -41,5 +42,6 @@ and libphonenumber-js (`shared/lib/schemas/stringSchemas.ts`,
 
 - A date conversion or "today" is one helper call, the same in the browser, the API and the worker;
   a new plugin is added in `packages/dayjs` once.
-- libphonenumber-js adds its metadata to the web bundle (the "min" build, as the legacy app).
+- libphonenumber-js adds its "max" metadata to the web bundle (about 40 KB gzipped, twice the "min"
+  one) — the price of refusing numbers that do not exist.
 - Revisit the date choice when Temporal ships in Node and the supported browsers.

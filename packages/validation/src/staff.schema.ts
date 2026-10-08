@@ -3,6 +3,7 @@ import { z } from "zod";
 import { dayjs, ISO_DAY, todayIsoDay } from "@repo/dayjs";
 
 import { idSchema, paginationSchema, requiredText } from "./common.schema";
+import { phoneSchema } from "./phone.schema";
 import {
   addressFormSchema,
   addressSchema,
@@ -110,17 +111,6 @@ const DATE_FORMAT = "日付の形式が正しくありません";
 /** A `yyyy-MM-dd` date (DateField). */
 const isoDate = (required = DATE_REQUIRED) =>
   z.iso.date({ error: (issue) => (issue.input ? DATE_FORMAT : required) });
-
-/**
- * 電話番号: digits and hyphens, ten or eleven digits starting with 0 (a Japanese number). The legacy
- * validated with libphonenumber-js; this keeps its message without the dependency.
- */
-export const phoneSchema = z
-  .string()
-  .trim()
-  .refine((value) => /^[0-9-]+$/.test(value) && /^0\d{9,10}$/.test(value.replaceAll("-", "")), {
-    error: "電話番号を入力してください",
-  });
 
 /** An optional katakana reading (a family member's), `null` when empty. */
 const optionalKanaSchema = z

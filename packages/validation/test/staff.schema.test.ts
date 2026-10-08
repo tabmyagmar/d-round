@@ -4,7 +4,6 @@ import {
   ageOf,
   createStaffSchema,
   listStaffsSchema,
-  phoneSchema,
   STAFF_LIST_MAX,
   staffFormSchema,
   updateStaffSchema,
@@ -153,19 +152,6 @@ describe("staffFormSchema", () => {
       message: "郵便番号を入力してください",
     });
   });
-});
-
-describe("phoneSchema", () => {
-  it.each(["090-1234-5678", "09012345678", "03-1234-5678", "0312345678"])("accepts %s", (value) => {
-    expect(phoneSchema.safeParse(value).success).toBe(true);
-  });
-
-  it.each(["", "1234567890", "090-1234", "090-1234-56789", "090_1234_5678", "+81-90-1234-5678"])(
-    "refuses %j",
-    (value) => {
-      expect(phoneSchema.safeParse(value).success).toBe(false);
-    },
-  );
 });
 
 describe("ageOf", () => {

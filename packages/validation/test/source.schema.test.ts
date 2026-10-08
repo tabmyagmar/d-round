@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   addressByPostCodeSchema,
   addressFormSchema,
+  formatPostCode,
   postCodeSchema,
   regionCodesSchema,
   SOURCE_CODES_MAX,
@@ -82,5 +83,19 @@ describe("regionCodesSchema", () => {
     expect(regionCodesSchema.safeParse(tooMany).error?.issues[0]?.message).toBe(
       `${String(SOURCE_CODES_MAX)}件以内で選択してください`,
     );
+  });
+});
+
+describe("formatPostCode", () => {
+  it.each([
+    ["160", "160"],
+    ["1600", "160-0"],
+    ["1600022", "160-0022"],
+    ["１６０００２２", "160-0022"],
+    ["160-00229", "160-0022"],
+    ["〒160-0022", "160-0022"],
+    ["abc", ""],
+  ])("formats %j as typed: %j", (typed, shown) => {
+    expect(formatPostCode(typed)).toBe(shown);
   });
 });

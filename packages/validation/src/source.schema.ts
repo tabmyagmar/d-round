@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { toHalfWidthDigits } from "./common.schema";
+
 /**
  * Reference data: エリア → 地域 (regions) → 都道府県 (prefectures) and the Japan Post post-code
  * master, read by every signed-in user (`source` router, ADR 0005).
@@ -46,7 +48,14 @@ export const postCodeSchema = z
   .regex(/^\d{3}-?\d{4}$/, { error: "正しい郵便番号を入力してください" })
   .transform((value) => value.replace("-", ""));
 
+/** 郵便番号 as typed, with the hyphen after three digits (`1600022` → `160-0022`), as the legacy field. */
+export const formatPostCode = (text: string): string => {
+  const digits = toHalfWidthDigits(text).replace(/\D/g, "").slice(0, 7);
+  return digits.length > 3 ? `${digits.slice(0, 3)}-${digits.slice(3)}` : digits;
+};
+
 /** 住所検索: the address parts of one post code. */
+
 export const addressByPostCodeSchema = z.object({ postCode: postCodeSchema });
 export type AddressByPostCodeInput = z.input<typeof addressByPostCodeSchema>;
 
