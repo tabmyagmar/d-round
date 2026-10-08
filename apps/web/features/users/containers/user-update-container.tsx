@@ -10,6 +10,7 @@ import { Skeleton } from "@repo/ui/components/skeleton";
 import { roleSchema } from "@repo/validation";
 import type { Role } from "@repo/validation";
 
+import { useSourceHierarchy } from "@/components/source/use-source-hierarchy";
 import { href, routes } from "@/config/routes";
 import { UserUpdateForm } from "@/features/users/components/form/user-update-form";
 import { roleFieldState } from "@/features/users/utils/role-field-state";
@@ -27,6 +28,7 @@ export const UserUpdateContainer = ({ userId, caller }: { userId: string; caller
   const router = useRouter();
   const canChangeRole = useAbility().can("changeRole", "User");
   const user = useQuery(trpc.user.byId.queryOptions({ userId }));
+  const hierarchy = useSourceHierarchy();
   const update = useMutation(
     trpc.user.update.mutationOptions({
       onSuccess: async () => {
@@ -60,6 +62,18 @@ export const UserUpdateContainer = ({ userId, caller }: { userId: string; caller
         currentRole: roleSchema.parse(user.data.role),
       })}
       canEditPermissions={canChangeRole && user.data.id !== caller.id}
+      hierarchy={hierarchy}
+      isEmployeeNumberFree={(employeeNumber) =>
+        // A failed check lets the save through: the API refuses a taken number anyway.
+        queryClient
+          .query(
+            trpc.user.employeeNumberAvailable.queryOptions(
+              { employeeNumber, excludeUserId: userId },
+              { staleTime: 0 },
+            ),
+          )
+          .catch(() => true)
+      }
       pending={update.isPending}
       errorMessage={update.isError ? update.error.message : undefined}
       onSubmit={(input) => {

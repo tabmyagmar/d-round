@@ -8,6 +8,8 @@ import type { Role } from "@repo/validation";
 import { UserFormFields } from "@/features/users/components/form/user-form-fields";
 import type { UserFieldValues } from "@/features/users/components/form/user-form-fields";
 
+import { HIERARCHY } from "../../../../components/source/hierarchy-fixture";
+
 afterEach(cleanup);
 
 type HarnessProps = {
@@ -33,6 +35,7 @@ const Harness = ({ role, options, disabled = false, canEditPermissions }: Harnes
       control={form.control}
       roleField={{ options, disabled }}
       canEditPermissions={canEditPermissions}
+      hierarchy={HIERARCHY}
     />
   );
 };
@@ -46,6 +49,33 @@ describe("UserFormFields", () => {
     expect(screen.getByLabelText(/^セイ/)).toHaveProperty("value", "ヤマダ");
     expect(screen.getByLabelText(/^メイ/)).toHaveProperty("value", "タロウ");
     expect(screen.getByText("マネジャー")).toBeDefined();
+  });
+
+  it("shows the profile fields in the legacy order", () => {
+    render(<Harness role="manager" options={["manager", "am"]} canEditPermissions={false} />);
+
+    const labels = [
+      "社員番号",
+      "姓",
+      "セイ",
+      "エリア",
+      "地域",
+      "部署名",
+      "役職",
+      "アカウントタイプ",
+      "退職日",
+    ];
+    const elements = labels.map((label) =>
+      screen.getByText(
+        (_, element) =>
+          ["LABEL", "LEGEND"].includes(element?.tagName ?? "") &&
+          (element?.textContent ?? "").replace("*", "").trim() === label,
+      ),
+    );
+    for (const [index, element] of elements.slice(1).entries()) {
+      // DOCUMENT_POSITION_FOLLOWING: each field comes after the previous one.
+      expect(elements[index]!.compareDocumentPosition(element) & 4).toBe(4);
+    }
   });
 
   it("offers 権限（詳細設定） for a manager to a caller who may change permissions", () => {

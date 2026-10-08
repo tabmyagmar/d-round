@@ -342,10 +342,23 @@ describe("inviteUserFormSchema", () => {
     lastNameKana: "シンキ",
     firstNameKana: "タロウ",
     role: "am",
+    profile: {
+      employeeNumber: 7,
+      departmentName: "本社",
+      position: "SV",
+      retirementDate: null,
+      areas: ["EAST"],
+      regionCodes: [4],
+    },
   };
 
   it("accepts a confirmed email", () => {
     expect(inviteUserFormSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("requires the profile, as the legacy form did", () => {
+    const { profile: _profile, ...withoutProfile } = valid;
+    expect(firstIssue(inviteUserFormSchema.safeParse(withoutProfile))?.path).toBe("profile");
   });
 
   it("reports a confirmation that differs on emailConfirm", () => {

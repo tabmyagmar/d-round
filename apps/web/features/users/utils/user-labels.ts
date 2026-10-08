@@ -1,3 +1,5 @@
+import type { SelectOption } from "@repo/ui/components/form";
+import { POSITIONS } from "@repo/validation";
 import type { Position, Role, SourceArea, UserStatus } from "@repo/validation";
 
 import { AREA_LABELS } from "@/components/source/source-labels";
@@ -38,6 +40,14 @@ export const POSITION_LABELS: Record<Position, string> = {
   STAFF: "スタッフ",
   OTHER: "その他",
 };
+
+export const POSITION_OPTIONS: SelectOption<Position>[] = POSITIONS.map((position) => ({
+  value: position,
+  label: POSITION_LABELS[position],
+}));
+
+/** What the user forms say when another user holds the 社員番号 (legacy wording). */
+export const EMPLOYEE_NUMBER_TAKEN = "この社員番号は既に使用されています";
 
 /** The parts of a 担当者 profile the list and detail show by name. */
 type ProfileNames = {

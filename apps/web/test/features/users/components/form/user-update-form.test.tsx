@@ -7,17 +7,26 @@ import { href, routes } from "@/config/routes";
 import { UserUpdateForm } from "@/features/users/components/form/user-update-form";
 import type { UserDetail } from "@/features/users/types";
 
-import { userRow } from "../../fixtures";
+import { HIERARCHY } from "../../../../components/source/hierarchy-fixture";
+import { userProfile, userRow } from "../../fixtures";
 
 afterEach(cleanup);
 
 const USER: UserDetail = {
-  ...userRow({ name: "山田 太郎", email: "taro@example.com", role: "manager" }),
+  ...userRow({
+    name: "山田 太郎",
+    email: "taro@example.com",
+    role: "manager",
+    profile: userProfile({ employeeNumber: 12 }),
+  }),
   permissionKeys: ["1202"],
 };
 
 /** Rendered in StrictMode, as `next dev` does: effects mount, unmount and mount again. */
-const renderForm = (user: UserDetail = USER) => {
+const renderForm = (
+  user: UserDetail = USER,
+  isEmployeeNumberFree = vi.fn().mockResolvedValue(true),
+) => {
   const onSubmit = vi.fn();
   render(
     <StrictMode>
@@ -25,6 +34,8 @@ const renderForm = (user: UserDetail = USER) => {
         user={user}
         roleField={{ options: ["admin", "manager", "am"], disabled: false }}
         canEditPermissions
+        hierarchy={HIERARCHY}
+        isEmployeeNumberFree={isEmployeeNumberFree}
         pending={false}
         onSubmit={onSubmit}
       />
@@ -51,10 +62,18 @@ describe("UserUpdateForm", () => {
     expect(screen.queryByRole("textbox", { name: /メールアドレス/ })).toBeNull();
   });
 
+  it("shows the stored profile", () => {
+    renderForm();
+
+    expect(screen.getByLabelText(/^社員番号/)).toHaveProperty("value", "12");
+    expect(screen.getByLabelText(/^部署名/)).toHaveProperty("value", "東日本営業部");
+    expect(screen.getByText("4 - 南関東")).toBeDefined();
+  });
+
   it.each(["am", "admin"] as const)(
     "keeps 保存 disabled for an untouched %s, who has no permission field",
     (role) => {
-      renderForm({ ...userRow({ role }), permissionKeys: [] });
+      renderForm({ ...userRow({ role, profile: userProfile() }), permissionKeys: [] });
 
       expect(screen.queryByRole("button", { name: "権限（詳細設定）" })).toBeNull();
       expect(screen.getByRole("button", { name: "保存" })).toHaveProperty("disabled", true);
@@ -75,5 +94,21 @@ describe("UserUpdateForm", () => {
     await waitFor(() => {
       expect(onSubmit).toHaveBeenCalledWith({ userId: USER.id, firstName: "花子" });
     });
+  });
+
+  it("keeps a changed 社員番号 another user holds on the field and saves nothing", async () => {
+    const isEmployeeNumberFree = vi.fn().mockResolvedValue(false);
+    const onSubmit = renderForm(USER, isEmployeeNumberFree);
+
+    fireEvent.input(screen.getByLabelText(/^社員番号/), { target: { value: "99" } });
+    const save = screen.getByRole("button", { name: "保存" });
+    await waitFor(() => {
+      expect(save).toHaveProperty("disabled", false);
+    });
+    fireEvent.click(save);
+
+    expect(await screen.findByText("この社員番号は既に使用されています")).toBeDefined();
+    expect(isEmployeeNumberFree).toHaveBeenCalledWith(99);
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });

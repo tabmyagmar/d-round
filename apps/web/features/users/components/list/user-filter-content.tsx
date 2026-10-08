@@ -2,14 +2,14 @@
 
 import { MultiOptionSelect } from "@repo/ui/components/composed/multi-option-select";
 import { OptionSelect } from "@repo/ui/components/composed/option-select";
-import { POSITIONS, ROLES, USER_STATUSES } from "@repo/validation";
+import { ROLES, USER_STATUSES } from "@repo/validation";
 import type { Position } from "@repo/validation";
 
 import { HierarchyFilterFields } from "@/components/source/hierarchy-filter-fields";
 import type { SourceHierarchy } from "@/components/source/hierarchy-options";
 import type { UserFilterChanges, UserListFilters } from "@/features/users/utils/user-filters";
 import {
-  POSITION_LABELS,
+  POSITION_OPTIONS,
   ROLE_LABELS,
   USER_STATUS_LABELS,
 } from "@/features/users/utils/user-labels";
@@ -18,10 +18,6 @@ const ROLE_OPTIONS = ROLES.map((role) => ({ value: role, label: ROLE_LABELS[role
 const STATUS_OPTIONS = USER_STATUSES.map((status) => ({
   value: status,
   label: USER_STATUS_LABELS[status],
-}));
-const POSITION_OPTIONS = POSITIONS.map((position) => ({
-  value: position,
-  label: POSITION_LABELS[position],
 }));
 
 export type UserFilterContentProps = {
