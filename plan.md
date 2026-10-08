@@ -911,3 +911,21 @@ arrays; `@casl/prisma` with a third model in `Subjects`; Base UI Combobox chips 
   are plain numbers (`regionCodesSchema`, distinct and ascending), so the forms' zod input and
   output types stay equal; `MultiSelectField` gains `valueAs: "number"` in A5 (the legacy
   `useNumberOptions`); only the URL list filter coerces strings (`regionCodeSchema`).
+- 2026-10-08, A5–A9: as planned, with these differences. A5's composed controls keep English
+  defaults (the fields pass the Japanese ones). A6 gives `MultiSelectField` a `pruneToOptions` flag
+  instead of effects in each form: once the options are authoritative it drops selected values they
+  no longer offer, so a removed エリア also removes its 地域 and their 都道府県 (the legacy reset
+  every child on any parent change; dropping only what the parent no longer covers keeps the rest);
+  the filter's narrowing is a pure function (`narrowSelection`). エリア is a `CheckboxGroupField` /
+  `CheckboxGroup` (two options, ui.md), not the legacy multi-select. A7 includes each region's name
+  in user reads (no client lookup for the 地域 column); the filter order follows the legacy
+  (ステータス, エリア, 地域, 役職, アカウントタイプ). A7 and A8 each went over the 15-file cap and
+  were split before review: A7 into `ba462d2` (region names, numeric list parameters) and `99a0d09`
+  (the list), A8 into `9475aa4` (the forms), `1032c80` (the detail rows) and `bc87609` (the API
+  requires the profile on invite, after the form sends it). packages/ui re-exports
+  react-day-picker's Japanese locale (`lib/calendar-locale`) for `DateField`. TanStack Query 5.102
+  deprecates `fetchQuery`: the number pre-check uses `queryClient.query`.
+- 2026-10-08, phase A status: implemented and green on every Docker-free check. Still open before
+  the fast-forward: the testcontainers suites, the drift gate, the dev-database deploy of the three
+  migrations and the browser check of the user screens as every role — all wait on the Docker
+  Desktop API. Phase B starts meanwhile on this branch.

@@ -33,7 +33,11 @@ round.
 - Toolbar — `components/list/users-toolbar.tsx`: `ListToolbar` with `SearchInput`, `FilterPopover`,
   the actions, `FilterTags`.
 - Filter fields — `components/list/user-filter.tsx` loads `user-filter-content.tsx` with
-  `next/dynamic` inside the popover.
+  `next/dynamic` inside the popover; data the fields need (the regions) is fetched by a small body
+  component rendered only while the popover is open, so the content stays presentational. Several
+  values per filter are list parameters (`?areas=EAST&areas=WEST`, an array in the list schema):
+  `CheckboxGroup` for a few options, `MultiOptionSelect` for many, `HierarchyFilterFields`
+  (`apps/web/components/source/`) for エリア / 地域 / 県名.
 - Row menu — `components/list/user-row-actions.tsx`, actions filtered by ability.
 - Labels and filter helpers (pure, node-tested) — `utils/user-labels.ts`, `utils/user-filters.ts`;
   router output types — `types.ts`.
@@ -57,6 +61,10 @@ toolbar with the actions the ability allows. A card some roles never see loads w
 - A legacy modal stays a dialog: `ContentDialog` via `next/dynamic` owning the mutation, the same
   thin forms inside (`features/comment-templates/components/comment-template-dialog.tsx`).
 - Tests render the form in `StrictMode` (`.claude/rules/testing.md`).
+- A select that depends on another (地域 on エリア) is a `MultiSelectField` with `pruneToOptions`
+  set once its data loaded (`HierarchyFields`); a uniqueness the legacy checked before saving
+  (社員番号) is an `isEmployeeNumberFree`-style async prop the form awaits in its submit handler and
+  reports with `setError` on the field.
 
 ## 5. Before hand-over
 

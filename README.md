@@ -161,8 +161,9 @@ model and how a role is added.
 ```text
 apps/
   api/        Hono + tRPC server. src/core (context with session + ability, errors, error-mapping),
-              src/trpc (transport: init with requireAbility, routers/), src/modules (user, email,
-              health services), src/middleware (rate limit, request logger), src/health, src/lib,
+              src/trpc (transport: init with requireAbility, routers/), src/modules (user, source,
+              comment-template, permission, email, health services), src/middleware (rate limit,
+              request logger), src/health, src/lib,
               test/ (mirrors src/: test/modules, test/trpc, test/core; HTTP + auth integration
               tests at the root, support.ts harness, global-setup.ts)
   worker/     BullMQ worker process. src/processors/email.processor.ts, src/schedulers/
@@ -175,7 +176,8 @@ apps/
               auth-errors), features/users (containers/, components/, hooks/, stores/, utils/,
               types.ts), hooks/ (search-params, use-search, use-table-state),
               components/ (layout/: app-shell, app-sidebar, nav-main, app-header, page-title, user-menu;
-              page-guard, access-denied, placeholder-page, theme-provider), lib/auth (client,
+              source/: エリア → 地域 → 都道府県 fields, filter fields and useSourceHierarchy, shared by
+              the features; page-guard, access-denied, placeholder-page, theme-provider), lib/auth (client,
               server, route-access), lib/trpc, lib/env, lib/brand,
               test/ (vitest + Testing Library, jsdom per file)
 packages/
@@ -188,8 +190,9 @@ packages/
               table is in .claude/rules/migrations.md), seed/ (reference data + dev test accounts),
               generated client (git-ignored), repositories/, utils (pagination, errors,
               transaction), test/ (testcontainers helper, test/repositories, test/utils, test/seed)
-  validation/ zod re-export, shared schemas (user.schema.ts: roles, sign-in, profile, list),
-              createEnv() for env validation
+  validation/ zod re-export, shared schemas (user.schema.ts: roles, sign-in, names, 担当者 profile,
+              list; source.schema.ts: areas, region codes, post codes), createEnv() for env
+              validation
   queue/      BullMQ + ioredis wrapper: connection, createQueue, createWorker, pub/sub, jobIdFor,
               QUEUE_NAMES, jobs/email.job.ts (EmailJob contract), test/ (testcontainers Redis)
   logger/     pino with redaction, createLogger / childLogger
@@ -198,7 +201,8 @@ packages/
               CheckboxGroup/Radio, Date/DateTime/DateRange, File, Hidden/ReadOnly, Array +
               FormFieldShell/useFormField for custom ones),
               composed components (src/components/composed: StatusBadge, DataTable, ConfirmDialog,
-              PageHeader, EmptyState), hooks (src/hooks: use-mobile),
+              PageHeader, EmptyState, OptionSelect, MultiOptionSelect, CheckboxGroup, …), hooks
+              (src/hooks: use-mobile), lib (locale, calendar-locale),
               theme tokens (src/styles/globals.css), test/ (jsdom component tests)
   eslint-config/      ESLint 10 presets: base, node, react, next + boundaries.js (layer rules)
   typescript-config/  tsconfig presets: base, node, nextjs, react-library
