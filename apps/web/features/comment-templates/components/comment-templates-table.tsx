@@ -7,9 +7,9 @@ import type { DataTablePagination } from "@repo/ui/components/composed/data-tabl
 import { formatDate } from "@repo/ui/components/form";
 
 import { CommentTemplateRowActions } from "@/features/comment-templates/components/comment-template-row-actions";
-import { useCommentTemplatesStore } from "@/features/comment-templates/stores/comment-templates-store-provider";
 import type { CommentTemplateRow } from "@/features/comment-templates/types";
 import { typesLabel } from "@/features/comment-templates/utils/comment-template-labels";
+import { useRowSelection } from "@/stores/row-selection";
 
 const helper = createDataTableColumns<CommentTemplateRow>();
 
@@ -66,8 +66,8 @@ export const CommentTemplatesTable = ({
   onDelete,
 }: CommentTemplatesTableProps) => {
   const columns = useMemo(() => templateColumns(onEdit, onDelete), [onEdit, onDelete]);
-  const rowSelection = useCommentTemplatesStore((store) => store.rowSelection);
-  const setRowSelection = useCommentTemplatesStore((store) => store.setRowSelection);
+  const rowSelection = useRowSelection((store) => store.rowSelection);
+  const setRowSelection = useRowSelection((store) => store.setRowSelection);
   return (
     <DataTable
       title="全定型文数"

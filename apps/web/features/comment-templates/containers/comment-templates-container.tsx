@@ -10,11 +10,11 @@ import { listCommentTemplatesSchema } from "@repo/validation";
 import type { CommentTemplateDialogTarget } from "@/features/comment-templates/components/comment-template-dialog";
 import { CommentTemplatesTable } from "@/features/comment-templates/components/comment-templates-table";
 import { CommentTemplatesToolbar } from "@/features/comment-templates/components/comment-templates-toolbar";
-import { CommentTemplatesStoreProvider } from "@/features/comment-templates/stores/comment-templates-store-provider";
 import { parseSearchParams } from "@/hooks/search-params";
 import { useSearch } from "@/hooks/use-search";
 import { useTableState } from "@/hooks/use-table-state";
 import { useTRPC } from "@/lib/trpc/react";
+import { RowSelectionProvider } from "@/stores/row-selection";
 
 // Loaded when 新規作成, 定型文編集 or a delete is chosen, not with the list.
 const CommentTemplateDialog = dynamic(
@@ -51,7 +51,7 @@ export const CommentTemplatesContainer = () => {
   const [deleteIds, setDeleteIds] = useState<readonly string[] | null>(null);
 
   return (
-    <CommentTemplatesStoreProvider>
+    <RowSelectionProvider>
       <div className="flex flex-col gap-4">
         <CommentTemplatesToolbar
           search={input.search ?? ""}
@@ -101,6 +101,6 @@ export const CommentTemplatesContainer = () => {
           />
         ) : null}
       </div>
-    </CommentTemplatesStoreProvider>
+    </RowSelectionProvider>
   );
 };

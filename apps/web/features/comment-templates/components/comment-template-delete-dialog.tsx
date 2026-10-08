@@ -5,8 +5,8 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@repo/ui/components/composed/confirm-dialog";
 
-import { useCommentTemplatesStore } from "@/features/comment-templates/stores/comment-templates-store-provider";
 import { useTRPC } from "@/lib/trpc/react";
+import { useRowSelection } from "@/stores/row-selection";
 
 export type CommentTemplateDeleteDialogProps = {
   /** One row's id (its menu) or the selection (the toolbar's 削除). */
@@ -23,7 +23,7 @@ export const CommentTemplateDeleteDialog = ({
   onOpenChange,
 }: CommentTemplateDeleteDialogProps) => {
   const trpc = useTRPC();
-  const setRowSelection = useCommentTemplatesStore((store) => store.setRowSelection);
+  const setRowSelection = useRowSelection((store) => store.setRowSelection);
   const queryClient = useQueryClient();
 
   const remove = useMutation(

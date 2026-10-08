@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CommentTemplatesToolbar } from "@/features/comment-templates/components/comment-templates-toolbar";
-import { CommentTemplatesStoreProvider } from "@/features/comment-templates/stores/comment-templates-store-provider";
+import { RowSelectionProvider } from "@/stores/row-selection";
 
 afterEach(cleanup);
 
@@ -12,14 +12,14 @@ const renderToolbar = (rowSelection: Record<string, true> = {}) => {
   const onCreate = vi.fn();
   const onDeleteSelected = vi.fn();
   render(
-    <CommentTemplatesStoreProvider initialState={{ rowSelection }}>
+    <RowSelectionProvider initialState={{ rowSelection }}>
       <CommentTemplatesToolbar
         search=""
         onSearch={onSearch}
         onCreate={onCreate}
         onDeleteSelected={onDeleteSelected}
       />
-    </CommentTemplatesStoreProvider>,
+    </RowSelectionProvider>,
   );
   return { onSearch, onCreate, onDeleteSelected };
 };

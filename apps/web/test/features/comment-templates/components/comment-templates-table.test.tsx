@@ -3,8 +3,8 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CommentTemplatesTable } from "@/features/comment-templates/components/comment-templates-table";
-import { CommentTemplatesStoreProvider } from "@/features/comment-templates/stores/comment-templates-store-provider";
 import type { CommentTemplateRow } from "@/features/comment-templates/types";
+import { RowSelectionProvider } from "@/stores/row-selection";
 
 import { commentTemplateRow } from "../fixtures";
 
@@ -14,7 +14,7 @@ const renderTable = (rows: CommentTemplateRow[]) => {
   const onEdit = vi.fn();
   const onDelete = vi.fn();
   render(
-    <CommentTemplatesStoreProvider>
+    <RowSelectionProvider>
       <CommentTemplatesTable
         data={rows}
         isLoading={false}
@@ -29,7 +29,7 @@ const renderTable = (rows: CommentTemplateRow[]) => {
         onEdit={onEdit}
         onDelete={onDelete}
       />
-    </CommentTemplatesStoreProvider>,
+    </RowSelectionProvider>,
   );
   return { onEdit, onDelete };
 };

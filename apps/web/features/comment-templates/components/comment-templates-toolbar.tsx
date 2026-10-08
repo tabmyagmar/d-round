@@ -6,7 +6,7 @@ import { Button } from "@repo/ui/components/button";
 import { ListToolbar } from "@repo/ui/components/composed/list-toolbar";
 import { SearchInput } from "@repo/ui/components/composed/search-input";
 
-import { useCommentTemplatesStore } from "@/features/comment-templates/stores/comment-templates-store-provider";
+import { useRowSelection } from "@/stores/row-selection";
 
 export type CommentTemplatesToolbarProps = {
   search: string;
@@ -23,7 +23,7 @@ export const CommentTemplatesToolbar = ({
   onCreate,
   onDeleteSelected,
 }: CommentTemplatesToolbarProps) => {
-  const rowSelection = useCommentTemplatesStore((store) => store.rowSelection);
+  const rowSelection = useRowSelection((store) => store.rowSelection);
   const selectedIds = Object.keys(rowSelection);
 
   return (
