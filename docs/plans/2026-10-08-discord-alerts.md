@@ -378,3 +378,75 @@ process); Step 5 exercises the fatal path for real.
   after its last message (ADR, code comment, test name). `docs/conventions.md` points to ADR 0010
   for the embed's contents instead of repeating them. No third review round: the protocol's budget
   of two is spent, and the fix is pinned by the red-then-green test.
+
+## Outcome (2026-10-08)
+
+- Branch `feature/D_ROUND-TBD_discord-alerts`: four plan commits (`78401e9` logger, `14d11b7` api,
+  `be7afc5` worker, `00a3c06` docs), three review fixes (`890c00e`, `2663ebf`, `334533a`) and this
+  close. Not pushed, not merged. Worked in a worktree in the session scratchpad because another
+  session shares the main checkout (Log, "branch").
+- `yarn verify` green on every commit; the verifier agent's fresh `yarn verify --force` passed 40/40
+  on `00a3c06` (logger 17, api 11, worker 16 targeted tests), and verify stayed green on each fix.
+- Smoke with the real webhook (step 5 Log): six messages expected in the channel, no failed send.
+- Review: two rounds by the reviewer agent (round 1: 1 BLOCKER, 4 SHOULD, 5 NIT; round 2: 1 SHOULD,
+  2 NIT), every finding fixed and logged above.
+- Security: `/security-review` could not run (it diffs against `origin/HEAD`, which does not resolve
+  here). Hand review of `b3a1f29..HEAD`: the webhook URL appears in no commit, file, log or cache;
+  the only new outbound call posts to `DISCORD_ALERT_WEBHOOK_URL` (operator-set, https only); no new
+  dependency; mentions are disabled; the password-reset token no longer reaches any log line or
+  alert; an alert carries IDs, the log message and the error's first line with e-mail addresses
+  masked (ADR 0010 names what can still get through); CPU and memory per alert line are bounded.
+- Open for the user: (1) `feature/D_ROUND-TBD_client-branch` still carries `78401e9` (its own start
+  is `b3a1f29`; auto mode denied the reset); (2) put `DISCORD_ALERT_WEBHOOK_URL` in the root `.env`
+  and the deployment's environment; regenerate the webhook if the chat that holds it is shared; (3)
+  found and left alone: without Redis the worker's `workers` and the API's `redis` shutdown steps
+  wait until the deadline.
+- What slowed the ticket: a second session switched the shared checkout to its own branch mid-step,
+  so step 1 was committed onto that branch. Proposed 1-line change to `protocol.md` Guardrails (auto
+  mode denies instruction edits, so it is the user's to apply): "When `ListAgents` shows another
+  session on this repository, a ticket starts in its own worktree
+  (`git worktree add <dir> -b <branch> develop`), and every commit checks
+  `git branch --show-current` first." Also, `git remote set-head origin --auto` would let
+  `/security-review` run.
+
+### MR description
+
+```markdown
+## Summary
+
+Backend errors now reach a Discord channel (docs/adr/0010-alerts.md). Every `error` and `fatal` log
+line of the API and the worker becomes one webhook message: the log message as title, colour by
+level, the error's type, first message line (e-mail addresses masked) and first stack frames, and
+the request or job identifiers. The lines of one request or job fold into one message, a repeated
+problem is sent once per 5 minutes with a repeat count, at most 10 error messages a minute leave a
+process (a fatal line always goes), and a failed send never reaches a request or a job.
+`DISCORD_ALERT_WEBHOOK_URL` (optional, https only) turns it on. An uncaught exception or unhandled
+rejection now runs the ordered shutdown and exits 1, and the access log no longer writes
+password-reset tokens.
+
+## Test evidence
+
+- `yarn verify` green on every commit; fresh `yarn verify --force` 40/40 (verifier agent).
+- New tests: the alert stream (embed, fold, repeat window, cap, fatal lines, failed sends, Discord
+  limits, a one-megabyte line, flush), `createLogger` with alerts, API and worker env, the shutdown
+  handlers of both apps, the router and the email processor under an alerting logger, and the
+  request logger's token masking.
+- Smoke with the real webhook, Redis and Postgres unreachable: the worker wrote 61 error lines in 30
+  s and the API 11; together they sent 6 messages, none failed.
+
+## Checklist
+
+- [x] Layer boundaries respected (transport → service → repository); domain errors, not TRPCError
+- [x] Every non-public procedure has an ability check; stateful rules live in the service (no
+      procedure changed)
+- [x] Schema change → migration + ADR line; queue change → ID-only payload, after commit, idempotent
+      (neither changed)
+- [x] Tests added or updated under `test/`
+- [x] Docs updated where behaviour changed (`README`, `docs/conventions.md`, `docs/auth.md`)
+
+## ADRs
+
+- `docs/adr/0010-alerts.md` (new)
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+```
