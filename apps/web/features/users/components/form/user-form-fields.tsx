@@ -10,6 +10,8 @@ import { ja } from "@repo/ui/lib/calendar-locale";
 import { isOverridableRole } from "@repo/validation";
 import type { Role, UserProfileInput } from "@repo/validation";
 
+import { NameFields } from "@/components/name-fields";
+import type { NameValues } from "@/components/name-fields";
 import { HierarchyFields } from "@/components/source/hierarchy-fields";
 import type { SourceHierarchy } from "@/components/source/hierarchy-options";
 import { PermissionField } from "@/features/users/components/form/permission-field";
@@ -18,16 +20,8 @@ import type { ProfileFormValues } from "@/features/users/utils/user-form-input";
 import { ROLE_LABELS } from "@/features/users/utils/user-labels";
 import { POSITION_OPTIONS } from "@/lib/position-labels";
 
-/** 姓 / 名 / セイ / メイ: the name fields every user form has (invite, edit, profile). */
-export type UserNameValues = {
-  lastName?: string | undefined;
-  firstName?: string | undefined;
-  lastNameKana?: string | undefined;
-  firstNameKana?: string | undefined;
-};
-
 /** The fields both user forms share; each form's values have at least these keys. */
-export type UserFieldValues = UserNameValues & {
+export type UserFieldValues = NameValues & {
   role?: Role | undefined;
   permissionKeys?: string[] | undefined;
   profile?: ProfileFormValues | undefined;
@@ -40,56 +34,6 @@ const path = <TValues extends UserFieldValues>(name: keyof UserFieldValues) =>
 /** A 担当者 profile field's path (ADR 0007). */
 const profilePath = <TValues extends UserFieldValues>(name: keyof UserProfileInput) =>
   `profile.${name}` as FieldPath<TValues>;
-
-/**
- * 姓 / 名 and their katakana readings セイ / メイ, two per row as in the legacy form. The
- * schema (`userNameSchema`) requires all four and full-width katakana for the readings.
- */
-export const UserNameFields = <TValues extends UserNameValues>({
-  control,
-  disabled = false,
-}: {
-  control: Control<TValues>;
-  disabled?: boolean;
-}) => {
-  const name = (key: keyof UserNameValues) => key as FieldPath<TValues>;
-  return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <TextField
-        control={control}
-        name={name("lastName")}
-        label="姓"
-        autoComplete="family-name"
-        disabled={disabled}
-        required
-      />
-      <TextField
-        control={control}
-        name={name("firstName")}
-        label="名"
-        autoComplete="given-name"
-        disabled={disabled}
-        required
-      />
-      <TextField
-        control={control}
-        name={name("lastNameKana")}
-        label="セイ"
-        placeholder="ヤマダ"
-        disabled={disabled}
-        required
-      />
-      <TextField
-        control={control}
-        name={name("firstNameKana")}
-        label="メイ"
-        placeholder="タロウ"
-        disabled={disabled}
-        required
-      />
-    </div>
-  );
-};
 
 /**
  * 権限（詳細設定） bound to `permissionKeys`. Registered only while it is shown: a form that never
@@ -153,7 +97,7 @@ export const UserFormFields = <TValues extends UserFieldValues>({
           required
         />
       </div>
-      <UserNameFields control={control} />
+      <NameFields control={control} />
       <div className="grid gap-4 sm:grid-cols-2">
         <HierarchyFields
           control={control}

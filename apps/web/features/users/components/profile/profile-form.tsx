@@ -10,7 +10,7 @@ import { FieldGroup } from "@repo/ui/components/field";
 import { updateProfileSchema } from "@repo/validation";
 import type { UpdateProfileInput } from "@repo/validation";
 
-import { UserNameFields } from "@/features/users/components/form/user-form-fields";
+import { NameFields } from "@/components/name-fields";
 import type { NamePart } from "@/features/users/utils/user-form-input";
 import { useTRPC } from "@/lib/trpc/react";
 
@@ -55,7 +55,7 @@ export const ProfileForm = ({ initial, disabled = false }: ProfileFormProps) => 
       className="flex flex-col gap-4"
     >
       <FieldGroup>
-        <UserNameFields control={form.control} disabled={disabled} />
+        <NameFields control={form.control} disabled={disabled} />
       </FieldGroup>
       {disabled ? null : (
         <div>

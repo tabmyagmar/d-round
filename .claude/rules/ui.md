@@ -510,10 +510,11 @@ components through a renderer registry, so a new field type starts as a new comp
   values into API input with a pure function (`features/users/utils/user-form-input.ts`); the
   route's container owns the mutation (`user-create-container.tsx`). They test without tRPC.
 - Two forms that share fields (invite and edit) share a fields component typed over their common
-  keys (`features/users/components/form/user-form-fields.tsx`, whose `UserNameFields`
-  — 姓 / 名 / セイ / メイ, two per row — the profile form uses too); each form keeps its own schema
-  and extra fields. Katakana readings validate with `kanaSchema` from `@repo/validation`. A decision
-  that depends only on data, such as which roles the field offers, is a pure function in `utils/`
+  keys (`features/users/components/form/user-form-fields.tsx`); fields two features share sit at the
+  app level (`apps/web/components/name-fields.tsx`: `NameFields`, 姓 / 名 / セイ / メイ two per row,
+  for the user forms, the profile form and the staff form). Each form keeps its own schema and extra
+  fields. Katakana readings validate with `kanaSchema` from `@repo/validation`. A decision that
+  depends only on data, such as which roles the field offers, is a pure function in `utils/`
   (`role-field-state.ts`). A field whose dialog needs data loads the dialog with `next/dynamic` when
   it is opened (`permission-field.tsx`), so the form renders without it.
 - Confirmations (deactivate, delete) go through `ConfirmDialog`, never `window.confirm`.
