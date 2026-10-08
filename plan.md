@@ -1027,3 +1027,7 @@ arrays; `@casl/prisma` with a third model in `Subjects`; Base UI Combobox chips 
     and 担当者 picker stop there. `areasSchema` keeps no bound: its transform leaves at most the two
     areas.
   - Follow-up, its own ticket: a request body limit for the whole API (Hono `bodyLimit`).
+- 2026-10-08, what slowed the ticket: the Docker Desktop API hung for the whole session (every
+  testcontainers suite, the dev-database deploy and the browser checks still wait on it), and
+  commitlint refused two subjects that began with a component name (`AddressFields …`,
+  `DescriptionList …`); `docs/conventions.md` now says so next to the other commitlint rules.

@@ -176,9 +176,10 @@ One exported unit per file where practical; named exports only (see above).
 Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:`, `build:`),
 optionally scoped (`feat(api): ...`). Enforced by commitlint (`commitlint.config.mjs`, extends
 `@commitlint/config-conventional`): body lines at most 100 characters, footer lines at most 200
-(trailers may be long). Hooks via husky: `pre-commit` runs `lint-staged`
-(`eslint --fix --max-warnings 0` and `prettier --write` on staged files), `commit-msg` runs
-`commitlint`. CI re-checks every commit of a pull request with
+(trailers may be long), and a subject that does not start upper case (`subject-case`) — name a
+component in words (`feat(web): address fields fill …`, not `AddressFields fill …`). Hooks via
+husky: `pre-commit` runs `lint-staged` (`eslint --fix --max-warnings 0` and `prettier --write` on
+staged files), `commit-msg` runs `commitlint`. CI re-checks every commit of a pull request with
 `commitlint --from <base> --to <head>`.
 
 Why: the history is the changelog and the audit trail; a machine-readable format makes releases,
