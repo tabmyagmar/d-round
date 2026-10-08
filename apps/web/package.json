@@ -15,6 +15,7 @@
   "dependencies": {
     "@hookform/resolvers": "5.9.1",
     "@repo/auth": "workspace:*",
+    "@repo/dayjs": "workspace:*",
     "@repo/permissions": "workspace:*",
     "@repo/ui": "workspace:*",
     "@repo/validation": "workspace:*",

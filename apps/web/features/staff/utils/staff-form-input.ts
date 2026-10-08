@@ -1,15 +1,12 @@
 import type { DefaultValues } from "react-hook-form";
 
-import { toIsoDate } from "@repo/ui/components/form";
+import { todayIsoDay, toIsoDay } from "@repo/dayjs";
 import { FIXED_MEMO_TYPES } from "@repo/validation";
 import type { CreateStaffInput, StaffFormValues } from "@repo/validation";
 
 import type { StaffDetail } from "@/features/staff/types";
 
 type StaffMemoValue = StaffFormValues["memos"][number];
-
-/** A DATE column arrives as midnight UTC: its ISO day is the stored day. */
-const isoDay = (date: Date): string => date.toISOString().slice(0, 10);
 
 /** The five fixed memo slots in the legacy order with their stored text, then the added memos. */
 const memosOf = (stored: readonly StaffMemoValue[]): StaffMemoValue[] => [
@@ -24,7 +21,8 @@ const memosOf = (stored: readonly StaffMemoValue[]): StaffMemoValue[] => [
 
 /** An employment period starting today, as the legacy form's first 在籍情報 row. */
 export const newJobHistory = (): StaffFormValues["jobHistories"][number] => ({
-  hireDate: toIsoDate(new Date()),
+  hireDate: todayIsoDay(),
+
   resignationDate: null,
   resignationReason: null,
 });
@@ -61,7 +59,7 @@ export const staffValuesOf = (staff: StaffDetail): DefaultValues<StaffFormValues
   lastNameKana: staff.lastNameKana,
   firstNameKana: staff.firstNameKana,
   gender: staff.gender,
-  ...(staff.birthday ? { birthday: isoDay(staff.birthday) } : {}),
+  ...(staff.birthday ? { birthday: toIsoDay(staff.birthday) } : {}),
   ...(staff.position ? { position: staff.position } : {}),
   branchName: staff.branchName ?? "",
   email: staff.email,
@@ -82,8 +80,8 @@ export const staffValuesOf = (staff: StaffDetail): DefaultValues<StaffFormValues
       }
     : { postCode: "", address1: "", pref: "", cityTown: "" },
   jobHistories: staff.jobHistories.map((job) => ({
-    hireDate: isoDay(job.hireDate),
-    resignationDate: job.resignationDate ? isoDay(job.resignationDate) : null,
+    hireDate: toIsoDay(job.hireDate),
+    resignationDate: job.resignationDate ? toIsoDay(job.resignationDate) : null,
     resignationReason: job.resignationReason,
   })),
   familyMembers: staff.familyMembers.map((member) => ({
@@ -92,7 +90,7 @@ export const staffValuesOf = (staff: StaffDetail): DefaultValues<StaffFormValues
     lastNameKana: member.lastNameKana,
     firstNameKana: member.firstNameKana,
     relation: member.relation,
-    birthday: member.birthday ? isoDay(member.birthday) : null,
+    birthday: member.birthday ? toIsoDay(member.birthday) : null,
   })),
   memos: memosOf(staff.memos),
 });

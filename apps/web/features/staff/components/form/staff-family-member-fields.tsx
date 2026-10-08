@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Control } from "react-hook-form";
 
+import { todayIsoDay } from "@repo/dayjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/card";
 import { ArrayField, DateField, SelectField, TextField } from "@repo/ui/components/form";
 import { ja } from "@repo/ui/lib/calendar-locale";
@@ -22,8 +23,8 @@ const newFamilyMember = (): StaffFormValues["familyMembers"][number] => ({
 
 /** 家族情報登録, the legacy step 2's first card: 姓 / 名 required, readings, 続柄 and birthday optional. */
 export const StaffFamilyMemberFields = ({ control }: { control: Control<StaffFormValues> }) => {
-  // A birthday lies in the past; today is read once, not on every render.
-  const [today] = useState(() => new Date());
+  // A birthday lies in the past; today (in Japan) is read once, not on every render.
+  const [today] = useState(todayIsoDay);
   return (
     <Card>
       <CardHeader>

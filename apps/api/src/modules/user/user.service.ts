@@ -18,6 +18,7 @@ import type {
   UserProfileUpdate,
   UserWithProfile,
 } from "@repo/database";
+import { fromIsoDay } from "@repo/dayjs";
 import { accessibleUsersWhere, canUnscoped, prismaUserSubject } from "@repo/permissions/server";
 import {
   ADMIN_ROLES,
@@ -269,7 +270,7 @@ const toProfileData = (profile: UserProfileInput): UserProfileData => ({
   employeeNumber: profile.employeeNumber,
   departmentName: profile.departmentName,
   position: profile.position,
-  retirementDate: profile.retirementDate === null ? null : new Date(profile.retirementDate),
+  retirementDate: profile.retirementDate === null ? null : fromIsoDay(profile.retirementDate),
   areas: profile.areas,
 });
 

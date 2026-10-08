@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { dayjs, ISO_DAY, todayIsoDay } from "@repo/dayjs";
+
 import { idSchema, paginationSchema, requiredText } from "./common.schema";
 import {
   addressFormSchema,
@@ -98,13 +100,9 @@ const LIST_TOO_LONG = `${String(STAFF_LIST_MAX)}件以内で入力してくだ�
 /** The youngest a スタッフ may be (legacy AgeSchema(16)). */
 export const STAFF_MIN_AGE = 16;
 
-/** Whole years from a `yyyy-MM-dd` birthday to `today` (年齢, shown beside 生年月日). */
-export const ageOf = (birthday: string, today: Date = new Date()): number => {
-  const [year = 0, month = 0, day = 0] = birthday.split("-").map(Number);
-  const hadBirthday =
-    today.getMonth() + 1 > month || (today.getMonth() + 1 === month && today.getDate() >= day);
-  return today.getFullYear() - year - (hadBirthday ? 0 : 1);
-};
+/** Whole years from a `yyyy-MM-dd` birthday to `today` (年齢, beside 生年月日), today in Japan. */
+export const ageOf = (birthday: string, today: string = todayIsoDay()): number =>
+  dayjs(today, ISO_DAY).diff(dayjs(birthday, ISO_DAY), "year");
 
 const DATE_REQUIRED = "日付は必須です";
 const DATE_FORMAT = "日付の形式が正しくありません";

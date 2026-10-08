@@ -170,10 +170,9 @@ describe("phoneSchema", () => {
 
 describe("ageOf", () => {
   it("counts whole years, the birthday itself included", () => {
-    const today = new Date(2026, 9, 8);
-    expect(ageOf("2010-10-08", today)).toBe(16);
-    expect(ageOf("2010-10-09", today)).toBe(15);
-    expect(ageOf("1990-04-01", today)).toBe(36);
+    expect(ageOf("2010-10-08", "2026-10-08")).toBe(16);
+    expect(ageOf("2010-10-09", "2026-10-08")).toBe(15);
+    expect(ageOf("1990-04-01", "2026-10-08")).toBe(36);
   });
 });
 

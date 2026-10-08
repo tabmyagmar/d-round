@@ -1,3 +1,4 @@
+import { toIsoDay } from "@repo/dayjs";
 import { isOverridableRole } from "@repo/validation";
 import type {
   InviteUserFormInput,
@@ -41,7 +42,7 @@ export const profileFormValuesOf = (profile: StoredProfile): ProfileFormValues =
         employeeNumber: profile.employeeNumber,
         departmentName: profile.departmentName,
         position: profile.position,
-        retirementDate: profile.retirementDate?.toISOString().slice(0, 10) ?? null,
+        retirementDate: profile.retirementDate ? toIsoDay(profile.retirementDate) : null,
         areas: profile.areas,
         regionCodes: profile.regions.map((region) => region.regionCode),
       }

@@ -13,6 +13,7 @@ import type {
   StaffListRow,
   StaffWrite,
 } from "@repo/database";
+import { fromIsoDay } from "@repo/dayjs";
 import { accessibleStaffWhere, prismaStaffSubject } from "@repo/permissions/server";
 import { employeeNumberOfSearch } from "@repo/validation";
 import type {
@@ -123,9 +124,6 @@ export const getById = async (ctx: RequestContext, staffId: string): Promise<Sta
   return staff;
 };
 
-/** A calendar date as stored in a DATE column: UTC midnight of that day. */
-const dateOf = (isoDate: string): Date => new Date(isoDate);
-
 const STAFF_NUMBER_TAKEN = "This staff number is already in use";
 
 /**
@@ -191,7 +189,7 @@ const toWrite = (input: CreateStaffInput): StaffWrite => ({
     lastNameKana: input.lastNameKana,
     firstNameKana: input.firstNameKana,
     gender: input.gender,
-    birthday: dateOf(input.birthday),
+    birthday: fromIsoDay(input.birthday),
     position: input.position,
     branchName: input.branchName,
     email: input.email,
@@ -205,12 +203,12 @@ const toWrite = (input: CreateStaffInput): StaffWrite => ({
   chargerUserIds: input.chargerUserIds,
   familyMembers: input.familyMembers.map((member) => ({
     ...member,
-    birthday: member.birthday === null ? null : dateOf(member.birthday),
+    birthday: member.birthday === null ? null : fromIsoDay(member.birthday),
   })),
   memos: input.memos.filter((memo) => memo.content.trim() !== ""),
   jobHistories: input.jobHistories.map((job) => ({
-    hireDate: dateOf(job.hireDate),
-    resignationDate: job.resignationDate === null ? null : dateOf(job.resignationDate),
+    hireDate: fromIsoDay(job.hireDate),
+    resignationDate: job.resignationDate === null ? null : fromIsoDay(job.resignationDate),
     resignationReason: job.resignationReason,
   })),
 });

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useWatch } from "react-hook-form";
 import type { Control } from "react-hook-form";
 
+import { todayIsoDay } from "@repo/dayjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/card";
 import { FieldGroup } from "@repo/ui/components/field";
 import {
@@ -59,8 +60,8 @@ export const StaffBasicStep = ({
   chargersLoading,
   findAddress,
 }: StaffBasicStepProps) => {
-  // A birthday lies in the past; today is read once, not on every render.
-  const [today] = useState(() => new Date());
+  // A birthday lies in the past; today (in Japan) is read once, not on every render.
+  const [today] = useState(todayIsoDay);
   const birthday = useWatch({ control, name: "birthday" });
   const regionCodes = useWatch({ control, name: "regionCodes" });
   const age = ISO_DATE.test(birthday) ? ageOf(birthday) : null;

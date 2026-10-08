@@ -1,3 +1,4 @@
+import { toIsoDay } from "@repo/dayjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/card";
 import { DescriptionList } from "@repo/ui/components/composed/description-list";
 import { formatDate } from "@repo/ui/components/form";
@@ -47,8 +48,7 @@ export const StaffInfoCard = ({ staff }: { staff: StaffDetail }) => (
           },
           {
             label: "年齢",
-            // A DATE column arrives as midnight UTC: its ISO day is the stored day.
-            value: staff.birthday ? `${ageOf(staff.birthday.toISOString().slice(0, 10))}歳` : null,
+            value: staff.birthday ? `${String(ageOf(toIsoDay(staff.birthday)))}歳` : null,
           },
           { label: "性別", value: GENDER_LABELS[staff.gender] },
         ]}

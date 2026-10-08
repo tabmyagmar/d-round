@@ -20,6 +20,7 @@
     "@hono/trpc-server": "0.4.2",
     "@repo/auth": "workspace:*",
     "@repo/database": "workspace:*",
+    "@repo/dayjs": "workspace:*",
     "@repo/logger": "workspace:*",
     "@repo/permissions": "workspace:*",
     "@repo/queue": "workspace:*",

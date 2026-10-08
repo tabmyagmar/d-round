@@ -2603,6 +2603,7 @@ __metadata:
     "@hono/trpc-server": "npm:0.4.2"
     "@repo/auth": "workspace:*"
     "@repo/database": "workspace:*"
+    "@repo/dayjs": "workspace:*"
     "@repo/eslint-config": "workspace:*"
     "@repo/logger": "workspace:*"
     "@repo/permissions": "workspace:*"
@@ -2664,7 +2665,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@repo/dayjs@workspace:packages/dayjs":
+"@repo/dayjs@workspace:*, @repo/dayjs@workspace:packages/dayjs":
   version: 0.0.0-use.local
   resolution: "@repo/dayjs@workspace:packages/dayjs"
   dependencies:
@@ -2811,6 +2812,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@repo/validation@workspace:packages/validation"
   dependencies:
+    "@repo/dayjs": "workspace:*"
     "@repo/eslint-config": "workspace:*"
     "@repo/typescript-config": "workspace:*"
     "@types/node": "npm:24.13.3"
@@ -2829,6 +2831,7 @@ __metadata:
     "@hookform/resolvers": "npm:5.9.1"
     "@repo/api": "workspace:*"
     "@repo/auth": "workspace:*"
+    "@repo/dayjs": "workspace:*"
     "@repo/eslint-config": "workspace:*"
     "@repo/permissions": "workspace:*"
     "@repo/typescript-config": "workspace:*"
