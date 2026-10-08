@@ -46,18 +46,18 @@ Side processes:
 
 ## Allowed import directions
 
-| From            | May import                                                                                                       |
-| --------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `api-transport` | `api-transport`, `api-service`, `api-core`, shared packages; `@repo/database` **types only**                     |
-| `api-service`   | `api-service`, `api-core`, shared packages (`@repo/database`, `@repo/queue`, `@repo/validation`, `@repo/logger`) |
-| `api-core`      | `api-core`, shared packages                                                                                      |
-| `api-app`       | every layer inside `apps/api` (it wires them together) and shared packages                                       |
-| `repository`    | `repository`, `database`                                                                                         |
-| `database`      | `database`, `repository`                                                                                         |
-| `worker`        | `worker`, shared packages                                                                                        |
-| `web`           | `web`, `@repo/ui`, `@repo/validation`; `@repo/api` **types only**                                                |
-| `ui`            | `ui`, browser-safe shared packages (`@repo/validation`)                                                          |
-| `shared`        | other shared packages — never an app                                                                             |
+| From            | May import                                                                                                                      |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `api-transport` | `api-transport`, `api-service`, `api-core`, shared packages; `@repo/database` **types only**                                    |
+| `api-service`   | `api-service`, `api-core`, shared packages (`@repo/database`, `@repo/queue`, `@repo/validation`, `@repo/logger`, `@repo/dayjs`) |
+| `api-core`      | `api-core`, shared packages                                                                                                     |
+| `api-app`       | every layer inside `apps/api` (it wires them together) and shared packages                                                      |
+| `repository`    | `repository`, `database`                                                                                                        |
+| `database`      | `database`, `repository`                                                                                                        |
+| `worker`        | `worker`, shared packages                                                                                                       |
+| `web`           | `web`, `@repo/ui`, `@repo/validation`, `@repo/dayjs`; `@repo/api` **types only**                                                |
+| `ui`            | `ui`, browser-safe shared packages (`@repo/validation`)                                                                         |
+| `shared`        | other shared packages — never an app                                                                                            |
 
 Third-party and Node built-in modules are allowed everywhere except where a policy forbids them:
 transport libraries (`@trpc/*`, `hono`, `@hono/*`, `graphql`, `graphql-yoga`) in services,

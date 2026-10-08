@@ -1,0 +1,27 @@
+{
+  "name": "@repo/dayjs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "dayjs configured once (utc, timezone, customParseFormat, ja) and the calendar-day helpers",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "dayjs": "1.11.23"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "24.13.3",
+    "eslint": "10.10.0",
+    "typescript": "6.0.3",
+    "vite": "8.2.2",
+    "vitest": "5.0.0"
+  }
+}

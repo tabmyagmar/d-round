@@ -206,6 +206,8 @@ packages/
   queue/      BullMQ + ioredis wrapper: connection, createQueue, createWorker, pub/sub, jobIdFor,
               QUEUE_NAMES, jobs/email.job.ts (EmailJob contract), test/ (testcontainers Redis)
   logger/     pino with redaction, createLogger / childLogger
+  dayjs/      dayjs configured once (utc, timezone, customParseFormat, ja) and the calendar-day
+              helpers toIsoDay / fromIsoDay / todayIsoDay (ADR 0009)
   ui/         shadcn primitives (src/components), react-hook-form fields (src/components/form:
               Text/Textarea/Password/Number, Select/Combobox/MultiSelect, Checkbox/Switch/
               CheckboxGroup/Radio, Date/DateTime/DateRange, File, Hidden/ReadOnly, Array +
