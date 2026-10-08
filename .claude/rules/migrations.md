@@ -24,10 +24,13 @@ paths:
     `visible` for a future permission-editing UI, never an authorization input),
     `access/role-permission.prisma` (`RolePermission`), `access/user-permission.prisma`
     (`enum PermissionEffect ALLOW | DENY` + `UserPermission`: a user's `ALLOW` row adds a permission
-    on top of the role grants, a `DENY` row removes one). `access/` is our authorization catalog;
-    `auth/` stays Better Auth's, and `auth/user.prisma` only gains relation fields
-    (`permissions UserPermission[]`, no column, and `roleRef Role` over the existing `role` column),
-    `@@index([role])` and `role`'s NOT NULL / default — see "Better Auth models" below.
+    on top of the role grants, a `DENY` row removes one), `setting/comment-template.prisma`
+    (`enum CommentFor` + `CommentTemplate`: a user's personal 定型文, owner `createdBy` with
+    Cascade, menus as an enum array, unique `(createdBy, short)`, hard delete — ADR 0006). `access/`
+    is our authorization catalog; `auth/` stays Better Auth's, and `auth/user.prisma` only gains
+    relation fields (`permissions UserPermission[]`, no column, and `roleRef Role` over the existing
+    `role` column), `@@index([role])` and `role`'s NOT NULL / default — see "Better Auth models"
+    below.
   - Prisma merges every `.prisma` file in the folder; relations may point at models in other files.
     A new module gets a new folder.
 - Seeds live in `packages/database/prisma/seed/`: one `<dataset>.seed.ts` per dataset exporting a
@@ -112,6 +115,8 @@ paths:
 | `20261005090103_add_roles_and_permissions`                         | tables `roles`, `permissions` (self-relation on `parent_key`, Restrict), `role_permissions`, `user_permissions` (composite primary keys; Cascade)                                              |
 | `20261005143913_align_users_role_with_roles`                       | inserts the four `roles` rows (`ON CONFLICT DO NOTHING`), backfills `users.role` (`member`/NULL → `staff`), then default `'staff'`, NOT NULL, index and FK `users.role → roles.key` (Restrict) |
 | `20261005145534_add_permission_visible_and_user_permission_effect` | enum `permission_effect`; defaulted columns `permissions.visible` (true) and `user_permissions.effect` (`ALLOW`)                                                                               |
+| `20261007000000_add_user_name_parts`                               | nullable `users.last_name`, `first_name`, `last_name_kana`, `first_name_kana` (ADR 0002)                                                                                                       |
+| `20261008013748_add_comment_templates`                             | enum `comment_for`; table `comment_templates` (FK `created_by` → `users.id`, Cascade; unique `(created_by, short)`; ADR 0006)                                                                  |
 
 The template shipped `0001_init` as its single baseline. Once a migration has been applied anywhere,
 never edit it; add a new one.

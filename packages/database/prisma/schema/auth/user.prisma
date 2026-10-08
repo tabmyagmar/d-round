@@ -28,10 +28,11 @@ model User {
   lastNameKana  String? @map("last_name_kana")
   firstNameKana String? @map("first_name_kana")
 
-  roleRef     Role             @relation(fields: [role], references: [key], onDelete: Restrict)
-  sessions    Session[]
-  accounts    Account[]
-  permissions UserPermission[]
+  roleRef          Role              @relation(fields: [role], references: [key], onDelete: Restrict)
+  sessions         Session[]
+  accounts         Account[]
+  permissions      UserPermission[]
+  commentTemplates CommentTemplate[]
 
   @@index([role])
   @@map("users")

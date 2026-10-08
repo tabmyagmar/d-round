@@ -1,0 +1,36 @@
+// 定型文: a user's personal short texts that paste into a comment or memo box, tagged with the
+// menus they are for. Owned by `createdBy`; every read and write is scoped to the owner (CASL row
+// rule, ADR 0003). One table with an enum array replaces the legacy CommentTemplate +
+// CommentTemplateType join. See docs/adr/0006-comment-templates.md.
+
+/// The menus a template is offered in (legacy EnumCommentFor).
+enum CommentFor {
+  /// ワークフロー承認画面用コメント
+  WORKFLOW
+  /// ワークフロー一覧用メモ
+  APPLICATION
+  /// クライアント管理
+  CLIENT
+  /// スタッフ管理
+  STAFF
+
+  @@map("comment_for")
+}
+
+model CommentTemplate {
+  id        String       @id @default(uuid(7)) @db.Uuid
+  /// The owner; templates are personal and go with the user.
+  createdBy String       @map("created_by") @db.Uuid
+  types     CommentFor[]
+  /// タイトル — unique per owner.
+  short     String       @db.VarChar(100)
+  /// テキスト (≤1000 characters, enforced by @repo/validation).
+  content   String
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  owner User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@unique([createdBy, short])
+  @@map("comment_templates")
+}
