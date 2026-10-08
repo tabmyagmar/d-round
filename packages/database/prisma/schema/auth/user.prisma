@@ -37,6 +37,8 @@ model User {
   commentTemplates CommentTemplate[]
   /// スタッフ this user is or was 担当者 of (ADR 0008).
   staffCharges     StaffCharger[]
+  /// クライアント this user is 担当者 of (ADR 0011).
+  clientCharges    ClientCharger[]
 
   @@index([role])
   @@map("users")

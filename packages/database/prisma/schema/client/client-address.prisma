@@ -1,0 +1,20 @@
+// A クライアント's address, as a スタッフ's: the post code into the Japan Post master (都道府県 /
+// 市区町村 / 町域 come from there) and the typed line. Legacy ClientAddress stored the master's text a
+// second time.
+
+model ClientAddress {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  clientId  String   @unique @map("client_id") @db.Uuid
+  /// 郵便番号, seven digits: the master's key.
+  postCode  String   @map("post_code")
+  /// 番地・建物名 (legacy address2).
+  address1  String   @db.VarChar(200)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  client        Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  sourceAddress SourceAddress @relation(fields: [postCode], references: [postCode], onDelete: Restrict)
+
+  @@index([postCode])
+  @@map("client_addresses")
+}

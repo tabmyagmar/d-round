@@ -1,0 +1,57 @@
+// A クライアント (legacy Client): an organisation the company works for; its 就業先部署 belong to
+// it. Soft-deleted. The address, regions and 担当者 live in their own files beside this one
+// (docs/adr/0011-clients-and-branches.md).
+
+/// 利用中 / 保留 / 停止 of a client or a 就業先部署 (legacy EnumGeneralStatus without DELETED);
+/// deletion is `deleted_at`.
+enum GeneralStatus {
+  /// 利用中
+  ACTIVE
+  /// 保留
+  INACTIVE
+  /// 停止
+  SUSPENDED
+
+  @@map("general_status")
+}
+
+/// 受注区分 (legacy EnumClientOrder).
+enum ClientOrderType {
+  /// 業務請負
+  CONTRACT_WORK
+  /// 派遣
+  DISPATCH
+  /// スポット
+  SPOT_WORK
+
+  @@map("client_order_type")
+}
+
+model Client {
+  id          String            @id @default(uuid(7)) @db.Uuid
+  /// クライアント番号 — unique among non-deleted clients (a service rule, ADR 0011).
+  number      Int
+  name        String            @db.VarChar(100)
+  nameKana    String            @map("name_kana") @db.VarChar(100)
+  /// エリア
+  areas       SourceArea[]
+  /// 受注区分
+  orderTypes  ClientOrderType[] @map("order_types")
+  phoneNumber String            @map("phone_number") @db.VarChar(20)
+  fax         String?           @db.VarChar(20)
+  webUrl      String?           @map("web_url") @db.VarChar(255)
+  status      GeneralStatus     @default(ACTIVE)
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  /// クライアント削除 (soft): only a 停止 client; frees the クライアント番号.
+  deletedAt   DateTime?         @map("deleted_at")
+
+  address  ClientAddress?
+  regions  ClientRegion[]
+  chargers ClientCharger[]
+
+  @@index([number])
+  @@index([status])
+  @@index([nameKana])
+  @@map("clients")
+}

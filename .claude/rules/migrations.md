@@ -37,11 +37,16 @@ paths:
     natural codes), `staff-charger.prisma` (`StaffCharger`: 担当者 over time, `unassigned_at`),
     `staff-family-member.prisma` (`enum FamilyRelation` + `StaffFamilyMember`), `staff-memo.prisma`
     (`enum StaffMemoType` + `StaffMemo`) and `staff-job-history.prisma` (`StaffJobHistory`); the
-    three lists carry a `sort_order`. `access/` is our authorization catalog; `auth/` stays Better
-    Auth's, and `auth/user.prisma` only gains relation fields (`permissions UserPermission[]`,
-    `profile UserProfile?`, `staffCharges StaffCharger[]`, no column, and `roleRef Role` over the
-    existing `role` column), `@@index([role])` and `role`'s NOT NULL / default — see "Better Auth
-    models" below.
+    three lists carry a `sort_order`. The クライアント aggregate in `client/` (ADR 0011):
+    `client.prisma` (`enum GeneralStatus` — 利用中 / 保留 / 停止, shared with the 就業先部署 —,
+    `enum ClientOrderType` + `Client`, soft-deleted, クライアント番号 unique among non-deleted rows
+    by a service rule, areas and 受注区分 as enum arrays), `client-address.prisma` (`ClientAddress`,
+    post code into `source_addresses`), `client-region.prisma` (join table on the region `code`) and
+    `client-charger.prisma` (`ClientCharger`, composite key, the form's list). `access/` is our
+    authorization catalog; `auth/` stays Better Auth's, and `auth/user.prisma` only gains relation
+    fields (`permissions UserPermission[]`, `profile UserProfile?`, `staffCharges StaffCharger[]`,
+    `clientCharges ClientCharger[]`, no column, and `roleRef Role` over the existing `role` column),
+    `@@index([role])` and `role`'s NOT NULL / default — see "Better Auth models" below.
   - Prisma merges every `.prisma` file in the folder; relations may point at models in other files.
     A new module gets a new folder.
 - Seeds live in `packages/database/prisma/seed/`: one `<dataset>.seed.ts` per dataset exporting a
@@ -132,6 +137,7 @@ paths:
 | `20261008044757_rename_staff_role_to_am`                           | role key `staff` → `am`: inserts `am`, moves users and `role_permissions`, deletes `staff`, default `'am'` (ADR 0002, 2026-10-08)                                                                                                                                                                                                                                                                              |
 | `20261008045556_add_user_profiles`                                 | enum `position`; tables `user_profiles` (FK `user_id` → `users.id`, Cascade; unique `user_id`, `employee_number`) and `user_profile_regions` (composite key, FK `region_code` → `source_regions.code`, Restrict; ADR 0007)                                                                                                                                                                                     |
 | `20261008055605_add_staffs`                                        | enums `employee_type`, `gender`, `staff_status`, `family_relation`, `staff_memo_type`; tables `staffs`, `staff_addresses` (FK `post_code` → `source_addresses`, Restrict), `staff_regions`, `staff_prefectures` (composite keys, Restrict to the codes), `staff_chargers` (FK `user_id` → `users.id`, Restrict), `staff_family_members`, `staff_memos`, `staff_job_histories` (Cascade to the staff; ADR 0008) |
+| `20261008233611_add_clients`                                       | enums `general_status`, `client_order_type`; tables `clients`, `client_addresses` (FK `post_code` → `source_addresses`, Restrict), `client_regions` (composite key, Restrict to the code), `client_chargers` (composite key, FK `user_id` → `users.id`, Restrict; Cascade to the client; ADR 0011)                                                                                                             |
 
 The template shipped `0001_init` as its single baseline. Once a migration has been applied anywhere,
 never edit it; add a new one.

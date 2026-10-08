@@ -1,9 +1,11 @@
 // Public surface of @repo/database. Consumers never import from src/generated directly.
 export {
+  ClientOrderType,
   CommentFor,
   EmployeeType,
   FamilyRelation,
   Gender,
+  GeneralStatus,
   OutboxStatus,
   PermissionEffect,
   Position,
@@ -14,6 +16,10 @@ export {
 } from "./generated/prisma/client";
 export type {
   Account,
+  Client,
+  ClientAddress,
+  ClientCharger,
+  ClientRegion,
   CommentTemplate,
   HealthCheck,
   OutboxEmail,
