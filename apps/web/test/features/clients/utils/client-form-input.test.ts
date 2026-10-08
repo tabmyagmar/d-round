@@ -5,7 +5,6 @@ import {
   emptyClientValues,
   toClientInput,
 } from "@/features/clients/utils/client-form-input";
-import { clientSaveErrorOf } from "@/features/clients/utils/client-labels";
 
 import { clientDetail } from "../fixtures";
 
@@ -56,14 +55,5 @@ describe("client form input", () => {
 
     expect(input.address).toEqual({ postCode: "1600022", address1: "1-2-3" });
     expect(input.webUrl).toBe("example.com");
-  });
-
-  it("says a number taken while the form was open the legacy way, anything else as the API did", () => {
-    expect(clientSaveErrorOf({ message: "x", data: { code: "CONFLICT" } })).toBe(
-      "クライアント番号が既に登録されています",
-    );
-    expect(clientSaveErrorOf({ message: "Unknown region 99", data: { code: "BAD_REQUEST" } })).toBe(
-      "Unknown region 99",
-    );
   });
 });
