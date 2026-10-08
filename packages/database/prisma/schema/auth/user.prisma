@@ -29,6 +29,8 @@ model User {
   firstNameKana String? @map("first_name_kana")
 
   roleRef          Role              @relation(fields: [role], references: [key], onDelete: Restrict)
+  /// HR fields of a 担当者 (ADR 0007); none until the user is invited or edited with them.
+  profile          UserProfile?
   sessions         Session[]
   accounts         Account[]
   permissions      UserPermission[]

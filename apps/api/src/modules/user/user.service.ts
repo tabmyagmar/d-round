@@ -284,7 +284,7 @@ export const update = async (ctx: RequestContext, input: UpdateUserInput): Promi
     }
     assertCan(ctx, "update", target);
 
-    let updated = target;
+    let updated: User = target;
     const changes = nameChanges(target, input);
     if (Object.keys(changes).length > 0) {
       updated = await users.updateProfile(target.id, changes);

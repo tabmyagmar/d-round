@@ -1,0 +1,15 @@
+// The 地域 of a 担当者 (legacy SourceRegionOnStaffs for USER rows). Keyed by the region's natural
+// `code` (ADR 0005); the スタッフ form offers as 担当者 the users whose regions overlap the staff's.
+
+model UserProfileRegion {
+  userId     String   @map("user_id") @db.Uuid
+  regionCode Int      @map("region_code")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  profile UserProfile  @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  region  SourceRegion @relation(fields: [regionCode], references: [code], onDelete: Restrict)
+
+  @@id([userId, regionCode])
+  @@index([regionCode])
+  @@map("user_profile_regions")
+}

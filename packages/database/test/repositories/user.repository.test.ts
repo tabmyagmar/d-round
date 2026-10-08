@@ -1,14 +1,19 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
+import { seedSourceRegions } from "../../prisma/seed/source-regions.seed";
 import { createPrismaClient } from "../../src/client";
 import type { PrismaClient } from "../../src/client";
 import { createUserRepository } from "../../src/repositories/user.repository";
+import type { UserProfileData } from "../../src/repositories/user.repository";
+import { isUniqueViolation } from "../../src/utils/errors";
 import type { DbClient } from "../../src/utils/transaction";
 
 let prisma: PrismaClient;
 
-beforeAll(() => {
+beforeAll(async () => {
   prisma = createPrismaClient({ connectionString: inject("databaseUrl") });
+  // Profile regions reference the seeded regions; the seed is idempotent and safe in parallel.
+  await seedSourceRegions(prisma);
 });
 
 afterAll(async () => {
@@ -19,7 +24,12 @@ afterAll(async () => {
 const group = () => `group-${crypto.randomUUID()}`;
 
 const createUser = (
-  data: { group: string; role?: string; index?: number },
+  data: {
+    group: string;
+    role?: string;
+    index?: number;
+    kana?: { lastNameKana: string; firstNameKana: string };
+  },
   db: DbClient = prisma,
 ) =>
   db.user.create({
@@ -27,10 +37,21 @@ const createUser = (
       name: `${data.group} ${String(data.index ?? 0)}`,
       email: `${crypto.randomUUID()}@example.com`,
       role: data.role ?? "am",
+      ...data.kana,
     },
   });
 
 const inGroup = (prefix: string) => ({ name: { startsWith: prefix } });
+
+/** 社員番号 is unique across the shared container: every profile gets a random one. */
+const profileData = (overrides: Partial<UserProfileData> = {}): UserProfileData => ({
+  employeeNumber: 10_000 + Math.floor(Math.random() * 2_000_000_000),
+  departmentName: "東日本営業部",
+  position: "SV",
+  retirementDate: null,
+  areas: ["EAST"],
+  ...overrides,
+});
 
 describe("user repository", () => {
   it("excludes soft-deleted users from reads and counts", async () => {
@@ -208,6 +229,114 @@ describe("user repository", () => {
       data: { userId: user.id, accountId: user.id, providerId: "credential", password: "hash" },
     });
     expect(await repo.hasCredentialAccount(user.id)).toBe(true);
+  });
+
+  it("reads a user with their profile and its regions in code order, and null without one", async () => {
+    const repo = createUserRepository(prisma);
+    const prefix = group();
+    const withProfile = await createUser({ group: prefix, index: 1 });
+    const without = await createUser({ group: prefix, index: 0 });
+    const data = profileData({ retirementDate: new Date("2027-03-31"), areas: ["EAST", "WEST"] });
+    await repo.upsertProfile(withProfile.id, data);
+    await repo.replaceProfileRegions(withProfile.id, [7, 4]);
+
+    const found = await repo.findById(withProfile.id);
+
+    expect(found?.profile).toMatchObject({
+      employeeNumber: data.employeeNumber,
+      departmentName: "東日本営業部",
+      position: "SV",
+      retirementDate: new Date("2027-03-31"),
+      areas: ["EAST", "WEST"],
+    });
+    expect(found?.profile?.regions.map((region) => region.regionCode)).toEqual([4, 7]);
+    expect((await repo.findById(without.id))?.profile).toBeNull();
+    const page = await repo.findMany({ page: 1, perPage: 10 }, inGroup(prefix), {
+      orderBy: { name: "asc" },
+    });
+    expect(page.items.map((user) => user.profile?.employeeNumber ?? null)).toEqual([
+      null,
+      data.employeeNumber,
+    ]);
+  });
+
+  it("creates the profile once and updates it in place", async () => {
+    const repo = createUserRepository(prisma);
+    const user = await createUser({ group: group() });
+    const created = await repo.upsertProfile(user.id, profileData());
+
+    const updated = await repo.upsertProfile(
+      user.id,
+      profileData({ departmentName: "西日本営業部", position: "LEADER", areas: ["WEST"] }),
+    );
+
+    expect(updated.id).toBe(created.id);
+    expect(updated).toMatchObject({
+      departmentName: "西日本営業部",
+      position: "LEADER",
+      areas: ["WEST"],
+    });
+    expect(await prisma.userProfile.count({ where: { userId: user.id } })).toBe(1);
+  });
+
+  it("replaces the profile regions with exactly the given codes", async () => {
+    const repo = createUserRepository(prisma);
+    const user = await createUser({ group: group() });
+    await repo.upsertProfile(user.id, profileData());
+    await repo.replaceProfileRegions(user.id, [3, 4]);
+
+    await repo.replaceProfileRegions(user.id, [4, 5]);
+
+    const regions = await prisma.userProfileRegion.findMany({
+      where: { userId: user.id },
+      orderBy: { regionCode: "asc" },
+    });
+    expect(regions.map((region) => region.regionCode)).toEqual([4, 5]);
+  });
+
+  it("refuses a second profile with the same 社員番号", async () => {
+    const repo = createUserRepository(prisma);
+    const first = await createUser({ group: group() });
+    const second = await createUser({ group: group() });
+    const data = profileData();
+    await repo.upsertProfile(first.id, data);
+
+    await expect(repo.upsertProfile(second.id, data)).rejects.toSatisfy(isUniqueViolation);
+  });
+
+  it("lists charger options in kana order, users without kana last, deactivated users never", async () => {
+    const repo = createUserRepository(prisma);
+    const prefix = group();
+    const tanaka = await createUser({
+      group: prefix,
+      index: 1,
+      kana: { lastNameKana: "タナカ", firstNameKana: "ミサキ" },
+    });
+    const noKana = await createUser({ group: prefix, index: 0 });
+    const sato = await createUser({
+      group: prefix,
+      index: 2,
+      kana: { lastNameKana: "サトウ", firstNameKana: "イチロウ" },
+    });
+    const gone = await createUser({
+      group: prefix,
+      index: 3,
+      kana: { lastNameKana: "アベ", firstNameKana: "タロウ" },
+    });
+    await repo.softDelete(gone.id);
+
+    const options = await repo.findChargerOptions(inGroup(prefix), 10);
+
+    expect(options.map((option) => option.id)).toEqual([sato.id, tanaka.id, noKana.id]);
+    expect(options[0]).toEqual({
+      id: sato.id,
+      name: `${prefix} 2`,
+      lastName: null,
+      firstName: null,
+      lastNameKana: "サトウ",
+      firstNameKana: "イチロウ",
+    });
+    expect(await repo.findChargerOptions(inGroup(prefix), 1)).toHaveLength(1);
   });
 
   it("marks the email verified once and reports whether it changed", async () => {

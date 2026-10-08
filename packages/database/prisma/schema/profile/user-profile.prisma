@@ -1,0 +1,58 @@
+// A 担当者's HR fields (legacy Staff{employeeType: USER}): one row per user, beside Better Auth's
+// `users` because Better Auth never reads them. The name parts stay on `users` (Better Auth's
+// `name` is built from them). See docs/adr/0007-user-profiles.md.
+
+/// 役職 (legacy EnumPosition), shared with the スタッフ aggregate.
+enum Position {
+  /// 役員
+  EXECUTIVE
+  /// エリア責任者
+  AREA_MANAGER
+  /// 地区責任者
+  DISTRICT_MANAGER
+  /// AM
+  SV
+  /// リーダー
+  LEADER
+  /// 派遣コーディネーター
+  DISPATCH_COORDINATOR
+  /// 正社員
+  FULL_TIME_EMPLOYEE
+  /// エリア社員
+  AREA_EMPLOYEE
+  /// 契約社員
+  CONTRACT_EMPLOYEE
+  /// 請負スタッフ
+  SUBCONTRACT_STAFF
+  /// 派遣スタッフ
+  DISPATCH_STAFF
+  /// スタッフ
+  STAFF
+  /// その他
+  OTHER
+
+  @@map("position")
+}
+
+model UserProfile {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  userId         String       @unique @map("user_id") @db.Uuid
+  /// 社員番号 — unique: users are soft-deleted only, so a number is never freed.
+  employeeNumber Int          @unique @map("employee_number")
+  /// 部署名
+  departmentName String       @map("department_name") @db.VarChar(80)
+  /// 役職
+  position       Position
+  /// 退職日
+  retirementDate DateTime?    @map("retirement_date") @db.Date
+  /// エリア
+  areas          SourceArea[]
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 地域
+  regions UserProfileRegion[]
+
+  @@map("user_profiles")
+}

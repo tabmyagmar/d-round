@@ -11,13 +11,24 @@
 //   am@test.com           am
 //
 // Passwords are hashed with Better Auth's own scrypt implementation so the accounts sign in
-// through the normal /api/auth/sign-in/email flow.
+// through the normal /api/auth/sign-in/email flow. Each account also gets a 担当者 profile
+// (ADR 0007) whose regions reference the regions seed, which index.ts runs first.
 import { hashPassword } from "better-auth/crypto";
+
+import type { Position, SourceArea } from "../../src/index";
 
 import type { RoleKey } from "./roles.seed";
 import type { SeedFn } from "./support";
 
 export const SEED_PASSWORD = "A12345678";
+
+type SeedProfile = {
+  employeeNumber: number;
+  departmentName: string;
+  position: Position;
+  areas: SourceArea[];
+  regionCodes: number[];
+};
 
 type SeedUser = {
   email: string;
@@ -28,6 +39,7 @@ type SeedUser = {
   lastNameKana: string;
   firstNameKana: string;
   role: RoleKey;
+  profile: SeedProfile;
 };
 
 const seedUser = (
@@ -35,6 +47,7 @@ const seedUser = (
   role: RoleKey,
   [lastName, firstName]: readonly [string, string],
   [lastNameKana, firstNameKana]: readonly [string, string],
+  profile: SeedProfile,
 ): SeedUser => ({
   email,
   name: `${lastName} ${firstName}`,
@@ -43,13 +56,38 @@ const seedUser = (
   lastNameKana,
   firstNameKana,
   role,
+  profile,
 });
 
 export const SEED_USERS: readonly SeedUser[] = [
-  seedUser("super_admin@test.com", "super_admin", ["佐藤", "一郎"], ["サトウ", "イチロウ"]),
-  seedUser("admin@test.com", "admin", ["鈴木", "花子"], ["スズキ", "ハナコ"]),
-  seedUser("manager@test.com", "manager", ["高橋", "次郎"], ["タカハシ", "ジロウ"]),
-  seedUser("am@test.com", "am", ["田中", "美咲"], ["タナカ", "ミサキ"]),
+  seedUser("super_admin@test.com", "super_admin", ["佐藤", "一郎"], ["サトウ", "イチロウ"], {
+    employeeNumber: 1,
+    departmentName: "本社",
+    position: "EXECUTIVE",
+    areas: ["EAST", "WEST"],
+    regionCodes: [4, 7],
+  }),
+  seedUser("admin@test.com", "admin", ["鈴木", "花子"], ["スズキ", "ハナコ"], {
+    employeeNumber: 2,
+    departmentName: "本社",
+    position: "AREA_MANAGER",
+    areas: ["EAST"],
+    regionCodes: [3, 4],
+  }),
+  seedUser("manager@test.com", "manager", ["高橋", "次郎"], ["タカハシ", "ジロウ"], {
+    employeeNumber: 3,
+    departmentName: "東日本営業部",
+    position: "DISTRICT_MANAGER",
+    areas: ["EAST"],
+    regionCodes: [4],
+  }),
+  seedUser("am@test.com", "am", ["田中", "美咲"], ["タナカ", "ミサキ"], {
+    employeeNumber: 4,
+    departmentName: "東日本営業部",
+    position: "SV",
+    areas: ["EAST"],
+    regionCodes: [4],
+  }),
 ];
 
 const CREDENTIAL_PROVIDER = "credential";
@@ -99,6 +137,17 @@ export const seedUsers: SeedFn = async (prisma) => {
         role: seed.role,
         emailVerified: true,
       },
+    });
+
+    const { regionCodes, ...profile } = seed.profile;
+    await prisma.userProfile.upsert({
+      where: { userId: user.id },
+      update: { ...profile, retirementDate: null },
+      create: { userId: user.id, ...profile },
+    });
+    await prisma.userProfileRegion.deleteMany({ where: { userId: user.id } });
+    await prisma.userProfileRegion.createMany({
+      data: regionCodes.map((regionCode) => ({ userId: user.id, regionCode })),
     });
 
     const account = await prisma.account.findFirst({

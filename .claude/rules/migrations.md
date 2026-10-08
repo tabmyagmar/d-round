@@ -26,11 +26,14 @@ paths:
     (`enum PermissionEffect ALLOW | DENY` + `UserPermission`: a user's `ALLOW` row adds a permission
     on top of the role grants, a `DENY` row removes one), `setting/comment-template.prisma`
     (`enum CommentFor` + `CommentTemplate`: a user's personal 定型文, owner `createdBy` with
-    Cascade, menus as an enum array, unique `(createdBy, short)`, hard delete — ADR 0006). `access/`
-    is our authorization catalog; `auth/` stays Better Auth's, and `auth/user.prisma` only gains
-    relation fields (`permissions UserPermission[]`, no column, and `roleRef Role` over the existing
-    `role` column), `@@index([role])` and `role`'s NOT NULL / default — see "Better Auth models"
-    below.
+    Cascade, menus as an enum array, unique `(createdBy, short)`, hard delete — ADR 0006),
+    `profile/user-profile.prisma` (`enum Position` + `UserProfile`: a 担当者's HR fields, 1:1 with
+    `users`, unique 社員番号, areas as an enum array — ADR 0007),
+    `profile/user-profile-region.prisma` (`UserProfileRegion`: a 担当者's 地域 by region `code`).
+    `access/` is our authorization catalog; `auth/` stays Better Auth's, and `auth/user.prisma` only
+    gains relation fields (`permissions UserPermission[]`, `profile UserProfile?`, no column, and
+    `roleRef Role` over the existing `role` column), `@@index([role])` and `role`'s NOT NULL /
+    default — see "Better Auth models" below.
   - Prisma merges every `.prisma` file in the folder; relations may point at models in other files.
     A new module gets a new folder.
 - Seeds live in `packages/database/prisma/seed/`: one `<dataset>.seed.ts` per dataset exporting a
@@ -52,7 +55,8 @@ paths:
     `changeRole` row) also carries each row's `visible` flag, which the seed writes and restores.
   - `users.seed.ts` upserts (by email) four verified test accounts, all with password `A12345678`,
     hashed with `hashPassword` from `better-auth/crypto` into a credential `Account` row so the
-    normal sign-in flow works:
+    normal sign-in flow works, each with a 担当者 profile (社員番号 1–4, 部署名, 役職, エリア) and
+    its regions, which is why the regions seed runs first:
 
     | Email                  | Role          | Name (reading)              |
     | ---------------------- | ------------- | --------------------------- |
@@ -107,17 +111,18 @@ paths:
 
 ## Existing migrations
 
-| Migration                                                          | Contents                                                                                                                                                                                       |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0001_init`                                                        | `health_checks`; Better Auth tables `users`, `sessions`, `accounts`, `verifications` (+ admin plugin columns, `deleted_at`); enum `outbox_status`, table `outbox_emails`                       |
-| `20261005070927_add_source_regions_and_prefectures`                | enum `source_area`; tables `source_regions`, `source_prefectures` (FK `region_code` → `source_regions.code`, Restrict)                                                                         |
-| `20261005081809_add_source_addresses`                              | table `source_addresses` (Japan Post postal-code master; `post_code` unique, four Boolean flags)                                                                                               |
-| `20261005090103_add_roles_and_permissions`                         | tables `roles`, `permissions` (self-relation on `parent_key`, Restrict), `role_permissions`, `user_permissions` (composite primary keys; Cascade)                                              |
-| `20261005143913_align_users_role_with_roles`                       | inserts the four `roles` rows (`ON CONFLICT DO NOTHING`), backfills `users.role` (`member`/NULL → `staff`), then default `'staff'`, NOT NULL, index and FK `users.role → roles.key` (Restrict) |
-| `20261005145534_add_permission_visible_and_user_permission_effect` | enum `permission_effect`; defaulted columns `permissions.visible` (true) and `user_permissions.effect` (`ALLOW`)                                                                               |
-| `20261007000000_add_user_name_parts`                               | nullable `users.last_name`, `first_name`, `last_name_kana`, `first_name_kana` (ADR 0002)                                                                                                       |
-| `20261008013748_add_comment_templates`                             | enum `comment_for`; table `comment_templates` (FK `created_by` → `users.id`, Cascade; unique `(created_by, short)`; ADR 0006)                                                                  |
-| `20261008044757_rename_staff_role_to_am`                           | role key `staff` → `am`: inserts `am`, moves users and `role_permissions`, deletes `staff`, default `'am'` (ADR 0002, 2026-10-08)                                                              |
+| Migration                                                          | Contents                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0001_init`                                                        | `health_checks`; Better Auth tables `users`, `sessions`, `accounts`, `verifications` (+ admin plugin columns, `deleted_at`); enum `outbox_status`, table `outbox_emails`                                                   |
+| `20261005070927_add_source_regions_and_prefectures`                | enum `source_area`; tables `source_regions`, `source_prefectures` (FK `region_code` → `source_regions.code`, Restrict)                                                                                                     |
+| `20261005081809_add_source_addresses`                              | table `source_addresses` (Japan Post postal-code master; `post_code` unique, four Boolean flags)                                                                                                                           |
+| `20261005090103_add_roles_and_permissions`                         | tables `roles`, `permissions` (self-relation on `parent_key`, Restrict), `role_permissions`, `user_permissions` (composite primary keys; Cascade)                                                                          |
+| `20261005143913_align_users_role_with_roles`                       | inserts the four `roles` rows (`ON CONFLICT DO NOTHING`), backfills `users.role` (`member`/NULL → `staff`), then default `'staff'`, NOT NULL, index and FK `users.role → roles.key` (Restrict)                             |
+| `20261005145534_add_permission_visible_and_user_permission_effect` | enum `permission_effect`; defaulted columns `permissions.visible` (true) and `user_permissions.effect` (`ALLOW`)                                                                                                           |
+| `20261007000000_add_user_name_parts`                               | nullable `users.last_name`, `first_name`, `last_name_kana`, `first_name_kana` (ADR 0002)                                                                                                                                   |
+| `20261008013748_add_comment_templates`                             | enum `comment_for`; table `comment_templates` (FK `created_by` → `users.id`, Cascade; unique `(created_by, short)`; ADR 0006)                                                                                              |
+| `20261008044757_rename_staff_role_to_am`                           | role key `staff` → `am`: inserts `am`, moves users and `role_permissions`, deletes `staff`, default `'am'` (ADR 0002, 2026-10-08)                                                                                          |
+| `20261008045556_add_user_profiles`                                 | enum `position`; tables `user_profiles` (FK `user_id` → `users.id`, Cascade; unique `user_id`, `employee_number`) and `user_profile_regions` (composite key, FK `region_code` → `source_regions.code`, Restrict; ADR 0007) |
 
 The template shipped `0001_init` as its single baseline. Once a migration has been applied anywhere,
 never edit it; add a new one.

@@ -17,7 +17,8 @@ model SourceRegion {
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
 
-  prefectures SourcePrefecture[]
+  prefectures        SourcePrefecture[]
+  userProfileRegions UserProfileRegion[]
 
   @@map("source_regions")
 }

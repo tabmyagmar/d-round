@@ -2,6 +2,7 @@ import { verifyPassword } from "better-auth/crypto";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
 import { ROLE_SEEDS } from "../../prisma/seed/roles.seed";
+import { seedSourceRegions } from "../../prisma/seed/source-regions.seed";
 import { SEED_PASSWORD, SEED_USERS, seedUsers } from "../../prisma/seed/users.seed";
 import { createPrismaClient } from "../../src/client";
 import type { PrismaClient } from "../../src/client";
@@ -15,10 +16,12 @@ import type { PrismaClient } from "../../src/client";
 let prisma: PrismaClient;
 let previousNodeEnv: string | undefined;
 
-beforeAll(() => {
+beforeAll(async () => {
   previousNodeEnv = process.env.NODE_ENV;
   process.env.NODE_ENV = "test";
   prisma = createPrismaClient({ connectionString: inject("databaseUrl") });
+  // The profiles' regions reference the regions seed (index.ts runs it first); idempotent.
+  await seedSourceRegions(prisma);
 });
 
 afterAll(async () => {
@@ -36,7 +39,10 @@ const SEED_EMAILS = SEED_USERS.map((seed) => seed.email);
 const findSeedUser = (email: string) =>
   prisma.user.findUniqueOrThrow({
     where: { email },
-    include: { accounts: { where: { providerId: "credential" } } },
+    include: {
+      accounts: { where: { providerId: "credential" } },
+      profile: { include: { regions: { orderBy: { regionCode: "asc" } } } },
+    },
   });
 
 const SKIPPED = {
@@ -106,6 +112,9 @@ describe("seedUsers", () => {
         firstNameKana: seed.firstNameKana,
       });
       expect(user.name).toBe(`${seed.lastName} ${seed.firstName}`);
+      const { regionCodes, ...profile } = seed.profile;
+      expect(user.profile).toMatchObject({ ...profile, retirementDate: null });
+      expect(user.profile?.regions.map((region) => region.regionCode)).toEqual(regionCodes);
       expect(user.accounts).toHaveLength(1);
       const hash = user.accounts[0]!.password!;
       expect(await verifyPassword({ hash, password: SEED_PASSWORD })).toBe(true);
@@ -131,6 +140,7 @@ describe("seedUsers", () => {
     const admin = await findSeedUser(ADMIN_EMAIL);
     expect(admin.deletedAt).toBeNull();
     expect(admin.banned).toBe(false);
+    expect(await prisma.userProfile.count({ where: { userId: admin.id } })).toBe(1);
     expect(admin.accounts).toHaveLength(1);
     expect(
       await verifyPassword({ hash: admin.accounts[0]!.password!, password: SEED_PASSWORD }),

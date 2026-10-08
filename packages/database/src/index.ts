@@ -3,6 +3,7 @@ export {
   CommentFor,
   OutboxStatus,
   PermissionEffect,
+  Position,
   Prisma,
   SourceArea,
 } from "./generated/prisma/client";
@@ -20,6 +21,8 @@ export type {
   SourceRegion,
   User,
   UserPermission,
+  UserProfile,
+  UserProfileRegion,
   Verification,
 } from "./generated/prisma/client";
 
