@@ -113,3 +113,11 @@ lint error. Changing a permission means changing the matrix test first.
   user, the service checks the row and lists filter in the database with the owner `where`; route
   access to 定型文管理 stays `"signed-in"` because `canUnscoped` is false for a conditional rule.
   The unit spec asks `User` and `CommentTemplate` on an own and a foreign row.
+- **2026-10-08** — A third hard-coded rule for reference data: every signed-in user may `read`
+  `Source` (regions, prefectures, the post-code master), nobody writes it through the API. No
+  catalog row fits — the legacy served `getSourceRegions` and the post-code lookup to every
+  signed-in user (`authRequired`) — so `Source` joins `SUBJECT_NAMES` after `CommentTemplate` and
+  the `source` router uses `requireAbility("read", "Source")`; the unit spec expects `read Source`
+  for every signed-in holder. `canUnscoped` now takes any ability with `rulesFor` and is exported
+  from `@repo/permissions/server` too: the user service requires the unconditional `update User`
+  grant for 担当者 profile fields (ADR 0007), which the self rule does not give.

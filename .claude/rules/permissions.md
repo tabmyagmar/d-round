@@ -38,10 +38,10 @@ twice:
 Actions `create | read | update | delete | status | changeRole` (the catalog's `permissions.action`;
 parent rows carry `all` and never grant). Subjects are the catalog's `modelName` values
 (`SUBJECT_NAMES`: `User`, `Client`, `Staff`, `Branch`, `AuditLog`, `Workflow`, `WorkflowTemplate`,
-`SourceCsvHistory`), then the personal subjects no catalog row grants (`CommentTemplate`, a user's
-own 定型文, ADR 0006); `User` and `CommentTemplate` have Prisma models today. Conditions are plain
-equalities on subject attributes (`id` on `User`, `createdBy` on `CommentTemplate`) so both engines
-interpret them identically.
+`SourceCsvHistory`), then the subjects no catalog row grants: `CommentTemplate` (a user's own定型文,
+ADR 0006) and `Source` (reference data: regions, prefectures, the post-code master); `User` and
+`CommentTemplate` have Prisma models today. Conditions are plain equalities on subject attributes
+(`id` on `User`, `createdBy` on `CommentTemplate`) so both engines interpret them identically.
 
 ### The rule set (`rules.ts`)
 
@@ -58,8 +58,14 @@ export const defineRules = (can: CanFn, user: AbilityUser): void => {
 
   // Personal data: everyone keeps their own 定型文 and nobody else's (ADR 0006).
   can(["create", "read", "update", "delete"], "CommentTemplate", { createdBy: user.id });
+
+  // Reference data: every signed-in user reads it, nobody writes it through the API.
+  can("read", "Source");
 };
 ```
+
+Reference data (`Source`) is the third hard-coded rule: unconditional, so `canUnscoped` is true for
+every signed-in user, and the `source` router's procedures are `requireAbility("read", "Source")`.
 
 A personal subject (data a user owns, not data the organisation administers) is a row rule like the
 second one, not a catalog row. Its procedures still use `requireAbility(action, subject)` — the
@@ -103,9 +109,11 @@ only and need `changeRole`: `user.update` / `user.invite` take the ticked child 
 rows; leaving an overridable role drops them. Nobody edits their own overrides, and a caller may
 only `ALLOW` what their own session grants (ADR 0003, 2026-10-07).
 
-`canUnscoped(ability, action, subject)` (`@repo/permissions`) answers "may this user do this to
-every row" — the highest-priority rule without conditions is not inverted — for list pages and
-navigation; `ability.can(action, subject)` alone is also true for the conditional self rule.
+`canUnscoped(ability, action, subject)` (`@repo/permissions`, and `@repo/permissions/server` for
+`ctx.ability`) answers "may this user do this to every row" — the highest-priority rule without
+conditions is not inverted — for list pages and navigation, and in a service that must tell a
+catalog grant from the self rule (a 担当者 profile edit needs the `update User` grant);
+`ability.can(action, subject)` alone is also true for the conditional self rule.
 
 - `ctx.ability` is a `ServerAbility` built once per request by `definePrismaAbilityFor(ctx.user)` in
   `apps/api/src/core/context.ts`.
@@ -174,9 +182,10 @@ marker condition that Prisma rejects at query time — the guard turns that into
 - `packages/permissions/test/ability.test.ts` is the grant-driven unit spec: for every action ×
   subject a user holding only that grant `can` exactly that cell on other rows plus the row rules on
   their own rows (`User` and `CommentTemplate` are asked on an own and a foreign row); grants with
-  `all` or an unknown subject are ignored; empty grants → the row rules only; anonymous → nothing;
-  the Prisma ability answers exactly like the browser ability; `accessibleUsersWhere`,
-  `accessibleCommentTemplatesWhere` and `canUnscoped` are covered. It knows nothing about roles.
+  `all` or an unknown subject are ignored; empty grants → the row rules and `read Source` only;
+  anonymous → nothing; the Prisma ability answers exactly like the browser ability;
+  `accessibleUsersWhere`, `accessibleCommentTemplatesWhere` and `canUnscoped` are covered. It knows
+  nothing about roles.
 - `apps/api/test/permission-catalog.test.ts` is the DB-backed catalog spec: after the seed, for
   every role × catalog row, `ctx.ability.can(action, modelName)` equals "a `role_permissions` row
   exists" (never for `all`), a user `ALLOW` adds and a `DENY` removes, and every catalog action and

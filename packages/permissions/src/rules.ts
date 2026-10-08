@@ -6,7 +6,8 @@ import type { Role } from "@repo/validation";
  * plain equalities so both engines interpret them identically.
  *
  * CASL answers "may this user do this kind of thing?" from the catalog grants the session
- * carries, plus two row rules: the own User row and the user's own CommentTemplate rows. Stateful
+ * carries, plus two row rules — the own User row and the user's own CommentTemplate rows — and
+ * read access to reference data (`Source`) for every signed-in user. Stateful
  * rules (last admin, workflow state) live in services. See
  * .claude/rules/permissions.md and docs/adr/0003-permissions.md.
  */
@@ -16,8 +17,9 @@ export const ACTIONS = ["create", "read", "update", "delete", "status", "changeR
 export type Action = (typeof ACTIONS)[number];
 
 /**
- * The catalog's `modelName` values, then the personal subjects no catalog row grants
- * (`CommentTemplate`: a user's own 定型文, ADR 0006), which only a row rule below opens.
+ * The catalog's `modelName` values, then the subjects no catalog row grants: `CommentTemplate`
+ * (a user's own 定型文, ADR 0006), which only a row rule below opens, and `Source` (reference data
+ * every signed-in user reads).
  */
 export const SUBJECT_NAMES = [
   "User",
@@ -29,6 +31,7 @@ export const SUBJECT_NAMES = [
   "WorkflowTemplate",
   "SourceCsvHistory",
   "CommentTemplate",
+  "Source",
 ] as const;
 export type SubjectName = (typeof SUBJECT_NAMES)[number];
 
@@ -99,4 +102,8 @@ export const defineRules = (can: CanFn, user: AbilityUser): void => {
 
   // Personal data: everyone keeps their own 定型文 and nobody else's (ADR 0006).
   can(["create", "read", "update", "delete"], "CommentTemplate", { createdBy: user.id });
+
+  // Reference data (regions, prefectures, the post-code master): every signed-in user reads it,
+  // nobody writes it through the API (ADR 0003, 2026-10-08).
+  can("read", "Source");
 };

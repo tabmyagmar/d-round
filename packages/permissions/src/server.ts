@@ -5,6 +5,7 @@ import type { Model, PrismaQueryOf, Subjects } from "@casl/prisma/runtime";
 
 import type { CommentTemplate, Prisma, User } from "@repo/database";
 
+import { canUnscoped } from "./ability";
 import { defineRules } from "./rules";
 import type { AbilityUser, Action, RuleConditions, SubjectName } from "./rules";
 
@@ -62,4 +63,4 @@ export const accessibleCommentTemplatesWhere = (
   action: Action = "read",
 ): Prisma.CommentTemplateWhereInput => accessibleBy(ability, action).ofType("CommentTemplate");
 
-export { accessibleBy };
+export { accessibleBy, canUnscoped };

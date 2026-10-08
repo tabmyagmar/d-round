@@ -4,7 +4,8 @@
  * The rules are grant-driven: a signed-in user carries effective catalog grants
  * `{ action, subject }` and `defineRules` turns every grant it knows into an unscoped `can`, then
  * adds the row rules: the self rule on the own User row and the owner rule on the user's own
- * CommentTemplate rows (personal data no catalog row grants). This file knows nothing about roles: which role holds
+ * CommentTemplate rows (personal data no catalog row grants), and the reference rule (every
+ * signed-in user reads `Source`). This file knows nothing about roles: which role holds
  * which grant is the catalog's business (`permissions.csv`, proven against the database by
  * `apps/api/test/permission-catalog.test.ts`). Changing the shape of a rule means changing this
  * file first — the failing cell documents the change — then `rules.ts`.
@@ -21,6 +22,7 @@ import type { AbilityUser, Action, PermissionGrant, SubjectName } from "../src/r
 import {
   accessibleCommentTemplatesWhere,
   accessibleUsersWhere,
+  canUnscoped as serverCanUnscoped,
   definePrismaAbilityFor,
   prismaCommentTemplateSubject,
   prismaUserSubject,
@@ -141,13 +143,18 @@ const isOwnerRule = ({ action, subject, relation }: Cell): boolean =>
   relation === "self" &&
   (action === "create" || action === "read" || action === "update" || action === "delete");
 
-/** What a signed-in user holding exactly `grants` may do: the granted cells plus the row rules. */
+/** The reference rule: every signed-in user reads reference data (regions, post codes). */
+const isReferenceRule = ({ action, subject }: Cell): boolean =>
+  subject === "Source" && action === "read";
+
+/** What a signed-in user holding exactly `grants` may do: the granted cells plus the rules. */
 const expectedFor = (grants: readonly PermissionGrant[]): Record<string, boolean> =>
   Object.fromEntries(
     CELLS.map((cell) => [
       cellKey(cell),
       isSelfRule(cell) ||
         isOwnerRule(cell) ||
+        isReferenceRule(cell) ||
         grants.some((grant) => grant.action === cell.action && grant.subject === cell.subject),
     ]),
   );
@@ -174,6 +181,7 @@ describe("the typed lists", () => {
       "WorkflowTemplate",
       "SourceCsvHistory",
       "CommentTemplate",
+      "Source",
     ]);
     for (const action of ACTIONS) {
       expect(isAction(action)).toBe(true);
@@ -258,6 +266,19 @@ describe("the owner rule (personal 定型文)", () => {
   });
 });
 
+describe("the reference rule (Source)", () => {
+  it("lets every signed-in user read reference data unscoped and write none of it", () => {
+    const ability = defineAbilityFor(holder([]));
+
+    expect(ability.can("read", "Source")).toBe(true);
+    expect(canUnscoped(ability, "read", "Source")).toBe(true);
+    for (const action of ["create", "update", "delete", "status", "changeRole"] as const) {
+      expect(ability.can(action, "Source")).toBe(false);
+    }
+    expect(defineAbilityFor(null).can("read", "Source")).toBe(false);
+  });
+});
+
 describe("grants the rules do not know are ignored (fail closed)", () => {
   it.each(SUBJECT_NAMES)("a parent row grant `all %s` allows nothing", (subject) => {
     const ability = defineAbilityFor(holder([{ action: "all", subject }]));
@@ -330,6 +351,16 @@ describe("canUnscoped", () => {
 
   it("is false for an anonymous visitor", () => {
     expect(canUnscoped(defineAbilityFor(null), "read", "User")).toBe(false);
+  });
+
+  it("answers the same on the server ability: the grant opens a cell, the self rule does not", () => {
+    const granted = definePrismaAbilityFor(holder([{ action: "update", subject: "User" }]));
+    const selfOnly = definePrismaAbilityFor(holder([]));
+
+    expect(serverCanUnscoped(granted, "update", "User")).toBe(true);
+    expect(selfOnly.can("update", "User")).toBe(true);
+    expect(serverCanUnscoped(selfOnly, "update", "User")).toBe(false);
+    expect(serverCanUnscoped(definePrismaAbilityFor(null), "update", "User")).toBe(false);
   });
 
   it("honours CASL priority: a later unconditional `cannot` overrides an earlier `can`", () => {
