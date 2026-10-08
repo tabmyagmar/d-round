@@ -21,7 +21,7 @@ import { StaffBasicStep } from "@/features/staff/components/form/staff-basic-ste
 import { StaffFamilyMemberFields } from "@/features/staff/components/form/staff-family-member-fields";
 import { StaffFormConfirm } from "@/features/staff/components/form/staff-form-confirm";
 import { StaffMemoFields } from "@/features/staff/components/form/staff-memo-fields";
-import type { ChargerOption, MemoTemplate } from "@/features/staff/types";
+import type { ChargerChoice, ChargerOption, MemoTemplate } from "@/features/staff/types";
 import { toStaffInput } from "@/features/staff/utils/staff-form-input";
 import { STAFF_NUMBER_TAKEN } from "@/features/staff/utils/staff-labels";
 import {
@@ -38,7 +38,7 @@ export type StaffFormProps = {
   /** The 担当者 who cover these regions (`user.chargerOptions`). */
   findChargers: (regionCodes: number[]) => Promise<ChargerOption[]>;
   /** An edited staff's current 担当者: kept on offer whatever the regions, never dropped unasked. */
-  storedChargers?: readonly ChargerOption[];
+  storedChargers?: readonly ChargerChoice[];
   findAddress: (postCode: string) => Promise<AddressParts | null>;
   /** Asked before step 2 (legacy useValidateEntityNumber); a taken number stays on the field. */
   isEmployeeNumberFree: (employeeNumber: number) => Promise<boolean>;

@@ -162,4 +162,57 @@ describe("StaffForm", () => {
       "/admin/staff",
     );
   });
+
+  it("keeps an edited staff's stored 担当者 when the regions no longer offer them", async () => {
+    const stored = { id: "019a0000-0000-7000-8000-0000000000c9", name: "前任 次郎" };
+    const { onSubmit } = renderForm({
+      defaultValues: { ...VALID, chargerUserIds: [stored.id] },
+      storedChargers: [stored],
+      findChargers: () => Promise.resolve([CHARGER]),
+      submitLabel: "保存",
+    });
+
+    expect(await screen.findByText("前任 次郎")).toBeDefined();
+    next();
+    await screen.findByText("家族情報登録");
+    next();
+    await screen.findByText("〒160-0022");
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await vi.waitFor(() => {
+      expect(onSubmit).toHaveBeenCalled();
+    });
+    expect(onSubmit.mock.calls[0]?.[0].chargerUserIds).toEqual([stored.id]);
+  });
+
+  it("adds a 定型文 to a memo on a new line, and removes added memos only", async () => {
+    renderForm({
+      templates: [{ id: "t1", short: "勤務", content: "週3日勤務" }],
+    });
+    await screen.findByText("佐藤 一郎");
+    next();
+    await screen.findByText("家族情報登録");
+
+    const firstMemo = screen.getByLabelText("1. スタッフメモ");
+    fireEvent.click(within(firstMemo.closest("li")!).getByRole("button", { name: "勤務" }));
+    expect(firstMemo).toHaveProperty("value", "週3日勤務希望\n週3日勤務");
+
+    expect(screen.queryByRole("button", { name: /^1\. スタッフメモを削除/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "メモを追加" }));
+    fireEvent.click(screen.getByRole("button", { name: "3. メモを削除" }));
+    expect(screen.queryByLabelText("3. メモ")).toBeNull();
+  });
+
+  it("refuses 次へ on step 2 while an added family member has no name", async () => {
+    renderForm();
+    await screen.findByText("佐藤 一郎");
+    next();
+    await screen.findByText("家族情報登録");
+
+    fireEvent.click(screen.getByRole("button", { name: "家族情報を追加" }));
+    next();
+
+    expect(await screen.findByText("姓を入力してください")).toBeDefined();
+    expect(currentStep()).toContain("家族情報・メモ");
+  });
 });

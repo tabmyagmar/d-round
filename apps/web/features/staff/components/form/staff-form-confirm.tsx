@@ -6,7 +6,7 @@ import type { StaffFormValues } from "@repo/validation";
 
 import type { SourceHierarchy } from "@/components/source/hierarchy-options";
 import { areaNamesOf } from "@/components/source/source-labels";
-import type { ChargerOption } from "@/features/staff/types";
+import type { ChargerChoice } from "@/features/staff/types";
 import {
   EMPLOYEE_TYPE_LABELS,
   FAMILY_RELATION_LABELS,
@@ -34,7 +34,7 @@ export type StaffFormConfirmProps = {
   values: StaffFormValues;
   hierarchy: SourceHierarchy;
   /** Names the chosen 担当者. */
-  chargers: readonly ChargerOption[];
+  chargers: readonly ChargerChoice[];
 };
 
 /**

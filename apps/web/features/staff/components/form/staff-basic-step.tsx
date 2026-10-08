@@ -25,7 +25,7 @@ import { AddressFields } from "@/components/source/address-fields";
 import type { AddressParts } from "@/components/source/address-fields";
 import { HierarchyFields } from "@/components/source/hierarchy-fields";
 import type { SourceHierarchy } from "@/components/source/hierarchy-options";
-import type { ChargerOption } from "@/features/staff/types";
+import type { ChargerChoice } from "@/features/staff/types";
 import { newJobHistory } from "@/features/staff/utils/staff-form-input";
 import { EMPLOYEE_TYPE_OPTIONS, GENDER_OPTIONS } from "@/features/staff/utils/staff-labels";
 import { POSITION_OPTIONS } from "@/lib/position-labels";
@@ -38,7 +38,7 @@ export type StaffBasicStepProps = {
   title: string;
   hierarchy: SourceHierarchy;
   /** 担当者 who cover the chosen regions (and the stored ones of an edited staff). */
-  chargerOptions: readonly ChargerOption[];
+  chargerOptions: readonly ChargerChoice[];
   /** The options answer for the chosen regions, so chosen 担当者 they leave out are dropped. */
   chargersReady: boolean;
   chargersLoading: boolean;
