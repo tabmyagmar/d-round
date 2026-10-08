@@ -89,8 +89,8 @@ paths:
 - Commands (root `package.json`): `yarn db:migrate:dev` = `prisma migrate dev` (creates a migration
   locally; needs `yarn docker:up`), `yarn db:migrate` = `prisma migrate deploy` (applies committed
   migrations; used by CI, by `startTestDatabase()` — which with `{ seedReferenceData: true }` also
-  runs the roles and permissions seeds — and by deployments), `yarn db:generate`, `yarn db:studio`,
-  `yarn db:seed`.
+  runs the roles, permissions, regions and prefectures seeds — and by deployments),
+  `yarn db:generate`, `yarn db:studio`, `yarn db:seed`.
 - CI fails on drift: after `yarn db:migrate` it runs, in `packages/database`,
   `yarn prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code`. If the
   schema files say something the migrations do not, the build is red.

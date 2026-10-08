@@ -205,7 +205,7 @@ const ROLE_TONES: Record<Role, StatusTone> = {
   super_admin: "danger",
   admin: "warning",
   manager: "info",
-  staff: "neutral",
+  am: "neutral",
 };
 
 export const RoleBadge = ({ role }: { role: string | null | undefined }) => {

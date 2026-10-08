@@ -42,8 +42,10 @@ Anything touching Postgres or Redis runs against testcontainers:
 - `@repo/database/test` → `startTestDatabase()` starts `postgres:18-alpine` (override with
   `TEST_POSTGRES_IMAGE`), runs `prisma migrate deploy` against it and returns
   `{ container, connectionString, prisma, stop }`. `startTestDatabase({ seedReferenceData: true })`
-  also loads the role and permission catalog (`seedRoles`, `seedPermissions`, ~1 s; never users or
-  addresses) for packages whose tests need real grants (`@repo/auth`, `@repo/api`).
+  also loads the role and permission catalog and the regions and prefectures (`seedRoles`,
+  `seedPermissions`, `seedSourceRegions`, `seedSourcePrefectures`; never users or the post-code
+  master) for packages whose tests need real grants or write 担当者 profiles and staff
+  (`@repo/auth`, `@repo/api`).
 - `@repo/queue/test` → `startTestRedis()` starts `redis:8-alpine` (override with `TEST_REDIS_IMAGE`)
   and returns `{ container, url, stop }`.
 - A workspace that needs them has a `test/global-setup.ts` that starts the containers once per run
@@ -66,13 +68,16 @@ repositories or services of this repo.
 
 `apps/api/test/support.ts` (real Postgres + Redis, real Better Auth):
 
-| Helper                             | What it gives you                                                                                             |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `createHarness()`                  | `{ db, redis, auth, emailQueue, logger, sentMails, stop }`; call `stop()` in `afterAll`                       |
-| `signedInUser(h, { role, name })`  | creates a verified user with the role via `auth.api.createUser`, signs in; returns `{ user, email, headers }` |
-| `contextFor(h, headers?)`          | a `RequestContext` built by `buildRequestContext` for those headers (anonymous when omitted)                  |
-| `cookieHeaderFrom(response)`       | `Cookie` header value from a `Set-Cookie` response, for follow-up HTTP requests                               |
-| `TEST_WEB_ORIGIN`, `TEST_PASSWORD` | constants used by the HTTP tests                                                                              |
+| Helper                                     | What it gives you                                                                                                                                                                            |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createHarness()`                          | `{ db, redis, auth, emailQueue, logger, sentMails, stop }`; call `stop()` in `afterAll`                                                                                                      |
+| `signedInUser(h, { role, name, profile })` | creates a verified user with the role via `auth.api.createUser`, signs in; returns `{ user, email, headers }`; with `profile` also a 担当者 profile (unique 社員番号, region 4 unless given) |
+| `uniqueEmployeeNumber()`                   | a 社員番号 / スタッフ番号 no other test of the run uses                                                                                                                                      |
+| `TEST_POST_CODE`, `ensureTestPostCode(h)`  | the post code staff tests use, and the upsert that puts it in `source_addresses` (call it in `beforeAll`)                                                                                    |
+| `staffInput(chargerUserIds, overrides)`    | a parsed `CreateStaffInput` at `TEST_POST_CODE` with a unique スタッフ番号, as the router hands it to the service                                                                            |
+| `contextFor(h, headers?)`                  | a `RequestContext` built by `buildRequestContext` for those headers (anonymous when omitted)                                                                                                 |
+| `cookieHeaderFrom(response)`               | `Cookie` header value from a `Set-Cookie` response, for follow-up HTTP requests                                                                                                              |
+| `TEST_WEB_ORIGIN`, `TEST_PASSWORD`         | constants used by the HTTP tests                                                                                                                                                             |
 
 Service tests call the service with `await contextFor(h, user.headers)`; router tests wrap the same
 context in `createCallerFactory(appRouter)`; HTTP tests build `createApp(...)` from the harness

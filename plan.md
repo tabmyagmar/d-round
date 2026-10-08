@@ -982,3 +982,30 @@ arrays; `@casl/prisma` with a third model in `Subjects`; Base UI Combobox chips 
   A and B: the testcontainers suites, the drift gate, the dev-database deploy, the browser check
   (staff create and edit next to the legacy form), the verifier, and the move of this plan to
   `docs/plans/2026-10-08-staff.md` at Close.
+- 2026-10-08, review round 1 (reviewer agent on the whole branch: 0 BLOCKER, 5 SHOULD, 6 NIT; all
+  SHOULD fixed, NITs fixed or recorded here):
+  - `staff.update` checks only the 担当者 being added, so a staff whose 担当者 was deactivated since
+    stays editable (`assertChargersActive`); `removeMany` and `listByCharger` compose
+    `accessibleStaffWhere` like `list` (repository `where` parameters), so a later row rule applies
+    everywhere.
+  - `useStepper.goNext` ignores a call while one runs and moves from the step it was asked on; the
+    staff form ignores a submit that is part of a double click, so its second click can neither
+    skip 家族情報・メモ nor send the form from 確認 unseen.
+  - The status and delete dialogs keep no component test, as the users dialogs: they own their tRPC
+    mutation, and the pieces they rely on are tested (`ConfirmDialog` with a body and
+    `confirmDisabled`, the labels); `StaffFamilyTable` gained one.
+  - Recorded differences: the service checks the regions, prefectures and post code before writing
+    (one `ValidationError` naming the unknown codes) instead of translating a foreign-key violation;
+    `listStaffsSchema.statuses` is optional and the service applies the legacy default (every status
+    but 停止); the 定型文 load with the form page, not when step 2 opens (the container owns the
+    query, the form stays presentational); `staff_chargers` keeps `created_at` as the assignment
+    time instead of an `assigned_at` column, and the lists carry `sort_order` (ADR 0008);
+    `staff.deleteMany` takes up to 50 ids where the legacy refused 50 and more, as
+    `COMMENT_TEMPLATES_DELETE_MAX`.
+  - `user.chargerOptions` is not forbidden to an AM, as A4 expected: the self rule passes
+    `requireAbility("read", "User")` and `accessibleUsersWhere` leaves the AM only their own row
+    (now pinned by a router test). Today only the admin roles create or edit staff and they read
+    every user; a role that edits staff without reading users would need the charger lookup widened
+    — open point for that role's ticket.
+  - The two copies of the 社員番号 / スタッフ番号 search parser are one: `employeeNumberOfSearch` in
+    `@repo/validation`.

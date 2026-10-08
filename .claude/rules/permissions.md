@@ -117,8 +117,8 @@ catalog grant from the self rule (a 担当者 profile edit needs the `update Use
 
 - `ctx.ability` is a `ServerAbility` built once per request by `definePrismaAbilityFor(ctx.user)` in
   `apps/api/src/core/context.ts`.
-- **Never encode workflow state into CASL.** "May a staff user update a User" is CASL. "May this
-  submission be approved in its current step by this approver" is a service rule.
+- **Never encode workflow state into CASL.** "May an AM update a User" is CASL. "May this submission
+  be approved in its current step by this approver" is a service rule.
 
 ## Layer 2 — stateful checks in services
 
@@ -227,7 +227,7 @@ detail page needs `read`, a create page `create`, an update page `update` on its
   it `AbilityProvider` and the sidebar) is not re-rendered on soft navigation while `PageGuard` is:
   after a grant changes, the guard applies it at once and the menu catches up on the next full load.
 - Route access is **unscoped**: `canUnscoped`, never `ability.can(action, "User")`, which the self
-  rule makes true for everyone. A staff user does not see 担当者管理 and gets the 403 on
+  rule makes true for everyone. An AM does not see 担当者管理 and gets the 403 on
   `/admin/master/user/[id]` even for their own row — `/admin/profile` is their page.
 - Users land on `LANDING_ROUTE` (the workflow list, `read Workflow`). Every catalog role holds that
   grant; a user whose `DENY` row removes it lands on the 403 and still
@@ -237,7 +237,7 @@ detail page needs `read`, a create page `create`, an update page `update` on its
   route as its root element — the web counterpart of "every non-public procedure has
   `requireAbility`". `apps/web/test/config/routes.test.ts` pins each route's action and subject. The
   decision itself is covered in `apps/web/test/lib/auth/route-access.test.ts` (including
-  `breadcrumbLinks`) and `test/config/nav.test.ts` (seeded staff grants, a `DENY`, the self rule).
+  `breadcrumbLinks`) and `test/config/nav.test.ts` (seeded AM grants, a `DENY`, the self rule).
 
 ```tsx
 // apps/web/components/layout/app-shell.tsx — once, around the signed-in app; CurrentUser carries

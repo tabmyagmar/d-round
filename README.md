@@ -201,8 +201,8 @@ packages/
               generated client (git-ignored), repositories/, utils (pagination, errors,
               transaction), test/ (testcontainers helper, test/repositories, test/utils, test/seed)
   validation/ zod re-export, shared schemas (user.schema.ts: roles, sign-in, names, 担当者 profile,
-              list; source.schema.ts: areas, region codes, post codes), createEnv() for env
-              validation
+              list; source.schema.ts: areas, region codes, post codes, the form address;
+              staff.schema.ts: the staff form and list), createEnv() for env validation
   queue/      BullMQ + ioredis wrapper: connection, createQueue, createWorker, pub/sub, jobIdFor,
               QUEUE_NAMES, jobs/email.job.ts (EmailJob contract), test/ (testcontainers Redis)
   logger/     pino with redaction, createLogger / childLogger
@@ -212,7 +212,7 @@ packages/
               FormFieldShell/useFormField for custom ones),
               composed components (src/components/composed: StatusBadge, DataTable, ConfirmDialog,
               PageHeader, EmptyState, OptionSelect, MultiOptionSelect, CheckboxGroup, …), hooks
-              (src/hooks: use-mobile), lib (locale, calendar-locale),
+              (src/hooks: use-mobile, use-debounced-callback, use-stepper), lib (locale, calendar-locale),
               theme tokens (src/styles/globals.css), test/ (jsdom component tests)
   eslint-config/      ESLint 10 presets: base, node, react, next + boundaries.js (layer rules)
   typescript-config/  tsconfig presets: base, node, nextjs, react-library
