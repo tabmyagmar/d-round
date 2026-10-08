@@ -40,7 +40,7 @@ export const UserUpdateContainer = ({ userId, caller }: { userId: string; caller
   );
 
   if (user.isPending) {
-    return <Skeleton className="h-64 w-full max-w-2xl" />;
+    return <Skeleton className="mx-auto h-64 w-full max-w-2xl" />;
   }
   if (user.isError) {
     return (

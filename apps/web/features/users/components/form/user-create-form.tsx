@@ -72,7 +72,7 @@ export const UserCreateForm = ({
         onSubmit(toInviteInput(values));
       })}
     >
-      <Card className="max-w-2xl">
+      <Card className="mx-auto w-full max-w-2xl">
         <CardContent className="flex flex-col gap-6">
           <UserFormFields
             control={form.control}
@@ -103,7 +103,7 @@ export const UserCreateForm = ({
       </Card>
       <StickyBar>
         <FormActions
-          className="max-w-2xl"
+          className="mx-auto w-full max-w-2xl"
           submitLabel="招待メールを送信"
           pendingLabel="送信中…"
           pending={pending}

@@ -41,7 +41,7 @@ export const StaffUpdateContainer = ({ staffId }: { staffId: string }) => {
   );
 
   if (staff.isPending) {
-    return <Skeleton className="h-64 w-full max-w-4xl" />;
+    return <Skeleton className="mx-auto h-64 w-full max-w-4xl" />;
   }
   if (staff.isError) {
     return (

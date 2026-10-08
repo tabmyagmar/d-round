@@ -286,8 +286,9 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   romuten-v3's create and update pages. Render it last in a flex column that fills the page
   (`flex flex-1 flex-col`): `mt-auto` keeps it at the bottom of a short page, `sticky bottom-0` in
   view while a long one scrolls, and it reaches across the shell's `--page-gutter`
-  (`apps/web/components/layout/app-shell.tsx`). Usually holds a `FormActions` (Forms). Reference:
-  `apps/web/features/users/components/form/user-create-form.tsx`.
+  (`apps/web/components/layout/app-shell.tsx`), white (`bg-card`) with a top border so it stands out
+  from the page background, as romuten-v3's `ContractTemplateStep1Form`. Usually holds a
+  `FormActions` (Forms). Reference: `apps/web/features/users/components/form/user-create-form.tsx`.
 - `FilterPopover` (`filter-popover.tsx`) — the filter button with the active count (`activeCount`)
   and its fields in a popover; below `md` (`useIsMobile`) the button shows only its icon (the label
   stays for screen readers) and the fields open in a `Drawer` from the bottom, titled with `label`,
@@ -415,11 +416,14 @@ const form = useForm<UpdateProfileInput>({
 ### Create and update pages
 
 The form is the page's flex column (`<form className="flex flex-1 flex-col gap-6">`): the fields in
-a `Card` (`max-w-2xl`), then a `StickyBar` holding `FormActions` from `@repo/ui/components/form`
-with `className="max-w-2xl"`, so the buttons line up with the card's right edge. キャンセル (an
-outline `Button` rendering a `Link`) is its child; the submit button takes `submitLabel`,
-`pendingLabel`, `pending` (the mutation's) and `disabled` (nothing changed, nothing allowed), and
-shows a spinner with `aria-busy` while pending. Reference:
+a `Card` centered in the content (`mx-auto w-full max-w-2xl`; `max-w-4xl` for two columns of fields
+and a `Stepper`, as the staff form), then a `StickyBar` holding `FormActions` from
+`@repo/ui/components/form` with the same `mx-auto w-full max-w-*`, so the buttons line up with the
+card's right edge — romuten-v3's stepped create page (`WorkerCreateContainer`: `mx-auto max-w-3xl`
+for the content and the bar's content). A form never sits against the left edge with empty space on
+the right. キャンセル (an outline `Button` rendering a `Link`) is its child; the submit button takes
+`submitLabel`, `pendingLabel`, `pending` (the mutation's) and `disabled` (nothing changed, nothing
+allowed), and shows a spinner with `aria-busy` while pending. Reference:
 `apps/web/features/users/components/form/user-update-form.tsx`. A small form among other content
 (`profile/profile-form.tsx`) keeps its button inline. Where the legacy screen created or edited in a
 modal, the form sits in a `ContentDialog` loaded with `next/dynamic`: the dialog owns the mutation,

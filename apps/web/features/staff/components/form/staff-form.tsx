@@ -148,9 +148,9 @@ export const StaffForm = ({
         current={stepper.current}
         onStepClick={stepper.goTo}
         label="入力ステップ"
-        className="w-full max-w-4xl"
+        className="mx-auto w-full max-w-4xl"
       />
-      <div className="flex w-full max-w-4xl flex-col gap-6">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
         {stepper.current === 0 ? (
           <StaffBasicStep
             control={form.control}
@@ -179,7 +179,7 @@ export const StaffForm = ({
       </div>
       <StickyBar>
         <FormActions
-          className="max-w-4xl"
+          className="mx-auto w-full max-w-4xl"
           submitLabel={stepper.isLast ? submitLabel : "次へ"}
           pendingLabel={pendingLabel}
           pending={pending}

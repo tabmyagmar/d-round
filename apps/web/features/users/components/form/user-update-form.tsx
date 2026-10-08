@@ -81,7 +81,7 @@ export const UserUpdateForm = ({
         onSubmit(toUpdateInput({ ...user, role: currentRole }, values));
       })}
     >
-      <Card className="max-w-2xl">
+      <Card className="mx-auto w-full max-w-2xl">
         <CardContent className="flex flex-col gap-6">
           <UserFormFields
             control={form.control}
@@ -99,7 +99,7 @@ export const UserUpdateForm = ({
       </Card>
       <StickyBar>
         <FormActions
-          className="max-w-2xl"
+          className="mx-auto w-full max-w-2xl"
           submitLabel="保存"
           pendingLabel="保存中…"
           pending={pending}
