@@ -254,6 +254,15 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   `null`), `label?` (visible, or `hideLabel` for screen readers; omit when an outer label points at
   `id`), `placeholder?`, `disabled?`, `invalid?`. For filters and toolbars; `SelectField` wraps it
   for forms. Reference: `apps/web/features/users/components/list/user-filter-content.tsx`.
+- `MultiOptionSelect` (`multi-option-select.tsx`) — the standalone chips combobox over `options`:
+  `value` / `onValueChange` (`string[]`), `label?` / `hideLabel`, `placeholder?`, `emptyMessage?`,
+  `loadingMessage?`, `max?`, server search (`onSearch`, `serverFiltered`, `loading`), `disabled?`,
+  `invalid?`; a value outside `options` keeps a chip labelled with the value. For filters with many
+  options (地域, 県名, 雇用区分, 役職); `MultiSelectField` wraps it for forms.
+- `CheckboxGroup` (`checkbox-group.tsx`) — standalone checkboxes over `options`: `value` /
+  `onValueChange` (`string[]`; checking appends, unchecking removes, unknown values are kept),
+  `label?` (a legend; `hideLabel` for screen readers), `orientation?`, `disabled?`, `invalid?`. For
+  filters with a few options (ステータス, 性別, エリア); `CheckboxGroupField` wraps it for forms.
 - `SearchInput` (`search-input.tsx`) — `value`, `onSearch(trimmed)` after a pause
   (`useDebouncedCallback`, `delayMs?`), `label`; shows a value changed elsewhere but keeps what the
   user typed while its own search comes back. Sits on `bg-card`, so it stands out from the page
@@ -422,7 +431,7 @@ whole app in. Shared types: `SelectOption` (`{ value, label, disabled? }`), `Emp
 | `NumberField`        | `number`; cleared → `null` (default) or `undefined` (`emptyAs`)    | `min`, `max`, `step`, `unit` suffix (`円`, `%`), `prefix` (`¥`), `inputMode: "numeric" \| "decimal"`; keeps the raw text while typing, so `z.number()` works without `coerce`                                                                    |
 | `SelectField`        | `string`; `nullable` → `null`                                      | wraps the standalone `Select`; `options`, `placeholder`. Short static lists.                                                                                                                                                                     |
 | `ComboboxField`      | `string`; `nullable` → `null`                                      | searchable single select (Base UI Combobox); `options`, `placeholder`, `emptyMessage`; server search via `onSearch(query)` + `serverFiltered` (skips the client filter) + `loading`                                                              |
-| `MultiSelectField`   | `string[]`                                                         | chips; `options`, `placeholder`, `emptyMessage`, `max`; same server-search props                                                                                                                                                                 |
+| `MultiSelectField`   | `string[]`, or `number[]` with `valueAs: "number"`                 | chips; `options`, `placeholder`, `emptyMessage`, `max`; same server-search props; wraps `MultiOptionSelect`                                                                                                                                      |
 | `CheckboxField`      | `boolean`                                                          | consent style: box left, label and description right                                                                                                                                                                                             |
 | `SwitchField`        | `boolean`                                                          | setting style: label and description left, switch right                                                                                                                                                                                          |
 | `CheckboxGroupField` | `string[]`                                                         | `options`, `orientation: "vertical" \| "horizontal"`                                                                                                                                                                                             |
@@ -448,6 +457,7 @@ storing the user id. Build pickers this way, in the feature that owns the data.
 | `z.number()`                           | `NumberField` (no `z.coerce`)                                                                |
 | `z.enum([...])`                        | short list: `SelectField` / `RadioField`; long or searchable: `ComboboxField`                |
 | `z.array(z.enum([...]))`               | few options: `CheckboxGroupField`; many: `MultiSelectField`                                  |
+| `z.array(z.number())` (codes, ids)     | `MultiSelectField` with `valueAs: "number"` (region codes)                                   |
 | `z.boolean()`                          | consent: `CheckboxField`; setting: `SwitchField`                                             |
 | `z.iso.date()`                         | `DateField`; a `{ from, to }` object of them: `DateRangeField`                               |
 | `z.iso.datetime()`                     | `DateTimeField`                                                                              |
@@ -474,7 +484,8 @@ components through a renderer registry, so a new field type starts as a new comp
   and client rendering the same text.
 - Filters, toolbars and other controls that are not react-hook-form fields use the composed
   `OptionSelect` (`user-filter-content.tsx`: the アカウントタイプ and ステータス filters, which
-  write the URL); inside a form use `SelectField`.
+  write the URL), `MultiOptionSelect` and `CheckboxGroup` for several values; inside a form use
+  `SelectField`, `MultiSelectField`, `CheckboxGroupField`.
 - Submit through a tRPC mutation (`useMutation(trpc.user.updateProfile.mutationOptions(...))`),
   `toast` from `sonner` for success/error, `queryClient.invalidateQueries(trpc.user.pathFilter())`
   afterwards.

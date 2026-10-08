@@ -6,8 +6,9 @@ Domain-free components built from the shadcn primitives one level up, for every 
   row selection; one `Card` whose header shows the title, the total and its `PaginationBar`),
   `DescriptionList` (label / value pairs), `PageHeader`, `EmptyState`, `LoadingState`.
 - Lists: `ListToolbar`, `SearchInput`, `FilterPopover` (fields rendered only while open),
-  `FilterTags`, `OptionSelect` (also the base of the form `SelectField`), `RowActions`,
-  `PaginationBar` (first / previous / pages / next / last and a page box).
+  `FilterTags`, `OptionSelect` (also the base of the form `SelectField`), `MultiOptionSelect` (the
+  chips combobox, base of `MultiSelectField`), `CheckboxGroup` (base of `CheckboxGroupField`),
+  `RowActions`, `PaginationBar` (first / previous / pages / next / last and a page box).
 - Pages: `StickyBar` (the action bar at the bottom of a page; holds a form's `FormActions`).
 - Dialogs: `ContentDialog` (the shell; body mounted only while open) and `ConfirmDialog` on it (use
   instead of `window.confirm`).

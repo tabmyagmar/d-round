@@ -2,8 +2,8 @@
 
 import type { FieldValues } from "react-hook-form";
 
-import { Checkbox } from "../checkbox";
-import { Field, FieldDescription, FieldError, FieldLabel, FieldSet } from "../field";
+import { CheckboxGroup } from "../composed/checkbox-group";
+import { FieldDescription, FieldError, FieldSet } from "../field";
 
 import { FormFieldLabel } from "./form-field-label";
 import type { BaseFieldProps, SelectOption } from "./types";
@@ -17,7 +17,10 @@ export type CheckboxGroupFieldProps<TValues extends FieldValues> = BaseFieldProp
 const toStringArray = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 
-/** Many-of-many choice; the value is a `string[]` of the checked option values. */
+/**
+ * Many-of-many choice; the value is a `string[]` of the checked option values. react-hook-form
+ * wrapper around the composed `CheckboxGroup` (the filters use it on their own).
+ */
 export const CheckboxGroupField = <TValues extends FieldValues>({
   control,
   name,
@@ -31,7 +34,6 @@ export const CheckboxGroupField = <TValues extends FieldValues>({
   orientation = "vertical",
 }: CheckboxGroupFieldProps<TValues>) => {
   const { field, fieldState } = useFormField({ control, name, disabled });
-  const selected = toStringArray(field.value);
 
   return (
     <FieldSet className={className}>
@@ -39,36 +41,17 @@ export const CheckboxGroupField = <TValues extends FieldValues>({
         {label}
       </FormFieldLabel>
       {description ? <FieldDescription>{description}</FieldDescription> : null}
-      <div
-        className={
-          orientation === "horizontal" ? "flex flex-row flex-wrap gap-4" : "flex flex-col gap-2"
-        }
-      >
-        {options.map((option) => {
-          const id = `${field.name}-${option.value}`;
-          return (
-            <Field key={option.value} orientation="horizontal">
-              <Checkbox
-                id={id}
-                name={field.name}
-                value={option.value}
-                checked={selected.includes(option.value)}
-                disabled={Boolean(field.disabled) || Boolean(option.disabled)}
-                aria-invalid={fieldState.invalid}
-                onBlur={field.onBlur}
-                onCheckedChange={(checked) => {
-                  field.onChange(
-                    checked
-                      ? [...selected, option.value]
-                      : selected.filter((item) => item !== option.value),
-                  );
-                }}
-              />
-              <FieldLabel htmlFor={id}>{option.label}</FieldLabel>
-            </Field>
-          );
-        })}
-      </div>
+      <CheckboxGroup
+        options={options}
+        value={toStringArray(field.value)}
+        onValueChange={field.onChange}
+        orientation={orientation}
+        disabled={Boolean(field.disabled)}
+        invalid={fieldState.invalid}
+        idPrefix={field.name}
+        name={field.name}
+        onBlur={field.onBlur}
+      />
       <FieldError errors={[fieldState.error]} />
     </FieldSet>
   );
