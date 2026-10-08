@@ -25,7 +25,13 @@ import { UserDetailToolbar } from "@/features/users/components/detail/user-detai
 import { RoleBadge } from "@/features/users/components/role-badge";
 import { UserStatusBadge } from "@/features/users/components/user-status-badge";
 import { usePermissionCatalog } from "@/features/users/hooks/use-permission-catalog";
-import { readingOf, userStatusOf } from "@/features/users/utils/user-labels";
+import {
+  areaNamesOf,
+  POSITION_LABELS,
+  readingOf,
+  regionNamesOf,
+  userStatusOf,
+} from "@/features/users/utils/user-labels";
 import { useTRPC } from "@/lib/trpc/react";
 
 // Loaded only when used: the dialogs when an action is chosen, the summary for a manager.
@@ -114,13 +120,28 @@ export const UserDetailContainer = ({ userId }: { userId: string }) => {
           </CardHeader>
           <CardContent>
             <DescriptionList
+              // The legacy detail's fields and order (its read-only user form).
               items={[
+                { label: "社員番号", value: detail.profile?.employeeNumber },
                 { label: "氏名", value: detail.name },
                 { label: "フリガナ", value: readingOf(detail) },
+                { label: "エリア", value: areaNamesOf(detail.profile) },
+                { label: "地域", value: regionNamesOf(detail.profile) },
+                { label: "部署名", value: detail.profile?.departmentName },
+                {
+                  label: "役職",
+                  value: detail.profile ? POSITION_LABELS[detail.profile.position] : null,
+                },
                 { label: "メールアドレス", value: detail.email },
                 { label: "アカウントタイプ", value: <RoleBadge role={detail.role} /> },
+                {
+                  label: "退職日",
+                  value: detail.profile?.retirementDate
+                    ? formatDate(detail.profile.retirementDate, "ja-JP")
+                    : null,
+                },
                 { label: "ステータス", value: <UserStatusBadge status={userStatusOf(detail)} /> },
-                { label: "登録日", value: formatDate(detail.createdAt) },
+                { label: "登録日", value: formatDate(detail.createdAt, "ja-JP") },
               ]}
             />
           </CardContent>
