@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useForm } from "react-hook-form";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -29,5 +29,27 @@ describe("TextField", () => {
     render(<Harness error="Required" />);
     expect(screen.getByText("Required")).toBeDefined();
     expect(screen.getByLabelText("Full name").getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("hands each edit's text to onValueChange after the field took it", () => {
+    const seen: { text: string; stored: unknown }[] = [];
+    const Watching = () => {
+      const form = useForm<Values>({ defaultValues: { name: "" } });
+      return (
+        <TextField
+          control={form.control}
+          name="name"
+          label="Full name"
+          onValueChange={(text) => {
+            seen.push({ text, stored: form.getValues("name") });
+          }}
+        />
+      );
+    };
+    render(<Watching />);
+
+    fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "Amy" } });
+
+    expect(seen).toEqual([{ text: "Amy", stored: "Amy" }]);
   });
 });

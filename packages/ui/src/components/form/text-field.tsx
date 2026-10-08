@@ -18,6 +18,8 @@ export type TextFieldProps<TValues extends FieldValues> = BaseFieldProps<TValues
   maxLength?: number;
   /** What a cleared input stores: "" (default), null (nullable fields) or undefined (optional). */
   emptyAs?: EmptyAs;
+  /** Called with the typed text after the field changed, e.g. to look something up as it is typed. */
+  onValueChange?: (text: string) => void;
 };
 
 /** Label + input + description + error, wired to react-hook-form. Numbers: see `NumberField`. */
@@ -35,6 +37,7 @@ export const TextField = <TValues extends FieldValues>({
   autoComplete,
   maxLength,
   emptyAs = "string",
+  onValueChange,
 }: TextFieldProps<TValues>) => {
   const { ref, field, fieldState } = useFormField({ control, name, disabled });
   const value: unknown = field.value;
@@ -65,6 +68,7 @@ export const TextField = <TValues extends FieldValues>({
         onChange={(event) => {
           const next = event.target.value;
           field.onChange(next === "" ? EMPTY_VALUES[emptyAs] : next);
+          onValueChange?.(next);
         }}
         onBlur={field.onBlur}
       />
