@@ -8,10 +8,10 @@ import { AbilityProvider } from "@repo/permissions/react";
 import { PageTitle } from "@/components/layout/page-title";
 import { href, routes } from "@/config/routes";
 
-import { STAFF_GRANTS, userWith } from "../../support/grants";
+import { AM_GRANTS, userWith } from "../../support/grants";
 
 /** The header title as the shell renders it on `pathname` for a user holding `grants`. */
-const renderTitle = (pathname: string, grants: readonly PermissionGrant[] = STAFF_GRANTS) =>
+const renderTitle = (pathname: string, grants: readonly PermissionGrant[] = AM_GRANTS) =>
   render(
     <AbilityProvider user={userWith(grants)}>
       <PageTitle pathname={pathname} />

@@ -1,11 +1,11 @@
 import type { Role, UserStatus } from "@repo/validation";
 
-/** アカウントタイプ labels, as in the legacy app (staff is "AM"). */
+/** アカウントタイプ labels, as in the legacy app. */
 export const ROLE_LABELS: Record<Role, string> = {
   super_admin: "スーパーアドミン",
   admin: "アドミン",
   manager: "マネジャー",
-  staff: "AM",
+  am: "AM",
 };
 
 /** The legacy ステータス labels: 利用中 (can sign in), 停止 (deactivated). */

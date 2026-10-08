@@ -42,7 +42,7 @@ describe("catalog", () => {
     const clientRead = groups
       .find((group) => group.key === "1200")
       ?.children.find((child) => child.key === "1202");
-    expect(clientRead?.roles).toEqual(["admin", "manager", "staff", "super_admin"]);
+    expect(clientRead?.roles).toEqual(["admin", "am", "manager", "super_admin"]);
     expect(groups.every((group) => group.children.length > 0)).toBe(true);
   });
 

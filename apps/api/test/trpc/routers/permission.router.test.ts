@@ -19,10 +19,10 @@ afterAll(async () => {
 describe("permission router", () => {
   it("serves the catalog to a caller holding `changeRole User` only", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
 
-    const staffCaller = createCaller(await contextFor(h, staff.headers));
-    await expect(staffCaller.permission.catalog()).rejects.toMatchObject({
+    const amCaller = createCaller(await contextFor(h, am.headers));
+    await expect(amCaller.permission.catalog()).rejects.toMatchObject({
       code: "FORBIDDEN",
       message: "Not allowed to changeRole User",
     });

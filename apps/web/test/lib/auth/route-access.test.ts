@@ -6,7 +6,7 @@ import { ALL_ROUTES, breadcrumbTrail, href, LANDING_ROUTE, routes } from "@/conf
 import { breadcrumbLinks, canAccessRoute, routeDecision } from "@/lib/auth/route-access";
 import type { BreadcrumbEntry } from "@/lib/auth/route-access";
 
-import { abilityWith, EVERY_GRANT, ME_ID, STAFF_GRANTS, userWith } from "../../support/grants";
+import { abilityWith, EVERY_GRANT, ME_ID, AM_GRANTS, userWith } from "../../support/grants";
 
 describe("canAccessRoute", () => {
   it("opens a public route to anonymous visitors", () => {
@@ -73,22 +73,22 @@ describe("routeDecision", () => {
     expect(routeDecision(null, routes.client.list)).toBe("sign-in");
   });
 
-  it("allows the seeded staff grants their pages and the signed-in pages", () => {
-    const staff = userWith(STAFF_GRANTS);
-    expect(routeDecision(staff, routes.client.list)).toBe("allow");
-    expect(routeDecision(staff, routes.workflow.create)).toBe("allow");
-    expect(routeDecision(staff, LANDING_ROUTE)).toBe("allow");
-    expect(routeDecision(staff, routes.profile)).toBe("allow");
-    expect(routeDecision(staff, routes.settings.privacy)).toBe("allow");
+  it("allows the seeded AM grants their pages and the signed-in pages", () => {
+    const am = userWith(AM_GRANTS);
+    expect(routeDecision(am, routes.client.list)).toBe("allow");
+    expect(routeDecision(am, routes.workflow.create)).toBe("allow");
+    expect(routeDecision(am, LANDING_ROUTE)).toBe("allow");
+    expect(routeDecision(am, routes.profile)).toBe("allow");
+    expect(routeDecision(am, routes.settings.privacy)).toBe("allow");
   });
 
-  it("forbids the seeded staff grants the pages they hold no grant for", () => {
-    const staff = userWith(STAFF_GRANTS);
+  it("forbids the seeded AM grants the pages they hold no grant for", () => {
+    const am = userWith(AM_GRANTS);
     // The self rule alone does not open the user pages (canUnscoped, not ability.can).
-    expect(routeDecision(staff, routes.user.list)).toBe("forbidden");
-    expect(routeDecision(staff, routes.user.detail)).toBe("forbidden");
-    expect(routeDecision(staff, routes.auditLog.list)).toBe("forbidden");
-    expect(routeDecision(staff, routes.client.create)).toBe("forbidden");
+    expect(routeDecision(am, routes.user.list)).toBe("forbidden");
+    expect(routeDecision(am, routes.user.detail)).toBe("forbidden");
+    expect(routeDecision(am, routes.auditLog.list)).toBe("forbidden");
+    expect(routeDecision(am, routes.client.create)).toBe("forbidden");
   });
 
   it("forbids client.list once `read Client` is gone, as a user DENY row leaves the grants", () => {
@@ -112,8 +112,8 @@ describe("breadcrumbLinks", () => {
       kindOf(crumb),
     ]);
 
-  it("links every earlier crumb the seeded staff grants open; the last is the current page", () => {
-    expect(linksFor(STAFF_GRANTS, href(routes.client.create))).toEqual([
+  it("links every earlier crumb the seeded AM grants open; the last is the current page", () => {
+    expect(linksFor(AM_GRANTS, href(routes.client.create))).toEqual([
       [routes.client.list.title, "link"],
       [routes.client.create.title, "current"],
     ]);

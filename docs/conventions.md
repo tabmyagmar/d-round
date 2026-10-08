@@ -262,7 +262,7 @@ password-link flows are explained in `docs/auth.md`; this section holds the conv
   same transaction (no Better Auth admin call, so it does not depend on the caller's role).
 - **Roles** are stored as strings on `users.role` (Better Auth admin plugin) with a foreign key to
   the `roles` catalog, so the database refuses unknown values; the allowed set is `roleSchema` in
-  `@repo/validation` and the default is `staff`.
+  `@repo/validation` and the default is `am` (the legacy STAFF role, labelled AM).
 
 ## Testing policy
 

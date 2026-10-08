@@ -28,11 +28,11 @@ const contextFor = (user: AuthUser | null = null): RequestContext => ({
   webOrigin: "http://localhost:3000",
 });
 
-const staff: AuthUser = {
+const am: AuthUser = {
   id: "019187d5-0d76-7d1a-9a4c-4f7d2a1f3b6e",
   email: "a@b.c",
   name: "A",
-  role: "staff",
+  role: "am",
   emailVerified: true,
   permissions: [],
 };
@@ -82,6 +82,6 @@ describe("procedure middleware", () => {
     await expect(createCaller(contextFor()).secret()).rejects.toMatchObject({
       code: "UNAUTHORIZED",
     });
-    await expect(createCaller(contextFor(staff)).secret()).resolves.toBe("a@b.c");
+    await expect(createCaller(contextFor(am)).secret()).resolves.toBe("a@b.c");
   });
 });

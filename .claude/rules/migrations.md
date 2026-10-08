@@ -59,7 +59,7 @@ paths:
     | `super_admin@test.com` | `super_admin` | 佐藤 一郎 (サトウ イチロウ) |
     | `admin@test.com`       | `admin`       | 鈴木 花子 (スズキ ハナコ)   |
     | `manager@test.com`     | `manager`     | 高橋 次郎 (タカハシ ジロウ) |
-    | `staff@test.com`       | `staff`       | 田中 美咲 (タナカ ミサキ)   |
+    | `am@test.com`          | `am`          | 田中 美咲 (タナカ ミサキ)   |
 
     It converges rather than being idempotent: a re-run re-applies the fixtures (a fresh password
     hash, a soft-deleted or banned account restored) and always reports existing accounts as
@@ -97,7 +97,7 @@ paths:
 - Enums for closed sets (`OutboxStatus { PENDING SENT FAILED }`, mapped to `outbox_status`); `Json`
   for provider payloads only (`OutboxEmail.payload`); `Unsupported("...")` for types Prisma cannot
   model (PostGIS), accessed via raw SQL in a repository. Exception: `User.role` is a
-  `String @default("staff")` with a foreign key to `roles.key` (`onDelete: Restrict`), not an enum,
+  `String @default("am")` with a foreign key to `roles.key` (`onDelete: Restrict`), not an enum,
   because Better Auth writes roles as strings — the allowed set is `roleSchema` in
   `@repo/validation`, and the catalog rows are inserted by the migration so a migrations-only
   database can insert users (`docs/adr/0002-auth.md`, `docs/adr/0005-legacy-reference-data.md`).
@@ -117,6 +117,7 @@ paths:
 | `20261005145534_add_permission_visible_and_user_permission_effect` | enum `permission_effect`; defaulted columns `permissions.visible` (true) and `user_permissions.effect` (`ALLOW`)                                                                               |
 | `20261007000000_add_user_name_parts`                               | nullable `users.last_name`, `first_name`, `last_name_kana`, `first_name_kana` (ADR 0002)                                                                                                       |
 | `20261008013748_add_comment_templates`                             | enum `comment_for`; table `comment_templates` (FK `created_by` → `users.id`, Cascade; unique `(created_by, short)`; ADR 0006)                                                                  |
+| `20261008044757_rename_staff_role_to_am`                           | role key `staff` → `am`: inserts `am`, moves users and `role_permissions`, deletes `staff`, default `'am'` (ADR 0002, 2026-10-08)                                                              |
 
 The template shipped `0001_init` as its single baseline. Once a migration has been applied anywhere,
 never edit it; add a new one.
@@ -129,7 +130,7 @@ exactly as Better Auth expects** (`emailVerified`, `banExpires`, `impersonatedBy
 fields (`deletedAt`; `lastName`, `firstName`, `lastNameKana`, `firstNameKana`, written by the user
 service, which keeps `name` = "姓 名"), the relation fields on `User`
 (`permissions UserPermission[]`, no column, and `roleRef Role` over the existing `role` column with
-`@@index([role])`), `role`'s NOT NULL and `@default("staff")`, and the UUID v7 ids (Better Auth runs
+`@@index([role])`), `role`'s NOT NULL and `@default("am")`, and the UUID v7 ids (Better Auth runs
 with `generateId: false`) are merged in by hand; keep them when diffing regenerated output.
 
 When the Better Auth config changes (new plugin, new additional field) or Better Auth is upgraded,

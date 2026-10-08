@@ -39,7 +39,7 @@ const OTHER_ID = "019187d5-0d76-7d1a-9a4c-000000000002";
 /** A signed-in user holding exactly these grants. The role is not an input to the rules. */
 const holder = (permissions: readonly PermissionGrant[]): AbilityUser => ({
   id: ME_ID,
-  role: "staff",
+  role: "am",
   permissions,
 });
 
@@ -77,7 +77,7 @@ const userRow = (id: string): User => ({
   image: null,
   createdAt: new Date(0),
   updatedAt: new Date(0),
-  role: "staff",
+  role: "am",
   banned: false,
   banReason: null,
   banExpires: null,

@@ -6,7 +6,7 @@ import { isActivePath, isNavItemActive, NAV_GROUPS, visibleNavGroups } from "@/c
 import type { NavBranch, NavGroup, NavItem, NavLeaf } from "@/config/nav";
 import { href, routes } from "@/config/routes";
 
-import { abilityWith, EVERY_GRANT, STAFF_GRANTS } from "../support/grants";
+import { abilityWith, EVERY_GRANT, AM_GRANTS } from "../support/grants";
 
 const MASTER = "マスター管理";
 
@@ -51,8 +51,8 @@ describe("visibleNavGroups", () => {
     ]);
   });
 
-  it("shows the seeded staff grants their four main items and no マスター管理", () => {
-    expect(menuFor(STAFF_GRANTS)).toEqual([
+  it("shows the seeded AM grants their four main items and no マスター管理", () => {
+    expect(menuFor(AM_GRANTS)).toEqual([
       {
         id: "main",
         items: [

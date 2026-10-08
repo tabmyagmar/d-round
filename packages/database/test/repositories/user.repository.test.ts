@@ -26,7 +26,7 @@ const createUser = (
     data: {
       name: `${data.group} ${String(data.index ?? 0)}`,
       email: `${crypto.randomUUID()}@example.com`,
-      role: data.role ?? "staff",
+      role: data.role ?? "am",
     },
   });
 
@@ -129,7 +129,7 @@ describe("user repository", () => {
 
         await createUser({ group: prefix, role: "super_admin" }, tx);
         await createUser({ group: prefix, role: "admin" }, tx);
-        await createUser({ group: prefix, role: "staff" }, tx);
+        await createUser({ group: prefix, role: "am" }, tx);
         const gone = await createUser({ group: prefix, role: "admin" }, tx);
         await repo.softDelete(gone.id);
 
@@ -165,7 +165,7 @@ describe("user repository", () => {
 
     const updated = await repo.updateProfile(user.id, { name: "Renamed" });
     expect(updated.name).toBe("Renamed");
-    expect(updated.role).toBe("staff");
+    expect(updated.role).toBe("am");
 
     const promoted = await repo.updateRole(user.id, "admin");
     expect(promoted.role).toBe("admin");

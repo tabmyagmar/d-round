@@ -63,7 +63,7 @@ yarn dev               # web + api + worker (all three; emails need the worker)
 ```
 
 Then sign in at http://localhost:3000/login as `admin@test.com` / `A12345678` (or
-`super_admin@test.com`, `manager@test.com`, `staff@test.com`, same password). Or:
+`super_admin@test.com`, `manager@test.com`, `am@test.com`, same password). Or:
 
 | Service      | URL                            | Notes                                                |
 | ------------ | ------------------------------ | ---------------------------------------------------- |
@@ -106,7 +106,7 @@ deployment places them, and a developer copies them from the legacy d-round-web 
 
 - **Auth** (`packages/auth`, Better Auth; how it behaves at runtime: `docs/auth.md`): email +
   password sign-in (7-day cookie sessions,「ログイン状態を保持する」), no public sign-up, roles
-  `super_admin | admin | manager | staff`. Users are invited (`user.invite`: an account without a
+  `super_admin | admin | manager | am`. Users are invited (`user.invite`: an account without a
   password plus an invitation mail whose link sets the first password), reset a forgotten password
   from `/forgot-password`, and change it on `/admin/profile`; an admin can re-send the mail from the
   user page. One password policy for forms and API, Japanese mails through the outbox (Mailpit at

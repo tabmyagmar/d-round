@@ -18,5 +18,5 @@ export const roles = {
   super_admin: ac.newRole({ ...adminAc.statements }),
   admin: ac.newRole({ ...adminAc.statements }),
   manager: ac.newRole({ ...userAc.statements }),
-  staff: ac.newRole({ ...userAc.statements }),
+  am: ac.newRole({ ...userAc.statements }),
 } satisfies Record<Role, unknown>;

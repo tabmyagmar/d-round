@@ -1,4 +1,4 @@
-key,name,nameJp,parentKey,action,subject,modelName,visible,super_admin,admin,manager,staff
+key,name,nameJp,parentKey,action,subject,modelName,visible,super_admin,admin,manager,am
 1100,User,マスタ管理,,all,Admin_User,User,1,0,0,0,0
 1101,User create,担当者新規登録,1100,create,Admin_User,User,1,1,1,0,0
 1102,User read,担当者情報の一覧・詳細を確認,1100,read,Admin_User,User,1,1,1,0,0

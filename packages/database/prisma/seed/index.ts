@@ -4,7 +4,7 @@
 // The test accounts are created only when NODE_ENV is `development` or `test`.
 //
 // Test accounts (all verified, password `A12345678`): one per catalog role —
-//   super_admin@test.com, admin@test.com, manager@test.com, staff@test.com.
+//   super_admin@test.com, admin@test.com, manager@test.com, am@test.com.
 import { seedPermissions } from "./permissions.seed";
 import { seedRoles } from "./roles.seed";
 import { seedSourceAddresses } from "./source-addresses.seed";

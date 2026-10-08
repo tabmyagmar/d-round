@@ -83,7 +83,7 @@ export const UserNameFields = <TValues extends UserNameValues>({
 
 /**
  * 権限（詳細設定） bound to `permissionKeys`. Registered only while it is shown: a form that never
- * shows it (a staff or admin user) keeps no `permissionKeys` value, so its `isDirty` stays false —
+ * shows it (an AM or admin user) keeps no `permissionKeys` value, so its `isDirty` stays false —
  * registering it everywhere left an `undefined` key behind after StrictMode's remount, which made
  * an untouched edit form dirty.
  */

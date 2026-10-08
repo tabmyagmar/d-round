@@ -45,7 +45,7 @@ import { z } from "zod";
 
 import { idSchema, paginationSchema } from "./common.schema";
 
-export const ROLES = ["super_admin", "admin", "manager", "staff"] as const;
+export const ROLES = ["super_admin", "admin", "manager", "am"] as const;
 export const roleSchema = z.enum(ROLES);
 export type Role = z.infer<typeof roleSchema>;
 
@@ -336,9 +336,9 @@ afterAll(async () => {
 });
 
 it("maps layer-1 denials to FORBIDDEN before touching the service", async () => {
-  const staff = await signedInUser(h);
-  const caller = createCaller(await contextFor(h, staff.headers));
-  await expect(caller.user.update({ userId: staff.user.id, role: "admin" })).rejects.toMatchObject({
+  const am = await signedInUser(h);
+  const caller = createCaller(await contextFor(h, am.headers));
+  await expect(caller.user.update({ userId: am.user.id, role: "admin" })).rejects.toMatchObject({
     code: "FORBIDDEN",
   });
 });

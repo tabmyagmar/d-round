@@ -181,7 +181,7 @@ describe("inviteUserSchema", () => {
       firstName: "花子",
       lastNameKana: "ヤマダ",
       firstNameKana: "ハナコ",
-      role: "staff",
+      role: "am",
     });
     expect(result.success).toBe(true);
   });
@@ -230,17 +230,17 @@ describe("listUsersSchema", () => {
 });
 
 describe("assignableRoles (who may give which role)", () => {
-  it("lets both admin roles assign admin, manager and staff, never super_admin", () => {
-    expect(assignableRoles("super_admin")).toEqual(["admin", "manager", "staff"]);
-    expect(assignableRoles("admin")).toEqual(["admin", "manager", "staff"]);
+  it("lets both admin roles assign admin, manager and AM, never super_admin", () => {
+    expect(assignableRoles("super_admin")).toEqual(["admin", "manager", "am"]);
+    expect(assignableRoles("admin")).toEqual(["admin", "manager", "am"]);
   });
 
-  it("lets a manager assign manager and staff only", () => {
-    expect(assignableRoles("manager")).toEqual(["manager", "staff"]);
+  it("lets a manager assign manager and AM only", () => {
+    expect(assignableRoles("manager")).toEqual(["manager", "am"]);
   });
 
-  it("lets staff assign nothing", () => {
-    expect(assignableRoles("staff")).toEqual([]);
+  it("lets an AM assign nothing", () => {
+    expect(assignableRoles("am")).toEqual([]);
   });
 });
 
@@ -252,7 +252,7 @@ describe("inviteUserFormSchema", () => {
     firstName: "太郎",
     lastNameKana: "シンキ",
     firstNameKana: "タロウ",
-    role: "staff",
+    role: "am",
   };
 
   it("accepts a confirmed email", () => {

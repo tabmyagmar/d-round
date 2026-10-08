@@ -42,15 +42,15 @@ describe("user router", () => {
   });
 
   it("maps layer-1 denials to FORBIDDEN before touching the service", async () => {
-    const staff = await signedInUser(h);
-    const caller = createCaller(await contextFor(h, staff.headers));
+    const am = await signedInUser(h);
+    const caller = createCaller(await contextFor(h, am.headers));
 
-    await expect(
-      caller.user.update({ userId: staff.user.id, role: "admin" }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.user.update({ userId: am.user.id, role: "admin" })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
     // `requireAbility("status", "User")` words its message differently from the service, so the
     // message proves the denial happened in the router.
-    await expect(caller.user.deactivate({ userId: staff.user.id })).rejects.toMatchObject({
+    await expect(caller.user.deactivate({ userId: am.user.id })).rejects.toMatchObject({
       code: "FORBIDDEN",
       message: "Not allowed to status User",
     });
@@ -86,19 +86,19 @@ describe("user router", () => {
 
   it("lets an admin list, change roles and deactivate, and maps conflicts to CONFLICT", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
     const caller = createCaller(await contextFor(h, admin.headers));
 
     const page = await caller.user.list({ page: 1, perPage: 100 });
-    expect(page.items.map((u) => u.id)).toContain(staff.user.id);
+    expect(page.items.map((u) => u.id)).toContain(am.user.id);
 
-    const changed = await caller.user.update({ userId: staff.user.id, role: "admin" });
+    const changed = await caller.user.update({ userId: am.user.id, role: "admin" });
     expect(changed.role).toBe("admin");
     await expect(
-      caller.user.update({ userId: staff.user.id, permissionKeys: ["9999"] }),
+      caller.user.update({ userId: am.user.id, permissionKeys: ["9999"] }),
     ).rejects.toMatchObject({ code: "CONFLICT" });
     await expect(
-      caller.user.update({ userId: staff.user.id, role: "manager", permissionKeys: ["9999"] }),
+      caller.user.update({ userId: am.user.id, role: "manager", permissionKeys: ["9999"] }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
 
     await expect(caller.user.deactivate({ userId: admin.user.id })).rejects.toMatchObject({
@@ -112,13 +112,13 @@ describe("user router", () => {
 
   it("reactivates through user.reactivate for a caller holding `status User` only", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
     const victim = await signedInUser(h);
     const caller = createCaller(await contextFor(h, admin.headers));
     await caller.user.deactivate({ userId: victim.user.id });
 
-    const staffCaller = createCaller(await contextFor(h, staff.headers));
-    await expect(staffCaller.user.reactivate({ userId: victim.user.id })).rejects.toMatchObject({
+    const amCaller = createCaller(await contextFor(h, am.headers));
+    await expect(amCaller.user.reactivate({ userId: victim.user.id })).rejects.toMatchObject({
       code: "FORBIDDEN",
       message: "Not allowed to status User",
     });
@@ -134,23 +134,23 @@ describe("user router", () => {
 
   it("invites through user.invite and re-sends through user.sendPasswordReset for an admin only", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
     const email = `${crypto.randomUUID()}@example.com`;
 
-    const staffCaller = createCaller(await contextFor(h, staff.headers));
-    await expect(staffCaller.user.invite({ email, ...NAMES, role: "staff" })).rejects.toMatchObject(
-      { code: "FORBIDDEN" },
-    );
+    const amCaller = createCaller(await contextFor(h, am.headers));
+    await expect(amCaller.user.invite({ email, ...NAMES, role: "am" })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
 
     const caller = createCaller(await contextFor(h, admin.headers));
-    const invited = await caller.user.invite({ email, ...NAMES, role: "staff" });
+    const invited = await caller.user.invite({ email, ...NAMES, role: "am" });
     expect(invited.email).toBe(email);
 
-    await expect(caller.user.invite({ email, ...NAMES, role: "staff" })).rejects.toMatchObject({
+    await expect(caller.user.invite({ email, ...NAMES, role: "am" })).rejects.toMatchObject({
       code: "CONFLICT",
     });
     await expect(
-      caller.user.invite({ email: "not-an-email", ...NAMES, role: "staff" }),
+      caller.user.invite({ email: "not-an-email", ...NAMES, role: "am" }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
 
     await expect(caller.user.sendPasswordReset({ userId: invited.id })).resolves.toBeUndefined();
@@ -165,7 +165,7 @@ describe("user router", () => {
         email: `${crypto.randomUUID()}@example.com`,
         ...NAMES,
         lastNameKana: "しょうたい",
-        role: "staff",
+        role: "am",
       }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });

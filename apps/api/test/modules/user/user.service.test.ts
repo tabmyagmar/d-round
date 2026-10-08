@@ -38,7 +38,7 @@ const listQuery = (input: ListUsersInput) => listUsersSchema.parse(input);
 
 /**
  * Leaves only `keep` active among the admin roles: every other active admin-role user becomes
- * staff until the returned restore function puts each one's original role back. All API test
+ * AM until the returned restore function puts each one's original role back. All API test
  * files share one database, so this is how a test reaches the last-admin boundary.
  */
 const parkOtherAdmins = async (keep: string[]): Promise<() => Promise<void>> => {
@@ -48,7 +48,7 @@ const parkOtherAdmins = async (keep: string[]): Promise<() => Promise<void>> => 
   });
   await h.db.user.updateMany({
     where: { id: { in: parked.map((u) => u.id) } },
-    data: { role: "staff" },
+    data: { role: "am" },
   });
   return async () => {
     for (const role of ADMIN_ROLES) {
@@ -60,23 +60,23 @@ const parkOtherAdmins = async (keep: string[]): Promise<() => Promise<void>> => 
 
 describe("getById", () => {
   it("lets everyone read themselves and admins read anyone", async () => {
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
     const admin = await signedInUser(h, { role: "admin" });
 
-    expect((await userService.getById(await contextFor(h, staff.headers), staff.user.id)).id).toBe(
-      staff.user.id,
+    expect((await userService.getById(await contextFor(h, am.headers), am.user.id)).id).toBe(
+      am.user.id,
     );
-    expect((await userService.getById(await contextFor(h, admin.headers), staff.user.id)).id).toBe(
-      staff.user.id,
+    expect((await userService.getById(await contextFor(h, admin.headers), am.user.id)).id).toBe(
+      am.user.id,
     );
   });
 
-  it("forbids staff from reading other users", async () => {
-    const staff = await signedInUser(h);
+  it("forbids an AM from reading other users", async () => {
+    const am = await signedInUser(h);
     const other = await signedInUser(h);
 
     await expect(
-      userService.getById(await contextFor(h, staff.headers), other.user.id),
+      userService.getById(await contextFor(h, am.headers), other.user.id),
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
@@ -94,11 +94,11 @@ describe("getById", () => {
 describe("getById: permission keys", () => {
   it("returns the user's effective permission keys", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
 
-    const detail = await userService.getById(await contextFor(h, admin.headers), staff.user.id);
+    const detail = await userService.getById(await contextFor(h, admin.headers), am.user.id);
 
-    expect(detail.permissionKeys).toEqual(await roleKeys("staff"));
+    expect(detail.permissionKeys).toEqual(await roleKeys("am"));
   });
 });
 
@@ -106,20 +106,20 @@ describe("list", () => {
   it("returns only what the ability allows and filters by search/role", async () => {
     const marker = tag();
     const admin = await signedInUser(h, { role: "admin", name: "Admin Person" });
-    const staff = await signedInUser(h, { name: `Zed ${marker}` });
+    const am = await signedInUser(h, { name: `Zed ${marker}` });
 
     const asAdmin = await userService.list(
       await contextFor(h, admin.headers),
       listQuery({ page: 1, perPage: 50, search: marker }),
     );
-    expect(asAdmin.items.map((u) => u.id)).toEqual([staff.user.id]);
+    expect(asAdmin.items.map((u) => u.id)).toEqual([am.user.id]);
 
-    const asStaff = await userService.list(
-      await contextFor(h, staff.headers),
+    const asAm = await userService.list(
+      await contextFor(h, am.headers),
       listQuery({ page: 1, perPage: 50 }),
     );
-    expect(asStaff.total).toBe(1);
-    expect(asStaff.items[0]?.id).toBe(staff.user.id);
+    expect(asAm.total).toBe(1);
+    expect(asAm.items[0]?.id).toBe(am.user.id);
 
     const onlyAdmins = await userService.list(
       await contextFor(h, admin.headers),
@@ -178,16 +178,16 @@ describe("list", () => {
 describe("updateProfile", () => {
   it("lets users edit themselves and admins edit anyone", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
 
-    const self = await userService.updateProfile(await contextFor(h, staff.headers), {
+    const self = await userService.updateProfile(await contextFor(h, am.headers), {
       lastName: "自分",
       firstName: "改名",
     });
     expect(self).toMatchObject({ name: "自分 改名", lastName: "自分", firstName: "改名" });
 
     const byAdmin = await userService.updateProfile(await contextFor(h, admin.headers), {
-      userId: staff.user.id,
+      userId: am.user.id,
       ...names("管理", "改名"),
     });
     expect(byAdmin).toMatchObject({
@@ -197,12 +197,12 @@ describe("updateProfile", () => {
     });
   });
 
-  it("forbids staff from editing other users", async () => {
-    const staff = await signedInUser(h);
+  it("forbids an AM from editing other users", async () => {
+    const am = await signedInUser(h);
     const other = await signedInUser(h);
 
     await expect(
-      userService.updateProfile(await contextFor(h, staff.headers), {
+      userService.updateProfile(await contextFor(h, am.headers), {
         userId: other.user.id,
         lastName: "不可",
       }),
@@ -228,25 +228,25 @@ const allow = (userId: string, ...keys: string[]) =>
 
 describe("update", () => {
   it("lets anyone rename themselves without `changeRole`", async () => {
-    const staff = await signedInUser(h, { name: "Before" });
+    const am = await signedInUser(h, { name: "Before" });
 
-    const renamed = await userService.update(await contextFor(h, staff.headers), {
-      userId: staff.user.id,
+    const renamed = await userService.update(await contextFor(h, am.headers), {
+      userId: am.user.id,
       ...names("後", "名前"),
     });
 
     expect(renamed).toMatchObject({ name: "後 名前", lastName: "後", firstName: "名前" });
-    expect(renamed.role).toBe("staff");
+    expect(renamed.role).toBe("am");
   });
 
   it("keeps the stored parts when only some change, and the display name follows", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
     const ctx = await contextFor(h, admin.headers);
-    await userService.update(ctx, { userId: staff.user.id, ...names("山田", "太郎") });
+    await userService.update(ctx, { userId: am.user.id, ...names("山田", "太郎") });
 
     const updated = await userService.update(ctx, {
-      userId: staff.user.id,
+      userId: am.user.id,
       firstName: "花子",
       firstNameKana: "ハナコ",
     });
@@ -262,26 +262,26 @@ describe("update", () => {
 
   it("changes roles for callers holding `changeRole` and refuses to demote the last admin", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
     const adminCtx = await contextFor(h, admin.headers);
 
     await expect(
-      userService.update(await contextFor(h, staff.headers), {
-        userId: staff.user.id,
+      userService.update(await contextFor(h, am.headers), {
+        userId: am.user.id,
         role: "manager",
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
 
-    const promoted = await userService.update(adminCtx, { userId: staff.user.id, role: "admin" });
+    const promoted = await userService.update(adminCtx, { userId: am.user.id, role: "admin" });
     expect(promoted.role).toBe("admin");
-    const demoted = await userService.update(adminCtx, { userId: staff.user.id, role: "staff" });
-    expect(demoted.role).toBe("staff");
+    const demoted = await userService.update(adminCtx, { userId: am.user.id, role: "am" });
+    expect(demoted.role).toBe("am");
 
     // Make `admin` the only active admin-role user, then try to demote them.
     const restore = await parkOtherAdmins([admin.user.id]);
     try {
       await expect(
-        userService.update(adminCtx, { userId: admin.user.id, role: "staff" }),
+        userService.update(adminCtx, { userId: admin.user.id, role: "am" }),
       ).rejects.toThrow("Cannot demote the last admin");
     } finally {
       await restore();
@@ -297,9 +297,9 @@ describe("update", () => {
     try {
       const demoted = await userService.update(superAdminCtx, {
         userId: admin.user.id,
-        role: "staff",
+        role: "am",
       });
-      expect(demoted.role).toBe("staff");
+      expect(demoted.role).toBe("am");
 
       // The super_admin is now the last active admin-role user; their own role is not
       // assignable, so the role rule refuses before the last-admin rule is reached.
@@ -316,33 +316,33 @@ describe("update", () => {
 
   it("never assigns super_admin and leaves a super_admin's role alone", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
     const superAdmin = await signedInUser(h, { role: "super_admin" });
     const adminCtx = await contextFor(h, admin.headers);
 
     await expect(
-      userService.update(adminCtx, { userId: staff.user.id, role: "super_admin" }),
+      userService.update(adminCtx, { userId: am.user.id, role: "super_admin" }),
     ).rejects.toThrow("Not allowed to assign the role super_admin");
     await expect(
       userService.update(adminCtx, { userId: superAdmin.user.id, role: "admin" }),
     ).rejects.toThrow("Not allowed to change the role of a super_admin");
   });
 
-  it("lets a manager holding `update` and `changeRole` hand out manager and staff only", async () => {
+  it("lets a manager holding `update` and `changeRole` hand out manager and AM only", async () => {
     const manager = await signedInUser(h, { role: "manager" });
     await allow(manager.user.id, "1103", "1106");
     const ctx = await contextFor(h, manager.headers);
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
     const admin = await signedInUser(h, { role: "admin" });
 
-    expect((await userService.update(ctx, { userId: staff.user.id, role: "manager" })).role).toBe(
+    expect((await userService.update(ctx, { userId: am.user.id, role: "manager" })).role).toBe(
       "manager",
     );
     await expect(
-      userService.update(ctx, { userId: staff.user.id, role: "admin" }),
+      userService.update(ctx, { userId: am.user.id, role: "admin" }),
     ).rejects.toBeInstanceOf(ForbiddenError);
     await expect(
-      userService.update(ctx, { userId: admin.user.id, role: "staff" }),
+      userService.update(ctx, { userId: admin.user.id, role: "am" }),
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
 });
@@ -384,10 +384,10 @@ describe("update: permission overrides", () => {
       permissionKeys: [...(await roleKeys("manager")), "1101"],
     });
 
-    const demoted = await userService.update(ctx, { userId: manager.user.id, role: "staff" });
+    const demoted = await userService.update(ctx, { userId: manager.user.id, role: "am" });
 
     expect(await h.db.userPermission.count({ where: { userId: manager.user.id } })).toBe(0);
-    expect(demoted.permissionKeys).toEqual(await roleKeys("staff"));
+    expect(demoted.permissionKeys).toEqual(await roleKeys("am"));
   });
 
   it("refuses changes to the caller's own permissions", async () => {
@@ -422,19 +422,19 @@ describe("update: permission overrides", () => {
 
   it("refuses overrides for a role without them, unknown keys, and callers without `changeRole`", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
     const manager = await signedInUser(h, { role: "manager" });
     const adminCtx = await contextFor(h, admin.headers);
 
     await expect(
-      userService.update(adminCtx, { userId: staff.user.id, permissionKeys: ["1101"] }),
+      userService.update(adminCtx, { userId: am.user.id, permissionKeys: ["1101"] }),
     ).rejects.toBeInstanceOf(ConflictError);
     await expect(
       userService.update(adminCtx, { userId: manager.user.id, permissionKeys: ["9999"] }),
     ).rejects.toBeInstanceOf(ValidationError);
     await expect(
-      userService.update(await contextFor(h, staff.headers), {
-        userId: staff.user.id,
+      userService.update(await contextFor(h, am.headers), {
+        userId: am.user.id,
         permissionKeys: [],
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
@@ -461,7 +461,7 @@ describe("deactivate", () => {
   it("lets a non-admin holding `status User` deactivate a user and ends that user's sessions", async () => {
     const actor = await signedInUser(h);
     const target = await signedInUser(h);
-    // A user ALLOW row on 1105 gives this staff user `status User`; grants are read at session
+    // A user ALLOW row on 1105 gives this AM user `status User`; grants are read at session
     // lookup, so the row goes in before the context is built.
     await h.db.userPermission.create({
       data: { userId: actor.user.id, permissionKey: "1105", effect: "ALLOW" },
@@ -477,13 +477,13 @@ describe("deactivate", () => {
 
   it("refuses self-deactivation and callers without `status User`", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
 
     await expect(
       userService.deactivate(await contextFor(h, admin.headers), admin.user.id),
     ).rejects.toBeInstanceOf(ConflictError);
 
-    const denied = userService.deactivate(await contextFor(h, staff.headers), admin.user.id);
+    const denied = userService.deactivate(await contextFor(h, am.headers), admin.user.id);
     await expect(denied).rejects.toBeInstanceOf(ForbiddenError);
     await expect(denied).rejects.toThrow("Not allowed to change user status");
   });
@@ -555,12 +555,12 @@ describe("reactivate", () => {
 
   it("refuses a caller without `status User`", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
     const target = await signedInUser(h);
     await userService.deactivate(await contextFor(h, admin.headers), target.user.id);
 
     await expect(
-      userService.reactivate(await contextFor(h, staff.headers), target.user.id),
+      userService.reactivate(await contextFor(h, am.headers), target.user.id),
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
 });
@@ -605,7 +605,7 @@ describe("invite", () => {
       userService.invite(await contextFor(h, admin.headers), {
         email: existing.email,
         ...names("再度", "登録"),
-        role: "staff",
+        role: "am",
       }),
     ).rejects.toBeInstanceOf(ConflictError);
   });
@@ -646,7 +646,7 @@ describe("invite", () => {
       userService.invite(await contextFor(h, admin.headers), {
         email,
         ...names("権限", "無し"),
-        role: "staff",
+        role: "am",
         permissionKeys: ["1101"],
       }),
     ).rejects.toBeInstanceOf(ConflictError);
@@ -654,14 +654,14 @@ describe("invite", () => {
   });
 
   it("refuses a caller without `create User`", async () => {
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
     const email = `${crypto.randomUUID()}@example.com`;
 
     await expect(
-      userService.invite(await contextFor(h, staff.headers), {
+      userService.invite(await contextFor(h, am.headers), {
         email,
         ...names("不可", "太郎"),
-        role: "staff",
+        role: "am",
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
     expect(await h.db.user.findUnique({ where: { email } })).toBeNull();
@@ -687,7 +687,7 @@ describe("sendPasswordReset", () => {
     const invited = await userService.invite(ctx, {
       email,
       ...names("遅延", "太郎"),
-      role: "staff",
+      role: "am",
     });
 
     await userService.sendPasswordReset(ctx, invited.id);
@@ -699,10 +699,10 @@ describe("sendPasswordReset", () => {
   });
 
   it("refuses a caller without `update User` on that user, and unknown or deactivated users", async () => {
-    const staff = await signedInUser(h);
+    const am = await signedInUser(h);
     const other = await signedInUser(h);
     await expect(
-      userService.sendPasswordReset(await contextFor(h, staff.headers), other.user.id),
+      userService.sendPasswordReset(await contextFor(h, am.headers), other.user.id),
     ).rejects.toBeInstanceOf(ForbiddenError);
 
     const admin = await signedInUser(h, { role: "admin" });

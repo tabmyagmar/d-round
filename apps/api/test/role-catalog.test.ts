@@ -42,31 +42,31 @@ describe("role catalog parity", () => {
 
 describe("users.role foreign key", () => {
   it("refuses a role outside the catalog", async () => {
-    const signedIn = await signedInUser(h, { role: "staff" });
+    const signedIn = await signedInUser(h, { role: "am" });
 
     await expect(
       h.db.user.update({ where: { id: signedIn.user.id }, data: { role: "ceo" } }),
     ).rejects.toSatisfy(isForeignKeyViolation);
     expect((await h.db.user.findUniqueOrThrow({ where: { id: signedIn.user.id } })).role).toBe(
-      "staff",
+      "am",
     );
   });
 
   it("refuses to delete a role while a user holds it", async () => {
-    await signedInUser(h, { role: "staff" });
+    await signedInUser(h, { role: "am" });
 
-    await expect(h.db.role.delete({ where: { key: "staff" } })).rejects.toSatisfy(
+    await expect(h.db.role.delete({ where: { key: "am" } })).rejects.toSatisfy(
       isForeignKeyViolation,
     );
-    expect(await h.db.role.findUnique({ where: { key: "staff" } })).not.toBeNull();
+    expect(await h.db.role.findUnique({ where: { key: "am" } })).not.toBeNull();
   });
 
-  it("gives a user created without a role the default staff", async () => {
+  it("gives a user created without a role the default AM", async () => {
     const user = await h.db.user.create({
       data: { name: "No role", email: `${crypto.randomUUID()}@example.com` },
     });
 
-    expect(user.role).toBe("staff");
+    expect(user.role).toBe("am");
     expect(user.role).toBe(DEFAULT_ROLE);
   });
 });

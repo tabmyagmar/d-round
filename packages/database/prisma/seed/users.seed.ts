@@ -8,7 +8,7 @@
 //   super_admin@test.com  super_admin
 //   admin@test.com        admin
 //   manager@test.com      manager
-//   staff@test.com        staff
+//   am@test.com           am
 //
 // Passwords are hashed with Better Auth's own scrypt implementation so the accounts sign in
 // through the normal /api/auth/sign-in/email flow.
@@ -49,7 +49,7 @@ export const SEED_USERS: readonly SeedUser[] = [
   seedUser("super_admin@test.com", "super_admin", ["佐藤", "一郎"], ["サトウ", "イチロウ"]),
   seedUser("admin@test.com", "admin", ["鈴木", "花子"], ["スズキ", "ハナコ"]),
   seedUser("manager@test.com", "manager", ["高橋", "次郎"], ["タカハシ", "ジロウ"]),
-  seedUser("staff@test.com", "staff", ["田中", "美咲"], ["タナカ", "ミサキ"]),
+  seedUser("am@test.com", "am", ["田中", "美咲"], ["タナカ", "ミサキ"]),
 ];
 
 const CREDENTIAL_PROVIDER = "credential";

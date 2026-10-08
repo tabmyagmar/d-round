@@ -54,14 +54,14 @@ describe("buildRequestContext", () => {
   });
 
   it("resolves the session into a typed user with its role", async () => {
-    const signedIn = await signedInUser(h, { role: "staff" });
+    const signedIn = await signedInUser(h, { role: "am" });
 
     const ctx = await contextFor(h, signedIn.headers);
 
     expect(ctx.user).toMatchObject({
       id: signedIn.user.id,
       email: signedIn.email,
-      role: "staff",
+      role: "am",
       emailVerified: true,
     });
     expect(ctx.ability.can("read", "User")).toBe(true);
@@ -69,9 +69,9 @@ describe("buildRequestContext", () => {
   });
 
   it("mirrors the role's grants from role_permissions in ctx.user.permissions", async () => {
-    const signedIn = await signedInUser(h, { role: "staff" });
+    const signedIn = await signedInUser(h, { role: "am" });
     const rows = await h.db.rolePermission.findMany({
-      where: { roleKey: "staff" },
+      where: { roleKey: "am" },
       include: { permission: true },
       orderBy: { permissionKey: "asc" },
     });
@@ -113,10 +113,10 @@ describe("ctx.ability is built from the session's grants", () => {
     expect(ctx.ability.can("changeRole", "User")).toBe(true);
   });
 
-  it("refuses those to staff, who may still read clients (row 1202)", async () => {
-    const staff = await signedInUser(h, { role: "staff" });
+  it("refuses those to an AM, who may still read clients (row 1202)", async () => {
+    const am = await signedInUser(h, { role: "am" });
 
-    const ctx = await contextFor(h, staff.headers);
+    const ctx = await contextFor(h, am.headers);
 
     expect(ctx.ability.can("create", "User")).toBe(false);
     expect(ctx.ability.can("status", "User")).toBe(false);
@@ -124,16 +124,16 @@ describe("ctx.ability is built from the session's grants", () => {
     expect(ctx.ability.can("read", "Client")).toBe(true);
   });
 
-  it("keeps the self rule: staff read and update their own row, not another user's", async () => {
-    const staff = await signedInUser(h, { role: "staff" });
+  it("keeps the self rule: an AM reads and updates their own row, not another user's", async () => {
+    const am = await signedInUser(h, { role: "am" });
     const other = await h.db.user.create({
       data: { name: "Other", email: `${crypto.randomUUID()}@example.com` },
     });
 
-    const ctx = await contextFor(h, staff.headers);
+    const ctx = await contextFor(h, am.headers);
 
-    expect(ctx.ability.can("read", prismaUserSubject(staff.user))).toBe(true);
-    expect(ctx.ability.can("update", prismaUserSubject(staff.user))).toBe(true);
+    expect(ctx.ability.can("read", prismaUserSubject(am.user))).toBe(true);
+    expect(ctx.ability.can("update", prismaUserSubject(am.user))).toBe(true);
     expect(ctx.ability.can("read", prismaUserSubject(other))).toBe(false);
     expect(ctx.ability.can("update", prismaUserSubject(other))).toBe(false);
   });

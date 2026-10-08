@@ -26,9 +26,9 @@ describe("toInviteInput", () => {
         email: "a@example.com",
         emailConfirm: "a@example.com",
         ...NAMES,
-        role: "staff",
+        role: "am",
       }),
-    ).toEqual({ email: "a@example.com", ...NAMES, role: "staff" });
+    ).toEqual({ email: "a@example.com", ...NAMES, role: "am" });
   });
 
   it("sends adjusted permissions for a manager only", () => {
@@ -37,7 +37,7 @@ describe("toInviteInput", () => {
     expect(toInviteInput({ ...base, role: "manager", permissionKeys: ["1101"] })).toMatchObject({
       permissionKeys: ["1101"],
     });
-    expect(toInviteInput({ ...base, role: "staff", permissionKeys: ["1101"] })).not.toHaveProperty(
+    expect(toInviteInput({ ...base, role: "am", permissionKeys: ["1101"] })).not.toHaveProperty(
       "permissionKeys",
     );
   });
@@ -54,8 +54,8 @@ describe("toUpdateInput", () => {
       }),
     ).toEqual({ userId: USER.id });
     expect(
-      toUpdateInput(USER, { userId: USER.id, ...NAMES, firstName: "花子", role: "staff" }),
-    ).toEqual({ userId: USER.id, firstName: "花子", firstNameKana: "タロウ", role: "staff" });
+      toUpdateInput(USER, { userId: USER.id, ...NAMES, firstName: "花子", role: "am" }),
+    ).toEqual({ userId: USER.id, firstName: "花子", firstNameKana: "タロウ", role: "am" });
   });
 
   it("sends the permissions of a manager when they differ from the current ones", () => {
@@ -68,8 +68,9 @@ describe("toUpdateInput", () => {
   });
 
   it("does not send permissions for a role without overrides", () => {
-    expect(
-      toUpdateInput(USER, { userId: USER.id, role: "staff", permissionKeys: ["1101"] }),
-    ).toEqual({ userId: USER.id, role: "staff" });
+    expect(toUpdateInput(USER, { userId: USER.id, role: "am", permissionKeys: ["1101"] })).toEqual({
+      userId: USER.id,
+      role: "am",
+    });
   });
 });

@@ -28,8 +28,8 @@ describe("seedRoles", () => {
     const roles = await findRoles();
     expect(roles.map(({ key, name, nameJp }) => ({ key, name, nameJp }))).toEqual([
       { key: "admin", name: "Admin", nameJp: "アドミン" },
+      { key: "am", name: "AM", nameJp: "AM" },
       { key: "manager", name: "Manager", nameJp: "マネジャー" },
-      { key: "staff", name: "Staff", nameJp: "スタッフ" },
       { key: "super_admin", name: "Super admin", nameJp: "スーパーアドミン" },
     ]);
   });

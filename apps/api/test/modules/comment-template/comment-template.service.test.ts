@@ -23,7 +23,7 @@ afterAll(async () => {
   await h.stop();
 });
 
-/** A signed-in staff user (no catalog grant touches templates) and their request context. */
+/** A signed-in AM (no catalog grant touches templates) and their request context. */
 const someone = async () => {
   const signedIn = await signedInUser(h);
   return { id: signedIn.user.id, ctx: await contextFor(h, signedIn.headers) };

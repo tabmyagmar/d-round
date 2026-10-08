@@ -11,7 +11,7 @@ const renderForm = () => {
   const onSubmit = vi.fn();
   render(
     <UserCreateForm
-      roleField={{ options: ["admin", "manager", "staff"], disabled: false }}
+      roleField={{ options: ["admin", "manager", "am"], disabled: false }}
       canEditPermissions
       pending={false}
       onSubmit={onSubmit}
@@ -58,7 +58,7 @@ describe("UserCreateForm", () => {
         firstName: "太郎",
         lastNameKana: "ヤマダ",
         firstNameKana: "タロウ",
-        role: "staff",
+        role: "am",
       });
     });
   });
@@ -91,7 +91,7 @@ describe("UserCreateForm", () => {
   it("shows the server's error", () => {
     render(
       <UserCreateForm
-        roleField={{ options: ["staff"], disabled: false }}
+        roleField={{ options: ["am"], disabled: false }}
         canEditPermissions={false}
         pending={false}
         errorMessage="A user with this email already exists"

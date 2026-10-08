@@ -85,7 +85,7 @@ describe("role_permissions = ability", () => {
     });
   }
 
-  it.each(["manager", "staff"] as const)(
+  it.each(["manager", "am"] as const)(
     "%s may not change roles (row 1106 is granted to the admin roles only)",
     async (role) => {
       const signedIn = await signedInUser(h, { role });
@@ -98,15 +98,15 @@ describe("role_permissions = ability", () => {
 });
 
 describe("user_permissions on top of the role", () => {
-  it("an ALLOW row adds a grant: staff with ALLOW 1101 gains `create User` in the ability", async () => {
-    const staff = await signedInUser(h, { role: "staff" });
-    expect((await contextFor(h, staff.headers)).ability.can("create", "User")).toBe(false);
+  it("an ALLOW row adds a grant: an AM with ALLOW 1101 gains `create User` in the ability", async () => {
+    const am = await signedInUser(h, { role: "am" });
+    expect((await contextFor(h, am.headers)).ability.can("create", "User")).toBe(false);
 
     await h.db.userPermission.create({
-      data: { userId: staff.user.id, permissionKey: "1101", effect: "ALLOW" },
+      data: { userId: am.user.id, permissionKey: "1101", effect: "ALLOW" },
     });
 
-    expect((await contextFor(h, staff.headers)).ability.can("create", "User")).toBe(true);
+    expect((await contextFor(h, am.headers)).ability.can("create", "User")).toBe(true);
   });
 
   it("a DENY row removes a role grant: admin with DENY 1102 reads only their own row", async () => {
@@ -127,13 +127,13 @@ describe("user_permissions on top of the role", () => {
   });
 
   it("an ALLOW row on a parent row (`all`) reaches the session but grants nothing", async () => {
-    const staff = await signedInUser(h, { role: "staff" });
+    const am = await signedInUser(h, { role: "am" });
 
     await h.db.userPermission.create({
-      data: { userId: staff.user.id, permissionKey: "1100", effect: "ALLOW" },
+      data: { userId: am.user.id, permissionKey: "1100", effect: "ALLOW" },
     });
 
-    const ctx = await contextFor(h, staff.headers);
+    const ctx = await contextFor(h, am.headers);
     expect(ctx.user?.permissions).toContainEqual({ action: "all", subject: "User" });
     for (const action of ACTIONS) {
       expect(ctx.ability.can(action, prismaUserSubject(other))).toBe(false);

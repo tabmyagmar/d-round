@@ -215,9 +215,9 @@ describe("sessions", () => {
 });
 
 describe("session permissions (customSession)", () => {
-  it("carries the role's grants from role_permissions as { action, subject } for a staff user", async () => {
-    const { cookie } = await signedInAs("staff");
-    const expected = await roleGrants("staff");
+  it("carries the role's grants from role_permissions as { action, subject } for an AM", async () => {
+    const { cookie } = await signedInAs("am");
+    const expected = await roleGrants("am");
     expect(expected).toHaveLength(8);
 
     const session = await sessionWithCookie(cookie);
@@ -227,7 +227,7 @@ describe("session permissions (customSession)", () => {
   });
 
   it("drops a role grant the user has a DENY row for", async () => {
-    const { userId, cookie } = await signedInAs("staff");
+    const { userId, cookie } = await signedInAs("am");
     const denied = await grantOf("1702");
     expect(denied).toEqual({ action: "read", subject: "Workflow" });
     expect((await sessionWithCookie(cookie))?.user.permissions).toContainEqual(denied);
@@ -239,14 +239,14 @@ describe("session permissions (customSession)", () => {
     const session = await sessionWithCookie(cookie);
     expect(session?.user.permissions).not.toContainEqual(denied);
     expect(session?.user.permissions).toEqual(
-      (await roleGrants("staff")).filter(
+      (await roleGrants("am")).filter(
         (grant) => grant.action !== denied.action || grant.subject !== denied.subject,
       ),
     );
   });
 
   it("adds a grant the role lacks when the user has an ALLOW row for it", async () => {
-    const { userId, cookie } = await signedInAs("staff");
+    const { userId, cookie } = await signedInAs("am");
     const allowed = await grantOf("1101");
     expect(allowed).toEqual({ action: "create", subject: "User" });
     expect((await sessionWithCookie(cookie))?.user.permissions).not.toContainEqual(allowed);

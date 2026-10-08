@@ -36,7 +36,7 @@ export const CATALOG: PermissionCatalog = [
         nameJp: "クライアント情報の一覧・詳細を確認",
         action: "read",
         modelName: "Client",
-        roles: ["admin", "manager", "staff", "super_admin"],
+        roles: ["admin", "am", "manager", "super_admin"],
       },
       {
         key: "1203",

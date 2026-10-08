@@ -26,9 +26,7 @@ describe("withParams", () => {
   });
 
   it("goes back to the first page when a filter changes", () => {
-    expect(withParams(params("page=3&role=admin"), { role: "staff" }).toString()).toBe(
-      "role=staff",
-    );
+    expect(withParams(params("page=3&role=admin"), { role: "am" }).toString()).toBe("role=am");
   });
 
   it("keeps the page when only paging or ordering changes", () => {
@@ -91,7 +89,7 @@ describe("parseSearchParams", () => {
   const schema = z.object({
     page: z.coerce.number().int().min(1).default(1),
     search: z.string().trim().min(1).optional(),
-    role: z.enum(["admin", "staff"]).optional(),
+    role: z.enum(["admin", "am"]).optional(),
   });
 
   it("keeps each valid parameter, parsed by its own field schema", () => {

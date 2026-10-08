@@ -11,7 +11,7 @@ export const ROLE_SEEDS = [
   { key: "super_admin", name: "Super admin", nameJp: "スーパーアドミン" },
   { key: "admin", name: "Admin", nameJp: "アドミン" },
   { key: "manager", name: "Manager", nameJp: "マネジャー" },
-  { key: "staff", name: "Staff", nameJp: "スタッフ" },
+  { key: "am", name: "AM", nameJp: "AM" },
 ] as const;
 
 export type RoleKey = (typeof ROLE_SEEDS)[number]["key"];

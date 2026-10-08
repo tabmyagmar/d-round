@@ -8,7 +8,7 @@ const ROLE_TONES: Record<Role, StatusTone> = {
   super_admin: "danger",
   admin: "warning",
   manager: "info",
-  staff: "neutral",
+  am: "neutral",
 };
 
 /** Unknown roles (data older than the enum) render as neutral text instead of crashing. */

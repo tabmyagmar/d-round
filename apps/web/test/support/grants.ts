@@ -7,7 +7,7 @@ export const ME_ID = "019187d5-0d76-7d1a-9a4c-4f7d2a1f3b6e";
 /** A signed-in user holding exactly these grants; the role never decides. */
 export const userWith = (permissions: readonly PermissionGrant[]): AbilityUser => ({
   id: ME_ID,
-  role: "staff",
+  role: "am",
   permissions,
 });
 
@@ -15,8 +15,8 @@ export const userWith = (permissions: readonly PermissionGrant[]): AbilityUser =
 export const abilityWith = (permissions: readonly PermissionGrant[]): AppAbility =>
   defineAbilityFor(userWith(permissions));
 
-/** What `permissions.csv` grants the seeded staff role today. */
-export const STAFF_GRANTS: readonly PermissionGrant[] = [
+/** What `permissions.csv` grants the seeded AM role today. */
+export const AM_GRANTS: readonly PermissionGrant[] = [
   { action: "read", subject: "Client" },
   { action: "read", subject: "Staff" },
   { action: "read", subject: "Branch" },

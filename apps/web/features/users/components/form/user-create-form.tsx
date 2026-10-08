@@ -28,7 +28,7 @@ export type UserCreateFormProps = {
 /**
  * 担当者追加 (invite): 姓 / 名 / セイ / メイ, the email typed twice, アカウントタイプ and a manager's
  * permissions, with キャンセル / 招待メールを送信 in the bar at the bottom of the page.
- * AM (staff) is preselected when the caller may give it.
+ * AM is preselected when the caller may give it.
  */
 export const UserCreateForm = ({
   roleField,
@@ -46,7 +46,7 @@ export const UserCreateForm = ({
       firstNameKana: "",
       email: "",
       emailConfirm: "",
-      role: roleField.options.includes("staff") ? "staff" : (roleField.options[0] ?? DEFAULT_ROLE),
+      role: roleField.options.includes("am") ? "am" : (roleField.options[0] ?? DEFAULT_ROLE),
     },
   });
 

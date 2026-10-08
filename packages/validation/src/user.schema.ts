@@ -6,12 +6,13 @@ import { permissionKeysSchema } from "./permission.schema";
 /**
  * Single-tenant role set: the keys of the role catalog (`roles` table, seeded from
  * packages/database/prisma/seed/roles.seed.ts). Better Auth stores it as a string; this enum is
- * the allowed set.
+ * the allowed set. `am` is the legacy STAFF role (labelled AM); the key `staff` stays free for a
+ * future login role of スタッフ (ADR 0002, 2026-10-08).
  */
-export const ROLES = ["super_admin", "admin", "manager", "staff"] as const;
+export const ROLES = ["super_admin", "admin", "manager", "am"] as const;
 export const roleSchema = z.enum(ROLES);
 export type Role = z.infer<typeof roleSchema>;
-export const DEFAULT_ROLE: Role = "staff";
+export const DEFAULT_ROLE: Role = "am";
 /**
  * The admin role set, used for two authorization decisions: Better Auth `adminRoles` (who may
  * call privileged admin-plugin endpoints) and the roles the last-admin rule counts
@@ -21,14 +22,14 @@ export const ADMIN_ROLES = ["super_admin", "admin"] as const satisfies readonly 
 
 /**
  * Roles a caller may give another user (invite, role change), from the legacy role picker:
- * `super_admin` is never assigned through the app, a manager hands out manager or staff, staff
+ * `super_admin` is never assigned through the app, a manager hands out manager or AM, an AM
  * nothing. The API enforces it; the web only renders what it returns.
  */
 const ASSIGNABLE_ROLES: Readonly<Record<Role, readonly Role[]>> = {
-  super_admin: ["admin", "manager", "staff"],
-  admin: ["admin", "manager", "staff"],
-  manager: ["manager", "staff"],
-  staff: [],
+  super_admin: ["admin", "manager", "am"],
+  admin: ["admin", "manager", "am"],
+  manager: ["manager", "am"],
+  am: [],
 };
 export const assignableRoles = (callerRole: Role): readonly Role[] => ASSIGNABLE_ROLES[callerRole];
 

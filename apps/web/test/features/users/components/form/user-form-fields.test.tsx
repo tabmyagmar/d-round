@@ -39,7 +39,7 @@ const Harness = ({ role, options, disabled = false, canEditPermissions }: Harnes
 
 describe("UserFormFields", () => {
   it("shows 姓, 名, セイ, メイ and the account type with its legacy label", () => {
-    render(<Harness role="manager" options={["manager", "staff"]} canEditPermissions={false} />);
+    render(<Harness role="manager" options={["manager", "am"]} canEditPermissions={false} />);
 
     expect(screen.getByLabelText(/^姓/)).toHaveProperty("value", "山田");
     expect(screen.getByLabelText(/^名/)).toHaveProperty("value", "太郎");
@@ -49,14 +49,14 @@ describe("UserFormFields", () => {
   });
 
   it("offers 権限（詳細設定） for a manager to a caller who may change permissions", () => {
-    render(<Harness role="manager" options={["manager", "staff"]} canEditPermissions />);
+    render(<Harness role="manager" options={["manager", "am"]} canEditPermissions />);
 
     expect(screen.getByRole("button", { name: /権限（詳細設定）/ })).toBeDefined();
   });
 
   it("offers no permission settings for other roles or to other callers", () => {
     const { unmount } = render(
-      <Harness role="staff" options={["manager", "staff"]} canEditPermissions />,
+      <Harness role="am" options={["manager", "am"]} canEditPermissions />,
     );
     expect(screen.queryByRole("button", { name: /権限（詳細設定）/ })).toBeNull();
     unmount();

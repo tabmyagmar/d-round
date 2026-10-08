@@ -27,7 +27,7 @@ describe("comment template router", () => {
     });
   });
 
-  it("lets a staff user keep their own templates: create, list, update, delete", async () => {
+  it("lets an AM keep their own templates: create, list, update, delete", async () => {
     const caller = await callerFor();
 
     const created = await caller.commentTemplate.create({

@@ -68,7 +68,7 @@ const createUser = (tx: TransactionClient) =>
     data: {
       name: "Permission repository user",
       email: `${crypto.randomUUID()}@example.com`,
-      role: "staff",
+      role: "am",
     },
   });
 
@@ -211,8 +211,8 @@ describe("permission repository", () => {
         const user = await createUser(tx);
         const repo = createPermissionRepository(tx);
 
-        // `staff` exists but holds none of this scenario's permissions.
-        expect(mine(prefix, await repo.findEffectiveGrants(user.id, "staff"))).toEqual([]);
+        // `am` exists but holds none of this scenario's permissions.
+        expect(mine(prefix, await repo.findEffectiveGrants(user.id, "am"))).toEqual([]);
         // An unknown role has no grants at all, and the user has no rows: the full result is empty.
         expect(await repo.findEffectiveGrants(user.id, `no-such-role-${prefix}`)).toEqual([]);
       });
@@ -230,7 +230,7 @@ describe("permission repository", () => {
           where: { key: `${prefix}-b` },
           data: { parentKey: `${prefix}-a` },
         });
-        await grantToRole(tx, "staff", `${prefix}-b`);
+        await grantToRole(tx, "am", `${prefix}-b`);
         await grantToRole(tx, "admin", `${prefix}-b`);
 
         const catalog = await createPermissionRepository(tx).findVisibleCatalog();
@@ -252,7 +252,7 @@ describe("permission repository", () => {
             parentKey: `${prefix}-a`,
             action: "read",
             modelName: "Runtime",
-            roles: [{ roleKey: "admin" }, { roleKey: "staff" }],
+            roles: [{ roleKey: "admin" }, { roleKey: "am" }],
           },
         ]);
       });

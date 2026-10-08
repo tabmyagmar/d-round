@@ -9,7 +9,7 @@ export const userRow = (overrides: Partial<UserRow> = {}): UserRow => ({
   image: null,
   createdAt: new Date("2026-10-01T00:00:00Z"),
   updatedAt: new Date("2026-10-01T00:00:00Z"),
-  role: "staff",
+  role: "am",
   banned: false,
   banReason: null,
   banExpires: null,

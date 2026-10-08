@@ -9,15 +9,17 @@ paths:
 
 # Permissions — two layers, both required
 
-Single tenant, one organization. Roles: `super_admin`, `admin`, `manager`, `staff` (Better Auth
-admin plugin, `role` column on `users` with a foreign key to the `roles` catalog; the allowed set is
+Single tenant, one organization. Roles: `super_admin`, `admin`, `manager`, `am` (Better Auth admin
+plugin, `role` column on `users` with a foreign key to the `roles` catalog; the allowed set is
 `ROLES` / `roleSchema` in `@repo/validation`, `ADMIN_ROLES` = the two admin roles). Add a role by
 extending `ROLES` in `@repo/validation`, `roles` in `@repo/auth`, `ROLE_SEEDS`, a new role flag
 column in `permissions.csv` (the seed's header check enforces it) with the seed-test counts,
 `ROLE_LABELS` / `ROLE_TONES` in the web, and a migration inserting the `roles` row
 (`INSERT … ON CONFLICT ("key") DO NOTHING`, as `20261005143913_align_users_role_with_roles` does): a
 migrations-only database has only the rows a migration inserted, and `users.role` references them
-(ADR 0005). `rules.ts` and the unit spec know nothing about roles. The parity test in
+(ADR 0005). Rename a role key the same way in reverse: a migration inserts the new row, moves the
+users and grants, deletes the old row (`20261008044757_rename_staff_role_to_am`, `staff` → `am`).
+`rules.ts` and the unit spec know nothing about roles. The parity test in
 `apps/api/test/role-catalog.test.ts` fails when the role lists disagree. Model:
 `docs/adr/0003-permissions.md`.
 
@@ -75,7 +77,7 @@ rows minus its `DENY` rows. What each role gets is `permissions.csv`
 | ---------------------- | ------------------------------- | ----------------------- | ------------------------------------------------------ |
 | `super_admin`, `admin` | every action incl. `changeRole` | every catalog row       | every catalog row                                      |
 | `manager`              | self (`read`/`update`) only     | `read`                  | Workflow all five; SourceCsvHistory `create`, `read`   |
-| `staff`                | self (`read`/`update`) only     | `read`                  | Workflow all five                                      |
+| `am`                   | self (`read`/`update`) only     | `read`                  | Workflow all five                                      |
 
 An anonymous visitor (`defineAbilityFor(null)`) can do nothing. A scoped role (for example a team
 lead who reads their own team) is one `can("read", "User", { teamId: user.teamId })` after the grant
@@ -92,7 +94,7 @@ with the grants is a follow-up (ADR 0003). The app does not use those endpoints 
 decide.
 
 Who may give which role is `assignableRoles(callerRole)` in `@repo/validation` (the legacy role
-picker: admin roles give admin / manager / staff, a manager gives manager / staff, staff nothing;
+picker: admin roles give admin / manager / AM, a manager gives manager / AM, an AM nothing;
 `super_admin` is never given in the app). The user service enforces it on `invite` (new role) and
 `update` (new role and the user's current role, after `changeRole`); the web renders only what it
 returns (`roleFieldState`). Per-user permission overrides exist for `OVERRIDABLE_ROLES` (`manager`)

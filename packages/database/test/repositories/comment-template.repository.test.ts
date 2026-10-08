@@ -22,7 +22,7 @@ const createOwner = () =>
     data: {
       name: "Comment template owner",
       email: `${crypto.randomUUID()}@example.com`,
-      role: "staff",
+      role: "am",
     },
   });
 

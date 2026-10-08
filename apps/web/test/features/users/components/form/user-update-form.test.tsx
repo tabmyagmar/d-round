@@ -23,7 +23,7 @@ const renderForm = (user: UserDetail = USER) => {
     <StrictMode>
       <UserUpdateForm
         user={user}
-        roleField={{ options: ["admin", "manager", "staff"], disabled: false }}
+        roleField={{ options: ["admin", "manager", "am"], disabled: false }}
         canEditPermissions
         pending={false}
         onSubmit={onSubmit}
@@ -51,7 +51,7 @@ describe("UserUpdateForm", () => {
     expect(screen.queryByRole("textbox", { name: /メールアドレス/ })).toBeNull();
   });
 
-  it.each(["staff", "admin"] as const)(
+  it.each(["am", "admin"] as const)(
     "keeps 保存 disabled for an untouched %s, who has no permission field",
     (role) => {
       renderForm({ ...userRow({ role }), permissionKeys: [] });

@@ -11,9 +11,9 @@ model User {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  /// admin plugin: super_admin | admin | manager | staff (allowed set: @repo/validation roleSchema).
+  /// admin plugin: super_admin | admin | manager | am (allowed set: @repo/validation roleSchema).
   /// References the role catalog (access/role.prisma): the database refuses any other value.
-  role       String    @default("staff")
+  role       String    @default("am")
   banned     Boolean?  @default(false)
   banReason  String?   @map("ban_reason")
   banExpires DateTime? @map("ban_expires")

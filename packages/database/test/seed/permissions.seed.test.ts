@@ -106,8 +106,8 @@ describe("seedPermissions", () => {
     for (const { roleKey } of grants) {
       perRole[roleKey] = (perRole[roleKey] ?? 0) + 1;
     }
-    expect(perRole).toEqual({ super_admin: 35, admin: 35, manager: 10, staff: 8 });
-    expect(await rolesGranted("1202")).toEqual(["admin", "manager", "staff", "super_admin"]);
+    expect(perRole).toEqual({ super_admin: 35, admin: 35, manager: 10, am: 8 });
+    expect(await rolesGranted("1202")).toEqual(["admin", "am", "manager", "super_admin"]);
     expect(await rolesGranted("1101")).toEqual(["admin", "super_admin"]);
     expect(await rolesGranted("1106")).toEqual(["admin", "super_admin"]);
     expect(await rolesGranted("1100")).toEqual([]);
@@ -116,7 +116,7 @@ describe("seedPermissions", () => {
 
   it("syncs role grants to the CSV: removes a stale grant and restores a missing one", async () => {
     await seedRolesAndPermissions();
-    await prisma.rolePermission.create({ data: { roleKey: "staff", permissionKey: "1101" } });
+    await prisma.rolePermission.create({ data: { roleKey: "am", permissionKey: "1101" } });
     await prisma.rolePermission.delete({
       where: { roleKey_permissionKey: { roleKey: "manager", permissionKey: "1202" } },
     });
@@ -124,7 +124,7 @@ describe("seedPermissions", () => {
     const summary = await seedPermissions(prisma);
 
     expect(summary).toEqual({ ...UNCHANGED, grants: { created: 1, deleted: 1 } });
-    expect(await grantOf("staff", "1101")).toBeNull();
+    expect(await grantOf("am", "1101")).toBeNull();
     expect(await grantOf("manager", "1202")).not.toBeNull();
     expect(await prisma.rolePermission.count()).toBe(88);
   });
@@ -162,13 +162,13 @@ describe("seedPermissions", () => {
           modelName: "Runtime",
         },
       });
-      await prisma.rolePermission.create({ data: { roleKey: "staff", permissionKey: runtimeKey } });
+      await prisma.rolePermission.create({ data: { roleKey: "am", permissionKey: runtimeKey } });
 
       const summary = await seedPermissions(prisma);
 
       expect(summary).toEqual(UNCHANGED);
       expect(await prisma.permission.findUnique({ where: { key: runtimeKey } })).not.toBeNull();
-      expect(await grantOf("staff", runtimeKey)).not.toBeNull();
+      expect(await grantOf("am", runtimeKey)).not.toBeNull();
     } finally {
       // Other tests count exactly 43 permissions; the delete cascades to the runtime grant.
       await prisma.permission.deleteMany({ where: { key: runtimeKey } });
