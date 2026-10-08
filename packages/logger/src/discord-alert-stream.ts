@@ -3,12 +3,13 @@ import type { DestinationStream } from "pino";
 /**
  * Sends the logger's error and fatal lines to a Discord webhook (docs/adr/0010-alerts.md).
  * `createLogger({ alerts })` routes every line at level error and above here through
- * pino.multistream, after pino's redaction. One message per incident and per problem: lines that
- * share a requestId or jobId within ALERT_INCIDENT_WINDOW_MS fold into the first, a fingerprint is
- * sent once per ALERT_WINDOW_MS (its next message counts the repeats), and at most
- * ALERT_MAX_PER_MINUTE messages leave a process per minute. A failed send is reported once and
- * dropped, never retried: the log line already exists, and an alert must never fail a request or
- * a job.
+ * pino.multistream. One message per incident and per problem: lines that share a requestId or jobId
+ * within ALERT_INCIDENT_WINDOW_MS fold into the first, a fingerprint is sent once per
+ * ALERT_WINDOW_MS (its next message counts the repeats), and at most ALERT_MAX_PER_MINUTE error
+ * messages leave a process per minute; a fatal line always goes. Only the allow-listed identifiers,
+ * the log message and the error reach Discord: its type, the first line of its message with e-mail
+ * addresses masked, and its first stack frames. A failed send is reported once and dropped, never
+ * retried: the log line already exists, and an alert must never fail a request or a job.
  */
 
 export const ALERT_INCIDENT_WINDOW_MS = 10_000;
@@ -71,9 +72,9 @@ const FATAL_LEVEL = 60;
 const ONE_MINUTE_MS = 60_000;
 
 // Discord allows a 256-character title, a 4096 description, 1024 per field value and 6000 per
-// embed; with at most 16 fields these caps keep the worst case near 5300.
+// embed; with at most 16 fields these caps keep the worst case near 4300.
 const TITLE_MAX = 256;
-const MESSAGE_MAX = 1500;
+const MESSAGE_MAX = 500;
 const FRAME_MAX = 200;
 const VALUE_MAX = 100;
 
@@ -108,18 +109,30 @@ const inlineCode = (value: string): string =>
 
 const noFences = (text: string): string => text.replaceAll("```", "'''");
 
+// The personal data error messages quote most: an SMTP 550 names the recipient.
+const EMAIL_ADDRESS = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
+
+/** The first line only: Prisma and others print the query and its arguments below it. */
+const messageLine = (text: string): string => {
+  const first = text
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line !== "");
+  return noFences(cut((first ?? "").replaceAll(EMAIL_ADDRESS, "[email]"), MESSAGE_MAX));
+};
+
 /** pino's err serializer gives `{ type, message, stack }`; a rejected non-Error arrives as is. */
 const describeError = (err: unknown): string | undefined => {
   const text = asText(err);
   if (text !== undefined) {
-    return noFences(cut(text, MESSAGE_MAX));
+    return messageLine(text);
   }
   if (typeof err !== "object" || err === null) {
     return undefined;
   }
   const { type, message, stack } = err as LogLine;
-  const head = `**${noFences(cut(asText(type) ?? "Error", VALUE_MAX))}:** ${noFences(
-    cut(asText(message) ?? "", MESSAGE_MAX),
+  const head = `**${noFences(cut(asText(type) ?? "Error", VALUE_MAX))}:** ${messageLine(
+    asText(message) ?? "",
   )}`;
   const frames = (asText(stack) ?? "")
     .split("\n")
@@ -210,6 +223,15 @@ export const createDiscordAlertStream = (
   let dropped = 0;
   const inFlight = new Set<Promise<void>>();
 
+  /** A throwing onSendError must neither reach the logging caller nor leave a rejection behind. */
+  const report = (error: unknown): void => {
+    try {
+      onSendError(error);
+    } catch {
+      // Nothing is left to tell.
+    }
+  };
+
   const post = async (message: DiscordMessage): Promise<void> => {
     const response = await send(webhookUrl, {
       method: "POST",
@@ -228,7 +250,7 @@ export const createDiscordAlertStream = (
     const sending = post(message)
       .catch((error: unknown) => {
         dropped += carried + 1;
-        onSendError(error);
+        report(error);
       })
       .finally(() => {
         inFlight.delete(sending);
@@ -236,16 +258,20 @@ export const createDiscordAlertStream = (
     inFlight.add(sending);
   };
 
+  // Both maps are in time order (a sent problem moves to the end), so pruning stops at the first
+  // live entry. A problem quiet for two windows is forgotten together with its repeat count.
   const prune = (at: number): void => {
     for (const [key, firstAt] of incidents) {
-      if (at - firstAt >= ALERT_INCIDENT_WINDOW_MS) {
-        incidents.delete(key);
+      if (at - firstAt < ALERT_INCIDENT_WINDOW_MS) {
+        break;
       }
+      incidents.delete(key);
     }
     for (const [key, problem] of problems) {
-      if (problem.repeats === 0 && at - problem.sentAt >= ALERT_WINDOW_MS) {
-        problems.delete(key);
+      if (at - problem.sentAt < 2 * ALERT_WINDOW_MS) {
+        break;
       }
+      problems.delete(key);
     }
   };
 
@@ -274,11 +300,13 @@ export const createDiscordAlertStream = (
     }
 
     sentInLastMinute = sentInLastMinute.filter((sentAt) => at - sentAt < ONE_MINUTE_MS);
-    if (sentInLastMinute.length >= ALERT_MAX_PER_MINUTE) {
+    // A fatal line always goes: the process is dying, and no later message could count it.
+    if (level < FATAL_LEVEL && sentInLastMinute.length >= ALERT_MAX_PER_MINUTE) {
       dropped += 1;
       return;
     }
     sentInLastMinute.push(at);
+    problems.delete(fingerprint);
     problems.set(fingerprint, { sentAt: at, repeats: 0 });
     const carried = dropped;
     dropped = 0;
@@ -293,7 +321,7 @@ export const createDiscordAlertStream = (
       try {
         handle(raw);
       } catch (error) {
-        onSendError(error);
+        report(error);
       }
     },
     flush: async (timeoutMs = ALERT_FLUSH_TIMEOUT_MS) => {

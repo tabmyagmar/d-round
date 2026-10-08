@@ -119,7 +119,7 @@ describe("createLogger with alerts", () => {
     expect(bodies[0]).toContain("error line");
   });
 
-  it("never sends a secret logged next to an error", async () => {
+  it("keeps keys outside ALERT_CONTEXT_KEYS, secrets among them, out of Discord", async () => {
     const { alerts, bodies } = fakeDiscord();
     const logger = createLogger({ name: "test", alerts }, captureStream().stream);
 

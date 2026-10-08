@@ -31,8 +31,11 @@ export const registerGracefulShutdown = (
     process: proc = process,
   } = options;
   let shuttingDown: Promise<void> | undefined;
+  // The highest code any caller asked for: a crash during a running shutdown still exits 1.
+  let code = 0;
 
   const shutdown = (reason: string, exitCode = 0): Promise<void> => {
+    code = Math.max(code, exitCode);
     if (shuttingDown) {
       return shuttingDown;
     }
@@ -56,7 +59,7 @@ export const registerGracefulShutdown = (
       }
 
       clearTimeout(deadline);
-      proc.exit(failed ? 1 : exitCode);
+      proc.exit(failed ? 1 : code);
     })();
     return shuttingDown;
   };

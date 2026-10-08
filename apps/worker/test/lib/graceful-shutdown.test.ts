@@ -147,4 +147,31 @@ describe("registerGracefulShutdown", () => {
     await shutdown("startup failure", 1);
     expect(exit).toHaveBeenCalledWith(1);
   });
+
+  it("exits 1 when a crash happens while a shutdown is already running", async () => {
+    const { emitter, exit, proc } = fakeProcess();
+    const { logger: captured } = capturedLogger();
+    let release: () => void = () => undefined;
+
+    registerGracefulShutdown({
+      logger: captured,
+      process: proc,
+      steps: [
+        {
+          name: "workers",
+          run: () =>
+            new Promise<void>((resolve) => {
+              release = resolve;
+            }),
+        },
+      ],
+    });
+    emitter.emit("SIGTERM");
+    emitter.emit("unhandledRejection", new Error("closing client failed"));
+    release();
+
+    await vi.waitFor(() => {
+      expect(exit).toHaveBeenCalledWith(1);
+    });
+  });
 });

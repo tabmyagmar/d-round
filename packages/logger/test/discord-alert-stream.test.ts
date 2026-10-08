@@ -180,6 +180,7 @@ describe("createDiscordAlertStream", () => {
     for (let index = 0; index <= ALERT_MAX_PER_MINUTE; index += 1) {
       logger.error({ path: `procedure.${index}` }, "request failed");
     }
+    await alerts.flush();
     expect(messages).toHaveLength(ALERT_MAX_PER_MINUTE);
 
     advance(60_000);
@@ -190,6 +191,63 @@ describe("createDiscordAlertStream", () => {
     expect(fieldsOf(messages.at(-1))["dropped"]).toBe(
       "1 not sent (rate limit or failed send); see the logs",
     );
+  });
+
+  it("always sends a fatal line, even when the minute's budget is spent", async () => {
+    const { alerts, logger, messages } = setup();
+
+    for (let index = 0; index < ALERT_MAX_PER_MINUTE; index += 1) {
+      logger.error({ path: `procedure.${index}` }, "request failed");
+    }
+    logger.fatal({ err: new Error("boom") }, "uncaught exception");
+    await alerts.flush();
+
+    expect(messages).toHaveLength(ALERT_MAX_PER_MINUTE + 1);
+    expect(embedOf(messages.at(-1)).title).toBe("🔴 uncaught exception");
+  });
+
+  it("forgets a problem that stayed quiet for two windows, with its repeat count", async () => {
+    const { alerts, logger, messages, advance } = setup();
+    const redisDown = (): void => {
+      logger.error({ err: new Error("connect ECONNREFUSED") }, "redis connection error");
+    };
+
+    redisDown();
+    redisDown();
+    advance(2 * ALERT_WINDOW_MS);
+    redisDown();
+    await alerts.flush();
+
+    expect(messages).toHaveLength(2);
+    expect(fieldsOf(messages[1])["repeats"]).toBeUndefined();
+  });
+
+  it("sends only the first line of an error message, with e-mail addresses masked", async () => {
+    const { alerts, logger, messages } = setup();
+
+    logger.error(
+      {
+        err: new Error(
+          '\nInvalid `prisma.staff.create()` invocation:\n\n  data: { phone: "090-1234-5678" }',
+        ),
+      },
+      "request failed",
+    );
+    logger.error(
+      {
+        queue: "email",
+        err: new Error("all recipients were rejected: 550 <taro.yamada@example.co.jp>: unknown"),
+      },
+      "job failed",
+    );
+    await alerts.flush();
+
+    const prisma = embedOf(messages[0]).description ?? "";
+    expect(prisma).toContain("**Error:** Invalid `prisma.staff.create()` invocation:\n```txt\n");
+    expect(prisma).not.toContain("090-1234-5678");
+    const smtp = embedOf(messages[1]).description ?? "";
+    expect(smtp).toContain("550 <[email]>: unknown");
+    expect(smtp).not.toContain("taro.yamada");
   });
 
   it("drops a message Discord refuses after one report, without retrying", async () => {
@@ -225,6 +283,30 @@ describe("createDiscordAlertStream", () => {
     expect(fieldsOf(messages[1])["dropped"]).toBe(
       "1 not sent (rate limit or failed send); see the logs",
     );
+  });
+
+  it("survives an onSendError that throws", async () => {
+    const alerts = createDiscordAlertStream({
+      webhookUrl: "https://discord.test/api/webhooks/1/secret",
+      fetch: () => Promise.reject(new TypeError("fetch failed")),
+      onSendError: () => {
+        throw new Error("stderr closed");
+      },
+    });
+    const logger = createLogger(
+      { name: "api", alerts },
+      new Writable({
+        write: (_chunk, _encoding, callback) => {
+          callback();
+        },
+      }),
+    );
+
+    expect(() => {
+      logger.error("request failed");
+    }).not.toThrow();
+    // An unguarded rejection would surface here as an unhandled rejection and fail the run.
+    await alerts.flush();
   });
 
   it("keeps every message inside Discord's embed limits", async () => {

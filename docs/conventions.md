@@ -112,7 +112,8 @@ the API and the worker is posted to a Discord channel (`createDiscordAlertStream
 `docs/adr/0010-alerts.md`). Log what a user or a client caused (domain errors, 4xx) at `warn`, a
 failure somebody must look at at `error`, a dying process at `fatal`. The lines of one request or
 job become one message, a repeated problem is sent once per window with a repeat count, and the
-messages per minute are capped; only the identifier keys of `ALERT_CONTEXT_KEYS` and the error reach
+messages per minute are capped; only the identifier keys of `ALERT_CONTEXT_KEYS`, the log message
+and the error (type, first message line with e-mail addresses masked, first stack frames) reach
 Discord, so a new identifier worth seeing is added there.
 
 ### Naming
@@ -312,9 +313,9 @@ counters or timestamps.
   becomes `INTERNAL_SERVER_ERROR` with the fixed message "Internal server error" — internals never
   leak to clients; the cause is logged server-side with the `requestId`.
 - The tRPC `errorFormatter` adds `requestId` to every error so users can quote it.
-- An unknown failure is logged once at `error` (`request failed`, with `path` and `requestId`) and
-  therefore alerts Discord when a webhook is set; domain errors are `warn` and never alert
-  (`docs/adr/0010-alerts.md`).
+- An unknown failure writes `request failed` at `error` (with `path` and `requestId`) and a 5xx
+  access line; with a webhook set the two fold into one Discord alert. Domain errors are `warn` and
+  never alert (`docs/adr/0010-alerts.md`).
 - Database constraint failures are translated once (`translateDatabaseError`, `isUniqueViolation`,
   ... in `packages/database/src/utils/errors.ts`) and turned into domain errors in services. Nothing
   else compares Prisma or Postgres error codes.

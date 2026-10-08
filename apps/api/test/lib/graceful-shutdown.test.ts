@@ -78,4 +78,31 @@ describe("registerGracefulShutdown", () => {
       expect.objectContaining({ level: 60, msg: "shutdown timed out, forcing exit" }),
     );
   });
+
+  it("exits 1 when a crash happens while a shutdown is already running", async () => {
+    const { emitter, exit, proc } = fakeProcess();
+    const { logger } = capturedLogger();
+    let release: () => void = () => undefined;
+
+    registerGracefulShutdown({
+      logger,
+      process: proc,
+      steps: [
+        {
+          name: "http server",
+          run: () =>
+            new Promise<void>((resolve) => {
+              release = resolve;
+            }),
+        },
+      ],
+    });
+    emitter.emit("SIGTERM");
+    emitter.emit("unhandledRejection", new Error("closing client failed"));
+    release();
+
+    await vi.waitFor(() => {
+      expect(exit).toHaveBeenCalledWith(1);
+    });
+  });
 });

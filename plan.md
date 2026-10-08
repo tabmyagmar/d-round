@@ -358,3 +358,15 @@ process); Step 5 exercises the fatal path for real.
   `/api/auth/reset-password/<token>`, so a 5xx there would have posted a live one-hour token to
   Discord; the token was also in every info access line on stdout. The request logger now writes
   that segment as `[Redacted]`.
+- 2026-10-08, review fixes, second commit. SHOULD, all taken: a fatal line skips the per-minute cap
+  (ten errors and a fatal give eleven messages); `registerGracefulShutdown` keeps the highest exit
+  code any caller asked for, so a crash during a running shutdown exits 1 (a test per app); pruning
+  walks each map only up to its first live entry (a sent problem moves to the end of its map) and
+  forgets a problem quiet for two windows together with its count, so memory holds at most the last
+  ten minutes of problems. Personal data in error messages, which the reviewer left to the user: the
+  stricter default is taken until the user says otherwise. Only the first line of a message is sent,
+  e-mail addresses masked, and ADR 0010 says what can still reach the channel. NIT, all taken: the
+  secrets test is named for what it proves (the allow-list; the plan's "`[Redacted]` in the embed"
+  case cannot exist, since no allow-listed key is a redact path); a throwing `onSendError` is
+  caught; `docs/conventions.md` says the two lines of a failed request fold into one alert; the
+  webhook must be an https URL; the cap test counts after `flush()`.

@@ -23,9 +23,12 @@ describe("loadApiEnv", () => {
     ).toBe(url);
   });
 
-  it("refuses to start with a webhook value that is not a URL", () => {
+  it("refuses to start with a webhook that is not an https URL", () => {
     expect(() => loadApiEnv({ ...complete, DISCORD_ALERT_WEBHOOK_URL: "not a url" })).toThrow(
       EnvValidationError,
     );
+    expect(() =>
+      loadApiEnv({ ...complete, DISCORD_ALERT_WEBHOOK_URL: "http://discord.com/api/webhooks/1/t" }),
+    ).toThrow(EnvValidationError);
   });
 });
