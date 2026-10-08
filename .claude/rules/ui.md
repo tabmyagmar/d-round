@@ -502,13 +502,17 @@ components through a renderer registry, so a new field type starts as a new comp
   write the URL), `MultiOptionSelect` and `CheckboxGroup` for several values; inside a form use
   `SelectField`, `MultiSelectField`, `CheckboxGroupField`.
 - Submit through a tRPC mutation (`useMutation(trpc.user.updateProfile.mutationOptions(...))`),
-  `toast` from `sonner` for success/error, `queryClient.invalidateQueries(trpc.user.pathFilter())`
-  afterwards.
+  `toast` from `sonner` for success, `queryClient.invalidateQueries(trpc.user.pathFilter())`
+  afterwards. A failed mutation is a toast too, from one place: the `MutationCache` of
+  `apps/web/lib/trpc/query-client.ts` shows エラーが発生しました with the API's message, as the
+  legacy Apollo error link did (`showError`); a mutation that says something more specific passes
+  its own `onError` (`comment-template-dialog.tsx`: 同じタイトルの定型文があります) and the global
+  toast stays quiet. Never an error alert inside a form.
 - Hide or disable what the user may not do with `useAbility` / `Can` (`user-row-actions.tsx`,
   `user-detail-toolbar.tsx`), but the API decides.
-- Forms are presentational: they take `onSubmit(input)`, `pending` and `errorMessage` and turn their
-  values into API input with a pure function (`features/users/utils/user-form-input.ts`); the
-  route's container owns the mutation (`user-create-container.tsx`). They test without tRPC.
+- Forms are presentational: they take `onSubmit(input)` and `pending` and turn their values into API
+  input with a pure function (`features/users/utils/user-form-input.ts`); the route's container owns
+  the mutation (`user-create-container.tsx`). They test without tRPC.
 - Two forms that share fields (invite and edit) share a fields component typed over their common
   keys (`features/users/components/form/user-form-fields.tsx`); fields two features share sit at the
   app level (`apps/web/components/name-fields.tsx`: `NameFields`, 姓 / 名 / セイ / メイ two per row,

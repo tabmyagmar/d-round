@@ -13,15 +13,15 @@ afterEach(cleanup);
 const box = (name: string) => screen.getByRole("checkbox", { name });
 
 /** Rendered in StrictMode, as `next dev` does: effects mount, unmount and mount again. */
-const renderCreate = (errorMessage?: string) => {
+const renderCreate = () => {
   const onSubmit = vi.fn();
   const onCancel = vi.fn();
   render(
     <StrictMode>
       <CommentTemplateCreateForm
         pending={false}
-        errorMessage={errorMessage}
         onSubmit={onSubmit}
+
         onCancel={onCancel}
       />
     </StrictMode>,
@@ -67,11 +67,11 @@ describe("CommentTemplateCreateForm", () => {
     });
   });
 
-  it("shows the API's error and lets キャンセル close the dialog", () => {
-    const { onCancel } = renderCreate("同じタイトルの定型文があります");
+  it("lets キャンセル close the dialog", () => {
+    const { onCancel } = renderCreate();
 
-    expect(screen.getByText("同じタイトルの定型文があります")).toBeDefined();
     fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
+
     expect(onCancel).toHaveBeenCalled();
   });
 });

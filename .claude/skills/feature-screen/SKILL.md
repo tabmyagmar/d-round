@@ -63,8 +63,9 @@ detail's 担当スタッフ, `.claude/rules/ui.md`).
 
 - Schema from `@repo/validation`; fields from `@repo/ui/components/form` in a `FieldGroup`; shared
   fields in `components/form/<name>-form-fields.tsx`; one thin form per mode, no `mode` prop.
-- The form is presentational (`onSubmit`, `pending`, `errorMessage`); the container owns the
-  mutation, the toast and the redirect. Update sends only what changed.
+- The form is presentational (`onSubmit`, `pending`); the container owns the mutation, the success
+  toast and the redirect, and a failure is the query client's toast (`.claude/rules/ui.md`, Forms).
+  Update sends only what changed.
 - Actions: `FormActions` inside a `StickyBar` (`components/form/user-update-form.tsx`).
 - A legacy modal stays a dialog: `ContentDialog` via `next/dynamic` owning the mutation, the same
   thin forms inside (`features/comment-templates/components/comment-template-dialog.tsx`).

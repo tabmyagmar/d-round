@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
-import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
 import { FormActions } from "@repo/ui/components/form";
 import { createCommentTemplateSchema } from "@repo/validation";
@@ -15,7 +14,6 @@ import type { CommentTemplateRow } from "@/features/comment-templates/types";
 export type CommentTemplateUpdateFormProps = {
   template: CommentTemplateRow;
   pending: boolean;
-  errorMessage?: string | undefined;
   onSubmit: (input: UpdateCommentTemplateInput) => void;
   onCancel: () => void;
 };
@@ -27,7 +25,6 @@ export type CommentTemplateUpdateFormProps = {
 export const CommentTemplateUpdateForm = ({
   template,
   pending,
-  errorMessage,
   onSubmit,
   onCancel,
 }: CommentTemplateUpdateFormProps) => {
@@ -49,12 +46,6 @@ export const CommentTemplateUpdateForm = ({
         });
       })}
     >
-      {errorMessage ? (
-        <Alert variant="destructive">
-          <AlertTitle>テンプレートを更新できませんでした</AlertTitle>
-          <AlertDescription>{errorMessage}</AlertDescription>
-        </Alert>
-      ) : null}
       <CommentTemplateFields control={form.control} />
       <FormActions
         className="*:flex-1"

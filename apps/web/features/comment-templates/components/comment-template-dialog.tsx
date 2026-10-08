@@ -43,11 +43,17 @@ export const CommentTemplateDialog = ({
   const create = useMutation(
     trpc.commentTemplate.create.mutationOptions({
       onSuccess: () => settle("テンプレートを作成しました"),
+      onError: (error) => {
+        toast.error(messageOf(error));
+      },
     }),
   );
   const update = useMutation(
     trpc.commentTemplate.update.mutationOptions({
       onSuccess: () => settle("テンプレートを更新しました"),
+      onError: (error) => {
+        toast.error(messageOf(error));
+      },
     }),
   );
   const close = () => {
@@ -65,7 +71,6 @@ export const CommentTemplateDialog = ({
         <CommentTemplateUpdateForm
           template={target.template}
           pending={update.isPending}
-          errorMessage={update.isError ? messageOf(update.error) : undefined}
           onSubmit={(input) => {
             update.mutate(input);
           }}
@@ -74,7 +79,6 @@ export const CommentTemplateDialog = ({
       ) : (
         <CommentTemplateCreateForm
           pending={create.isPending}
-          errorMessage={create.isError ? messageOf(create.error) : undefined}
           onSubmit={(input) => {
             create.mutate(input);
           }}
