@@ -10,7 +10,7 @@ import { UsersStoreProvider } from "@/features/users/stores/users-store-provider
 import type { UserRow } from "@/features/users/types";
 
 import { EVERY_GRANT, userWith } from "../../../../support/grants";
-import { userRow } from "../../fixtures";
+import { userProfile, userRow } from "../../fixtures";
 
 afterEach(cleanup);
 
@@ -50,22 +50,41 @@ describe("UsersTable", () => {
 
     expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
       "",
+      "社員番号",
       "氏名",
       "メールアドレス",
+      "エリア",
+      "地域",
       "アカウントタイプ",
       "ステータス",
       "操作",
     ]);
   });
 
-  it("lets 氏名 and メールアドレス be sorted and nothing else", () => {
+  it("shows the 社員番号, エリア and 地域 of the profile, and — without one", () => {
+    renderTable([
+      userRow({
+        name: "With",
+        profile: userProfile({ employeeNumber: 42, areas: ["EAST", "WEST"] }),
+      }),
+      userRow({ name: "Without", profile: null }),
+    ]);
+
+    const [, withProfile, withoutProfile] = screen.getAllByRole("row");
+    expect(within(withProfile!).getByText("42")).toBeDefined();
+    expect(within(withProfile!).getByText("東日本、西日本")).toBeDefined();
+    expect(within(withProfile!).getByText("南関東")).toBeDefined();
+    expect(within(withoutProfile!).getAllByText("—")).toHaveLength(3);
+  });
+
+  it("lets 社員番号, 氏名 and メールアドレス be sorted and nothing else", () => {
     renderTable([userRow()]);
 
     const sortable = screen
       .getAllByRole("columnheader")
       .filter((header) => within(header).queryByRole("button") !== null)
       .map((header) => header.textContent);
-    expect(sortable).toEqual(["氏名", "メールアドレス"]);
+    expect(sortable).toEqual(["社員番号", "氏名", "メールアドレス"]);
   });
 
   it("links an active user's name to the detail page and labels the role and status", () => {

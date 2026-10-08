@@ -21,3 +21,30 @@ export const userRow = (overrides: Partial<UserRow> = {}): UserRow => ({
   profile: null,
   ...overrides,
 });
+
+/** A 担当者 profile as `user.list` / `user.byId` return it: 社員番号 12, 東日本, 南関東. */
+export const userProfile = (
+  overrides: Partial<NonNullable<UserRow["profile"]>> = {},
+): NonNullable<UserRow["profile"]> => {
+  const userId = overrides.userId ?? crypto.randomUUID();
+  return {
+    id: crypto.randomUUID(),
+    userId,
+    employeeNumber: 12,
+    departmentName: "東日本営業部",
+    position: "SV",
+    retirementDate: null,
+    areas: ["EAST"],
+    createdAt: new Date("2026-10-01T00:00:00Z"),
+    updatedAt: new Date("2026-10-01T00:00:00Z"),
+    regions: [
+      {
+        userId,
+        regionCode: 4,
+        createdAt: new Date("2026-10-01T00:00:00Z"),
+        region: { name: "南関東" },
+      },
+    ],
+    ...overrides,
+  };
+};

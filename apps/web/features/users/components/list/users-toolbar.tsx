@@ -16,12 +16,14 @@ import type { UserFilterChanges, UserListFilters } from "@/features/users/utils/
 
 export type UsersToolbarProps = {
   filters: UserListFilters;
+  /** Names the 地域 tag's region codes (`useSourceHierarchy`; the codes themselves until loaded). */
+  regions: readonly { code: number; name: string }[];
   /** URL changes: `null` removes a parameter (the API default applies). */
   onChange: (changes: UserFilterChanges) => void;
 };
 
 /** 検索, the filter popover, 担当者追加 for those who may create users, then the active filters. */
-export const UsersToolbar = ({ filters, onChange }: UsersToolbarProps) => (
+export const UsersToolbar = ({ filters, regions, onChange }: UsersToolbarProps) => (
   <ListToolbar
     search={
       <SearchInput
@@ -29,7 +31,7 @@ export const UsersToolbar = ({ filters, onChange }: UsersToolbarProps) => (
         onSearch={(search) => {
           onChange({ search });
         }}
-        label="氏名・フリガナ・メールアドレスで検索"
+        label="社員番号・氏名・フリガナ・メールアドレスで検索"
       />
     }
     filters={<UserFilter filters={filters} onChange={onChange} />}
@@ -45,7 +47,7 @@ export const UsersToolbar = ({ filters, onChange }: UsersToolbarProps) => (
     }
   >
     <FilterTags
-      tags={userFilterTags(filters)}
+      tags={userFilterTags(filters, regions)}
       onRemove={(key) => {
         onChange({ [key]: null });
       }}

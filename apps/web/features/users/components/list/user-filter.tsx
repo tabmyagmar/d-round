@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { FilterPopover } from "@repo/ui/components/composed/filter-popover";
 import { Skeleton } from "@repo/ui/components/skeleton";
 
+import { useSourceHierarchy } from "@/components/source/use-source-hierarchy";
 import { activeFilterCount, CLEARED_FILTERS } from "@/features/users/utils/user-filters";
 import type { UserFilterChanges, UserListFilters } from "@/features/users/utils/user-filters";
 
@@ -22,6 +23,12 @@ export type UserFilterProps = {
   onChange: (changes: UserFilterChanges) => void;
 };
 
+/** Rendered only while the popover is open, so the regions load with the fields that use them. */
+const UserFilterBody = ({ filters, onChange }: UserFilterProps) => {
+  const hierarchy = useSourceHierarchy();
+  return <UserFilterContent filters={filters} hierarchy={hierarchy} onChange={onChange} />;
+};
+
 export const UserFilter = ({ filters, onChange }: UserFilterProps) => (
   <FilterPopover
     label="フィルター"
@@ -31,6 +38,6 @@ export const UserFilter = ({ filters, onChange }: UserFilterProps) => (
       onChange(CLEARED_FILTERS);
     }}
   >
-    {() => <UserFilterContent filters={filters} onChange={onChange} />}
+    {() => <UserFilterBody filters={filters} onChange={onChange} />}
   </FilterPopover>
 );

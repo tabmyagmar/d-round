@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { listUsersSchema } from "@repo/validation";
 
+import { useSourceHierarchy } from "@/components/source/use-source-hierarchy";
 import { UsersTable } from "@/features/users/components/list/users-table";
 import { UsersToolbar } from "@/features/users/components/list/users-toolbar";
 import { UsersStoreProvider } from "@/features/users/stores/users-store-provider";
@@ -38,11 +39,14 @@ export const UsersContainer = () => {
   const users = useQuery(trpc.user.list.queryOptions(input, { placeholderData: keepPreviousData }));
   const { sorting, pagination } = useTableState(users.data);
   const [statusTarget, setStatusTarget] = useState<UserRow | null>(null);
+  const filters = userFiltersOf(input);
+  // Region names for the 地域 tag; fetched only while that filter is in effect.
+  const hierarchy = useSourceHierarchy(filters.regionCodes.length > 0);
 
   return (
     <UsersStoreProvider>
       <div className="flex flex-col gap-4">
-        <UsersToolbar filters={userFiltersOf(input)} onChange={setMany} />
+        <UsersToolbar filters={filters} regions={hierarchy.regions} onChange={setMany} />
         {users.isError ? (
           <Alert variant="destructive">
             <AlertTitle>担当者一覧を読み込めませんでした</AlertTitle>

@@ -28,7 +28,14 @@ afterAll(() => {
   vi.unstubAllGlobals();
 });
 
-const NO_FILTERS: UserListFilters = { search: "", role: null, status: "active" };
+const NO_FILTERS: UserListFilters = {
+  search: "",
+  role: null,
+  status: "active",
+  areas: [],
+  regionCodes: [],
+  positions: [],
+};
 const READ_USERS: readonly PermissionGrant[] = [{ action: "read", subject: "User" }];
 
 const renderToolbar = (
@@ -40,7 +47,11 @@ const renderToolbar = (
   render(
     <AbilityProvider user={userWith(grants)}>
       <UsersStoreProvider initialState={{ rowSelection }}>
-        <UsersToolbar filters={filters} onChange={onChange} />
+        <UsersToolbar
+          filters={filters}
+          regions={[{ code: 4, name: "南関東" }]}
+          onChange={onChange}
+        />
       </UsersStoreProvider>
     </AbilityProvider>,
   );
@@ -64,16 +75,23 @@ describe("UsersToolbar", () => {
   });
 
   it("shows the search, and the active filters on the filter button and as tags", () => {
-    renderToolbar(READ_USERS, { search: "amy", role: "admin", status: "deactivated" });
+    renderToolbar(READ_USERS, {
+      ...NO_FILTERS,
+      search: "amy",
+      role: "admin",
+      status: "deactivated",
+      regionCodes: [4],
+    });
 
     expect(screen.getByRole("searchbox")).toHaveProperty("value", "amy");
-    expect(screen.getByRole("button", { name: /フィルター/ }).textContent).toContain("2");
+    expect(screen.getByRole("button", { name: /フィルター/ }).textContent).toContain("3");
     expect(screen.getByText("アドミン")).toBeDefined();
     expect(screen.getByText("停止")).toBeDefined();
+    expect(screen.getByText("南関東")).toBeDefined();
   });
 
   it("removes one filter through its tag", () => {
-    const onChange = renderToolbar(READ_USERS, { search: "", role: "admin", status: "active" });
+    const onChange = renderToolbar(READ_USERS, { ...NO_FILTERS, role: "admin" });
 
     screen.getByRole("button", { name: "アカウントタイプの絞り込みを解除" }).click();
 

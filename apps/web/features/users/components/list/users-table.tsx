@@ -15,16 +15,27 @@ import { RoleBadge } from "@/features/users/components/role-badge";
 import { UserStatusBadge } from "@/features/users/components/user-status-badge";
 import { useUsersStore } from "@/features/users/stores/users-store-provider";
 import type { UserRow } from "@/features/users/types";
-import { readingOf, userStatusOf } from "@/features/users/utils/user-labels";
+import {
+  areaNamesOf,
+  readingOf,
+  regionNamesOf,
+  userStatusOf,
+} from "@/features/users/utils/user-labels";
 
 const helper = createDataTableColumns<UserRow>();
 
 /**
- * The legacy 担当者管理 columns that `User` carries today. 社員番号 (before 氏名) and エリア / 地域
- * (after メールアドレス) come with the user-profile ticket. 氏名 and メールアドレス sort on the server.
+ * The legacy 担当者管理 columns: 社員番号, 氏名, メールアドレス, エリア, 地域, アカウントタイプ,
+ * ステータス. 社員番号, 氏名 and メールアドレス sort on the server; a user without a profile shows —.
  */
 const userColumns = (onToggleStatus: (user: UserRow) => void) =>
   helper.columns([
+    helper.accessor((row) => row.profile?.employeeNumber ?? null, {
+      id: "employeeNumber",
+      header: "社員番号",
+      enableSorting: true,
+      cell: ({ getValue }) => <span className="tabular-nums">{getValue() ?? "—"}</span>,
+    }),
     helper.accessor("name", {
       header: "氏名",
       enableSorting: true,
@@ -50,6 +61,16 @@ const userColumns = (onToggleStatus: (user: UserRow) => void) =>
       header: "メールアドレス",
       enableSorting: true,
       cell: ({ getValue }) => <span className="text-muted-foreground">{getValue()}</span>,
+    }),
+    helper.display({
+      id: "areas",
+      header: "エリア",
+      cell: ({ row }) => areaNamesOf(row.original.profile) ?? "—",
+    }),
+    helper.display({
+      id: "regions",
+      header: "地域",
+      cell: ({ row }) => regionNamesOf(row.original.profile) ?? "—",
     }),
     helper.accessor("role", {
       header: "アカウントタイプ",
