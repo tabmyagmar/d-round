@@ -112,9 +112,9 @@ the API and the worker is posted to a Discord channel (`createDiscordAlertStream
 `docs/adr/0010-alerts.md`). Log what a user or a client caused (domain errors, 4xx) at `warn`, a
 failure somebody must look at at `error`, a dying process at `fatal`. The lines of one request or
 job become one message, a repeated problem is sent once per window with a repeat count, and the
-messages per minute are capped; only the identifier keys of `ALERT_CONTEXT_KEYS`, the log message
-and the error (type, first message line with e-mail addresses masked, first stack frames) reach
-Discord, so a new identifier worth seeing is added there.
+messages per minute are capped. Only the identifier keys of `ALERT_CONTEXT_KEYS`, the log message
+and the error reach Discord (what exactly: ADR 0010), so a new identifier worth seeing is added
+there.
 
 ### Naming
 

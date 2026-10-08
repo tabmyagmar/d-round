@@ -206,7 +206,7 @@ describe("createDiscordAlertStream", () => {
     expect(embedOf(messages.at(-1)).title).toBe("🔴 uncaught exception");
   });
 
-  it("forgets a problem that stayed quiet for two windows, with its repeat count", async () => {
+  it("forgets a problem two windows after its last message, with its repeat count", async () => {
     const { alerts, logger, messages, advance } = setup();
     const redisDown = (): void => {
       logger.error({ err: new Error("connect ECONNREFUSED") }, "redis connection error");
@@ -283,6 +283,17 @@ describe("createDiscordAlertStream", () => {
     expect(fieldsOf(messages[1])["dropped"]).toBe(
       "1 not sent (rate limit or failed send); see the logs",
     );
+  });
+
+  it("handles a one-megabyte message line at once (the e-mail mask stays linear)", async () => {
+    const { alerts, logger, messages } = setup();
+    const startedAt = performance.now();
+
+    logger.error({ err: new Error("a".repeat(1_000_000)) }, "request failed");
+    await alerts.flush();
+
+    expect(performance.now() - startedAt).toBeLessThan(1000);
+    expect((embedOf(messages[0]).description ?? "").length).toBeLessThanOrEqual(4096);
   });
 
   it("survives an onSendError that throws", async () => {

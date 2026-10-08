@@ -370,3 +370,11 @@ process); Step 5 exercises the fatal path for real.
   case cannot exist, since no allow-listed key is a redact path); a throwing `onSendError` is
   caught; `docs/conventions.md` says the two lines of a failed request fold into one alert; the
   webhook must be an https URL; the cap test counts after `flush()`.
+- 2026-10-08, review round 2 (same reviewer agent, resumed): the ten round-1 findings fixed; one new
+  SHOULD and two NITs, all taken. The e-mail mask was quadratic on a long run without `@` (measured:
+  100 000 characters blocked the event loop 4 s; the new one-megabyte test took 438 s red); the line
+  is now cut to `MESSAGE_MAX + 256` before the mask (an address has at most 254 characters), and the
+  test runs in milliseconds. "Quiet for two windows" was wrong: a problem is forgotten two windows
+  after its last message (ADR, code comment, test name). `docs/conventions.md` points to ADR 0010
+  for the embed's contents instead of repeating them. No third review round: the protocol's budget
+  of two is spent, and the fix is pinned by the red-then-green test.

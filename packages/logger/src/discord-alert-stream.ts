@@ -109,8 +109,11 @@ const inlineCode = (value: string): string =>
 
 const noFences = (text: string): string => text.replaceAll("```", "'''");
 
-// The personal data error messages quote most: an SMTP 550 names the recipient.
+// The personal data error messages quote most: an SMTP 550 names the recipient. An address has at
+// most 254 characters, so a line cut to MESSAGE_MAX + 256 first splits none that stays visible, and
+// the mask, quadratic on a long run without "@", only ever sees a short line.
 const EMAIL_ADDRESS = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
+const EMAIL_ADDRESS_MAX = 256;
 
 /** The first line only: Prisma and others print the query and its arguments below it. */
 const messageLine = (text: string): string => {
@@ -118,7 +121,8 @@ const messageLine = (text: string): string => {
     .split("\n")
     .map((line) => line.trim())
     .find((line) => line !== "");
-  return noFences(cut((first ?? "").replaceAll(EMAIL_ADDRESS, "[email]"), MESSAGE_MAX));
+  const bounded = (first ?? "").slice(0, MESSAGE_MAX + EMAIL_ADDRESS_MAX);
+  return noFences(cut(bounded.replaceAll(EMAIL_ADDRESS, "[email]"), MESSAGE_MAX));
 };
 
 /** pino's err serializer gives `{ type, message, stack }`; a rejected non-Error arrives as is. */
@@ -259,7 +263,7 @@ export const createDiscordAlertStream = (
   };
 
   // Both maps are in time order (a sent problem moves to the end), so pruning stops at the first
-  // live entry. A problem quiet for two windows is forgotten together with its repeat count.
+  // live entry. A problem is forgotten two windows after its last message, with its repeat count.
   const prune = (at: number): void => {
     for (const [key, firstAt] of incidents) {
       if (at - firstAt < ALERT_INCIDENT_WINDOW_MS) {

@@ -22,9 +22,9 @@ timeout.
   failures are `error`, a dying process is `fatal`.
 - **One message per incident and per problem.** Lines sharing a `requestId` or `jobId` within 10 s
   fold into the first; a fingerprint (process, message, error type, path, queue, status) is sent
-  once per 5 minutes and its next message counts the repeats (a problem quiet for 10 minutes starts
-  over); at most 10 error messages a minute leave a process, the next delivered message counts what
-  was dropped, and a fatal line always goes.
+  once per 5 minutes and its next message counts the repeats (a problem is forgotten 10 minutes
+  after its last message, with its count); at most 10 error messages a minute leave a process, the
+  next delivered message counts what was dropped, and a fatal line always goes.
 - **The channel never hurts the app.** `fetch` with a 5 s timeout and no retry; a failed send is one
   stderr line and a count, never an exception in a request or a job.
 - **Embed**: the log message as title, colour by level, the error's type, the first line of its
