@@ -339,3 +339,22 @@ process); Step 5 exercises the fatal path for real.
 - 2026-10-08, step 4: the README folder map also names `createDiscordAlertStream` under `logger/`.
   `docs/conventions.md` points to ADR 0010 for the numbers (fold window, repeat window, cap) instead
   of repeating them, and says when a new identifier key belongs in `ALERT_CONTEXT_KEYS`.
+- 2026-10-08, step 5 (smoke, real webhook, no Docker touched; the variables were passed on the
+  command line from the worktree, which has no `.env`): the worker started with Redis on a closed
+  port wrote 61 error / fatal lines in 30 s (48 `worker error`, 12 `redis connection error`,
+  `worker failed to start`, `shutdown timed out, forcing exit`) and exited 1; the API, also without
+  Redis and Postgres, wrote 10 `redis connection error` and one `request completed` (`/health` 503)
+  and exited 1 after SIGTERM. Expected in the channel: six messages (worker: redis connection error,
+  worker error for `email` and for `outbox-sweeper`, worker failed to start; API: redis connection
+  error, request completed 503); no send failed (no `discord alert not sent` on stderr). Found, not
+  changed (it predates this ticket): without Redis the worker's `workers` step and the API's `redis`
+  step wait until the shutdown deadline (30 s / 10 s), so the `alerts` flush step is not reached;
+  the alerts still arrive because their sends run during the wait, and only the `shutdown timed out`
+  line itself is lost, as ADR 0010 says.
+- 2026-10-08, review (reviewer agent: 1 BLOCKER, 4 SHOULD, 5 NIT; verifier agent PASS: fresh
+  `yarn verify --force` 40/40, logger 17, api 11, worker 16 targeted tests). BLOCKER, fixed in its
+  own commit (outside the plan's files: `apps/api/src/middleware/request-logger.ts`, its new test,
+  `docs/auth.md`): the access line logged the raw path, and Better Auth's mailed link is
+  `/api/auth/reset-password/<token>`, so a 5xx there would have posted a live one-hour token to
+  Discord; the token was also in every info access line on stdout. The request logger now writes
+  that segment as `[Redacted]`.
