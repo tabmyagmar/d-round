@@ -23,6 +23,8 @@ export type ArrayFieldProps<TValues extends FieldValues, TName extends ArrayPath
   control: Control<TValues>;
   name: TName;
   label: string;
+  /** Keeps the label for assistive technology only (a card title already names the rows). */
+  hideLabel?: boolean;
   description?: string;
   required?: boolean;
   hint?: string;
@@ -48,6 +50,7 @@ export const ArrayField = <TValues extends FieldValues, TName extends ArrayPath<
   control,
   name,
   label,
+  hideLabel = false,
   description,
   required,
   hint,
@@ -72,7 +75,12 @@ export const ArrayField = <TValues extends FieldValues, TName extends ArrayPath<
 
   return (
     <FieldSet className={className}>
-      <FormFieldLabel asLegend required={required} hint={hint}>
+      <FormFieldLabel
+        asLegend
+        required={required}
+        hint={hint}
+        {...(hideLabel ? { className: "sr-only" } : {})}
+      >
         {label}
       </FormFieldLabel>
       {description ? <FieldDescription>{description}</FieldDescription> : null}
