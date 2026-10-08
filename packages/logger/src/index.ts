@@ -1,7 +1,12 @@
-import { pino } from "pino";
+import { destination as stdoutDestination, multistream, pino } from "pino";
 import type { DestinationStream, Logger, LoggerOptions } from "pino";
+import pinoPretty from "pino-pretty";
+
+import type { DiscordAlertStream } from "./discord-alert-stream";
 
 export type { Logger };
+export { createDiscordAlertStream } from "./discord-alert-stream";
+export type { DiscordAlertStream, DiscordAlertStreamOptions } from "./discord-alert-stream";
 
 /**
  * Keys that must never reach a log line, wherever they appear in the payload.
@@ -36,13 +41,15 @@ export type CreateLoggerOptions = {
   pretty?: boolean;
   /** Extra static bindings (environment, version, ...). */
   base?: Record<string, unknown>;
+  /** Also receives every error and fatal line (createDiscordAlertStream, docs/adr/0010-alerts.md). */
+  alerts?: DiscordAlertStream;
 };
 
 export const createLogger = (
   options: CreateLoggerOptions,
   destination?: DestinationStream,
 ): Logger => {
-  const { name, level = "info", pretty = false, base } = options;
+  const { name, level = "info", pretty = false, base, alerts } = options;
 
   const loggerOptions: LoggerOptions = {
     name,
@@ -52,21 +59,26 @@ export const createLogger = (
     timestamp: pino.stdTimeFunctions.isoTime,
   };
 
-  if (destination) {
-    return pino(loggerOptions, destination);
+  // pino-pretty runs in-process, not as a transport thread, so it can share a multistream with
+  // the alerts. Without either, pino writes to stdout itself.
+  const output =
+    destination ??
+    (pretty
+      ? pinoPretty({ colorize: true, translateTime: "SYS:HH:MM:ss.l", ignore: "pid,hostname" })
+      : undefined);
+
+  if (!alerts) {
+    return pino(loggerOptions, output);
   }
 
-  if (pretty) {
-    return pino({
-      ...loggerOptions,
-      transport: {
-        target: "pino-pretty",
-        options: { colorize: true, translateTime: "SYS:HH:MM:ss.l", ignore: "pid,hostname" },
-      },
-    });
-  }
-
-  return pino(loggerOptions);
+  return pino(
+    loggerOptions,
+    multistream([
+      // The logger's own level filters first; this entry takes every line it lets through.
+      { level: "trace", stream: output ?? stdoutDestination(1) },
+      { level: "error", stream: alerts },
+    ]),
+  );
 };
 
 /** Child logger with request/job scoped bindings (requestId, jobId, userId, ...). */
