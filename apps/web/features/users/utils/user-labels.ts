@@ -1,8 +1,6 @@
 import type { SelectOption } from "@repo/ui/components/form";
 import { POSITIONS } from "@repo/validation";
-import type { Position, Role, SourceArea, UserStatus } from "@repo/validation";
-
-import { AREA_LABELS } from "@/components/source/source-labels";
+import type { Position, Role, UserStatus } from "@repo/validation";
 
 /** アカウントタイプ labels, as in the legacy app. */
 export const ROLE_LABELS: Record<Role, string> = {
@@ -48,24 +46,6 @@ export const POSITION_OPTIONS: SelectOption<Position>[] = POSITIONS.map((positio
 
 /** What the user forms say when another user holds the 社員番号 (legacy wording). */
 export const EMPLOYEE_NUMBER_TAKEN = "この社員番号は既に使用されています";
-
-/** The parts of a 担当者 profile the list and detail show by name. */
-type ProfileNames = {
-  areas: readonly SourceArea[];
-  regions: readonly { region: { name: string } }[];
-} | null;
-
-/** エリア of a 担当者 ("東日本、西日本"), or `null` without a profile. */
-export const areaNamesOf = (profile: ProfileNames): string | null =>
-  profile && profile.areas.length > 0
-    ? profile.areas.map((area) => AREA_LABELS[area]).join("、")
-    : null;
-
-/** 地域 of a 担当者 by name, or `null` without a profile. */
-export const regionNamesOf = (profile: ProfileNames): string | null =>
-  profile && profile.regions.length > 0
-    ? profile.regions.map((region) => region.region.name).join("、")
-    : null;
 
 /** A deactivated user is soft-deleted: `deletedAt` is set. */
 export const userStatusOf = (user: { deletedAt: Date | null }): UserStatus =>

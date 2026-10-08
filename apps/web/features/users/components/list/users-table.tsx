@@ -9,17 +9,13 @@ import type {
   DataTableSorting,
 } from "@repo/ui/components/composed/data-table";
 
+import { areaNamesOf, regionNamesOf } from "@/components/source/source-labels";
 import { href, routes } from "@/config/routes";
 import { UserRowActions } from "@/features/users/components/list/user-row-actions";
 import { RoleBadge } from "@/features/users/components/role-badge";
 import { UserStatusBadge } from "@/features/users/components/user-status-badge";
 import type { UserRow } from "@/features/users/types";
-import {
-  areaNamesOf,
-  readingOf,
-  regionNamesOf,
-  userStatusOf,
-} from "@/features/users/utils/user-labels";
+import { readingOf, userStatusOf } from "@/features/users/utils/user-labels";
 import { useRowSelection } from "@/stores/row-selection";
 
 const helper = createDataTableColumns<UserRow>();

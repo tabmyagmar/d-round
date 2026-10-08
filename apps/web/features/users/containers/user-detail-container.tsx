@@ -19,19 +19,14 @@ import { formatDate } from "@repo/ui/components/form";
 import { Skeleton } from "@repo/ui/components/skeleton";
 import { isOverridableRole } from "@repo/validation";
 
+import { areaNamesOf, regionNamesOf } from "@/components/source/source-labels";
 import { href, routes } from "@/config/routes";
 import { UserChargesPlaceholder } from "@/features/users/components/detail/user-charges-placeholder";
 import { UserDetailToolbar } from "@/features/users/components/detail/user-detail-toolbar";
 import { RoleBadge } from "@/features/users/components/role-badge";
 import { UserStatusBadge } from "@/features/users/components/user-status-badge";
 import { usePermissionCatalog } from "@/features/users/hooks/use-permission-catalog";
-import {
-  areaNamesOf,
-  POSITION_LABELS,
-  readingOf,
-  regionNamesOf,
-  userStatusOf,
-} from "@/features/users/utils/user-labels";
+import { POSITION_LABELS, readingOf, userStatusOf } from "@/features/users/utils/user-labels";
 import { useTRPC } from "@/lib/trpc/react";
 
 // Loaded only when used: the dialogs when an action is chosen, the summary for a manager.

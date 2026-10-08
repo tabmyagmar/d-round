@@ -3,16 +3,12 @@ import { describe, expect, it } from "vitest";
 import { POSITIONS, ROLES, USER_STATUSES } from "@repo/validation";
 
 import {
-  areaNamesOf,
   POSITION_LABELS,
   readingOf,
-  regionNamesOf,
   ROLE_LABELS,
   USER_STATUS_LABELS,
   userStatusOf,
 } from "@/features/users/utils/user-labels";
-
-import { userProfile } from "../fixtures";
 
 describe("user labels", () => {
   it("names every role and status with the legacy Japanese labels", () => {
@@ -41,15 +37,6 @@ describe("user labels", () => {
       "スタッフ",
       "その他",
     ]);
-  });
-
-  it("names a profile's areas and regions, and nothing without a profile", () => {
-    const profile = userProfile({ areas: ["EAST", "WEST"] });
-
-    expect(areaNamesOf(profile)).toBe("東日本、西日本");
-    expect(regionNamesOf(profile)).toBe("南関東");
-    expect(areaNamesOf(null)).toBeNull();
-    expect(regionNamesOf({ ...profile, regions: [] })).toBeNull();
   });
 
   it("reads a user without deletedAt as active and one with it as deactivated", () => {
