@@ -1,4 +1,6 @@
 import {
+  chargerOptionsSchema,
+  employeeNumberAvailableSchema,
   inviteUserSchema,
   listUsersSchema,
   updateProfileSchema,
@@ -55,4 +57,15 @@ export const userRouter = router({
     .use(requireAbility("update", "User"))
     .input(userIdSchema)
     .mutation(({ ctx, input }) => userService.sendPasswordReset(ctx, input.userId)),
+
+  employeeNumberAvailable: protectedProcedure
+    .use(requireAbility("read", "User"))
+    .input(employeeNumberAvailableSchema)
+    .query(({ ctx, input }) => userService.isEmployeeNumberAvailable(ctx, input)),
+
+  // The スタッフ form's 担当者 picker: users covering the staff's regions.
+  chargerOptions: protectedProcedure
+    .use(requireAbility("read", "User"))
+    .input(chargerOptionsSchema)
+    .query(({ ctx, input }) => userService.chargerOptions(ctx, input)),
 });

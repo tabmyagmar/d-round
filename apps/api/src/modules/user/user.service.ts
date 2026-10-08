@@ -1,19 +1,24 @@
 import {
   createPermissionRepository,
+  createSourceRepository,
   createUserRepository,
+  isUniqueViolation,
   translateDatabaseError,
   withTransaction,
 } from "@repo/database";
 import type {
+  ChargerOption,
   DbClient,
   PageResult,
   Prisma,
   UniqueViolationError,
   User,
   UserPermissionOverride,
+  UserProfileData,
   UserProfileUpdate,
+  UserWithProfile,
 } from "@repo/database";
-import { accessibleUsersWhere, prismaUserSubject } from "@repo/permissions/server";
+import { accessibleUsersWhere, canUnscoped, prismaUserSubject } from "@repo/permissions/server";
 import {
   ADMIN_ROLES,
   assignableRoles,
@@ -22,6 +27,8 @@ import {
   OVERRIDABLE_ROLES,
 } from "@repo/validation";
 import type {
+  ChargerOptionsInput,
+  EmployeeNumberAvailableInput,
   InviteUserInput,
   ListUsersQuery,
   Role,
@@ -29,6 +36,7 @@ import type {
   UpdateProfileInput,
   UpdateUserInput,
   UserNameInput,
+  UserProfileInput,
   UserSortField,
 } from "@repo/validation";
 
@@ -50,7 +58,7 @@ const requireUser = (ctx: RequestContext): AuthenticatedContext => {
   return ctx as AuthenticatedContext;
 };
 
-const loadUser = async (ctx: RequestContext, userId: string): Promise<User> => {
+const loadUser = async (ctx: RequestContext, userId: string): Promise<UserWithProfile> => {
   const user = await createUserRepository(ctx.db).findById(userId);
   if (!user) {
     throw new NotFoundError("User", userId);
@@ -77,11 +85,14 @@ const assertCan = (ctx: RequestContext, action: RowAction, user: User): void => 
   }
 };
 
-/** A user as the detail and edit screens need it: the row and its effective permission keys. */
-export type UserDetail = User & { permissionKeys: string[] };
+/**
+ * A user as the detail and edit screens need it: the row, the 担当者 profile with its regions
+ * (ADR 0007) and the effective permission keys.
+ */
+export type UserDetail = UserWithProfile & { permissionKeys: string[] };
 
 /** Effective grants (role ∪ ALLOW − DENY, ADR 0003) as catalog keys, ascending. */
-const withPermissionKeys = async (db: DbClient, user: User): Promise<UserDetail> => {
+const withPermissionKeys = async (db: DbClient, user: UserWithProfile): Promise<UserDetail> => {
   const grants = await createPermissionRepository(db).findEffectiveGrants(user.id, user.role);
   return { ...user, permissionKeys: grants.map((grant) => grant.key) };
 };
@@ -168,20 +179,30 @@ const overridesFor = async (
   });
 };
 
-/** The allow-listed sort columns (`USER_SORT_FIELDS`) as Prisma orderings. */
+/**
+ * The allow-listed sort columns (`USER_SORT_FIELDS`) as Prisma orderings. 社員番号 sorts through the
+ * profile: users without one come last ascending and first descending (PostgreSQL's NULL order).
+ */
 const USER_ORDER_BY: Record<
   UserSortField,
   (direction: SortOrder) => Prisma.UserOrderByWithRelationInput
 > = {
+  employeeNumber: (direction) => ({ profile: { employeeNumber: direction } }),
   name: (direction) => ({ name: direction }),
   email: (direction) => ({ email: direction }),
   createdAt: (direction) => ({ createdAt: direction }),
 };
 
+/** A search of digits only also matches the 社員番号 (legacy: numeric search on the number). */
+const employeeNumberOf = (search: string): number | null => {
+  const value = /^\d{1,9}$/.test(search) ? Number(search) : null;
+  return value !== null && value > 0 ? value : null;
+};
+
 export const list = async (
   ctx: RequestContext,
   query: ListUsersQuery,
-): Promise<PageResult<User>> => {
+): Promise<PageResult<UserWithProfile>> => {
   if (!ctx.ability.can("read", "User")) {
     throw new ForbiddenError("Not allowed to list users");
   }
@@ -190,14 +211,25 @@ export const list = async (
     filters.push({ role: query.role });
   }
   if (query.search) {
+    const employeeNumber = employeeNumberOf(query.search);
     filters.push({
       OR: [
+        ...(employeeNumber === null ? [] : [{ profile: { employeeNumber } }]),
         { name: { contains: query.search, mode: "insensitive" } },
         { email: { contains: query.search, mode: "insensitive" } },
         { lastNameKana: { contains: query.search } },
         { firstNameKana: { contains: query.search } },
       ],
     });
+  }
+  if (query.areas?.length) {
+    filters.push({ profile: { areas: { hasSome: query.areas } } });
+  }
+  if (query.regionCodes?.length) {
+    filters.push({ profile: { regions: { some: { regionCode: { in: query.regionCodes } } } } });
+  }
+  if (query.positions?.length) {
+    filters.push({ profile: { position: { in: query.positions } } });
   }
   return createUserRepository(ctx.db).findMany(
     { page: query.page, perPage: query.perPage },
@@ -237,6 +269,61 @@ const nameChanges = (target: User, input: NamePatch): UserProfileUpdate => {
   };
 };
 
+/** The profile as the repository stores it: 退職日 as UTC midnight of that day (a DATE column). */
+const toProfileData = (profile: UserProfileInput): UserProfileData => ({
+  employeeNumber: profile.employeeNumber,
+  departmentName: profile.departmentName,
+  position: profile.position,
+  retirementDate: profile.retirementDate === null ? null : new Date(profile.retirementDate),
+  areas: profile.areas,
+});
+
+const EMPLOYEE_NUMBER_TAKEN = "This employee number is already in use";
+
+/**
+ * What a profile write needs beyond its schema: every region exists (reference data, ADR 0005) and
+ * no other user holds the 社員番号. The invite runs it before Better Auth creates the user, so a
+ * taken number never leaves a user half-created; the unique index still guards a race.
+ */
+const assertProfileWritable = async (
+  db: DbClient,
+  profile: UserProfileInput,
+  userId?: string,
+): Promise<void> => {
+  const known = new Set(
+    (await createSourceRepository(db).findRegions()).map((region) => region.code),
+  );
+  const unknown = profile.regionCodes.filter((code) => !known.has(code));
+  if (unknown.length > 0) {
+    throw new ValidationError(`Unknown regions: ${unknown.join(", ")}`);
+  }
+  const holders = await createUserRepository(db).countProfilesByEmployeeNumber(
+    profile.employeeNumber,
+    userId,
+  );
+  if (holders > 0) {
+    throw new ConflictError(EMPLOYEE_NUMBER_TAKEN);
+  }
+};
+
+/** Writes the profile and its regions; a unique violation here is the 社員番号 race. */
+const saveProfile = async (
+  db: DbClient,
+  userId: string,
+  profile: UserProfileInput,
+): Promise<void> => {
+  const users = createUserRepository(db);
+  try {
+    await users.upsertProfile(userId, toProfileData(profile));
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw new ConflictError(EMPLOYEE_NUMBER_TAKEN, { cause: error });
+    }
+    throw error;
+  }
+  await users.replaceProfileRegions(userId, profile.regionCodes);
+};
+
 export const updateProfile = async (
   ctx: RequestContext,
   input: UpdateProfileInput,
@@ -267,10 +354,11 @@ export const updateProfile = async (
 };
 
 /**
- * 担当者情報編集: name, role and permission overrides of one user, saved together. Any field may be
- * omitted. Updating the row needs `update` on it; a role change or `permissionKeys` also needs
- * `changeRole` and a role the caller may assign. The last active admin-role user keeps an admin
- * role. Leaving an overridable role drops the user's overrides.
+ * 担当者情報編集: name, profile, role and permission overrides of one user, saved together. Any
+ * field may be omitted. Updating the row needs `update` on it; the profile also needs the
+ * unconditional `update User` grant (the self rule covers the name only, ADR 0007); a role change
+ * or `permissionKeys` also needs `changeRole` and a role the caller may assign. The last active
+ * admin-role user keeps an admin role. Leaving an overridable role drops the user's overrides.
  */
 export const update = async (ctx: RequestContext, input: UpdateUserInput): Promise<UserDetail> => {
   const { user: actor } = requireUser(ctx);
@@ -284,10 +372,17 @@ export const update = async (ctx: RequestContext, input: UpdateUserInput): Promi
     }
     assertCan(ctx, "update", target);
 
-    let updated: User = target;
     const changes = nameChanges(target, input);
     if (Object.keys(changes).length > 0) {
-      updated = await users.updateProfile(target.id, changes);
+      await users.updateProfile(target.id, changes);
+    }
+
+    if (input.profile !== undefined) {
+      if (!canUnscoped(ctx.ability, "update", "User")) {
+        throw new ForbiddenError("Not allowed to change profile fields");
+      }
+      await assertProfileWritable(tx, input.profile, target.id);
+      await saveProfile(tx, target.id, input.profile);
     }
 
     const role = input.role ?? target.role;
@@ -302,7 +397,7 @@ export const update = async (ctx: RequestContext, input: UpdateUserInput): Promi
       ) {
         throw new ConflictError("Cannot demote the last admin");
       }
-      updated = await users.updateRole(target.id, role);
+      await users.updateRole(target.id, role);
     }
 
     if (input.permissionKeys !== undefined) {
@@ -317,7 +412,11 @@ export const update = async (ctx: RequestContext, input: UpdateUserInput): Promi
       await permissions.replaceUserOverrides(target.id, [], actor.id);
     }
 
-    return withPermissionKeys(tx, updated);
+    const saved = await users.findById(target.id);
+    if (!saved) {
+      throw new NotFoundError("User", target.id);
+    }
+    return withPermissionKeys(tx, saved);
   });
 };
 
@@ -396,9 +495,10 @@ const mailPasswordLink = async (ctx: RequestContext, email: string): Promise<voi
  * Creates a user without a password and mails the invitation; the user sets the first password
  * from the link (which also verifies the email). Catalog row 1101 (`create User`) and a role the
  * caller may assign; `permissionKeys` also need `changeRole` and an overridable role. Better Auth
- * creates the user with `name` = "姓 名"; the name parts and the overrides are a second write
- * before the mail: if it fails, the user exists without them and the error says to complete the
- * user and re-send the invitation.
+ * creates the user with `name` = "姓 名"; the name parts, the profile and the overrides are a
+ * second write before the mail: if it fails, the user exists without them and the error says to
+ * complete the user and re-send the invitation. The profile's regions and 社員番号 are checked
+ * before the user is created.
  */
 export const invite = async (ctx: RequestContext, input: InviteUserInput): Promise<UserDetail> => {
   const { user: actor } = requireUser(ctx);
@@ -410,6 +510,9 @@ export const invite = async (ctx: RequestContext, input: InviteUserInput): Promi
   if (input.permissionKeys !== undefined) {
     assertMayChangeRoles(ctx, "Not allowed to change permissions");
     overrides = await overridesFor(ctx.db, actor, input.role, input.permissionKeys);
+  }
+  if (input.profile) {
+    await assertProfileWritable(ctx.db, input.profile);
   }
 
   let createdId: string;
@@ -425,9 +528,9 @@ export const invite = async (ctx: RequestContext, input: InviteUserInput): Promi
     throw error;
   }
 
-  // Our own columns (the name parts) and the overrides, in one unit of work, before the
-  // invitation goes out. Better Auth created the user, so a failure here leaves the user without
-  // them and without a mail: the error says to complete the user and re-send.
+  // Our own columns (the name parts, the profile) and the overrides, in one unit of work, before
+  // the invitation goes out. Better Auth created the user, so a failure here leaves the user
+  // without them and without a mail: the error says to complete the user and re-send.
   try {
     await withTransaction(ctx.db, async ({ tx }) => {
       await createUserRepository(tx).updateProfile(createdId, {
@@ -436,6 +539,9 @@ export const invite = async (ctx: RequestContext, input: InviteUserInput): Promi
         lastNameKana: input.lastNameKana,
         firstNameKana: input.firstNameKana,
       });
+      if (input.profile) {
+        await saveProfile(tx, createdId, input.profile);
+      }
       if (overrides) {
         await createPermissionRepository(tx).replaceUserOverrides(createdId, overrides, actor.id);
       }
@@ -464,4 +570,49 @@ export const sendPasswordReset = async (ctx: RequestContext, userId: string): Pr
   const target = await loadUser(ctx, userId);
   assertCan(ctx, "update", target);
   await mailPasswordLink(ctx, target.email);
+};
+
+/** The most 担当者 options one lookup returns (one organisation's users of a few regions). */
+export const CHARGER_OPTIONS_MAX = 200;
+
+/**
+ * The users the スタッフ form may offer as 担当者 (legacy getChargerUsers): active, never a
+ * super_admin, covering one of `regionCodes`, among the users the caller may read, in kana order.
+ */
+export const chargerOptions = async (
+  ctx: RequestContext,
+  input: ChargerOptionsInput,
+): Promise<ChargerOption[]> => {
+  if (!ctx.ability.can("read", "User")) {
+    throw new ForbiddenError("Not allowed to list users");
+  }
+  const superAdmin: Role = "super_admin";
+  return createUserRepository(ctx.db).findChargerOptions(
+    {
+      AND: [
+        accessibleUsersWhere(ctx.ability, "read"),
+        { role: { not: superAdmin } },
+        { profile: { regions: { some: { regionCode: { in: input.regionCodes } } } } },
+      ],
+    },
+    CHARGER_OPTIONS_MAX,
+  );
+};
+
+/**
+ * Whether no other user holds the 社員番号 (legacy userNumberExists), so the forms can say so on
+ * the field before saving. Needs the `read User` grant (not the self rule).
+ */
+export const isEmployeeNumberAvailable = async (
+  ctx: RequestContext,
+  input: EmployeeNumberAvailableInput,
+): Promise<boolean> => {
+  if (!canUnscoped(ctx.ability, "read", "User")) {
+    throw new ForbiddenError("Not allowed to list users");
+  }
+  const holders = await createUserRepository(ctx.db).countProfilesByEmployeeNumber(
+    input.employeeNumber,
+    input.excludeUserId,
+  );
+  return holders === 0;
 };

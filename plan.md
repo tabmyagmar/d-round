@@ -895,3 +895,19 @@ arrays; `@casl/prisma` with a third model in `Subjects`; Base UI Combobox chips 
   validation / permissions / ui / web tests); migrations are generated schema-to-schema
   (`prisma migrate diff --from-schema … --to-schema …`), and the testcontainers suites, the drift
   gate and the dev-database deploy run once Docker is back, before any phase is merged.
+- 2026-10-08, A0–A3: as planned, with these differences. A0's migration inserts `am`, moves users
+  and grants, then deletes `staff` (instead of one `UPDATE` of the key), so it also succeeds where
+  the new roles seed ran first. A2 keeps `canUnscoped` in `ability.ts` with a structural parameter
+  type and re-exports it from `server.ts` (no `rules-helpers.ts`), and its rule doc
+  (`permissions.md`) moved from A4 into A2, beside the rule. A3 adds only the schemas its procedures
+  use (areas, codes, post code); the address form schemas come with their first form (phase B/C).
+  `startTestDatabase({ seedReferenceData: true })` now also loads regions and prefectures, so API
+  and auth tests can write profiles.
+- 2026-10-08, A4: `user.employeeNumberAvailable` added, as the legacy `userNumberExists`: the user
+  forms ask before saving and show この社員番号は既に使用されています on the field (domain error
+  details do not reach the client, and a message match would be brittle); the server still refuses a
+  taken number (pre-check, then the unique index). `profile` is optional on invite until A8, where
+  the form gains the fields and the form schema requires it. Region codes in forms and API inputs
+  are plain numbers (`regionCodesSchema`, distinct and ascending), so the forms' zod input and
+  output types stay equal; `MultiSelectField` gains `valueAs: "number"` in A5 (the legacy
+  `useNumberOptions`); only the URL list filter coerces strings (`regionCodeSchema`).

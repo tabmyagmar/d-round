@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   assignableRoles,
   changePasswordSchema,
+  chargerOptionsSchema,
   emailSchema,
   forgotPasswordSchema,
   fullName,
@@ -15,6 +16,7 @@ import {
   signInSchema,
   updateUserSchema,
   userNameSchema,
+  userProfileSchema,
 } from "../src/user.schema";
 
 /** The first issue's path and message, or null when the value parses. */
@@ -201,6 +203,75 @@ describe("inviteUserSchema", () => {
   });
 });
 
+describe("userProfileSchema (担当者 HR fields)", () => {
+  const profile = {
+    employeeNumber: 12,
+    departmentName: " 東日本営業部 ",
+    position: "SV",
+    retirementDate: null,
+    areas: ["WEST", "EAST", "EAST"],
+    regionCodes: [7, 4, 4],
+  };
+
+  it("takes the fields, trims the department, orders areas and dedupes the region codes", () => {
+    expect(userProfileSchema.parse(profile)).toEqual({
+      employeeNumber: 12,
+      departmentName: "東日本営業部",
+      position: "SV",
+      retirementDate: null,
+      areas: ["EAST", "WEST"],
+      regionCodes: [4, 7],
+    });
+    expect(
+      userProfileSchema.parse({ ...profile, retirementDate: "2027-03-31" }).retirementDate,
+    ).toBe("2027-03-31");
+  });
+
+  it.each([
+    [{ employeeNumber: null }, "employeeNumber", "社員番号は必須です"],
+    [{ employeeNumber: 0 }, "employeeNumber", "社員番号は正の整数で入力してください"],
+    [{ employeeNumber: 1.5 }, "employeeNumber", "社員番号は正の整数で入力してください"],
+    [{ employeeNumber: 1_000_000_000 }, "employeeNumber", "社員番号は9桁以内で入力してください"],
+    [{ departmentName: " " }, "departmentName", "部署名を入力してください"],
+    [{ position: undefined }, "position", "役職を選択してください"],
+    [{ retirementDate: "2027/03/31" }, "retirementDate", "日付の形式が正しくありません"],
+    [{ areas: [] }, "areas", "エリアを選択してください"],
+    [{ regionCodes: [] }, "regionCodes", "地域を選択してください"],
+  ])("refuses %j with the legacy message", (change, path, message) => {
+    expect(firstIssue(userProfileSchema.safeParse({ ...profile, ...change }))).toEqual({
+      path,
+      message,
+    });
+  });
+
+  it("is optional on invite and on update", () => {
+    const invite = {
+      email: "hanako@example.com",
+      lastName: "山田",
+      firstName: "花子",
+      lastNameKana: "ヤマダ",
+      firstNameKana: "ハナコ",
+      role: "am",
+    };
+    expect(inviteUserSchema.parse({ ...invite, profile }).profile?.regionCodes).toEqual([4, 7]);
+    expect(inviteUserSchema.parse(invite)).not.toHaveProperty("profile");
+    expect(updateUserSchema.parse({ userId: crypto.randomUUID(), profile }).profile?.areas).toEqual(
+      ["EAST", "WEST"],
+    );
+  });
+});
+
+describe("chargerOptionsSchema", () => {
+  it("needs at least one region code", () => {
+    expect(chargerOptionsSchema.parse({ regionCodes: [4, 3, 4] })).toEqual({ regionCodes: [3, 4] });
+    expect(chargerOptionsSchema.safeParse({ regionCodes: ["4"] }).success).toBe(false);
+    expect(firstIssue(chargerOptionsSchema.safeParse({ regionCodes: [] }))).toEqual({
+      path: "regionCodes",
+      message: "地域を選択してください",
+    });
+  });
+});
+
 describe("listUsersSchema", () => {
   it("lists active users newest first by default", () => {
     expect(listUsersSchema.parse({})).toEqual({
@@ -220,6 +291,24 @@ describe("listUsersSchema", () => {
     });
 
     expect(parsed).toMatchObject({ status: "deactivated", sortBy: "name", sortOrder: "asc" });
+  });
+
+  it("filters by areas, region codes and positions, and sorts by 社員番号", () => {
+    expect(
+      listUsersSchema.parse({
+        areas: ["EAST"],
+        regionCodes: ["4", "7"],
+        positions: ["SV", "LEADER"],
+        sortBy: "employeeNumber",
+      }),
+    ).toMatchObject({
+      areas: ["EAST"],
+      regionCodes: [4, 7],
+      positions: ["SV", "LEADER"],
+      sortBy: "employeeNumber",
+    });
+    expect(listUsersSchema.safeParse({ areas: ["NORTH"] }).success).toBe(false);
+    expect(listUsersSchema.safeParse({ positions: ["CEO"] }).success).toBe(false);
   });
 
   it("rejects a sort column outside the allow-list, an unknown status and an unknown direction", () => {

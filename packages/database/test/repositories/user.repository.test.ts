@@ -304,6 +304,17 @@ describe("user repository", () => {
     await expect(repo.upsertProfile(second.id, data)).rejects.toSatisfy(isUniqueViolation);
   });
 
+  it("counts the profiles holding a 社員番号, leaving out one user's own", async () => {
+    const repo = createUserRepository(prisma);
+    const user = await createUser({ group: group() });
+    const data = profileData();
+    await repo.upsertProfile(user.id, data);
+
+    expect(await repo.countProfilesByEmployeeNumber(data.employeeNumber)).toBe(1);
+    expect(await repo.countProfilesByEmployeeNumber(data.employeeNumber, user.id)).toBe(0);
+    expect(await repo.countProfilesByEmployeeNumber(data.employeeNumber + 1)).toBe(0);
+  });
+
   it("lists charger options in kana order, users without kana last, deactivated users never", async () => {
     const repo = createUserRepository(prisma);
     const prefix = group();

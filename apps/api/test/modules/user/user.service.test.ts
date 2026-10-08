@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { ADMIN_ROLES, listUsersSchema } from "@repo/validation";
-import type { ListUsersInput } from "@repo/validation";
+import type { ListUsersInput, UserProfileInput } from "@repo/validation";
 
 import {
   ConflictError,
@@ -10,7 +10,13 @@ import {
   ValidationError,
 } from "../../../src/core/errors";
 import * as userService from "../../../src/modules/user/user.service";
-import { contextFor, createHarness, signedInUser, TEST_PASSWORD } from "../../support";
+import {
+  contextFor,
+  createHarness,
+  signedInUser,
+  TEST_PASSWORD,
+  uniqueEmployeeNumber,
+} from "../../support";
 import type { TestHarness } from "../../support";
 
 let h: TestHarness;
@@ -35,6 +41,21 @@ const names = (lastName: string, firstName: string) => ({
 
 /** The query exactly as the router hands it to the service: parsed, defaults applied. */
 const listQuery = (input: ListUsersInput) => listUsersSchema.parse(input);
+
+/** A parsed 担当者 profile with a 社員番号 no other test uses. */
+const profileInput = (overrides: Partial<UserProfileInput> = {}): UserProfileInput => ({
+  employeeNumber: uniqueEmployeeNumber(),
+  departmentName: "東日本営業部",
+  position: "SV",
+  retirementDate: null,
+  areas: ["EAST"],
+  regionCodes: [4],
+  ...overrides,
+});
+
+/** The 社員番号 a user's profile holds. */
+const employeeNumberOf = async (userId: string): Promise<number> =>
+  (await h.db.userProfile.findUniqueOrThrow({ where: { userId } })).employeeNumber;
 
 /**
  * Leaves only `keep` active among the admin roles: every other active admin-role user becomes
@@ -717,5 +738,215 @@ describe("sendPasswordReset", () => {
       NotFoundError,
     );
     expect(await outboxFor(gone.email)).toHaveLength(0);
+  });
+});
+
+describe("担当者 profile (ADR 0007)", () => {
+  it("invites a user with their profile and regions, and reads them back", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const ctx = await contextFor(h, admin.headers);
+    const profile = profileInput({
+      retirementDate: "2027-03-31",
+      areas: ["EAST", "WEST"],
+      regionCodes: [4, 7],
+    });
+
+    const invited = await userService.invite(ctx, {
+      email: `${crypto.randomUUID()}@example.com`,
+      ...names("社員", "花子"),
+      role: "am",
+      profile,
+    });
+
+    expect(invited.profile).toMatchObject({
+      employeeNumber: profile.employeeNumber,
+      departmentName: "東日本営業部",
+      position: "SV",
+      retirementDate: new Date("2027-03-31"),
+      areas: ["EAST", "WEST"],
+    });
+    expect(invited.profile?.regions.map((region) => region.regionCode)).toEqual([4, 7]);
+    const read = await userService.getById(ctx, invited.id);
+    expect(read.profile?.employeeNumber).toBe(profile.employeeNumber);
+  });
+
+  it("refuses a taken 社員番号 and an unknown region before creating anyone", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const ctx = await contextFor(h, admin.headers);
+    const holder = await signedInUser(h, { profile: {} });
+    const taken = `${crypto.randomUUID()}@example.com`;
+    const unknownRegion = `${crypto.randomUUID()}@example.com`;
+
+    await expect(
+      userService.invite(ctx, {
+        email: taken,
+        ...names("重複", "番号"),
+        role: "am",
+        profile: profileInput({ employeeNumber: await employeeNumberOf(holder.user.id) }),
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
+    await expect(
+      userService.invite(ctx, {
+        email: unknownRegion,
+        ...names("不明", "地域"),
+        role: "am",
+        profile: profileInput({ regionCodes: [99] }),
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(await h.db.user.count({ where: { email: { in: [taken, unknownRegion] } } })).toBe(0);
+  });
+
+  it("lets an admin give an existing user a profile and change it, never with another user's 社員番号", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const ctx = await contextFor(h, admin.headers);
+    const target = await signedInUser(h);
+    const other = await signedInUser(h, { profile: {} });
+
+    const given = await userService.update(ctx, {
+      userId: target.user.id,
+      profile: profileInput({ regionCodes: [3] }),
+    });
+    const changed = await userService.update(ctx, {
+      userId: target.user.id,
+      profile: profileInput({
+        employeeNumber: given.profile!.employeeNumber,
+        departmentName: "西日本営業部",
+        position: "LEADER",
+        areas: ["WEST"],
+        regionCodes: [8, 7],
+      }),
+    });
+
+    expect(changed.profile).toMatchObject({
+      employeeNumber: given.profile!.employeeNumber,
+      departmentName: "西日本営業部",
+      position: "LEADER",
+      areas: ["WEST"],
+    });
+    expect(changed.profile?.regions.map((region) => region.regionCode)).toEqual([7, 8]);
+    await expect(
+      userService.update(ctx, {
+        userId: target.user.id,
+        profile: profileInput({ employeeNumber: await employeeNumberOf(other.user.id) }),
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it("lets an AM rename themselves but not change their own profile", async () => {
+    const am = await signedInUser(h);
+    const ctx = await contextFor(h, am.headers);
+
+    await expect(
+      userService.update(ctx, { userId: am.user.id, profile: profileInput() }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(await h.db.userProfile.count({ where: { userId: am.user.id } })).toBe(0);
+    const renamed = await userService.update(ctx, { userId: am.user.id, ...names("自分", "名前") });
+    expect(renamed.name).toBe("自分 名前");
+  });
+
+  it("filters the list by area, region and position, and finds a user by 社員番号", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const ctx = await contextFor(h, admin.headers);
+    const marker = tag();
+    const east = await signedInUser(h, {
+      name: `${marker} East`,
+      profile: { areas: ["EAST"], position: "SV", regionCodes: [4] },
+    });
+    const west = await signedInUser(h, {
+      name: `${marker} West`,
+      profile: { areas: ["WEST"], position: "LEADER", regionCodes: [7] },
+    });
+    await signedInUser(h, { name: `${marker} None` });
+    const ids = async (input: ListUsersInput) =>
+      (await userService.list(ctx, listQuery({ search: marker, ...input }))).items
+        .map((user) => user.id)
+        .sort();
+
+    expect(await ids({ areas: ["WEST"] })).toEqual([west.user.id]);
+    expect(await ids({ regionCodes: [4] })).toEqual([east.user.id]);
+    expect(await ids({ positions: ["SV", "LEADER"] })).toEqual([east.user.id, west.user.id].sort());
+    const byNumber = await userService.list(
+      ctx,
+      listQuery({ search: String(await employeeNumberOf(east.user.id)) }),
+    );
+    expect(byNumber.items.map((user) => user.id)).toContain(east.user.id);
+    expect(byNumber.items.map((user) => user.id)).not.toContain(west.user.id);
+    expect(byNumber.items.find((user) => user.id === east.user.id)?.profile?.regions).toHaveLength(
+      1,
+    );
+  });
+
+  it("sorts by 社員番号, users without a profile last", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const ctx = await contextFor(h, admin.headers);
+    const marker = tag();
+    const base = uniqueEmployeeNumber();
+    const second = await signedInUser(h, {
+      name: `${marker} b`,
+      profile: { employeeNumber: base + 2 },
+    });
+    const first = await signedInUser(h, {
+      name: `${marker} a`,
+      profile: { employeeNumber: base + 1 },
+    });
+    const none = await signedInUser(h, { name: `${marker} c` });
+
+    const page = await userService.list(
+      ctx,
+      listQuery({ search: marker, sortBy: "employeeNumber", sortOrder: "asc" }),
+    );
+
+    expect(page.items.map((user) => user.id)).toEqual([
+      first.user.id,
+      second.user.id,
+      none.user.id,
+    ]);
+  });
+
+  it("offers as 担当者 the active users of the regions in kana order, never a super_admin", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const ctx = await contextFor(h, admin.headers);
+    const withKana = async (
+      lastNameKana: string,
+      firstNameKana: string,
+      options: Parameters<typeof signedInUser>[1] = {},
+    ) => {
+      const signedIn = await signedInUser(h, { profile: { regionCodes: [9] }, ...options });
+      await h.db.user.update({
+        where: { id: signedIn.user.id },
+        data: { lastNameKana, firstNameKana },
+      });
+      return signedIn.user.id;
+    };
+    const yamada = await withKana("ヤマダ", "タロウ");
+    const abe = await withKana("アベ", "ハナコ");
+    const superAdmin = await withKana("アアア", "アア", { role: "super_admin" });
+    const gone = await withKana("イイダ", "ジロウ");
+    await h.db.user.update({ where: { id: gone }, data: { deletedAt: new Date() } });
+    const elsewhere = await withKana("イシイ", "サブロウ", { profile: { regionCodes: [8] } });
+    const mine = new Set([yamada, abe, superAdmin, gone, elsewhere]);
+
+    const options = await userService.chargerOptions(ctx, { regionCodes: [9] });
+
+    expect(options.map((option) => option.id).filter((id) => mine.has(id))).toEqual([abe, yamada]);
+  });
+
+  it("tells an admin whether a 社員番号 is free, and refuses an AM", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const am = await signedInUser(h);
+    const holder = await signedInUser(h, { profile: {} });
+    const employeeNumber = await employeeNumberOf(holder.user.id);
+    const ctx = await contextFor(h, admin.headers);
+
+    expect(await userService.isEmployeeNumberAvailable(ctx, { employeeNumber })).toBe(false);
+    expect(
+      await userService.isEmployeeNumberAvailable(ctx, {
+        employeeNumber,
+        excludeUserId: holder.user.id,
+      }),
+    ).toBe(true);
+    await expect(
+      userService.isEmployeeNumberAvailable(await contextFor(h, am.headers), { employeeNumber }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 });

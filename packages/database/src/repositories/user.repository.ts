@@ -101,6 +101,12 @@ export const createUserRepository = (db: DbClient) => ({
   upsertProfile: (userId: string, data: UserProfileData) =>
     db.userProfile.upsert({ where: { userId }, create: { userId, ...data }, update: data }),
 
+  /** How many profiles hold `employeeNumber`, leaving out `exceptUserId`'s own. */
+  countProfilesByEmployeeNumber: (employeeNumber: number, exceptUserId?: string): Promise<number> =>
+    db.userProfile.count({
+      where: { employeeNumber, ...(exceptUserId ? { userId: { not: exceptUserId } } : {}) },
+    }),
+
   /** Sets the profile's regions to exactly `regionCodes`; run it in the profile's transaction. */
   replaceProfileRegions: async (userId: string, regionCodes: readonly number[]): Promise<void> => {
     await db.userProfileRegion.deleteMany({ where: { userId } });

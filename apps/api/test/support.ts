@@ -4,8 +4,8 @@ import { inject } from "vitest";
 
 import { createAuth } from "@repo/auth";
 import type { Auth, VerificationEmail } from "@repo/auth";
-import { createPrismaClient } from "@repo/database";
-import type { PrismaClient, User } from "@repo/database";
+import { createPrismaClient, createUserRepository } from "@repo/database";
+import type { PrismaClient, User, UserProfileData } from "@repo/database";
 import { createLogger } from "@repo/logger";
 import type { Logger } from "@repo/logger";
 import { createEmailQueue, createRedisConnection, waitForRedis } from "@repo/queue";
@@ -95,14 +95,21 @@ export type SignedInUser = {
   headers: Headers;
 };
 
+/** A 社員番号 no other test uses: every API test file shares one database. */
+export const uniqueEmployeeNumber = (): number => 100_000 + Math.floor(Math.random() * 999_000_000);
+
+/** A 担当者 profile for `signedInUser`; every field defaults (region 4, 南関東). */
+export type TestProfile = Partial<UserProfileData> & { regionCodes?: number[] };
+
 /**
  * Creates a verified user with the requested role through the admin plugin's `createUser`
  * (server-side, no session needed — the only way a user gets created now that public sign-up
- * is off), then signs in for real to obtain a session cookie.
+ * is off), then signs in for real to obtain a session cookie. With `profile`, the user also gets a
+ * 担当者 profile (unique 社員番号 unless given) and its regions.
  */
 export const signedInUser = async (
   harness: TestHarness,
-  options: { role?: Role; name?: string } = {},
+  options: { role?: Role; name?: string; profile?: TestProfile } = {},
 ): Promise<SignedInUser> => {
   const email = `${crypto.randomUUID()}@example.com`;
   await harness.auth.api.createUser({
@@ -115,6 +122,19 @@ export const signedInUser = async (
     },
   });
   const user = await harness.db.user.findUniqueOrThrow({ where: { email } });
+  if (options.profile) {
+    const { regionCodes = [4], ...fields } = options.profile;
+    const users = createUserRepository(harness.db);
+    await users.upsertProfile(user.id, {
+      employeeNumber: uniqueEmployeeNumber(),
+      departmentName: "テスト部",
+      position: "SV",
+      retirementDate: null,
+      areas: ["EAST"],
+      ...fields,
+    });
+    await users.replaceProfileRegions(user.id, regionCodes);
+  }
   const response = await harness.auth.api.signInEmail({
     body: { email, password: TEST_PASSWORD },
     asResponse: true,

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createCallerFactory } from "../../../src/trpc/init";
 import { appRouter } from "../../../src/trpc/router";
-import { contextFor, createHarness, signedInUser } from "../../support";
+import { contextFor, createHarness, signedInUser, uniqueEmployeeNumber } from "../../support";
 import type { TestHarness } from "../../support";
 
 /** The router only wires input → ability → service; these tests prove the wiring and codes. */
@@ -168,5 +168,46 @@ describe("user router", () => {
         role: "am",
       }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+});
+
+describe("user router: profile and 担当者 lookups", () => {
+  it("parses an invited profile: region codes distinct and ascending", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const caller = createCaller(await contextFor(h, admin.headers));
+
+    const invited = await caller.user.invite({
+      email: `${crypto.randomUUID()}@example.com`,
+      ...NAMES,
+      role: "am",
+      profile: {
+        employeeNumber: uniqueEmployeeNumber(),
+        departmentName: "東日本営業部",
+        position: "SV",
+        retirementDate: null,
+        areas: ["EAST"],
+        regionCodes: [4, 3, 4],
+      },
+    });
+
+    expect(invited.profile?.regions.map((region) => region.regionCode)).toEqual([3, 4]);
+  });
+
+  it("guards chargerOptions and employeeNumberAvailable", async () => {
+    const anonymous = createCaller(await contextFor(h));
+    const admin = createCaller(
+      await contextFor(h, (await signedInUser(h, { role: "admin" })).headers),
+    );
+
+    await expect(anonymous.user.chargerOptions({ regionCodes: [4] })).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    await expect(admin.user.chargerOptions({ regionCodes: [] })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    expect(Array.isArray(await admin.user.chargerOptions({ regionCodes: [4] }))).toBe(true);
+    await expect(
+      admin.user.employeeNumberAvailable({ employeeNumber: uniqueEmployeeNumber() }),
+    ).resolves.toBe(true);
   });
 });

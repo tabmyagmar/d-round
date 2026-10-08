@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { idSchema, paginationSchema } from "./common.schema";
 import { permissionKeysSchema } from "./permission.schema";
+import { regionCodeSchema, SOURCE_AREAS, sourceAreaSchema } from "./source.schema";
 
 /**
  * Single-tenant role set: the keys of the role catalog (`roles` table, seeded from
@@ -86,6 +87,67 @@ export type UserNameInput = z.infer<typeof userNameSchema>;
 export const fullName = (name: { lastName: string; firstName: string }): string =>
   `${name.lastName} ${name.firstName}`;
 
+/** 役職 (legacy EnumPosition), in the legacy order. */
+export const POSITIONS = [
+  "EXECUTIVE",
+  "AREA_MANAGER",
+  "DISTRICT_MANAGER",
+  "SV",
+  "LEADER",
+  "DISPATCH_COORDINATOR",
+  "FULL_TIME_EMPLOYEE",
+  "AREA_EMPLOYEE",
+  "CONTRACT_EMPLOYEE",
+  "SUBCONTRACT_STAFF",
+  "DISPATCH_STAFF",
+  "STAFF",
+  "OTHER",
+] as const;
+export const positionSchema = z.enum(POSITIONS, { error: "役職を選択してください" });
+export type Position = z.infer<typeof positionSchema>;
+
+/** The largest 社員番号 / スタッフ番号: nine digits fit the database's integer column. */
+export const EMPLOYEE_NUMBER_MAX = 999_999_999;
+
+/** A required positive whole number with the legacy messages, e.g. `employeeNumberSchema("社員番号")`. */
+export const employeeNumberSchema = (label: string) =>
+  z
+    .number({ error: `${label}は必須です` })
+    .int({ error: `${label}は正の整数で入力してください` })
+    .min(1, { error: `${label}は正の整数で入力してください` })
+    .max(EMPLOYEE_NUMBER_MAX, { error: `${label}は9桁以内で入力してください` });
+
+/**
+ * Region codes as a form or the API sends them (numbers; a URL filter uses `regionCodeSchema`),
+ * distinct and ascending: a code twice would break the join table's key.
+ */
+export const regionCodesSchema = z
+  .array(z.number().int().min(1))
+  .transform((codes) => [...new Set(codes)].sort((a, b) => a - b));
+
+/** Distinct areas in the legacy order. */
+export const areasSchema = z
+  .array(sourceAreaSchema)
+  .transform((areas) => SOURCE_AREAS.filter((area) => areas.includes(area)));
+
+/**
+ * A 担当者's HR fields (ADR 0007): 社員番号, 部署名, 役職, 退職日 (optional) and the エリア / 地域
+ * they cover. Required on invite and edit, as every field but 退職日 was in the legacy form.
+ */
+export const userProfileSchema = z.object({
+  employeeNumber: employeeNumberSchema("社員番号"),
+  departmentName: requiredText("部署名", 80),
+  position: positionSchema,
+  /** `yyyy-MM-dd` (DateField), `null` when cleared. */
+  retirementDate: z.iso.date({ error: "日付の形式が正しくありません" }).nullable(),
+  areas: areasSchema.refine((areas) => areas.length > 0, { error: "エリアを選択してください" }),
+  regionCodes: regionCodesSchema.refine((codes) => codes.length > 0, {
+    error: "地域を選択してください",
+  }),
+});
+export type UserProfileFormValues = z.input<typeof userProfileSchema>;
+export type UserProfileInput = z.output<typeof userProfileSchema>;
+
 const confirmPasswordSchema = z.string().min(1, { error: "パスワードを再度入力してください" });
 const PASSWORD_MISMATCH = "パスワードが一致していません";
 
@@ -143,12 +205,14 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 /**
  * An admin creates a user without a password; the user sets one from the invitation mail.
  * `permissionKeys` (the ticked child permissions) only for an overridable role (`OVERRIDABLE_ROLES`).
+ * `profile`: the 担当者 HR fields, saved with the user.
  */
 export const inviteUserSchema = z.object({
   email: emailSchema,
   ...userNameSchema.shape,
   role: roleSchema,
   permissionKeys: permissionKeysSchema.optional(),
+  profile: userProfileSchema.optional(),
 });
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
 
@@ -163,18 +227,20 @@ export type InviteUserFormInput = z.infer<typeof inviteUserFormSchema>;
 
 /**
  * Edits another user (担当者情報編集): any subset of the name parts, role and permission keys,
- * saved together. A role or permission change needs `changeRole`; see the user service.
+ * saved together, and the whole profile when any of it changed. A role or permission change needs
+ * `changeRole`, a profile change the `update User` grant; see the user service.
  */
 export const updateUserSchema = z.object({
   userId: idSchema,
   ...userNamePatchShape,
   role: roleSchema.optional(),
   permissionKeys: permissionKeysSchema.optional(),
+  profile: userProfileSchema.optional(),
 });
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 
 /** Columns the user list may be sorted by; anything else is rejected, never passed to Prisma. */
-export const USER_SORT_FIELDS = ["name", "email", "createdAt"] as const;
+export const USER_SORT_FIELDS = ["employeeNumber", "name", "email", "createdAt"] as const;
 export type UserSortField = (typeof USER_SORT_FIELDS)[number];
 export const SORT_ORDERS = ["asc", "desc"] as const;
 export type SortOrder = (typeof SORT_ORDERS)[number];
@@ -183,11 +249,30 @@ export const USER_STATUSES = ["active", "deactivated"] as const;
 export type UserStatus = (typeof USER_STATUSES)[number];
 
 export const listUsersSchema = paginationSchema.extend({
+  /** 社員番号 (digits), 氏名, フリガナ or メールアドレス. */
   search: z.string().trim().min(1).max(100).optional(),
   role: roleSchema.optional(),
   status: z.enum(USER_STATUSES).default("active"),
+  areas: z.array(sourceAreaSchema).optional(),
+  regionCodes: z.array(regionCodeSchema).optional(),
+  positions: z.array(positionSchema).optional(),
   sortBy: z.enum(USER_SORT_FIELDS).default("createdAt"),
   sortOrder: z.enum(SORT_ORDERS).default("desc"),
 });
 export type ListUsersInput = z.input<typeof listUsersSchema>;
 export type ListUsersQuery = z.output<typeof listUsersSchema>;
+
+/** Whether a 社員番号 is free (legacy userNumberExists); `excludeUserId` is the user being edited. */
+export const employeeNumberAvailableSchema = z.object({
+  employeeNumber: employeeNumberSchema("社員番号"),
+  excludeUserId: idSchema.optional(),
+});
+export type EmployeeNumberAvailableInput = z.output<typeof employeeNumberAvailableSchema>;
+
+/** The users the スタッフ form may offer as 担当者: those covering one of these regions. */
+export const chargerOptionsSchema = z.object({
+  regionCodes: regionCodesSchema.refine((codes) => codes.length > 0, {
+    error: "地域を選択してください",
+  }),
+});
+export type ChargerOptionsInput = z.output<typeof chargerOptionsSchema>;
