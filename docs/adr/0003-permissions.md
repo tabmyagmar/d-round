@@ -103,3 +103,13 @@ lint error. Changing a permission means changing the matrix test first.
   `user.byId` returns the user's effective keys (`permissionKeys`). Two escalation guards: nobody
   changes their own overrides, and a caller may only ALLOW a permission their own session grants
   (admins hold every catalog row, so it narrows only managers holding `changeRole`).
+- **2026-10-08** — A second hard-coded row rule for personal data: everyone may `create`, `read`,
+  `update` and `delete` the `CommentTemplate` rows they own (`{ createdBy: user.id }`, ADR 0006),
+  and nobody else's. No catalog row grants it, as the legacy granted `Settings_*` to every signed-in
+  user outside its permission table. `CommentTemplate` joins `SUBJECT_NAMES` (catalog `modelName`s ⊂
+  the typed list still holds), with `commentTemplateSubject` (browser),
+  `prismaCommentTemplateSubject` and `accessibleCommentTemplatesWhere` (server). Procedures use
+  `requireAbility(action, "CommentTemplate")`, which the conditional rule passes for every signed-in
+  user, the service checks the row and lists filter in the database with the owner `where`; route
+  access to 定型文管理 stays `"signed-in"` because `canUnscoped` is false for a conditional rule.
+  The unit spec asks `User` and `CommentTemplate` on an own and a foreign row.

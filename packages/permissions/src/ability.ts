@@ -1,5 +1,5 @@
 import { AbilityBuilder, createMongoAbility, subject } from "@casl/ability";
-import type { ForcedSubject, MongoAbility } from "@casl/ability";
+import type { ForcedSubject, MongoAbility, MongoQuery } from "@casl/ability";
 
 import { defineRules } from "./rules";
 import type { AbilityUser, Action, SubjectName } from "./rules";
@@ -9,7 +9,15 @@ export type UserSubject = {
   id: string;
 };
 
-export type AppSubjects = SubjectName | (UserSubject & ForcedSubject<"User">);
+/** Shape a CommentTemplate record must have for the owner rule to be evaluated. */
+export type CommentTemplateSubject = {
+  createdBy: string;
+};
+
+export type AppSubjects =
+  | SubjectName
+  | (UserSubject & ForcedSubject<"User">)
+  | (CommentTemplateSubject & ForcedSubject<"CommentTemplate">);
 
 /** Browser-safe ability (no Prisma). Used for hiding UI — never as the only guard. */
 export type AppAbility = MongoAbility<[Action, AppSubjects]>;
@@ -18,11 +26,18 @@ export type AppAbility = MongoAbility<[Action, AppSubjects]>;
 export const userSubject = (record: UserSubject): UserSubject & ForcedSubject<"User"> =>
   subject("User", record);
 
+/** Tags a plain record: `ability.can("delete", commentTemplateSubject(template))`. */
+export const commentTemplateSubject = (
+  record: CommentTemplateSubject,
+): CommentTemplateSubject & ForcedSubject<"CommentTemplate"> => subject("CommentTemplate", record);
+
 export const defineAbilityFor = (user: AbilityUser | null): AppAbility => {
   const builder = new AbilityBuilder<AppAbility>(createMongoAbility);
   if (user) {
     defineRules((action, subjectName, conditions) => {
-      builder.can(action, subjectName, conditions);
+      // CASL types conditions per literal subject; a callback over every subject gets their union,
+      // whose keys (`id`, `createdBy`) no single subject shares, hence the widening.
+      builder.can(action, subjectName, conditions as MongoQuery | undefined);
     }, user);
   }
   return builder.build();

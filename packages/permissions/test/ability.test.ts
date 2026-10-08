@@ -3,7 +3,8 @@
  *
  * The rules are grant-driven: a signed-in user carries effective catalog grants
  * `{ action, subject }` and `defineRules` turns every grant it knows into an unscoped `can`, then
- * adds the self rule on the own User row. This file knows nothing about roles: which role holds
+ * adds the row rules: the self rule on the own User row and the owner rule on the user's own
+ * CommentTemplate rows (personal data no catalog row grants). This file knows nothing about roles: which role holds
  * which grant is the catalog's business (`permissions.csv`, proven against the database by
  * `apps/api/test/permission-catalog.test.ts`). Changing the shape of a rule means changing this
  * file first — the failing cell documents the change — then `rules.ts`.
@@ -11,16 +12,25 @@
 import { AbilityBuilder, createMongoAbility } from "@casl/ability";
 import { describe, expect, it } from "vitest";
 
-import type { User } from "@repo/database";
+import type { CommentTemplate, User } from "@repo/database";
 
-import { canUnscoped, defineAbilityFor, userSubject } from "../src/ability";
+import { canUnscoped, commentTemplateSubject, defineAbilityFor, userSubject } from "../src/ability";
 import type { AppAbility } from "../src/ability";
 import { ACTIONS, SUBJECT_NAMES, isAction, isSubjectName } from "../src/rules";
 import type { AbilityUser, Action, PermissionGrant, SubjectName } from "../src/rules";
-import { accessibleUsersWhere, definePrismaAbilityFor, prismaUserSubject } from "../src/server";
+import {
+  accessibleCommentTemplatesWhere,
+  accessibleUsersWhere,
+  definePrismaAbilityFor,
+  prismaCommentTemplateSubject,
+  prismaUserSubject,
+} from "../src/server";
 import type { ServerAbility } from "../src/server";
 
-/** Whose User row a cell is about: the current user's own row or anybody else's. */
+/**
+ * Whose row a cell is about: the current user's own (their User row, a CommentTemplate they own)
+ * or anybody else's.
+ */
 type Relation = "self" | "other";
 
 const ME_ID = "019187d5-0d76-7d1a-9a4c-4f7d2a1f3b6e";
@@ -33,15 +43,18 @@ const holder = (permissions: readonly PermissionGrant[]): AbilityUser => ({
   permissions,
 });
 
+/** The subjects a row rule looks into; they are asked on a row, every other subject on its type. */
+const ROW_SUBJECTS: readonly SubjectName[] = ["User", "CommentTemplate"];
+
 /**
- * One cell of the spec: an action on a subject. `User` is the only subject with rows today, so it
- * is asked twice (own row, another user's row); every other subject is asked on its type.
+ * One cell of the spec: an action on a subject. A row subject is asked twice (own row, someone
+ * else's row); every other subject is asked on its type.
  */
 type Cell = { action: Action; subject: SubjectName; relation: Relation };
 
 const CELLS: Cell[] = ACTIONS.flatMap((action) =>
   SUBJECT_NAMES.flatMap((subject): Cell[] =>
-    subject === "User"
+    ROW_SUBJECTS.includes(subject)
       ? [
           { action, subject, relation: "self" },
           { action, subject, relation: "other" },
@@ -51,7 +64,7 @@ const CELLS: Cell[] = ACTIONS.flatMap((action) =>
 );
 
 const cellKey = ({ action, subject, relation }: Cell): string =>
-  subject === "User" ? `${action} User (${relation})` : `${action} ${subject}`;
+  ROW_SUBJECTS.includes(subject) ? `${action} ${subject} (${relation})` : `${action} ${subject}`;
 
 const rowId = (relation: Relation): string => (relation === "self" ? ME_ID : OTHER_ID);
 
@@ -75,40 +88,66 @@ const userRow = (id: string): User => ({
   firstNameKana: null,
 });
 
+/** A complete Prisma CommentTemplate row owned by `createdBy`. */
+const templateRow = (createdBy: string): CommentTemplate => ({
+  id: "019187d5-0d76-7d1a-9a4c-000000000101",
+  createdBy,
+  types: ["WORKFLOW"],
+  short: "承認",
+  content: "承認します。",
+  createdAt: new Date(0),
+  updatedAt: new Date(0),
+});
+
+const browserSubject = (cell: Cell) => {
+  if (cell.subject === "User") {
+    return userSubject({ id: rowId(cell.relation) });
+  }
+  if (cell.subject === "CommentTemplate") {
+    return commentTemplateSubject({ createdBy: rowId(cell.relation) });
+  }
+  return cell.subject;
+};
+
+const serverSubject = (cell: Cell) => {
+  if (cell.subject === "User") {
+    return prismaUserSubject(userRow(rowId(cell.relation)));
+  }
+  if (cell.subject === "CommentTemplate") {
+    return prismaCommentTemplateSubject(templateRow(rowId(cell.relation)));
+  }
+  return cell.subject;
+};
+
 /** Every cell's answer from the browser ability, keyed so a failure shows the exact cell. */
 const browserAnswers = (ability: AppAbility): Record<string, boolean> =>
   Object.fromEntries(
-    CELLS.map((cell) => [
-      cellKey(cell),
-      ability.can(
-        cell.action,
-        cell.subject === "User" ? userSubject({ id: rowId(cell.relation) }) : cell.subject,
-      ),
-    ]),
+    CELLS.map((cell) => [cellKey(cell), ability.can(cell.action, browserSubject(cell))]),
   );
 
 /** The same cells answered by the server (prisma) ability. */
 const serverAnswers = (ability: ServerAbility): Record<string, boolean> =>
   Object.fromEntries(
-    CELLS.map((cell) => [
-      cellKey(cell),
-      ability.can(
-        cell.action,
-        cell.subject === "User" ? prismaUserSubject(userRow(rowId(cell.relation))) : cell.subject,
-      ),
-    ]),
+    CELLS.map((cell) => [cellKey(cell), ability.can(cell.action, serverSubject(cell))]),
   );
 
 /** The self rule: everyone may read and update their own User row. */
 const isSelfRule = ({ action, subject, relation }: Cell): boolean =>
   subject === "User" && relation === "self" && (action === "read" || action === "update");
 
-/** What a signed-in user holding exactly `grants` may do: the granted cells plus the self rule. */
+/** The owner rule: everyone may create, read, update and delete their own 定型文. */
+const isOwnerRule = ({ action, subject, relation }: Cell): boolean =>
+  subject === "CommentTemplate" &&
+  relation === "self" &&
+  (action === "create" || action === "read" || action === "update" || action === "delete");
+
+/** What a signed-in user holding exactly `grants` may do: the granted cells plus the row rules. */
 const expectedFor = (grants: readonly PermissionGrant[]): Record<string, boolean> =>
   Object.fromEntries(
     CELLS.map((cell) => [
       cellKey(cell),
       isSelfRule(cell) ||
+        isOwnerRule(cell) ||
         grants.some((grant) => grant.action === cell.action && grant.subject === cell.subject),
     ]),
   );
@@ -134,6 +173,7 @@ describe("the typed lists", () => {
       "Workflow",
       "WorkflowTemplate",
       "SourceCsvHistory",
+      "CommentTemplate",
     ]);
     for (const action of ACTIONS) {
       expect(isAction(action)).toBe(true);
@@ -194,6 +234,27 @@ describe("the self rule", () => {
     expect(ability.can("read", other)).toBe(false);
     expect(ability.can("update", other)).toBe(false);
     expect(browserAnswers(ability)).toEqual(expectedFor([]));
+  });
+});
+
+describe("the owner rule (personal 定型文)", () => {
+  it("with no grants a user may create, read, update and delete their own templates, never another user's", () => {
+    const ability = defineAbilityFor(holder([]));
+    const own = commentTemplateSubject({ createdBy: ME_ID });
+    const others = commentTemplateSubject({ createdBy: OTHER_ID });
+
+    for (const action of ["create", "read", "update", "delete"] as const) {
+      expect(ability.can(action, own)).toBe(true);
+      expect(ability.can(action, others)).toBe(false);
+    }
+    expect(ability.can("status", own)).toBe(false);
+    expect(ability.can("changeRole", own)).toBe(false);
+  });
+
+  it("lets every signed-in user past the type-level check, but never unscoped", () => {
+    const ability = defineAbilityFor(holder([]));
+    expect(ability.can("delete", "CommentTemplate")).toBe(true);
+    expect(canUnscoped(ability, "read", "CommentTemplate")).toBe(false);
   });
 });
 
@@ -303,5 +364,18 @@ describe("accessibleUsersWhere", () => {
   it("looks at the asked action: a `read User` grant does not widen `update`", () => {
     const ability = definePrismaAbilityFor(holder([{ action: "read", subject: "User" }]));
     expect(JSON.stringify(accessibleUsersWhere(ability, "update"))).toContain(ME_ID);
+  });
+});
+
+describe("accessibleCommentTemplatesWhere", () => {
+  it("restricts every user to the templates they own", () => {
+    for (const action of ["read", "delete"] as const) {
+      const where = JSON.stringify(
+        accessibleCommentTemplatesWhere(definePrismaAbilityFor(holder([])), action),
+      );
+      expect(where).toContain("createdBy");
+      expect(where).toContain(ME_ID);
+      expect(where).not.toContain(OTHER_ID);
+    }
   });
 });

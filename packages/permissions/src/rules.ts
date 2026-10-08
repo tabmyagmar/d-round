@@ -6,7 +6,8 @@ import type { Role } from "@repo/validation";
  * plain equalities so both engines interpret them identically.
  *
  * CASL answers "may this user do this kind of thing?" from the catalog grants the session
- * carries. Stateful rules (last admin, workflow state) live in services. See
+ * carries, plus two row rules: the own User row and the user's own CommentTemplate rows. Stateful
+ * rules (last admin, workflow state) live in services. See
  * .claude/rules/permissions.md and docs/adr/0003-permissions.md.
  */
 
@@ -14,7 +15,10 @@ import type { Role } from "@repo/validation";
 export const ACTIONS = ["create", "read", "update", "delete", "status", "changeRole"] as const;
 export type Action = (typeof ACTIONS)[number];
 
-/** The catalog's `modelName` values. Only `User` has a Prisma model (and rows) today. */
+/**
+ * The catalog's `modelName` values, then the personal subjects no catalog row grants
+ * (`CommentTemplate`: a user's own 定型文, ADR 0006), which only a row rule below opens.
+ */
 export const SUBJECT_NAMES = [
   "User",
   "Client",
@@ -24,6 +28,7 @@ export const SUBJECT_NAMES = [
   "Workflow",
   "WorkflowTemplate",
   "SourceCsvHistory",
+  "CommentTemplate",
 ] as const;
 export type SubjectName = (typeof SUBJECT_NAMES)[number];
 
@@ -55,10 +60,15 @@ export type UserConditions = {
   id?: string;
 };
 
+export type CommentTemplateConditions = {
+  createdBy?: string;
+};
+
+/** Each rule passes the conditions of its own subject (`id` on User, `createdBy` on CommentTemplate). */
 export type CanFn = (
   action: Action | Action[],
   subject: SubjectName,
-  conditions?: UserConditions,
+  conditions?: UserConditions | CommentTemplateConditions,
 ) => void;
 
 export const defineRules = (can: CanFn, user: AbilityUser): void => {
@@ -76,4 +86,7 @@ export const defineRules = (can: CanFn, user: AbilityUser): void => {
 
   // Everyone may see and edit their own profile.
   can(["read", "update"], "User", { id: user.id });
+
+  // Personal data: everyone keeps their own 定型文 and nobody else's (ADR 0006).
+  can(["create", "read", "update", "delete"], "CommentTemplate", { createdBy: user.id });
 };
