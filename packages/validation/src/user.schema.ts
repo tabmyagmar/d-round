@@ -205,23 +205,20 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 /**
  * An admin creates a user without a password; the user sets one from the invitation mail.
  * `permissionKeys` (the ticked child permissions) only for an overridable role (`OVERRIDABLE_ROLES`).
- * `profile`: the 担当者 HR fields, saved with the user.
+ * `profile`: the 担当者 HR fields, required as in the legacy form and saved with the user.
  */
 export const inviteUserSchema = z.object({
   email: emailSchema,
   ...userNameSchema.shape,
   role: roleSchema,
   permissionKeys: permissionKeysSchema.optional(),
-  profile: userProfileSchema.optional(),
+  profile: userProfileSchema,
 });
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
 
-/**
- * The invite form: the email typed twice, since the invitation goes to that address, and the
- * profile required (every legacy field but 退職日 was).
- */
+/** The invite form: the email typed twice, since the invitation goes to that address. */
 export const inviteUserFormSchema = inviteUserSchema
-  .extend({ emailConfirm: emailSchema, profile: userProfileSchema })
+  .extend({ emailConfirm: emailSchema })
   .refine((value) => value.email === value.emailConfirm, {
     path: ["emailConfirm"],
     error: "メールアドレスが一致していません",

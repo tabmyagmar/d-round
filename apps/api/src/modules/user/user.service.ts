@@ -511,9 +511,7 @@ export const invite = async (ctx: RequestContext, input: InviteUserInput): Promi
     assertMayChangeRoles(ctx, "Not allowed to change permissions");
     overrides = await overridesFor(ctx.db, actor, input.role, input.permissionKeys);
   }
-  if (input.profile) {
-    await assertProfileWritable(ctx.db, input.profile);
-  }
+  await assertProfileWritable(ctx.db, input.profile);
 
   let createdId: string;
   try {
@@ -539,9 +537,7 @@ export const invite = async (ctx: RequestContext, input: InviteUserInput): Promi
         lastNameKana: input.lastNameKana,
         firstNameKana: input.firstNameKana,
       });
-      if (input.profile) {
-        await saveProfile(tx, createdId, input.profile);
-      }
+      await saveProfile(tx, createdId, input.profile);
       if (overrides) {
         await createPermissionRepository(tx).replaceUserOverrides(createdId, overrides, actor.id);
       }

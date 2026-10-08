@@ -17,6 +17,16 @@ const NAMES = {
   firstNameKana: "タロウ",
 };
 
+/** The 担当者 profile an invite requires, with a 社員番号 no other test uses. */
+const profile = () => ({
+  employeeNumber: uniqueEmployeeNumber(),
+  departmentName: "東日本営業部",
+  position: "SV" as const,
+  retirementDate: null,
+  areas: ["EAST" as const],
+  regionCodes: [4],
+});
+
 beforeAll(async () => {
   h = await createHarness();
 });
@@ -138,19 +148,23 @@ describe("user router", () => {
     const email = `${crypto.randomUUID()}@example.com`;
 
     const amCaller = createCaller(await contextFor(h, am.headers));
-    await expect(amCaller.user.invite({ email, ...NAMES, role: "am" })).rejects.toMatchObject({
-      code: "FORBIDDEN",
-    });
+    await expect(
+      amCaller.user.invite({ email, ...NAMES, role: "am", profile: profile() }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
 
     const caller = createCaller(await contextFor(h, admin.headers));
-    const invited = await caller.user.invite({ email, ...NAMES, role: "am" });
+    const invited = await caller.user.invite({ email, ...NAMES, role: "am", profile: profile() });
     expect(invited.email).toBe(email);
 
-    await expect(caller.user.invite({ email, ...NAMES, role: "am" })).rejects.toMatchObject({
-      code: "CONFLICT",
-    });
     await expect(
-      caller.user.invite({ email: "not-an-email", ...NAMES, role: "am" }),
+      caller.user.invite({ email, ...NAMES, role: "am", profile: profile() }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(
+      caller.user.invite({ email: "not-an-email", ...NAMES, role: "am", profile: profile() }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(
+      // @ts-expect-error -- an invite without the profile is the point: the API requires it.
+      caller.user.invite({ email: `${crypto.randomUUID()}@example.com`, ...NAMES, role: "am" }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
 
     await expect(caller.user.sendPasswordReset({ userId: invited.id })).resolves.toBeUndefined();
@@ -166,6 +180,7 @@ describe("user router", () => {
         ...NAMES,
         lastNameKana: "しょうたい",
         role: "am",
+        profile: profile(),
       }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });

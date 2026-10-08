@@ -600,6 +600,7 @@ describe("invite", () => {
       lastNameKana: "ショウタイ",
       firstNameKana: "ハナコ",
       role: "manager",
+      profile: profileInput(),
     });
 
     expect(invited).toMatchObject({
@@ -627,6 +628,7 @@ describe("invite", () => {
         email: existing.email,
         ...names("再度", "登録"),
         role: "am",
+        profile: profileInput(),
       }),
     ).rejects.toBeInstanceOf(ConflictError);
   });
@@ -640,6 +642,7 @@ describe("invite", () => {
         email,
         ...names("上司", "太郎"),
         role: "super_admin",
+        profile: profileInput(),
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
     expect(await h.db.user.findUnique({ where: { email } })).toBeNull();
@@ -654,6 +657,7 @@ describe("invite", () => {
       ...names("権限", "付き"),
       role: "manager",
       permissionKeys: selected,
+      profile: profileInput(),
     });
 
     expect(invited.permissionKeys).toEqual([...selected].sort());
@@ -669,6 +673,7 @@ describe("invite", () => {
         ...names("権限", "無し"),
         role: "am",
         permissionKeys: ["1101"],
+        profile: profileInput(),
       }),
     ).rejects.toBeInstanceOf(ConflictError);
     expect(await h.db.user.findUnique({ where: { email } })).toBeNull();
@@ -683,6 +688,7 @@ describe("invite", () => {
         email,
         ...names("不可", "太郎"),
         role: "am",
+        profile: profileInput(),
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
     expect(await h.db.user.findUnique({ where: { email } })).toBeNull();
@@ -709,6 +715,7 @@ describe("sendPasswordReset", () => {
       email,
       ...names("遅延", "太郎"),
       role: "am",
+      profile: profileInput(),
     });
 
     await userService.sendPasswordReset(ctx, invited.id);

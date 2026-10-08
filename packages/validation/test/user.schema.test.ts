@@ -176,7 +176,7 @@ describe("changePasswordSchema", () => {
 });
 
 describe("inviteUserSchema", () => {
-  it("accepts an email, 姓 / 名 with their readings and a catalog role", () => {
+  it("accepts an email, 姓 / 名 with their readings, a catalog role and the profile", () => {
     const result = inviteUserSchema.safeParse({
       email: "hanako@example.com",
       lastName: "山田",
@@ -184,6 +184,14 @@ describe("inviteUserSchema", () => {
       lastNameKana: "ヤマダ",
       firstNameKana: "ハナコ",
       role: "am",
+      profile: {
+        employeeNumber: 3,
+        departmentName: "本社",
+        position: "SV",
+        retirementDate: null,
+        areas: ["EAST"],
+        regionCodes: [4],
+      },
     });
     expect(result.success).toBe(true);
   });
@@ -244,7 +252,7 @@ describe("userProfileSchema (担当者 HR fields)", () => {
     });
   });
 
-  it("is optional on invite and on update", () => {
+  it("is required on invite and optional on update", () => {
     const invite = {
       email: "hanako@example.com",
       lastName: "山田",
@@ -253,8 +261,8 @@ describe("userProfileSchema (担当者 HR fields)", () => {
       firstNameKana: "ハナコ",
       role: "am",
     };
-    expect(inviteUserSchema.parse({ ...invite, profile }).profile?.regionCodes).toEqual([4, 7]);
-    expect(inviteUserSchema.parse(invite)).not.toHaveProperty("profile");
+    expect(inviteUserSchema.parse({ ...invite, profile }).profile.regionCodes).toEqual([4, 7]);
+    expect(firstIssue(inviteUserSchema.safeParse(invite))?.path).toBe("profile");
     expect(updateUserSchema.parse({ userId: crypto.randomUUID(), profile }).profile?.areas).toEqual(
       ["EAST", "WEST"],
     );
