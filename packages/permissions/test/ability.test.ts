@@ -13,19 +13,21 @@
 import { AbilityBuilder, createMongoAbility } from "@casl/ability";
 import { describe, expect, it } from "vitest";
 
-import type { Client, CommentTemplate, Staff, User } from "@repo/database";
+import type { Branch, Client, CommentTemplate, Staff, User } from "@repo/database";
 
 import { canUnscoped, commentTemplateSubject, defineAbilityFor, userSubject } from "../src/ability";
 import type { AppAbility } from "../src/ability";
 import { ACTIONS, SUBJECT_NAMES, isAction, isSubjectName } from "../src/rules";
 import type { AbilityUser, Action, PermissionGrant, SubjectName } from "../src/rules";
 import {
+  accessibleBranchesWhere,
   accessibleClientsWhere,
   accessibleCommentTemplatesWhere,
   accessibleStaffWhere,
   accessibleUsersWhere,
   canUnscoped as serverCanUnscoped,
   definePrismaAbilityFor,
+  prismaBranchSubject,
   prismaClientSubject,
   prismaCommentTemplateSubject,
   prismaStaffSubject,
@@ -494,5 +496,52 @@ describe("Client on the server: grant-driven, no row rule", () => {
     expect(ability.can("read", "Client")).toBe(true);
     expect(accessibleClientsWhere(ability)).toEqual({});
     expect(accessibleClientsWhere(ability, "delete")).toEqual({});
+  });
+});
+
+describe("Branch on the server: grant-driven, no row rule", () => {
+  const branchRow = (): Branch => ({
+    id: "019187d5-0d76-7d1a-9a4c-000000000401",
+    clientId: "019187d5-0d76-7d1a-9a4c-000000000301",
+    number: 1,
+    name: "新宿店",
+    nameKana: "シンジュクテン",
+    area: "EAST",
+    regionCode: 4,
+    departmentNumber: 1,
+    departmentName: "営業部",
+    departmentNameKana: "エイギョウブ",
+    departmentFax: null,
+    contactLastName: "山田",
+    contactFirstName: "太郎",
+    contactLastNameKana: "ヤマダ",
+    contactFirstNameKana: "タロウ",
+    contactPosition: "LEADER",
+    contactEmail: "yamada@example.com",
+    memo: null,
+    status: "ACTIVE",
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+    deletedAt: null,
+  });
+
+  it("answers a row check like the type: the grant opens every row, no grant none", () => {
+    const granted = definePrismaAbilityFor(holder([{ action: "update", subject: "Branch" }]));
+    const none = definePrismaAbilityFor(holder([]));
+
+    expect(granted.can("update", prismaBranchSubject(branchRow()))).toBe(true);
+    expect(none.can("update", prismaBranchSubject(branchRow()))).toBe(false);
+  });
+
+  it("leaves a list and a delete with their grant unrestricted: an empty where", () => {
+    const ability = definePrismaAbilityFor(
+      holder([
+        { action: "read", subject: "Branch" },
+        { action: "delete", subject: "Branch" },
+      ]),
+    );
+    expect(ability.can("read", "Branch")).toBe(true);
+    expect(accessibleBranchesWhere(ability)).toEqual({});
+    expect(accessibleBranchesWhere(ability, "delete")).toEqual({});
   });
 });
