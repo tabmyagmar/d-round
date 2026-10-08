@@ -46,4 +46,24 @@ describe("ConfirmDialog", () => {
     expect(screen.getByRole("button", { name: "Stopping…" })).toHaveProperty("disabled", true);
     expect(screen.getByRole("button", { name: "Cancel" })).toHaveProperty("disabled", true);
   });
+
+  it("shows a body between the text and the buttons and can hold the confirm button back", () => {
+    render(
+      <ConfirmDialog
+        open
+        onOpenChange={vi.fn()}
+        title="Change the status?"
+        confirmLabel="Change"
+        cancelLabel="Cancel"
+        confirmDisabled
+        onConfirm={vi.fn()}
+      >
+        <p>Choose a status</p>
+      </ConfirmDialog>,
+    );
+
+    expect(screen.getByText("Choose a status")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Change" })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveProperty("disabled", false);
+  });
 });

@@ -12,6 +12,8 @@ export type ConfirmDialogProps = {
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: ReactNode;
+  /** A body between the text and the buttons, such as the choice being confirmed. */
+  children?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   /** Shown on the confirm button while `pending`. */
@@ -19,6 +21,8 @@ export type ConfirmDialogProps = {
   /** Renders the confirm button in the destructive variant. */
   destructive?: boolean;
   pending?: boolean;
+  /** Keeps the confirm button disabled, e.g. until the body holds a choice to confirm. */
+  confirmDisabled?: boolean;
   onConfirm: () => void;
 };
 
@@ -28,11 +32,13 @@ export const ConfirmDialog = ({
   onOpenChange,
   title,
   description,
+  children,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   pendingLabel = "Working…",
   destructive = false,
   pending = false,
+  confirmDisabled = false,
   onConfirm,
 }: ConfirmDialogProps) => (
   <ContentDialog
@@ -50,11 +56,13 @@ export const ConfirmDialog = ({
         <Button
           variant={destructive ? "destructive" : "default"}
           onClick={onConfirm}
-          disabled={pending}
+          disabled={pending || confirmDisabled}
         >
           {pending ? pendingLabel : confirmLabel}
         </Button>
       </>
     }
-  />
+  >
+    {children}
+  </ContentDialog>
 );

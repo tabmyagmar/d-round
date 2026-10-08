@@ -249,8 +249,10 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   `{open ? … : null}`). Reference: `apps/web/features/users/components/form/permission-dialog.tsx`.
 - `ConfirmDialog` (`confirm-dialog.tsx`) — `ContentDialog` with cancel / confirm; props `open`,
   `onOpenChange`, `title`, `description?`, `confirmLabel`, `cancelLabel?`, `pendingLabel?`,
-  `destructive?`, `pending?`, `onConfirm`. Use it for every confirmation; never `window.confirm`.
-  Reference: `apps/web/features/users/components/user-status-dialog.tsx` (利用停止 / 利用再開).
+  `destructive?`, `pending?`, `onConfirm`, and `children?` (a body under the text, such as the
+  choice being confirmed) with `confirmDisabled?`. Use it for every confirmation; never
+  `window.confirm`. Reference: `apps/web/features/users/components/user-status-dialog.tsx`
+  (利用停止 / 利用再開); with a body: `apps/web/features/staff/components/staff-status-dialog.tsx`.
 - `OptionSelect` (`option-select.tsx`) — a standalone select over `options` (`SelectOption`):
   `value` / `onValueChange` with `null` for none, `allOption?` (a first item that stands for
   `null`), `label?` (visible, or `hideLabel` for screen readers; omit when an outer label points at
