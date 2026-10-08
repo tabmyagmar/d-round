@@ -5,23 +5,25 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@repo/ui/components/composed/confirm-dialog";
 
+import { useCommentTemplatesStore } from "@/features/comment-templates/stores/comment-templates-store-provider";
 import { useTRPC } from "@/lib/trpc/react";
 
 export type CommentTemplateDeleteDialogProps = {
   /** One row's id (its menu) or the selection (the toolbar's 削除). */
   ids: readonly string[];
   onOpenChange: (open: boolean) => void;
-  /** After the delete succeeded, with the ids it was asked for (the list drops them from the selection). */
-  onDone: (ids: readonly string[]) => void;
 };
 
-/** 定型文を削除しますか？ — the legacy confirmation, for one template or several. */
+/**
+ * 定型文を削除しますか？ — the legacy confirmation, for one template or several. Rendered inside the
+ * list's store: the deleted templates leave the selection.
+ */
 export const CommentTemplateDeleteDialog = ({
   ids,
   onOpenChange,
-  onDone,
 }: CommentTemplateDeleteDialogProps) => {
   const trpc = useTRPC();
+  const setRowSelection = useCommentTemplatesStore((store) => store.setRowSelection);
   const queryClient = useQueryClient();
 
   const remove = useMutation(
@@ -29,7 +31,9 @@ export const CommentTemplateDeleteDialog = ({
       onSuccess: async () => {
         toast.success("定型文が削除されました");
         onOpenChange(false);
-        onDone(ids);
+        setRowSelection((selection) =>
+          Object.fromEntries(Object.entries(selection).filter(([id]) => !ids.includes(id))),
+        );
         await queryClient.invalidateQueries(trpc.commentTemplate.pathFilter());
       },
       onError: () => {
