@@ -107,7 +107,6 @@ export type Position = z.infer<typeof positionSchema>;
 /** The largest 社員番号 / スタッフ番号: nine digits fit the database's integer column. */
 export const EMPLOYEE_NUMBER_MAX = 999_999_999;
 
-/** A required positive whole number with the legacy messages, e.g. `employeeNumberSchema("社員番号")`. */
 /**
  * A list search that is an employee number (one to nine digits, not zero) also matches the 社員番号
  * or スタッフ番号 (the legacy numeric search); `null` for any other search.
@@ -117,6 +116,7 @@ export const employeeNumberOfSearch = (search: string): number | null => {
   return value > 0 ? value : null;
 };
 
+/** A required positive whole number with the legacy messages, e.g. `employeeNumberSchema("社員番号")`. */
 export const employeeNumberSchema = (label: string) =>
   z
     .number({ error: `${label}は必須です` })

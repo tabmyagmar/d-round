@@ -1009,3 +1009,7 @@ arrays; `@casl/prisma` with a third model in `Subjects`; Base UI Combobox chips 
     — open point for that role's ticket.
   - The two copies of the 社員番号 / スタッフ番号 search parser are one: `employeeNumberOfSearch` in
     `@repo/validation`.
+- 2026-10-08, review round 2 (the same reviewer on the three fix commits): APPROVE — every round-1
+  finding resolved or recorded; its one new NIT (the `employeeNumberSchema` doc comment had moved
+  above the new helper) fixed. `employeeNumberOfSearch` stays in `user.schema.ts`, beside
+  `employeeNumberSchema` and `EMPLOYEE_NUMBER_MAX`, which the staff schema imports too.
