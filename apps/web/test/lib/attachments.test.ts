@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { UPLOAD_FAILED, toFileFieldValue, uploadToSignedUrl } from "@/lib/attachments";
+import { UPLOAD_FAILED, toAttachmentValue, uploadToSignedUrl } from "@/lib/attachments";
 
 const target = {
   id: "0199a1b2-0000-7000-8000-000000000001",
@@ -37,10 +37,10 @@ describe("uploadToSignedUrl", () => {
   });
 });
 
-describe("toFileFieldValue", () => {
+describe("toAttachmentValue", () => {
   it("turns a stored file into the value the file fields hold", () => {
     expect(
-      toFileFieldValue({
+      toAttachmentValue({
         id: target.id,
         fileName: "履歴書.pdf",
         contentType: "application/pdf",

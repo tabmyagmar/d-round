@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { attachmentValueSchema } from "./attachment.schema";
 import { idSchema, paginationSchema, requiredText } from "./common.schema";
 import { permissionKeysSchema } from "./permission.schema";
 import {
@@ -205,6 +206,12 @@ export const updateProfileSchema = z.object({
   avatarId: avatarIdSchema,
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+/** /admin/profile: the name parts and the プロフィール画像 as `AvatarField` holds it. */
+export const profileFormSchema = updateProfileSchema
+  .omit({ userId: true, avatarId: true })
+  .extend({ avatar: attachmentValueSchema.nullable() });
+export type ProfileFormInput = z.infer<typeof profileFormSchema>;
 
 /**
  * An admin creates a user without a password; the user sets one from the invitation mail.

@@ -6,6 +6,7 @@ import {
   EMPTY_PROFILE,
   profileFormValuesOf,
   toInviteInput,
+  toProfileInput,
   toUpdateInput,
 } from "@/features/users/utils/user-form-input";
 import type { StoredProfile } from "@/features/users/utils/user-form-input";
@@ -153,5 +154,36 @@ describe("toUpdateInput", () => {
         profile: PROFILE,
       }),
     ).toEqual({ userId: USER.id, role: "am" });
+  });
+});
+
+describe("toProfileInput", () => {
+  const NAMES = {
+    lastName: "山田",
+    firstName: "太郎",
+    lastNameKana: "ヤマダ",
+    firstNameKana: "タロウ",
+  };
+  const AVATAR = {
+    id: "0199a1b2-0000-7000-8000-000000000001",
+    name: "face.png",
+    size: 10,
+    type: "image/png",
+  };
+
+  it("sends the names and leaves the avatar out while it is the stored one", () => {
+    expect(toProfileInput({ ...NAMES, avatar: AVATAR }, AVATAR.id)).toEqual(NAMES);
+    expect(toProfileInput({ ...NAMES, avatar: null }, null)).toEqual(NAMES);
+  });
+
+  it("sends a new avatar's id, and null when the avatar was removed", () => {
+    expect(toProfileInput({ ...NAMES, avatar: AVATAR }, null)).toEqual({
+      ...NAMES,
+      avatarId: AVATAR.id,
+    });
+    expect(toProfileInput({ ...NAMES, avatar: null }, AVATAR.id)).toEqual({
+      ...NAMES,
+      avatarId: null,
+    });
   });
 });

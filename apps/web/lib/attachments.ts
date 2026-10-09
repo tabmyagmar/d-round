@@ -1,7 +1,7 @@
 import type { inferRouterOutputs } from "@trpc/server";
 
 import type { AppRouter } from "@repo/api/router";
-import type { FileFieldValue } from "@repo/ui/components/form";
+import type { AttachmentValue } from "@repo/validation";
 
 /** `attachment.createUploadUrl`: where and how the browser PUTs the file (ADR 0012). */
 export type UploadTarget = inferRouterOutputs<AppRouter>["attachment"]["createUploadUrl"];
@@ -23,7 +23,7 @@ export const uploadToSignedUrl = async (target: UploadTarget, file: File): Promi
 };
 
 /** A stored file as `FileField` / `AvatarField` hold it, so the forms start from what is saved. */
-export const toFileFieldValue = (view: AttachmentView): FileFieldValue => ({
+export const toAttachmentValue = (view: AttachmentView): AttachmentValue => ({
   id: view.id,
   name: view.fileName,
   size: view.size,

@@ -4,9 +4,11 @@ import type {
   InviteUserFormInput,
   InviteUserInput,
   Position,
+  ProfileFormInput,
   Role,
   SourceArea,
   UpdateUserFormInput,
+  UpdateProfileInput,
   UpdateUserInput,
   UserProfileInput,
 } from "@repo/validation";
@@ -113,4 +115,17 @@ export const toUpdateInput = (user: StoredUser, values: UpdateUserFormInput): Up
       ? {}
       : { profile: values.profile }),
   };
+};
+
+/**
+ * The profile form's values as `user.updateProfile` input: the name parts, and `avatarId` only
+ * when the プロフィール画像 differs from the stored one (`null` removes it).
+ */
+export const toProfileInput = (
+  values: ProfileFormInput,
+  storedAvatarId: string | null,
+): UpdateProfileInput => {
+  const { avatar, ...names } = values;
+  const avatarId = avatar?.id ?? null;
+  return { ...names, ...(avatarId === storedAvatarId ? {} : { avatarId }) };
 };

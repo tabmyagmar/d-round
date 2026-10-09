@@ -21,7 +21,7 @@ const chooseLogout = async () => {
   const onSignOut = vi.fn();
   render(
     <StrictMode>
-      <UserMenu user={USER} onSignOut={onSignOut} />
+      <UserMenu user={USER} avatarUrl={null} onSignOut={onSignOut} />
     </StrictMode>,
   );
   fireEvent.click(screen.getByRole("button", { name: "鈴木 花子" }));
