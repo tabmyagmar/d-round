@@ -4,12 +4,12 @@ import { ChevronDown, Users } from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@repo/ui/components/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/card";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@repo/ui/components/collapsible";
+import { ContentCard } from "@repo/ui/components/composed/content-card";
 
 import { href, routes } from "@/config/routes";
 import type { ChargedStaff } from "@/features/staff/types";
@@ -37,44 +37,44 @@ export const UserStaffsCard = ({ staffs }: { staffs: readonly ChargedStaff[] }) 
   const byCode = [...groups.entries()].sort(([a], [b]) => a - b);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users aria-hidden className="size-4 text-muted-foreground" />
+    <ContentCard
+      title={
+        <>
+          <Users aria-hidden className="size-4" />
           担当先スタッフ情報
           <Badge variant="outline">{staffs.length}</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex max-h-96 flex-col gap-2 overflow-y-auto">
-        {byCode.map(([code, group]) => (
-          <Collapsible key={code} className="group/region">
-            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md bg-muted px-3 py-2 text-left text-sm font-medium hover:bg-secondary">
-              {group.name}
-              <ChevronDown
-                aria-hidden
-                className="size-4 transition-transform group-data-open/region:rotate-180"
-              />
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <ul className="flex flex-col py-1 text-sm">
-                {group.staffs.map((staff) => (
-                  <li key={staff.id}>
-                    <Link
-                      href={href(routes.staff.detail, { id: staff.id })}
-                      className="flex justify-between gap-4 rounded-md px-3 py-2 hover:bg-accent"
-                    >
-                      <span>{staffNameOf(staff)}</span>
-                      <span className="text-muted-foreground">
-                        {EMPLOYEE_TYPE_LABELS[staff.employeeType]}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </CollapsibleContent>
-          </Collapsible>
-        ))}
-      </CardContent>
-    </Card>
+        </>
+      }
+      contentClassName="flex max-h-96 flex-col gap-2 overflow-y-auto"
+    >
+      {byCode.map(([code, group]) => (
+        <Collapsible key={code} className="group/region">
+          <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md bg-muted px-3 py-2 text-left text-sm font-medium hover:bg-secondary">
+            {group.name}
+            <ChevronDown
+              aria-hidden
+              className="size-4 transition-transform group-data-open/region:rotate-180"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <ul className="flex flex-col py-1 text-sm">
+              {group.staffs.map((staff) => (
+                <li key={staff.id}>
+                  <Link
+                    href={href(routes.staff.detail, { id: staff.id })}
+                    className="flex justify-between gap-4 rounded-md px-3 py-2 hover:bg-accent"
+                  >
+                    <span>{staffNameOf(staff)}</span>
+                    <span className="text-muted-foreground">
+                      {EMPLOYEE_TYPE_LABELS[staff.employeeType]}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CollapsibleContent>
+        </Collapsible>
+      ))}
+    </ContentCard>
   );
 };
