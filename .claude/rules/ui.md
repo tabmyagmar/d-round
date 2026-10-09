@@ -114,7 +114,10 @@ route's code already.
   - the header shows the page title once — `PageTitle` renders the current route's `title` as the
     page's only `<h1>`, with the breadcrumb trail under it when there is more than one crumb — and
     the user menu (`UserMenu`: プロフィール, ログアウト) on the right, where the notification bell
-    will join it; below `md` the header also carries the `SidebarTrigger` (the sidebar is a sheet).
+    will join it; ログアウト asks first in a `ConfirmDialog`
+    (ログアウト確認 / ログアウトしますか？ / はい / いいえ, the legacy `ProfileModals`) and
+    `AppHeader` owns the sign-out (`onSignOut`), so the menu tests without the router; below `md`
+    the header also carries the `SidebarTrigger` (the sidebar is a sheet).
 - There is no `/admin` page, as in the legacy app. `LANDING_ROUTE` (`config/routes.ts`, the workflow
   list) is where a signed-in user lands: after login, from `/admin` (redirected by `proxy.ts`), from
   the brand link and from the 403/404 back button. Change the landing there only.
