@@ -350,6 +350,7 @@ describe("inviteUserFormSchema", () => {
   const valid = {
     email: "new@example.com",
     emailConfirm: "new@example.com",
+    avatar: null,
     lastName: "新規",
     firstName: "太郎",
     lastNameKana: "シンキ",

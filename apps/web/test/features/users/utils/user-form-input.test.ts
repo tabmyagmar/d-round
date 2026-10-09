@@ -40,6 +40,7 @@ const USER = {
   role: "manager",
   permissionKeys: ["1202", "1302"],
   profile: STORED_PROFILE,
+  avatar: null,
 } as const;
 
 const NAMES = {
@@ -65,6 +66,7 @@ describe("toInviteInput", () => {
       toInviteInput({
         email: "a@example.com",
         emailConfirm: "a@example.com",
+        avatar: null,
         ...NAMES,
         role: "am",
         profile: PROFILE,
@@ -76,6 +78,7 @@ describe("toInviteInput", () => {
     const base = {
       email: "a@example.com",
       emailConfirm: "a@example.com",
+      avatar: null,
       ...NAMES,
       profile: PROFILE,
     };
@@ -94,6 +97,7 @@ describe("toUpdateInput", () => {
     expect(
       toUpdateInput(USER, {
         userId: USER.id,
+        avatar: null,
         lastName: "山田",
         firstName: "太郎",
         role: "manager",
@@ -103,6 +107,7 @@ describe("toUpdateInput", () => {
     expect(
       toUpdateInput(USER, {
         userId: USER.id,
+        avatar: null,
         ...NAMES,
         firstName: "花子",
         role: "am",
@@ -114,14 +119,14 @@ describe("toUpdateInput", () => {
   it("sends the whole profile when any of it changed", () => {
     const changed = { ...PROFILE, regionCodes: [4] };
 
-    expect(toUpdateInput(USER, { userId: USER.id, profile: changed })).toEqual({
+    expect(toUpdateInput(USER, { userId: USER.id, avatar: null, profile: changed })).toEqual({
       userId: USER.id,
       profile: changed,
     });
     expect(
       toUpdateInput(
         { ...USER, profile: null },
-        { userId: USER.id, ...NAMES, firstNameKana: "", profile: PROFILE },
+        { userId: USER.id, avatar: null, ...NAMES, firstNameKana: "", profile: PROFILE },
       ),
     ).toEqual({ userId: USER.id, profile: PROFILE });
   });
@@ -130,6 +135,7 @@ describe("toUpdateInput", () => {
     expect(
       toUpdateInput(USER, {
         userId: USER.id,
+        avatar: null,
         role: "manager",
         permissionKeys: ["1302", "1202"],
         profile: PROFILE,
@@ -138,6 +144,7 @@ describe("toUpdateInput", () => {
     expect(
       toUpdateInput(USER, {
         userId: USER.id,
+        avatar: null,
         role: "manager",
         permissionKeys: ["1202", "1101"],
         profile: PROFILE,
@@ -149,6 +156,7 @@ describe("toUpdateInput", () => {
     expect(
       toUpdateInput(USER, {
         userId: USER.id,
+        avatar: null,
         role: "am",
         permissionKeys: ["1101"],
         profile: PROFILE,
@@ -184,6 +192,45 @@ describe("toProfileInput", () => {
     expect(toProfileInput({ ...NAMES, avatar: null }, AVATAR.id)).toEqual({
       ...NAMES,
       avatarId: null,
+    });
+  });
+});
+
+describe("the プロフィール画像 in the user forms' input", () => {
+  const AVATAR = {
+    id: "0199a1b2-0000-7000-8000-000000000001",
+    name: "face.png",
+    size: 10,
+    type: "image/png",
+  };
+
+  it("sends the picked image's id on invite, nothing without one", () => {
+    const values = {
+      email: "a@example.com",
+      emailConfirm: "a@example.com",
+      ...NAMES,
+      role: "am" as const,
+      profile: PROFILE,
+    };
+
+    expect(toInviteInput({ ...values, avatar: AVATAR }).avatarId).toBe(AVATAR.id);
+    expect(toInviteInput({ ...values, avatar: null })).not.toHaveProperty("avatarId");
+  });
+
+  it("sends avatarId on update only when the image changed, null when it was removed", () => {
+    const stored = { ...USER, avatar: { id: AVATAR.id } };
+    const values = {
+      userId: USER.id,
+      ...NAMES,
+      firstNameKana: "",
+      role: "manager" as const,
+      profile: PROFILE,
+    };
+
+    expect(toUpdateInput(stored, { ...values, avatar: AVATAR })).not.toHaveProperty("avatarId");
+    expect(toUpdateInput(stored, { ...values, avatar: null })).toMatchObject({ avatarId: null });
+    expect(toUpdateInput(USER, { ...values, avatar: AVATAR })).toMatchObject({
+      avatarId: AVATAR.id,
     });
   });
 });

@@ -37,6 +37,7 @@ const renderForm = (
         canEditPermissions
         hierarchy={HIERARCHY}
         isEmployeeNumberFree={isEmployeeNumberFree}
+        uploadAvatar={vi.fn()}
         pending={false}
         onSubmit={onSubmit}
       />

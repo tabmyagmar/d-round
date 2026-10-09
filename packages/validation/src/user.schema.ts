@@ -228,9 +228,12 @@ export const inviteUserSchema = z.object({
 });
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
 
-/** The invite form: the email typed twice, since the invitation goes to that address. */
+/**
+ * The invite form: the email typed twice, since the invitation goes to that address, and the
+ * プロフィール画像 as `AvatarField` holds it.
+ */
 export const inviteUserFormSchema = inviteUserSchema
-  .extend({ emailConfirm: emailSchema })
+  .extend({ emailConfirm: emailSchema, avatar: attachmentValueSchema.nullable() })
   .refine((value) => value.email === value.emailConfirm, {
     path: ["emailConfirm"],
     error: "メールアドレスが一致していません",
@@ -254,9 +257,12 @@ export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 
 /**
  * The edit form: it always holds the profile, so a user from before profiles is asked for one; the
- * form sends it only when it changed (`toUpdateInput`).
+ * form sends it only when it changed (`toUpdateInput`), the プロフィール画像 likewise.
  */
-export const updateUserFormSchema = updateUserSchema.extend({ profile: userProfileSchema });
+export const updateUserFormSchema = updateUserSchema.extend({
+  profile: userProfileSchema,
+  avatar: attachmentValueSchema.nullable(),
+});
 export type UpdateUserFormInput = z.infer<typeof updateUserFormSchema>;
 
 /** Columns the user list may be sorted by; anything else is rejected, never passed to Prisma. */

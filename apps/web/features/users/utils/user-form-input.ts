@@ -62,7 +62,10 @@ const sameProfile = (stored: ProfileFormValues, submitted: UserProfileInput): bo
   sameList(stored.areas, submitted.areas) &&
   sameList(stored.regionCodes, submitted.regionCodes);
 
-/** The invite form's values as `user.invite` input: no confirmation, overrides for a manager. */
+/**
+ * The invite form's values as `user.invite` input: no confirmation, overrides for a manager, the
+ * uploaded プロフィール画像's id when one was picked.
+ */
 export const toInviteInput = (values: InviteUserFormInput): InviteUserInput => ({
   email: values.email,
   lastName: values.lastName,
@@ -71,6 +74,7 @@ export const toInviteInput = (values: InviteUserFormInput): InviteUserInput => (
   firstNameKana: values.firstNameKana,
   role: values.role,
   profile: values.profile,
+  ...(values.avatar ? { avatarId: values.avatar.id } : {}),
   ...(values.permissionKeys !== undefined && isOverridableRole(values.role)
     ? { permissionKeys: values.permissionKeys }
     : {}),
@@ -84,17 +88,21 @@ export type StoredUser = {
   role: Role;
   permissionKeys: readonly string[];
   profile: StoredProfile;
+  /** The stored プロフィール画像, or null. */
+  avatar: { id: string } | null;
 } & Record<NamePart, string | null>;
 
 /**
  * The edit form's values as `user.update` input, holding only what differs from `user`: the API
  * then checks only what is being changed (a role or permission change needs `changeRole`, a
  * profile change the `update User` grant) and rewrites the display name "姓 名" when a part
- * changes. The profile goes whole, and only when any of it changed.
+ * changes. The profile goes whole, and only when any of it changed; `avatarId` only when the
+ * image changed (`null` removes it).
  */
 export const toUpdateInput = (user: StoredUser, values: UpdateUserFormInput): UpdateUserInput => {
   const role = values.role ?? user.role;
   const keys = values.permissionKeys;
+  const avatarId = values.avatar?.id ?? null;
   const parts: Partial<Record<NamePart, string>> = {};
   for (const part of NAME_PARTS) {
     const value = values[part];
@@ -114,6 +122,7 @@ export const toUpdateInput = (user: StoredUser, values: UpdateUserFormInput): Up
     ...(sameProfile(profileFormValuesOf(user.profile), values.profile)
       ? {}
       : { profile: values.profile }),
+    ...(avatarId === (user.avatar?.id ?? null) ? {} : { avatarId }),
   };
 };
 
