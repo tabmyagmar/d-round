@@ -103,8 +103,14 @@ route's code already.
   `SidebarProvider` (open state from the `sidebar_state` cookie), `AppSidebar`, `SidebarInset` with
   `AppHeader`. `SidebarInset` is the `<main>`. As in the legacy app:
   - the sidebar header shows the logo (`brand.logo`, `apps/web/public/logo.png`; another product
-    replaces that file) linking to the landing page, and the `SidebarTrigger`; on the icon rail only
-    the trigger remains;
+    replaces that file) linking to the landing page, and the collapse button (lucide `ChevronsLeft`
+    / `ChevronsRight` in `text-primary`, the legacy `DoubleLeft` / `DoubleRight`); on the icon rail
+    only the button remains;
+  - the menu rows (`nav-main.tsx`) are the legacy rows: 40 px, the full width of the sidebar, 4 px
+    apart, a 20 px icon; the selected row is tinted (`sidebar-accent`) with a 2 px `sidebar-primary`
+    bar on its right edge, and a child row (マスター管理's) has a 2 px bar on its left that turns
+    `sidebar-primary`, its title bold, when selected. Styled by `className` there; `sidebar.tsx`
+    stays as generated;
   - the header shows the page title once — `PageTitle` renders the current route's `title` as the
     page's only `<h1>`, with the breadcrumb trail under it when there is more than one crumb — and
     the user menu (`UserMenu`: プロフィール, ログアウト) on the right, where the notification bell

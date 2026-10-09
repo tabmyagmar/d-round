@@ -3,8 +3,8 @@ import {
   Bot,
   CircleQuestionMark,
   FileStack,
-  FileText,
   ScrollText,
+  Settings,
   Stamp,
   Store,
   UserPlus,
@@ -61,7 +61,8 @@ export const NAV_GROUPS: readonly NavGroup[] = [
     id: "settings",
     label: "設定",
     items: [
-      leaf(routes.settings.privacy, FileText),
+      // The legacy sidebar's gear (`items.tsx`).
+      leaf(routes.settings.privacy, Settings),
       leaf(routes.settings.help, CircleQuestionMark),
     ],
   },
