@@ -405,6 +405,13 @@ describe("updateUserSchema", () => {
     expect(updateUserSchema.safeParse({ userId, permissionKeys: [""] }).success).toBe(false);
     expect(updateUserSchema.safeParse({ userId, role: "owner" }).success).toBe(false);
   });
+
+  it("takes an uploaded avatar id, null to remove the avatar, or nothing to keep it", () => {
+    expect(updateUserSchema.parse({ userId, avatarId: userId }).avatarId).toBe(userId);
+    expect(updateUserSchema.parse({ userId, avatarId: null }).avatarId).toBeNull();
+    expect("avatarId" in updateUserSchema.parse({ userId })).toBe(false);
+    expect(updateUserSchema.safeParse({ userId, avatarId: "face.png" }).success).toBe(false);
+  });
 });
 
 describe("kanaSchema (セイ / メイ)", () => {

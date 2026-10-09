@@ -192,10 +192,17 @@ export const userIdSchema = z.object({ userId: idSchema });
 /** The name parts, each optional: an edit sends only the parts that changed. */
 const userNamePatchShape = userNameSchema.partial().shape;
 
+/**
+ * プロフィール画像: an uploaded attachment id (`attachment.createUploadUrl`), `null` to remove the
+ * avatar, absent to leave it as it is (ADR 0012).
+ */
+const avatarIdSchema = idSchema.nullable().optional();
+
 /** Self edit when `userId` is omitted; admins may pass another user's id. */
 export const updateProfileSchema = z.object({
   userId: idSchema.optional(),
   ...userNamePatchShape,
+  avatarId: avatarIdSchema,
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
@@ -210,6 +217,7 @@ export const inviteUserSchema = z.object({
   role: roleSchema,
   permissionKeys: permissionKeysSchema.optional(),
   profile: userProfileSchema,
+  avatarId: avatarIdSchema,
 });
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
 
@@ -233,6 +241,7 @@ export const updateUserSchema = z.object({
   role: roleSchema.optional(),
   permissionKeys: permissionKeysSchema.optional(),
   profile: userProfileSchema.optional(),
+  avatarId: avatarIdSchema,
 });
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 
