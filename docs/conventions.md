@@ -107,6 +107,15 @@ production. Everything goes through `@repo/logger` (pino), which redacts `passwo
 `secret`, `authorization`, `cookie` and `set-cookie` paths once for every app. `packages/logger`
 itself and the worker bootstrap opt out locally where no logger can exist yet.
 
+The level is also the alert: with `DISCORD_ALERT_WEBHOOK_URL` set, every `error` and `fatal` line of
+the API and the worker is posted to a Discord channel (`createDiscordAlertStream`,
+`docs/adr/0010-alerts.md`). Log what a user or a client caused (domain errors, 4xx) at `warn`, a
+failure somebody must look at at `error`, a dying process at `fatal`. The lines of one request or
+job become one message, a repeated problem is sent once per window with a repeat count, and the
+messages per minute are capped. Only the identifier keys of `ALERT_CONTEXT_KEYS`, the log message
+and the error reach Discord (what exactly: ADR 0010), so a new identifier worth seeing is added
+there.
+
 ### Naming
 
 - `unicorn/filename-case: kebabCase` — kebab-case files with a role suffix (`user.service.ts`,
@@ -231,6 +240,8 @@ up to 200 characters for this reason. Human-only commits carry no trailer.
     optional `COOKIE_DOMAIN` (production parent domain);
   - worker: `MAIL_SMTP_URL` (`smtp://localhost:1025` = Mailpit), `MAIL_FROM` (its display name is
     the brand used in emails, `apps/worker/src/mail/mail-from.ts`);
+  - api and worker: optional `DISCORD_ALERT_WEBHOOK_URL` (error and fatal alerts,
+    `docs/adr/0010-alerts.md`; a secret, since whoever holds it can post to the channel);
   - web: `NEXT_PUBLIC_API_URL`.
 
 ## Authentication and sessions
@@ -302,6 +313,9 @@ counters or timestamps.
   becomes `INTERNAL_SERVER_ERROR` with the fixed message "Internal server error" — internals never
   leak to clients; the cause is logged server-side with the `requestId`.
 - The tRPC `errorFormatter` adds `requestId` to every error so users can quote it.
+- An unknown failure writes `request failed` at `error` (with `path` and `requestId`) and a 5xx
+  access line; with a webhook set the two fold into one Discord alert. Domain errors are `warn` and
+  never alert (`docs/adr/0010-alerts.md`).
 - Database constraint failures are translated once (`translateDatabaseError`, `isUniqueViolation`,
   ... in `packages/database/src/utils/errors.ts`) and turned into domain errors in services. Nothing
   else compares Prisma or Postgres error codes.

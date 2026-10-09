@@ -2,7 +2,7 @@ import { Writable } from "node:stream";
 
 import { describe, expect, it } from "vitest";
 
-import { REDACT_CENSOR, childLogger, createLogger } from "../src/index";
+import { REDACT_CENSOR, childLogger, createDiscordAlertStream, createLogger } from "../src/index";
 
 type Captured = { lines: () => Record<string, unknown>[]; stream: Writable };
 
@@ -83,5 +83,60 @@ describe("childLogger", () => {
     const [line] = captured.lines();
     expect(line?.["requestId"]).toBe("req-1");
     expect(line?.["password"]).toBe(REDACT_CENSOR);
+  });
+});
+
+describe("createLogger with alerts", () => {
+  /** A fake Discord webhook: the only external provider involved. */
+  const fakeDiscord = () => {
+    const bodies: string[] = [];
+    const alerts = createDiscordAlertStream({
+      webhookUrl: "https://discord.test/api/webhooks/1/secret",
+      fetch: (_url, init) => {
+        bodies.push(init?.body as string);
+        return Promise.resolve(new Response(null, { status: 204 }));
+      },
+    });
+    return { alerts, bodies };
+  };
+
+  it("keeps every line on the destination and also sends the error lines", async () => {
+    const captured = captureStream();
+    const { alerts, bodies } = fakeDiscord();
+    const logger = createLogger({ name: "test", level: "debug", alerts }, captured.stream);
+
+    logger.debug("debug line");
+    logger.warn("warn line");
+    logger.error({ err: new Error("boom") }, "error line");
+    await alerts.flush();
+
+    expect(captured.lines().map((line) => line["msg"])).toEqual([
+      "debug line",
+      "warn line",
+      "error line",
+    ]);
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toContain("error line");
+  });
+
+  it("keeps keys outside ALERT_CONTEXT_KEYS, secrets among them, out of Discord", async () => {
+    const { alerts, bodies } = fakeDiscord();
+    const logger = createLogger({ name: "test", alerts }, captureStream().stream);
+
+    logger.error(
+      {
+        err: new Error("boom"),
+        password: "hunter2",
+        user: { token: "tok-123" },
+        req: { headers: { cookie: "session=abc" } },
+      },
+      "sign-in failed",
+    );
+    await alerts.flush();
+
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).not.toContain("hunter2");
+    expect(bodies[0]).not.toContain("tok-123");
+    expect(bodies[0]).not.toContain("session=abc");
   });
 });

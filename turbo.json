@@ -13,7 +13,8 @@
     "DATABASE_URL",
     "REDIS_URL",
     "MAIL_SMTP_URL",
-    "MAIL_FROM"
+    "MAIL_FROM",
+    "DISCORD_ALERT_WEBHOOK_URL"
   ],
   "globalPassThroughEnv": [
     "DOCKER_HOST",

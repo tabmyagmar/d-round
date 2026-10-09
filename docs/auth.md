@@ -119,7 +119,9 @@ error says to complete the user on the edit page and re-send the invitation.
    endpoint answers the same for known and unknown addresses.
 2. The mailed link is `${API_URL}/api/auth/reset-password/<token>?callbackURL=<web>/new-password`.
    Better Auth checks the token and redirects to `/new-password?token=…`, or
-   `/new-password?error=INVALID_TOKEN` when it expired or was already used.
+   `/new-password?error=INVALID_TOKEN` when it expired or was already used. The API's access log
+   writes this path as `/api/auth/reset-password/[Redacted]` (`middleware/request-logger.ts`), so
+   the token reaches neither the logs nor a Discord alert.
 3. `/new-password` submits `resetPassword({ newPassword, token })`. The password policy
    (`passwordSchema` in `@repo/validation`: 8–128 characters, a letter and a digit) is checked by
    the form and again by a Better Auth `hooks.before` middleware on every endpoint that stores a

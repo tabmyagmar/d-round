@@ -80,18 +80,19 @@ Then sign in at http://localhost:3000/login as `admin@test.com` / `A12345678` (o
 (`apps/api/src/env.ts`, `apps/worker/src/env.ts`, `apps/web/lib/env.ts`) and refuses to start on a
 missing or malformed value.
 
-| Variable              | Used by    | Meaning                                                                                                  |
-| --------------------- | ---------- | -------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`        | all        | Postgres connection string (`POSTGRES_*` feed docker-compose; keep them in sync)                         |
-| `REDIS_URL`           | api/worker | Redis connection string                                                                                  |
-| `BETTER_AUTH_SECRET`  | api        | signs sessions and tokens (`openssl rand -base64 32`, at least 32 chars); rotating it signs everyone out |
-| `API_URL`             | api        | public origin of the API; Better Auth sets its cookies for this host (default `http://localhost:4000`)   |
-| `WEB_ORIGIN`          | api        | browser origin allowed with credentials (CORS, `trustedOrigins`; default `http://localhost:3000`)        |
-| `COOKIE_DOMAIN`       | api        | optional; production parent domain shared by web and api (see `docs/adr/0002-auth.md`)                   |
-| `MAIL_SMTP_URL`       | worker     | SMTP endpoint, `smtp://localhost:1025` for Mailpit                                                       |
-| `MAIL_FROM`           | worker     | sender, e.g. `My App <no-reply@example.com>`; the display name is the brand used in emails               |
-| `NEXT_PUBLIC_API_URL` | web        | API origin the browser and the server components call (must be http(s))                                  |
-| `POSTGRES_IMAGE`      | docker     | Postgres image for compose (default `postgres:18-alpine`; `TEST_POSTGRES_IMAGE` for tests)               |
+| Variable                    | Used by    | Meaning                                                                                                      |
+| --------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`              | all        | Postgres connection string (`POSTGRES_*` feed docker-compose; keep them in sync)                             |
+| `REDIS_URL`                 | api/worker | Redis connection string                                                                                      |
+| `BETTER_AUTH_SECRET`        | api        | signs sessions and tokens (`openssl rand -base64 32`, at least 32 chars); rotating it signs everyone out     |
+| `API_URL`                   | api        | public origin of the API; Better Auth sets its cookies for this host (default `http://localhost:4000`)       |
+| `WEB_ORIGIN`                | api        | browser origin allowed with credentials (CORS, `trustedOrigins`; default `http://localhost:3000`)            |
+| `COOKIE_DOMAIN`             | api        | optional; production parent domain shared by web and api (see `docs/adr/0002-auth.md`)                       |
+| `MAIL_SMTP_URL`             | worker     | SMTP endpoint, `smtp://localhost:1025` for Mailpit                                                           |
+| `MAIL_FROM`                 | worker     | sender, e.g. `My App <no-reply@example.com>`; the display name is the brand used in emails                   |
+| `DISCORD_ALERT_WEBHOOK_URL` | api/worker | optional; Discord webhook that receives every error and fatal log line (`docs/adr/0010-alerts.md`); a secret |
+| `NEXT_PUBLIC_API_URL`       | web        | API origin the browser and the server components call (must be http(s))                                      |
+| `POSTGRES_IMAGE`            | docker     | Postgres image for compose (default `postgres:18-alpine`; `TEST_POSTGRES_IMAGE` for tests)                   |
 
 The web app's name, description, `<html lang>`, logo (`apps/web/public/logo.png`, shown in the
 sidebar and on the auth card) and auth background (`apps/web/public/auth-background.webp`) live in
@@ -137,7 +138,9 @@ deployment places them, and a developer copies them from the legacy d-round-web 
   the transaction and enqueues an ID-only BullMQ job after commit; the worker renders and sends
   through SMTP (Mailpit locally) with retries, and a sweeper re-enqueues stale rows.
 - **Health**: `GET /health` (Postgres + Redis probes) and tRPC `health.ping`; ordered graceful
-  shutdown in api and worker; pino logging with redaction and request ids.
+  shutdown in api and worker, also after an uncaught exception or unhandled rejection; pino logging
+  with redaction and request ids; error and fatal log lines alert a Discord channel when
+  `DISCORD_ALERT_WEBHOOK_URL` is set (`docs/adr/0010-alerts.md`).
 
 Who may do what (roles, actions, subjects) is data in
 `packages/database/prisma/seed/data/permissions.csv`; `.claude/rules/permissions.md` explains the
@@ -205,7 +208,7 @@ packages/
               staff.schema.ts: the staff form and list), createEnv() for env validation
   queue/      BullMQ + ioredis wrapper: connection, createQueue, createWorker, pub/sub, jobIdFor,
               QUEUE_NAMES, jobs/email.job.ts (EmailJob contract), test/ (testcontainers Redis)
-  logger/     pino with redaction, createLogger / childLogger
+  logger/     pino with redaction, createLogger / childLogger, createDiscordAlertStream (ADR 0010)
   dayjs/      dayjs configured once (utc, timezone, customParseFormat, ja) and the calendar-day
               helpers toIsoDay / fromIsoDay / todayIsoDay (ADR 0009)
   ui/         shadcn primitives (src/components), react-hook-form fields (src/components/form:

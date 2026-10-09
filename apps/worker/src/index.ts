@@ -1,5 +1,5 @@
 import { disconnectPrismaClient, getPrismaClient } from "@repo/database";
-import { createLogger } from "@repo/logger";
+import { createDiscordAlertStream, createLogger } from "@repo/logger";
 import { createEmailQueue, createRedisConnection, waitForRedis } from "@repo/queue";
 
 import { loadWorkerEnv } from "./env";
@@ -18,11 +18,16 @@ import {
  * nowhere else: the email processor and the outbox sweeper.
  */
 const env = loadWorkerEnv();
+// Error and fatal lines also go to Discord when a webhook is set (docs/adr/0010-alerts.md).
+const alerts = env.DISCORD_ALERT_WEBHOOK_URL
+  ? createDiscordAlertStream({ webhookUrl: env.DISCORD_ALERT_WEBHOOK_URL })
+  : undefined;
 const logger = createLogger({
   name: "worker",
   level: env.LOG_LEVEL,
   pretty: env.NODE_ENV === "development",
   base: { env: env.NODE_ENV },
+  ...(alerts ? { alerts } : {}),
 });
 
 const db = getPrismaClient({ connectionString: env.DATABASE_URL, maxConnections: 5 });
@@ -50,6 +55,8 @@ const shutdown = registerGracefulShutdown({
     { name: "mail provider", run: () => mailProvider.close?.() },
     { name: "redis", run: () => connection.quit() },
     { name: "database", run: () => disconnectPrismaClient() },
+    // Last, so the failure of a step above still reaches Discord.
+    { name: "alerts", run: () => alerts?.flush() },
   ],
 });
 
@@ -59,5 +66,5 @@ try {
   logger.info({ workers: workers.length }, "worker ready");
 } catch (error) {
   logger.fatal({ err: error }, "worker failed to start");
-  await shutdown("startup failure");
+  await shutdown("startup failure", 1);
 }

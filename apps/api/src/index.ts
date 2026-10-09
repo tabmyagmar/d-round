@@ -2,7 +2,7 @@ import { serve } from "@hono/node-server";
 
 import { createAuth } from "@repo/auth";
 import { disconnectPrismaClient, getPrismaClient } from "@repo/database";
-import { createLogger } from "@repo/logger";
+import { createDiscordAlertStream, createLogger } from "@repo/logger";
 import { createEmailQueue, createRedisConnection } from "@repo/queue";
 
 import { createApp } from "./app";
@@ -11,11 +11,16 @@ import { registerGracefulShutdown } from "./lib/graceful-shutdown";
 import { createAuthEmailSenders } from "./modules/email/auth-emails";
 
 const env = loadApiEnv();
+// Error and fatal lines also go to Discord when a webhook is set (docs/adr/0010-alerts.md).
+const alerts = env.DISCORD_ALERT_WEBHOOK_URL
+  ? createDiscordAlertStream({ webhookUrl: env.DISCORD_ALERT_WEBHOOK_URL })
+  : undefined;
 const logger = createLogger({
   name: "api",
   level: env.LOG_LEVEL,
   pretty: env.NODE_ENV === "development",
   base: { env: env.NODE_ENV },
+  ...(alerts ? { alerts } : {}),
 });
 
 const db = getPrismaClient({ connectionString: env.DATABASE_URL });
@@ -60,5 +65,7 @@ registerGracefulShutdown({
     { name: "email queue", run: () => emailQueue.close() },
     { name: "redis", run: () => redis.quit() },
     { name: "database", run: () => disconnectPrismaClient() },
+    // Last, so the failure of a step above still reaches Discord.
+    { name: "alerts", run: () => alerts?.flush() },
   ],
 });

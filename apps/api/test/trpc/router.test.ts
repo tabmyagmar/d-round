@@ -1,7 +1,10 @@
+import { Writable } from "node:stream";
+
 import { TRPCError } from "@trpc/server";
 import { describe, expect, it } from "vitest";
 
 import type { Auth } from "@repo/auth";
+import { childLogger, createDiscordAlertStream, createLogger } from "@repo/logger";
 import { definePrismaAbilityFor } from "@repo/permissions/server";
 
 import type { AuthUser, RequestContext } from "../../src/core/context";
@@ -83,5 +86,47 @@ describe("procedure middleware", () => {
       code: "UNAUTHORIZED",
     });
     await expect(createCaller(contextFor(am)).secret()).resolves.toBe("a@b.c");
+  });
+
+  it("alerts Discord once for an unknown error and never for a domain error", async () => {
+    const bodies: string[] = [];
+    const alerts = createDiscordAlertStream({
+      webhookUrl: "https://discord.test/api/webhooks/1/secret",
+      fetch: (_url, init) => {
+        bodies.push(init?.body as string);
+        return Promise.resolve(new Response(null, { status: 204 }));
+      },
+    });
+    const logger = createLogger(
+      { name: "api", alerts },
+      new Writable({
+        write: (_chunk, _encoding, callback) => {
+          callback();
+        },
+      }),
+    );
+    const caller = createCaller({
+      ...contextFor(),
+      logger: childLogger(logger, { requestId: "req-1" }),
+    });
+
+    await expect(caller.missing()).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller.exploding()).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+    await alerts.flush();
+
+    expect(bodies).toHaveLength(1);
+    const [embed] = (
+      JSON.parse(bodies[0]!) as {
+        embeds: { title: string; description: string; fields: { name: string; value: string }[] }[];
+      }
+    ).embeds;
+    expect(embed?.title).toBe("🟠 request failed");
+    expect(embed?.description).toContain("**Error:** db on fire at 10.0.0.5");
+    expect(embed?.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "path", value: "`exploding`" }),
+        expect.objectContaining({ name: "requestId", value: "`req-1`" }),
+      ]),
+    );
   });
 });
