@@ -180,6 +180,11 @@ Known local patches (re-apply after `--overwrite`):
    nothing changes. Its hover and open (`aria-expanded`) states use `bg-secondary` instead of
    `bg-muted`, which is the page background's colour, so the hover shows on the page too. Three
    words after `npx shadcn@4.21.0 add button --overwrite`.
+7. `dropdown-menu.tsx`: `DropdownMenuItem` colours a default item's icon `text-primary`
+   (`data-[variant=default]:[&_svg:not([class*='text-'])]:text-primary`), as the legacy menus
+   coloured theirs (the user menu's brand-blue icons), so the row menus and the user menu are not
+   all black; a destructive item's icon stays red and an icon with its own `text-*` class keeps it.
+   One class after `npx shadcn@4.21.0 add dropdown-menu --overwrite`.
 
 `eslint --fix` also reorders imports in generated files; that is not a patch to re-apply.
 
