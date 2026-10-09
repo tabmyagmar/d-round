@@ -6,11 +6,11 @@ import type { Locale, Matcher } from "react-day-picker";
 import type { FieldValues } from "react-hook-form";
 
 import { Button } from "../button";
-import { Calendar } from "../calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "../popover";
 
 import { compact, formatDate, toDate, toIsoDate } from "./date-utils";
 import type { DateLocale } from "./date-utils";
+import { FieldCalendar } from "./field-calendar";
 import { FormFieldShell } from "./form-field-shell";
 import type { BaseFieldProps } from "./types";
 import { useFormField } from "./use-form-field";
@@ -105,13 +105,12 @@ export const DateField = <TValues extends FieldValues>({
             <CalendarIcon className="text-muted-foreground" />
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
+            <FieldCalendar
               mode="single"
               onSelect={(date) => {
                 emit(date);
                 setOpen(false);
               }}
-              captionLayout="dropdown"
               disabled={disabledMatchers}
               {...compact({
                 selected,

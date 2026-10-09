@@ -103,12 +103,21 @@ route's code already.
   `SidebarProvider` (open state from the `sidebar_state` cookie), `AppSidebar`, `SidebarInset` with
   `AppHeader`. `SidebarInset` is the `<main>`. As in the legacy app:
   - the sidebar header shows the logo (`brand.logo`, `apps/web/public/logo.png`; another product
-    replaces that file) linking to the landing page, and the `SidebarTrigger`; on the icon rail only
-    the trigger remains;
+    replaces that file) linking to the landing page, and the collapse button (lucide `ChevronsLeft`
+    / `ChevronsRight` in `text-primary`, the legacy `DoubleLeft` / `DoubleRight`); on the icon rail
+    only the button remains;
+  - the menu rows (`nav-main.tsx`) are the legacy rows: 40 px, the full width of the sidebar, 4 px
+    apart, a 20 px icon; the selected row is tinted (`sidebar-accent`) with a 2 px `sidebar-primary`
+    bar on its right edge, and a child row (マスター管理's) has a 2 px bar on its left that turns
+    `sidebar-primary`, its title bold, when selected. Styled by `className` there; `sidebar.tsx`
+    stays as generated;
   - the header shows the page title once — `PageTitle` renders the current route's `title` as the
     page's only `<h1>`, with the breadcrumb trail under it when there is more than one crumb — and
     the user menu (`UserMenu`: プロフィール, ログアウト) on the right, where the notification bell
-    will join it; below `md` the header also carries the `SidebarTrigger` (the sidebar is a sheet).
+    will join it; ログアウト asks first in a `ConfirmDialog`
+    (ログアウト確認 / ログアウトしますか？ / はい / いいえ, the legacy `ProfileModals`) and
+    `AppHeader` owns the sign-out (`onSignOut`), so the menu tests without the router; below `md`
+    the header also carries the `SidebarTrigger` (the sidebar is a sheet).
 - There is no `/admin` page, as in the legacy app. `LANDING_ROUTE` (`config/routes.ts`, the workflow
   list) is where a signed-in user lands: after login, from `/admin` (redirected by `proxy.ts`), from
   the brand link and from the 403/404 back button. Change the landing there only.
@@ -180,6 +189,11 @@ Known local patches (re-apply after `--overwrite`):
    nothing changes. Its hover and open (`aria-expanded`) states use `bg-secondary` instead of
    `bg-muted`, which is the page background's colour, so the hover shows on the page too. Three
    words after `npx shadcn@4.21.0 add button --overwrite`.
+7. `dropdown-menu.tsx`: `DropdownMenuItem` colours a default item's icon `text-primary`
+   (`data-[variant=default]:[&_svg:not([class*='text-'])]:text-primary`), as the legacy menus
+   coloured theirs (the user menu's brand-blue icons), so the row menus and the user menu are not
+   all black; a destructive item's icon stays red and an icon with its own `text-*` class keeps it.
+   One class after `npx shadcn@4.21.0 add dropdown-menu --overwrite`.
 
 `eslint --fix` also reorders imports in generated files; that is not a patch to re-apply.
 
@@ -220,11 +234,19 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
 
 ## Composed components (`packages/ui/src/components/composed/`)
 
+- `ContentCard` (`content-card.tsx`) — every titled card (detail, form and list cards), as the
+  legacy `Card` with a `title` and romuten-v3's `ContentCard`: `title?` (semibold, `text-lg`, in
+  `text-primary`, so it stands apart from the values — the legacy `text-wb-900` titles; an icon or a
+  badge may sit beside the text), `description?`, `actions?` (the right of the header), the body
+  (`children`), `className?`, `contentClassName?`; no header without a title or actions. Features
+  never assemble `CardHeader` / `CardTitle` themselves (`AuthCard`, with the logo, is the one
+  exception); a card without a title (the user forms) stays a plain `Card` + `CardContent`.
+  Reference: `apps/web/features/branches/components/detail/branch-detail.tsx`.
 - `DataTable` (`data-table.tsx`) — a `Table` driven by `@tanstack/react-table` v9 (`useTable`,
-  `tableFeatures({ rowSortingFeature, rowSelectionFeature })`) on one `Card`, as the legacy lists:
-  the `CardHeader` shows `title` with the total in an outline `Badge` (`pagination.total`, or the
-  row count without pagination) and the `PaginationBar` on the right; the table sits in the
-  `CardContent`. It is the list's white surface on the page background, so a page never wraps it in
+  `tableFeatures({ rowSortingFeature, rowSelectionFeature })`) on one `ContentCard`, as the legacy
+  lists: the header shows `title` with the total in an outline `Badge` (`pagination.total`, or the
+  row count without pagination) and the `PaginationBar` on the right (`actions`); the table sits in
+  the body. It is the list's white surface on the page background, so a page never wraps it in
   another `Card`. Props: `title?`, `columns`, `data`, `isLoading` (renders `Skeleton` rows),
   `emptyMessage`, optional `pagination`, `sorting`, `rowSelection`, `getRowId`, `className`. Build
   columns with the typed helper `createDataTableColumns<TData>()` — `helper.columns([...])` over
@@ -418,19 +440,20 @@ const form = useForm<UpdateProfileInput>({
 ### Create and update pages
 
 The form is the page's flex column (`<form className="flex flex-1 flex-col gap-6">`): the fields in
-a `Card` centered in the content (`mx-auto w-full max-w-2xl`; `max-w-4xl` for two columns of fields
-and a `Stepper`, as the staff form), then a `StickyBar` holding `FormActions` from
-`@repo/ui/components/form` with the same `mx-auto w-full max-w-*`, so the buttons line up with the
-card's right edge — romuten-v3's stepped create page (`WorkerCreateContainer`: `mx-auto max-w-3xl`
-for the content and the bar's content). A form never sits against the left edge with empty space on
-the right. キャンセル (an outline `Button` rendering a `Link`) is its child; the submit button takes
-`submitLabel`, `pendingLabel`, `pending` (the mutation's) and `disabled` (nothing changed, nothing
-allowed), and shows a spinner with `aria-busy` while pending. Reference:
-`apps/web/features/users/components/form/user-update-form.tsx`. A small form among other content
-(`profile/profile-form.tsx`) keeps its button inline. Where the legacy screen created or edited in a
-modal, the form sits in a `ContentDialog` loaded with `next/dynamic`: the dialog owns the mutation,
-the toast and the list refresh, the two thin forms (create, update) share a fields component, and
-`FormActions` takes `className="*:flex-1"` for the legacy side-by-side キャンセル / submit
+a `Card` (a `ContentCard` when titled) centered in the content (`mx-auto w-full max-w-2xl`;
+`max-w-4xl` for two columns of fields and a `Stepper`, as the staff form), then a `StickyBar`
+holding `FormActions` from `@repo/ui/components/form` with the same `mx-auto w-full max-w-*`, so the
+buttons line up with the card's right edge — romuten-v3's stepped create page
+(`WorkerCreateContainer`: `mx-auto max-w-3xl` for the content and the bar's content). A form never
+sits against the left edge with empty space on the right. キャンセル (an outline `Button` rendering
+a `Link`) is its child; the submit button takes `submitLabel`, `pendingLabel`, `pending` (the
+mutation's) and `disabled` (nothing changed, nothing allowed), and shows a spinner with `aria-busy`
+while pending. Reference: `apps/web/features/users/components/form/user-update-form.tsx`. A small
+form among other content (`profile/profile-form.tsx`) keeps its button inline. Where the legacy
+screen created or edited in a modal, the form sits in a `ContentDialog` loaded with `next/dynamic`:
+the dialog owns the mutation, the toast and the list refresh, the two thin forms (create, update)
+share a fields component, and `FormActions` takes `className="*:flex-1"` for the legacy
+side-by-side キャンセル / submit
 (`apps/web/features/comment-templates/components/comment-template-dialog.tsx`).
 
 ### Shared props (`BaseFieldProps`, `form/types.ts`)
@@ -444,26 +467,26 @@ whole app in. Shared types: `SelectOption` (`{ value, label, disabled? }`), `Emp
 
 ### Fields (`packages/ui/src/components/form/`)
 
-| Field                | Stores                                                                                 | Extras                                                                                                                                                                                                                                                                                                                                                                      |
-| -------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TextField`          | `string`; cleared → `emptyAs` (`""` default, `null`, `undefined`)                      | `type` (`text`, `email`, `url`, `tel`, `search`), `placeholder`, `autoComplete`, `maxLength` (caps input, shows `n / max`). `onValueChange(text)` after each edit (a lookup as the user types, `AddressFields`); `format(text)` rewrites the text as typed and waits for an IME to finish (`formatPostCode`, `formatPhoneNumber` from `@repo/validation`). Not for numbers. |
-| `TextareaField`      | `string`; `emptyAs`                                                                    | `rows`, `placeholder`, `maxLength` counter                                                                                                                                                                                                                                                                                                                                  |
-| `PasswordField`      | `string`                                                                               | show/hide toggle, `autoComplete: "current-password" \| "new-password"`                                                                                                                                                                                                                                                                                                      |
-| `NumberField`        | `number`; cleared → `null` (default) or `undefined` (`emptyAs`)                        | `min`, `max`, `step`, `unit` suffix (`円`, `%`), `prefix` (`¥`), `inputMode: "numeric" \| "decimal"`; keeps the raw text while typing, so `z.number()` works without `coerce`                                                                                                                                                                                               |
-| `SelectField`        | `string`; `nullable` → `null`; `number` with `valueAs: "number"` (`null` when cleared) | wraps the standalone `Select`; `options`, `placeholder`. Short static lists. `pruneToOptions` (once the options are authoritative) clears a value they no longer offer, for a single dependent select (the 就業先部署 form's 地域 on エリア)                                                                                                                                |
-| `ComboboxField`      | `string`; `nullable` → `null`                                                          | searchable single select (Base UI Combobox); `options`, `placeholder`, `emptyMessage`; server search via `onSearch(query)` + `serverFiltered` (skips the client filter) + `loading`                                                                                                                                                                                         |
-| `MultiSelectField`   | `string[]`, or `number[]` with `valueAs: "number"`                                     | chips; `options`, `placeholder`, `emptyMessage`, `max`; same server-search props; `pruneToOptions` (once the options are authoritative) drops selected values they no longer offer, for dependent selects (`components/source/hierarchy-fields.tsx`); wraps `MultiOptionSelect`                                                                                             |
-| `CheckboxField`      | `boolean`                                                                              | consent style: box left, label and description right                                                                                                                                                                                                                                                                                                                        |
-| `SwitchField`        | `boolean`                                                                              | setting style: label and description left, switch right                                                                                                                                                                                                                                                                                                                     |
-| `CheckboxGroupField` | `string[]`                                                                             | `options`, `orientation: "vertical" \| "horizontal"`                                                                                                                                                                                                                                                                                                                        |
-| `RadioField`         | `string`                                                                               | `options`, `orientation`                                                                                                                                                                                                                                                                                                                                                    |
-| `DateField`          | `yyyy-MM-dd` (`valueAs: "iso-date"`, default) or `Date` (`"date"`)                     | popover + `Calendar`; `nullable` clear button, `min`, `max`, `disabledDays` (react-day-picker `Matcher`), `locale` (display, default `DEFAULT_LOCALE` from `lib/locale.ts`), `calendarLocale` (`import { ja } from "react-day-picker/locale"`)                                                                                                                              |
-| `DateTimeField`      | UTC ISO string (`valueAs: "iso"`, default) or `Date`                                   | date popover + `<input type="time">`; `minuteStep` (default 5), `defaultTime` (default `09:00`), same date props                                                                                                                                                                                                                                                            |
-| `DateRangeField`     | `DateRangeValue` = `{ from, to }` (`iso-date` or `Date`)                               | `numberOfMonths: 1 \| 2`, same date props                                                                                                                                                                                                                                                                                                                                   |
-| `FileField`          | `FileFieldValue[]` (always an array)                                                   | drop zone + list; `accept`, `multiple`, `maxSize` (bytes per file), `maxFiles`, `dropLabel`, `upload(file) => { id, url }` — uploads immediately and swaps the `File` for the reference; on failure the entry is removed and an error line shown                                                                                                                            |
-| `HiddenField`        | whatever is registered                                                                 | `control` + `name` only; keeps the value registered and posted with native submits                                                                                                                                                                                                                                                                                          |
-| `ReadOnlyField`      | — (display only)                                                                       | renders the value in an `<output>`; `format(value)`, `emptyText`                                                                                                                                                                                                                                                                                                            |
-| `ArrayField`         | `object[]`                                                                             | `useFieldArray` wrapper: `renderRow({ index, id, isFirst, isLast, remove })`, `newItem()`, `min`, `max`, `addLabel`, `sortable` (up/down buttons), `emptyMessage`, `hideLabel` (a card title already names the rows); array-level (`root`) errors render below the rows                                                                                                     |
+| Field                | Stores                                                                                 | Extras                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| -------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TextField`          | `string`; cleared → `emptyAs` (`""` default, `null`, `undefined`)                      | `type` (`text`, `email`, `url`, `tel`, `search`), `placeholder`, `autoComplete`, `maxLength` (caps input, shows `n / max`). `onValueChange(text)` after each edit (a lookup as the user types, `AddressFields`); `format(text)` rewrites the text as typed and waits for an IME to finish (`formatPostCode`, `formatPhoneNumber` from `@repo/validation`). Not for numbers.                                               |
+| `TextareaField`      | `string`; `emptyAs`                                                                    | `rows`, `placeholder`, `maxLength` counter                                                                                                                                                                                                                                                                                                                                                                                |
+| `PasswordField`      | `string`                                                                               | show/hide toggle, `autoComplete: "current-password" \| "new-password"`                                                                                                                                                                                                                                                                                                                                                    |
+| `NumberField`        | `number`; cleared → `null` (default) or `undefined` (`emptyAs`)                        | `min`, `max`, `step`, `unit` suffix (`円`, `%`), `prefix` (`¥`), `inputMode: "numeric" \| "decimal"`; keeps the raw text while typing, so `z.number()` works without `coerce`                                                                                                                                                                                                                                             |
+| `SelectField`        | `string`; `nullable` → `null`; `number` with `valueAs: "number"` (`null` when cleared) | wraps the standalone `Select`; `options`, `placeholder`. Short static lists. `pruneToOptions` (once the options are authoritative) clears a value they no longer offer, for a single dependent select (the 就業先部署 form's 地域 on エリア)                                                                                                                                                                              |
+| `ComboboxField`      | `string`; `nullable` → `null`                                                          | searchable single select (Base UI Combobox); `options`, `placeholder`, `emptyMessage`; server search via `onSearch(query)` + `serverFiltered` (skips the client filter) + `loading`                                                                                                                                                                                                                                       |
+| `MultiSelectField`   | `string[]`, or `number[]` with `valueAs: "number"`                                     | chips; `options`, `placeholder`, `emptyMessage`, `max`; same server-search props; `pruneToOptions` (once the options are authoritative) drops selected values they no longer offer, for dependent selects (`components/source/hierarchy-fields.tsx`); wraps `MultiOptionSelect`                                                                                                                                           |
+| `CheckboxField`      | `boolean`                                                                              | consent style: box left, label and description right                                                                                                                                                                                                                                                                                                                                                                      |
+| `SwitchField`        | `boolean`                                                                              | setting style: label and description left, switch right                                                                                                                                                                                                                                                                                                                                                                   |
+| `CheckboxGroupField` | `string[]`                                                                             | `options`, `orientation: "vertical" \| "horizontal"`                                                                                                                                                                                                                                                                                                                                                                      |
+| `RadioField`         | `string`                                                                               | `options`, `orientation`                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `DateField`          | `yyyy-MM-dd` (`valueAs: "iso-date"`, default) or `Date` (`"date"`)                     | popover + `FieldCalendar` (`field-calendar.tsx`, all three date fields: year and month dropdowns between `<<` `<` and `>` `>>` as the legacy `InputDatePicker`, fifty years ahead unless `max`); `nullable` clear button, `min`, `max`, `disabledDays` (react-day-picker `Matcher`), `locale` (display, default `DEFAULT_LOCALE` from `lib/locale.ts`), `calendarLocale` (`import { ja } from "react-day-picker/locale"`) |
+| `DateTimeField`      | UTC ISO string (`valueAs: "iso"`, default) or `Date`                                   | date popover + `<input type="time">`; `minuteStep` (default 5), `defaultTime` (default `09:00`), same date props                                                                                                                                                                                                                                                                                                          |
+| `DateRangeField`     | `DateRangeValue` = `{ from, to }` (`iso-date` or `Date`)                               | `numberOfMonths: 1 \| 2`, same date props                                                                                                                                                                                                                                                                                                                                                                                 |
+| `FileField`          | `FileFieldValue[]` (always an array)                                                   | drop zone + list; `accept`, `multiple`, `maxSize` (bytes per file), `maxFiles`, `dropLabel`, `upload(file) => { id, url }` — uploads immediately and swaps the `File` for the reference; on failure the entry is removed and an error line shown                                                                                                                                                                          |
+| `HiddenField`        | whatever is registered                                                                 | `control` + `name` only; keeps the value registered and posted with native submits                                                                                                                                                                                                                                                                                                                                        |
+| `ReadOnlyField`      | — (display only)                                                                       | renders the value in an `<output>`; `format(value)`, `emptyText`                                                                                                                                                                                                                                                                                                                                                          |
+| `ArrayField`         | `object[]`                                                                             | `useFieldArray` wrapper: `renderRow({ index, id, isFirst, isLast, remove })`, `newItem()`, `min`, `max`, `addLabel`, `sortable` (up/down buttons), `emptyMessage`, `hideLabel` (a card title already names the rows); array-level (`root`) errors render below the rows                                                                                                                                                   |
 
 Domain pickers live in the web app, not in `packages/ui`: a `ComboboxField` with `onSearch`,
 `serverFiltered` and `loading` over the rows a search returns (the first 20), storing the row's id.

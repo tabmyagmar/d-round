@@ -20,17 +20,17 @@ import type { ReactNode } from "react";
 
 import { Badge } from "../badge";
 import { Button } from "../button";
-import { Card, CardContent, CardHeader, CardTitle } from "../card";
 import { Checkbox } from "../checkbox";
 import { Skeleton } from "../skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../table";
 
+import { ContentCard } from "./content-card";
 import { PaginationBar } from "./pagination-bar";
 import type { PaginationBarLabels, PaginationBarProps } from "./pagination-bar";
 
 /**
- * Headless TanStack Table v9 + shadcn Table markup on one `Card`: the header carries the title with
- * the total and the `PaginationBar`, the table sits under it. Columns are declared with
+ * Headless TanStack Table v9 + shadcn Table markup on one `ContentCard`: the header carries the
+ * title with the total and the `PaginationBar`, the table sits under it. Columns are declared with
  * `createDataTableColumns<Row>()`; paging and sorting are server-side (the API returns
  * `PageResult` in the requested order), so the table renders the rows it is given as they come and
  * only reports page, sort and selection changes.
@@ -191,81 +191,79 @@ export const DataTable = <TData extends RowData>({
   const count = pagination?.total ?? data?.length;
 
   return (
-    <Card className={className}>
-      {title !== undefined || pagination ? (
-        <CardHeader className="flex flex-wrap items-center justify-between gap-3">
-          {title !== undefined ? (
-            <CardTitle className="flex items-center gap-2">
-              {title}
-              {count === undefined ? null : (
-                <Badge variant="outline" className="tabular-nums">
-                  {count}
-                </Badge>
-              )}
-            </CardTitle>
-          ) : null}
-          {pagination ? <PaginationBar {...pagination} /> : null}
-        </CardHeader>
-      ) : null}
-      <CardContent>
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((group) => (
-              <TableRow key={group.id}>
-                {group.headers.map((header) => {
-                  const direction = header.column.getIsSorted();
-                  return (
-                    <TableHead
-                      key={header.id}
-                      aria-sort={direction ? ARIA_SORT[direction] : undefined}
-                    >
-                      {header.isPlaceholder ? null : header.column.getCanSort() ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="-ml-2.5 h-8"
-                          onClick={header.column.getToggleSortingHandler()}
-                        >
-                          <table.FlexRender header={header} />
-                          <SortIcon direction={direction} />
-                        </Button>
-                      ) : (
+    <ContentCard
+      title={
+        title === undefined ? undefined : (
+          <>
+            {title}
+            {count === undefined ? null : (
+              <Badge variant="outline" className="tabular-nums">
+                {count}
+              </Badge>
+            )}
+          </>
+        )
+      }
+      actions={pagination ? <PaginationBar {...pagination} /> : undefined}
+      {...(className === undefined ? {} : { className })}
+    >
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((group) => (
+            <TableRow key={group.id}>
+              {group.headers.map((header) => {
+                const direction = header.column.getIsSorted();
+                return (
+                  <TableHead
+                    key={header.id}
+                    aria-sort={direction ? ARIA_SORT[direction] : undefined}
+                  >
+                    {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="-ml-2.5 h-8"
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
                         <table.FlexRender header={header} />
-                      )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {isLoading
-              ? Array.from({ length: SKELETON_ROWS }, (_, index) => (
-                  <TableRow key={`skeleton-${String(index)}`}>
-                    <TableCell colSpan={columnCount}>
-                      <Skeleton className="h-5 w-full" />
+                        <SortIcon direction={direction} />
+                      </Button>
+                    ) : (
+                      <table.FlexRender header={header} />
+                    )}
+                  </TableHead>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {isLoading
+            ? Array.from({ length: SKELETON_ROWS }, (_, index) => (
+                <TableRow key={`skeleton-${String(index)}`}>
+                  <TableCell colSpan={columnCount}>
+                    <Skeleton className="h-5 w-full" />
+                  </TableCell>
+                </TableRow>
+              ))
+            : rows.map((row) => (
+                <TableRow key={row.id} data-state={row.getIsSelected() ? "selected" : undefined}>
+                  {row.getAllCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      <table.FlexRender cell={cell} />
                     </TableCell>
-                  </TableRow>
-                ))
-              : rows.map((row) => (
-                  <TableRow key={row.id} data-state={row.getIsSelected() ? "selected" : undefined}>
-                    {row.getAllCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        <table.FlexRender cell={cell} />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-            {!isLoading && rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={columnCount} className="text-center text-muted-foreground">
-                  {emptyMessage}
-                </TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+                  ))}
+                </TableRow>
+              ))}
+          {!isLoading && rows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={columnCount} className="text-center text-muted-foreground">
+                {emptyMessage}
+              </TableCell>
+            </TableRow>
+          ) : null}
+        </TableBody>
+      </Table>
+    </ContentCard>
   );
 };

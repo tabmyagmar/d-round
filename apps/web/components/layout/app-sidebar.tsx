@@ -1,17 +1,18 @@
 "use client";
 
+import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 
 import { useAbility } from "@repo/permissions/react";
+import { Button } from "@repo/ui/components/button";
 import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
   SidebarRail,
-  SidebarTrigger,
   useSidebar,
 } from "@repo/ui/components/sidebar";
 
@@ -21,14 +22,15 @@ import { href, LANDING_ROUTE } from "@/config/routes";
 import { brand } from "@/lib/brand";
 
 /**
- * The sidebar: the logo linking to the landing page next to the trigger (on the icon rail only the
- * trigger remains), then the menu this ability may see. The user menu lives in the header.
+ * The sidebar: the logo linking to the landing page next to the collapse button (on the icon rail
+ * only the button remains), then the menu this ability may see. The user menu lives in the header.
  */
 export const AppSidebar = () => {
   const ability = useAbility();
   const pathname = usePathname();
   const groups = useMemo(() => visibleNavGroups(ability), [ability]);
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile, toggleSidebar, state, isMobile } = useSidebar();
+  const collapsed = state === "collapsed" && !isMobile;
 
   return (
     <Sidebar collapsible="icon">
@@ -49,8 +51,17 @@ export const AppSidebar = () => {
             className="h-9 w-auto dark:brightness-0 dark:invert"
           />
         </Link>
-        {/* Toggles the icon rail on desktop and closes the sheet on mobile. */}
-        <SidebarTrigger />
+        {/* « / » as the legacy DoubleLeft / DoubleRight: collapses to the icon rail and expands it
+            again on desktop, closes the sheet on mobile. */}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="text-primary hover:text-primary"
+          aria-label={collapsed ? "サイドバーを開く" : "サイドバーを閉じる"}
+          onClick={toggleSidebar}
+        >
+          {collapsed ? <ChevronsRight className="size-5" /> : <ChevronsLeft className="size-5" />}
+        </Button>
       </SidebarHeader>
       <SidebarContent>
         {groups.map((group) => (

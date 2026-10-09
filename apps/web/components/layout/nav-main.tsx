@@ -25,6 +25,14 @@ import { isNavItemActive } from "@/config/nav";
 import type { NavBranch, NavGroup, NavLeaf } from "@/config/nav";
 import { href } from "@/config/routes";
 
+/**
+ * A row as in the legacy sidebar: 40 px, the full width of the sidebar, its icon 20 px; the
+ * selected row is tinted with a 2 px bar in the brand colour on its right edge. The icon rail keeps
+ * its 32 px squares.
+ */
+const ROW =
+  "h-10 rounded-none px-4 data-active:border-r-2 data-active:border-sidebar-primary [&>svg:first-child]:size-5 group-data-[collapsible=icon]:p-1.5!";
+
 // Every link closes the mobile sheet; on desktop `setOpenMobile(false)` changes nothing.
 const NavLeafItem = ({ leaf, pathname }: { leaf: NavLeaf; pathname: string }) => {
   const { setOpenMobile } = useSidebar();
@@ -34,6 +42,7 @@ const NavLeafItem = ({ leaf, pathname }: { leaf: NavLeaf; pathname: string }) =>
         render={<Link href={href(leaf.route)} />}
         isActive={isNavItemActive(pathname, leaf)}
         tooltip={leaf.route.title}
+        className={ROW}
         onClick={() => {
           setOpenMobile(false);
         }}
@@ -79,18 +88,23 @@ const NavBranchItem = ({ branch, pathname }: { branch: NavBranch; pathname: stri
       className="group/collapsible"
       render={<SidebarMenuItem />}
     >
-      <CollapsibleTrigger render={<SidebarMenuButton tooltip={branch.title} isActive={active} />}>
+      <CollapsibleTrigger
+        render={<SidebarMenuButton tooltip={branch.title} isActive={active} className={ROW} />}
+      >
         <branch.icon />
         <span>{branch.title}</span>
         <ChevronRight className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <SidebarMenuSub>
+        {/* The legacy children: no line of their own, a 2 px bar on each row's left instead. */}
+        <SidebarMenuSub className="mx-0 ml-6 gap-0 border-l-0 px-0 py-1">
           {branch.children.map((child) => (
             <SidebarMenuSubItem key={child.route.path}>
               <SidebarMenuSubButton
                 render={<Link href={href(child.route)} />}
                 isActive={isNavItemActive(pathname, child)}
+                // Selected: the bar in the brand colour and the title bold, without the tint.
+                className="h-9 rounded-none border-l-2 border-sidebar-border pl-3 data-active:border-sidebar-primary data-active:bg-transparent data-active:font-bold"
                 onClick={() => {
                   sidebar.setOpenMobile(false);
                 }}
@@ -108,9 +122,10 @@ const NavBranchItem = ({ branch, pathname }: { branch: NavBranch; pathname: stri
 
 /** One nav group of the sidebar: optional label, then leaves and collapsible branches. */
 export const NavMain = ({ group, pathname }: { group: NavGroup; pathname: string }) => (
-  <SidebarGroup>
-    {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
-    <SidebarMenu>
+  // Rows reach the sidebar's edges (the legacy groups had no side padding); the icon rail keeps it.
+  <SidebarGroup className="px-0 group-data-[collapsible=icon]:px-2">
+    {group.label ? <SidebarGroupLabel className="px-4">{group.label}</SidebarGroupLabel> : null}
+    <SidebarMenu className="gap-1">
       {group.items.map((item) =>
         item.kind === "leaf" ? (
           <NavLeafItem key={item.route.path} leaf={item} pathname={pathname} />

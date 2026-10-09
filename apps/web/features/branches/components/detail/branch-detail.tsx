@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/card";
+import { ContentCard } from "@repo/ui/components/composed/content-card";
 import { DescriptionList } from "@repo/ui/components/composed/description-list";
 
 import { addressLineOf, AREA_LABELS, postCodeLabel } from "@/components/source/source-labels";
@@ -17,74 +17,54 @@ const THREE_PAIRS =
  */
 export const BranchDetail = ({ branch }: { branch: BranchDetailRow }) => (
   <div className="flex flex-col gap-4">
-    <Card>
-      <CardHeader>
-        <CardTitle>就業先部署情報</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <DescriptionList
-          className={THREE_PAIRS}
-          items={[
-            { label: "クライアント名", value: branch.client.name },
-            { label: "就業先番号", value: branch.number },
-            { label: "就業先名", value: branch.name },
-            { label: "就業先名（カタカナ）", value: branch.nameKana },
-            { label: "エリア", value: AREA_LABELS[branch.area] },
-            { label: "地域", value: branch.region.name },
-            { label: "担当者", value: chargerNamesOf(branch.chargers) },
-          ]}
-        />
-      </CardContent>
-    </Card>
+    <ContentCard title="就業先部署情報">
+      <DescriptionList
+        className={THREE_PAIRS}
+        items={[
+          { label: "クライアント名", value: branch.client.name },
+          { label: "就業先番号", value: branch.number },
+          { label: "就業先名", value: branch.name },
+          { label: "就業先名（カタカナ）", value: branch.nameKana },
+          { label: "エリア", value: AREA_LABELS[branch.area] },
+          { label: "地域", value: branch.region.name },
+          { label: "担当者", value: chargerNamesOf(branch.chargers) },
+        ]}
+      />
+    </ContentCard>
 
-    <Card>
-      <CardHeader>
-        <CardTitle>就業先部署・住所情報</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <DescriptionList
-          className={THREE_PAIRS}
-          items={[
-            { label: "部署番号", value: branch.departmentNumber },
-            { label: "部署名", value: branch.departmentName },
-            { label: "部署名（カタカナ）", value: branch.departmentNameKana },
-            {
-              label: "郵便番号",
-              value: branch.address ? postCodeLabel(branch.address.postCode) : null,
-            },
-            { label: "住所", value: addressLineOf(branch.address) },
-            { label: "FAX", value: branch.departmentFax },
-          ]}
-        />
-      </CardContent>
-    </Card>
+    <ContentCard title="就業先部署・住所情報">
+      <DescriptionList
+        className={THREE_PAIRS}
+        items={[
+          { label: "部署番号", value: branch.departmentNumber },
+          { label: "部署名", value: branch.departmentName },
+          { label: "部署名（カタカナ）", value: branch.departmentNameKana },
+          {
+            label: "郵便番号",
+            value: branch.address ? postCodeLabel(branch.address.postCode) : null,
+          },
+          { label: "住所", value: addressLineOf(branch.address) },
+          { label: "FAX", value: branch.departmentFax },
+        ]}
+      />
+    </ContentCard>
 
-    <Card>
-      <CardHeader>
-        <CardTitle>連絡担当者情報</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <DescriptionList
-          className={THREE_PAIRS}
-          items={[
-            { label: "姓", value: branch.contactLastName },
-            { label: "名", value: branch.contactFirstName },
-            { label: "役職", value: POSITION_LABELS[branch.contactPosition] },
-            { label: "セイ", value: branch.contactLastNameKana },
-            { label: "メイ", value: branch.contactFirstNameKana },
-            { label: "メールアドレス", value: branch.contactEmail },
-          ]}
-        />
-      </CardContent>
-    </Card>
+    <ContentCard title="連絡担当者情報">
+      <DescriptionList
+        className={THREE_PAIRS}
+        items={[
+          { label: "姓", value: branch.contactLastName },
+          { label: "名", value: branch.contactFirstName },
+          { label: "役職", value: POSITION_LABELS[branch.contactPosition] },
+          { label: "セイ", value: branch.contactLastNameKana },
+          { label: "メイ", value: branch.contactFirstNameKana },
+          { label: "メールアドレス", value: branch.contactEmail },
+        ]}
+      />
+    </ContentCard>
 
-    <Card>
-      <CardHeader>
-        <CardTitle>メモ</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm break-words whitespace-pre-wrap">{branch.memo ?? "特に無し"}</p>
-      </CardContent>
-    </Card>
+    <ContentCard title="メモ">
+      <p className="text-sm break-words whitespace-pre-wrap">{branch.memo ?? "特に無し"}</p>
+    </ContentCard>
   </div>
 );

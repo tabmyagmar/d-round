@@ -5,7 +5,7 @@ import { useController, useFieldArray } from "react-hook-form";
 import type { Control } from "react-hook-form";
 
 import { Button } from "@repo/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/card";
+import { ContentCard } from "@repo/ui/components/composed/content-card";
 import { TextareaField } from "@repo/ui/components/form";
 import { STAFF_LIST_MAX } from "@repo/validation";
 import type { StaffFormValues } from "@repo/validation";
@@ -86,44 +86,39 @@ export type StaffMemoFieldsProps = {
 export const StaffMemoFields = ({ control, templates }: StaffMemoFieldsProps) => {
   const { fields, append, remove } = useFieldArray({ control, name: "memos" });
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>メモ</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <ol className="flex flex-col gap-3">
-          {fields.map((memo, index) => (
-            <MemoRow
-              key={memo.id}
-              control={control}
-              index={index}
-              label={`${String(index + 1)}. ${STAFF_MEMO_TYPE_LABELS[memo.memoType]}`}
-              templates={templates}
-              {...(memo.memoType === "CUSTOM"
-                ? {
-                    onRemove: () => {
-                      remove(index);
-                    },
-                  }
-                : {})}
-            />
-          ))}
-        </ol>
-        <div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={fields.length >= STAFF_LIST_MAX}
-            onClick={() => {
-              append({ memoType: "CUSTOM", content: "" });
-            }}
-          >
-            <Plus />
-            メモを追加
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <ContentCard title="メモ" contentClassName="flex flex-col gap-3">
+      <ol className="flex flex-col gap-3">
+        {fields.map((memo, index) => (
+          <MemoRow
+            key={memo.id}
+            control={control}
+            index={index}
+            label={`${String(index + 1)}. ${STAFF_MEMO_TYPE_LABELS[memo.memoType]}`}
+            templates={templates}
+            {...(memo.memoType === "CUSTOM"
+              ? {
+                  onRemove: () => {
+                    remove(index);
+                  },
+                }
+              : {})}
+          />
+        ))}
+      </ol>
+      <div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={fields.length >= STAFF_LIST_MAX}
+          onClick={() => {
+            append({ memoType: "CUSTOM", content: "" });
+          }}
+        >
+          <Plus />
+          メモを追加
+        </Button>
+      </div>
+    </ContentCard>
   );
 };

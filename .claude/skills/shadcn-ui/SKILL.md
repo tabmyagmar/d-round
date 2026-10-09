@@ -50,7 +50,7 @@ Smart merge, never a raw download from GitHub:
 
 1. `npx shadcn@4.21.0 add <component> --dry-run` lists the files that would change.
 2. `npx shadcn@4.21.0 add <component> --diff <file>` shows upstream against local.
-3. No local changes: overwrite. Local changes (the `sonner.tsx` and `calendar.tsx` patches in
+3. No local changes: overwrite. Local changes (listed under "Known local patches" in
    `.claude/rules/ui.md`): apply the upstream edits by hand, or `--overwrite` and re-apply the
    patch.
 4. `--overwrite` only with the user's explicit approval.
@@ -153,15 +153,15 @@ Copied from the `shadcn-ui/ui` repository, `skills/shadcn/` (2026-10-05), format
 Prettier, otherwise unchanged. Read the file that matches the task. Where a file disagrees with this
 skill or `.claude/rules/ui.md`, the project wins.
 
-| File                     | Covers                                                                                                                                             | Project deviation                             |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| `rules/styling.md`       | semantic colours, variants, `className` for layout, `gap-*` not `space-*`, `size-*`, `truncate`, `cn()`, no manual `z-index`                       | none                                          |
-| `rules/composition.md`   | items inside their group, Dialog / Sheet need a Title, full Card composition, Button loading via `Spinner`, `Empty`, `Alert`, `Separator`, `Badge` | toast: `sonner`, not the `toast` component    |
-| `rules/forms.md`         | `FieldGroup` + `Field`, `InputGroup`, `ToggleGroup`, `FieldSet`, `data-invalid` / `aria-invalid`                                                   | `apps/web` forms use the bound fields (above) |
-| `rules/icons.md`         | `data-icon="inline-start"` / `"inline-end"`, no size classes on icons, icons passed as objects                                                     | none                                          |
-| `rules/base-vs-radix.md` | `render` vs `asChild`, Select `items`, ToggleGroup, Slider, Accordion                                                                              | this project is `base`                        |
-| `rules/chat.md`          | `MessageScroller`, `Message`, `Bubble`, `Attachment`, `Marker`                                                                                     | not installed; add via the CLI first          |
-| `customization.md`       | CSS variables, dark mode, custom colours, radius, extending components, checking for updates                                                       | none                                          |
+| File                     | Covers                                                                                                                                             | Project deviation                                                                                                                                          |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rules/styling.md`       | semantic colours, variants, `className` for layout, `gap-*` not `space-*`, `size-*`, `truncate`, `cn()`, no manual `z-index`                       | none                                                                                                                                                       |
+| `rules/composition.md`   | items inside their group, Dialog / Sheet need a Title, full Card composition, Button loading via `Spinner`, `Empty`, `Alert`, `Separator`, `Badge` | toast: `sonner`, not the `toast` component; a titled card is a `ContentCard` (`.claude/rules/ui.md`), not a hand-built `Card` / `CardHeader` / `CardTitle` |
+| `rules/forms.md`         | `FieldGroup` + `Field`, `InputGroup`, `ToggleGroup`, `FieldSet`, `data-invalid` / `aria-invalid`                                                   | `apps/web` forms use the bound fields (above)                                                                                                              |
+| `rules/icons.md`         | `data-icon="inline-start"` / `"inline-end"`, no size classes on icons, icons passed as objects                                                     | none                                                                                                                                                       |
+| `rules/base-vs-radix.md` | `render` vs `asChild`, Select `items`, ToggleGroup, Slider, Accordion                                                                              | this project is `base`                                                                                                                                     |
+| `rules/chat.md`          | `MessageScroller`, `Message`, `Bubble`, `Attachment`, `Marker`                                                                                     | not installed; add via the CLI first                                                                                                                       |
+| `customization.md`       | CSS variables, dark mode, custom colours, radius, extending components, checking for updates                                                       | none                                                                                                                                                       |
 
 Every `npx shadcn@latest` in those files means `npx shadcn@4.21.0` run from `apps/web`.
 

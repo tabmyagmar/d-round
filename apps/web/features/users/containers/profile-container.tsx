@@ -3,13 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/card";
+import { Card, CardContent } from "@repo/ui/components/card";
+import { ContentCard } from "@repo/ui/components/composed/content-card";
 import { Skeleton } from "@repo/ui/components/skeleton";
 
 import { PasswordChangeForm } from "@/features/users/components/profile/password-change-form";
@@ -47,15 +42,12 @@ export const ProfileContainer = () => {
           />
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>パスワード変更</CardTitle>
-          <CardDescription>変更すると、この端末以外のログインはすべて終了します。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <PasswordChangeForm />
-        </CardContent>
-      </Card>
+      <ContentCard
+        title="パスワード変更"
+        description="変更すると、この端末以外のログインはすべて終了します。"
+      >
+        <PasswordChangeForm />
+      </ContentCard>
     </div>
   );
 };
