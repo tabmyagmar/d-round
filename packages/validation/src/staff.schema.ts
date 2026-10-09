@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { dayjs, ISO_DAY, todayIsoDay } from "@repo/dayjs";
 
-import { ATTACHMENT_RULES } from "./attachment.schema";
+import { ATTACHMENT_RULES, attachmentValueSchema } from "./attachment.schema";
 import { idSchema, paginationSchema, requiredText } from "./common.schema";
 import { phoneSchema } from "./phone.schema";
 import {
@@ -148,6 +148,8 @@ export const staffMemoSchema = z.object({
   content: z.string().max(2000, { error: "メモは2000文字以内で入力してください" }),
 });
 
+const RESUMES_TOO_MANY = `履歴書は${String(ATTACHMENT_RULES.STAFF_RESUME.maxFiles)}件までです`;
+
 /** スタッフ追加: every field of the legacy form, the 履歴書 as uploaded attachment ids. */
 export const createStaffSchema = z.object({
   employeeType: employeeTypeSchema,
@@ -189,16 +191,22 @@ export const createStaffSchema = z.object({
    */
   resumeIds: z
     .array(idSchema)
-    .max(ATTACHMENT_RULES.STAFF_RESUME.maxFiles, {
-      error: `履歴書は${String(ATTACHMENT_RULES.STAFF_RESUME.maxFiles)}件までです`,
-    })
+    .max(ATTACHMENT_RULES.STAFF_RESUME.maxFiles, { error: RESUMES_TOO_MANY })
     .transform((ids) => [...new Set(ids)])
     .optional(),
 });
 export type CreateStaffInput = z.output<typeof createStaffSchema>;
 
-/** The staff form (create and edit): the API's fields with the address as `AddressFields` edits it. */
-export const staffFormSchema = createStaffSchema.extend({ address: addressFormSchema });
+/**
+ * The staff form (create and edit): the API's fields with the address as `AddressFields` edits it
+ * and the 履歴書 as `FileField` holds them (`toStaffInput` sends their ids).
+ */
+export const staffFormSchema = createStaffSchema.omit({ resumeIds: true }).extend({
+  address: addressFormSchema,
+  resumes: z
+    .array(attachmentValueSchema)
+    .max(ATTACHMENT_RULES.STAFF_RESUME.maxFiles, { error: RESUMES_TOO_MANY }),
+});
 export type StaffFormValues = z.input<typeof staffFormSchema>;
 
 /** スタッフ情報編集: the whole form again (the lists are replaced, ADR 0008). */

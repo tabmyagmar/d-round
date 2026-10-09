@@ -149,17 +149,39 @@ describe("createStaffSchema list bounds", () => {
 });
 
 describe("staffFormSchema", () => {
-  it("takes the address as the form edits it and refuses one whose post code was not found", () => {
-    const address = { ...STAFF.address, pref: "東京都", cityTown: "新宿区新宿" };
+  const address = { ...STAFF.address, pref: "東京都", cityTown: "新宿区新宿" };
+  const resume = {
+    id: "0199a1b2-0000-7000-8000-000000000001",
+    name: "履歴書.pdf",
+    size: 1024,
+    type: "application/pdf",
+  };
 
-    expect(staffFormSchema.parse({ ...STAFF, address }).address).toEqual({
+  it("holds the 履歴書 as uploaded file values, up to three, never one still uploading", () => {
+    const { id: _id, ...uploading } = resume;
+
+    expect(staffFormSchema.parse({ ...STAFF, address, resumes: [resume] }).resumes).toEqual([
+      resume,
+    ]);
+    expect(
+      firstIssue(staffFormSchema.safeParse({ ...STAFF, address, resumes: [uploading] }))?.message,
+    ).toBe("アップロードが完了するまでお待ちください");
+    expect(
+      firstIssue(staffFormSchema.safeParse({ ...STAFF, address, resumes: Array(4).fill(resume) })),
+    ).toEqual({ path: "resumes", message: "履歴書は3件までです" });
+  });
+
+  it("takes the address as the form edits it and refuses one whose post code was not found", () => {
+    expect(staffFormSchema.parse({ ...STAFF, address, resumes: [] }).address).toEqual({
       postCode: "1600022",
       address1: "新宿1-2-3",
       pref: "東京都",
       cityTown: "新宿区新宿",
     });
     expect(
-      firstIssue(staffFormSchema.safeParse({ ...STAFF, address: { ...address, pref: "" } })),
+      firstIssue(
+        staffFormSchema.safeParse({ ...STAFF, address: { ...address, pref: "" }, resumes: [] }),
+      ),
     ).toEqual({
       path: "address.pref",
       message: "郵便番号を入力してください",

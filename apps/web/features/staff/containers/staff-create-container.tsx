@@ -11,6 +11,7 @@ import { useSourceHierarchy } from "@/components/source/use-source-hierarchy";
 import { href, routes } from "@/config/routes";
 import { StaffForm } from "@/features/staff/components/form/staff-form";
 import { emptyStaffValues } from "@/features/staff/utils/staff-form-input";
+import { useAttachmentUpload } from "@/hooks/use-attachment-upload";
 import { useTRPC } from "@/lib/trpc/react";
 
 /**
@@ -20,6 +21,7 @@ import { useTRPC } from "@/lib/trpc/react";
  */
 export const StaffCreateContainer = () => {
   const trpc = useTRPC();
+  const uploadResume = useAttachmentUpload("STAFF_RESUME");
   const queryClient = useQueryClient();
   const router = useRouter();
   const hierarchy = useSourceHierarchy();
@@ -49,6 +51,7 @@ export const StaffCreateContainer = () => {
       findChargers={(regionCodes) =>
         queryClient.query(trpc.user.chargerOptions.queryOptions({ regionCodes }))
       }
+      uploadResume={uploadResume}
       findAddress={(postCode) =>
         queryClient.query(trpc.source.addressByPostCode.queryOptions({ postCode }))
       }

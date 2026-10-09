@@ -10,6 +10,7 @@ import { FieldGroup } from "@repo/ui/components/field";
 import {
   ArrayField,
   DateField,
+  FileField,
   MultiSelectField,
   NumberField,
   RadioField,
@@ -18,7 +19,13 @@ import {
   TextField,
 } from "@repo/ui/components/form";
 import { ja } from "@repo/ui/lib/calendar-locale";
-import { ageOf, formatPhoneNumber, STAFF_LIST_MAX } from "@repo/validation";
+import {
+  ageOf,
+  ATTACHMENT_RULES,
+  attachmentAccept,
+  formatPhoneNumber,
+  STAFF_LIST_MAX,
+} from "@repo/validation";
 import type { StaffFormValues } from "@repo/validation";
 
 import { NameFields } from "@/components/name-fields";
@@ -44,12 +51,14 @@ export type StaffBasicStepProps = {
   chargersReady: boolean;
   chargersLoading: boolean;
   findAddress: (postCode: string) => Promise<AddressParts | null>;
+  /** Uploads a picked 履歴書 (`useAttachmentUpload("STAFF_RESUME")` in the container). */
+  uploadResume: (file: File) => Promise<{ id: string }>;
 };
 
 /**
  * Step 1, the legacy StaffFormStep1's cards and order: the staff (雇用区分 … 役職; エリア → 地域 →
- * 都道府県 → 担当者 cascade), 住所・連絡先情報登録 and 在籍情報. 年齢 follows 生年月日. The legacy
- * file upload comes with its own ticket.
+ * 都道府県 → 担当者 cascade), 住所・連絡先情報登録, 在籍情報 and ファイルをアップロード (the 履歴書,
+ * up to three PDFs, uploaded when picked). 年齢 follows 生年月日.
  */
 export const StaffBasicStep = ({
   control,
@@ -59,6 +68,7 @@ export const StaffBasicStep = ({
   chargersReady,
   chargersLoading,
   findAddress,
+  uploadResume,
 }: StaffBasicStepProps) => {
   // A birthday lies in the past; today (in Japan) is read once, not on every render.
   const [today] = useState(todayIsoDay);
@@ -241,6 +251,21 @@ export const StaffBasicStep = ({
             </div>
           )}
         />
+      </ContentCard>
+
+      <ContentCard title="ファイルをアップロード">
+        <FieldGroup>
+          <FileField
+            control={control}
+            name="resumes"
+            label="履歴書"
+            accept={attachmentAccept("STAFF_RESUME")}
+            multiple
+            maxFiles={ATTACHMENT_RULES.STAFF_RESUME.maxFiles}
+            maxSize={ATTACHMENT_RULES.STAFF_RESUME.maxBytes}
+            upload={uploadResume}
+          />
+        </FieldGroup>
       </ContentCard>
     </>
   );

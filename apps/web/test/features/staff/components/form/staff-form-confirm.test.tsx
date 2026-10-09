@@ -55,6 +55,21 @@ const VALUES: StaffFormValues = {
     { memoType: "STAFF_MEMO", content: "週3日勤務希望" },
     { memoType: "CUSTOM", content: "" },
   ],
+  resumes: [
+    {
+      id: "0199a1b2-0000-7000-8000-000000000001",
+      name: "履歴書_2026.pdf",
+      size: 1024,
+      type: "application/pdf",
+      url: "https://storage.example/read",
+    },
+    {
+      id: "0199a1b2-0000-7000-8000-000000000002",
+      name: "職務経歴書.pdf",
+      size: 2048,
+      type: "application/pdf",
+    },
+  ],
 };
 
 /** The value next to a label. */
@@ -99,5 +114,31 @@ describe("StaffFormConfirm", () => {
     expect(valueOf("1. 続柄")).toBe("夫");
     expect(valueOf("1. スタッフメモ")).toBe("週3日勤務希望");
     expect(valueOf("2. メモ")).toBe("—");
+  });
+
+  it("lists the 履歴書 last, a stored file as a link, and 未アップロード without any", () => {
+    const { rerender } = render(
+      <StaffFormConfirm
+        title="スタッフ情報登録"
+        values={VALUES}
+        hierarchy={HIERARCHY}
+        chargers={[]}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "履歴書_2026.pdf" }).getAttribute("href")).toBe(
+      "https://storage.example/read",
+    );
+    expect(screen.getByText("職務経歴書.pdf").closest("a")).toBeNull();
+
+    rerender(
+      <StaffFormConfirm
+        title="スタッフ情報登録"
+        values={{ ...VALUES, resumes: [] }}
+        hierarchy={HIERARCHY}
+        chargers={[]}
+      />,
+    );
+    expect(screen.getByText("未アップロード")).toBeDefined();
   });
 });

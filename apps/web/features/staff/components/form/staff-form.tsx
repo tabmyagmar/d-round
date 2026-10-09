@@ -39,6 +39,8 @@ export type StaffFormProps = {
   /** An edited staff's current 担当者: kept on offer whatever the regions, never dropped unasked. */
   storedChargers?: readonly ChargerChoice[];
   findAddress: (postCode: string) => Promise<AddressParts | null>;
+  /** Uploads a picked 履歴書 (`useAttachmentUpload("STAFF_RESUME")` in the container). */
+  uploadResume: (file: File) => Promise<{ id: string }>;
   /** Asked before step 2 (legacy useValidateEntityNumber); a taken number stays on the field. */
   isEmployeeNumberFree: (employeeNumber: number) => Promise<boolean>;
   templates: readonly MemoTemplate[];
@@ -63,6 +65,7 @@ export const StaffForm = ({
   findChargers,
   storedChargers = [],
   findAddress,
+  uploadResume,
   isEmployeeNumberFree,
   templates,
   cancelHref,
@@ -147,6 +150,7 @@ export const StaffForm = ({
             chargersReady={regionCodes.length === 0 || chargers.isSuccess}
             chargersLoading={chargers.isFetching}
             findAddress={findAddress}
+            uploadResume={uploadResume}
           />
         ) : null}
         {stepper.current === 1 ? (

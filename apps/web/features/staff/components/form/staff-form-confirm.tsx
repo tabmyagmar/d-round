@@ -6,6 +6,7 @@ import type { StaffFormValues } from "@repo/validation";
 
 import type { SourceHierarchy } from "@/components/source/hierarchy-options";
 import { areaNamesOf, postCodeLabel } from "@/components/source/source-labels";
+import { StaffResumeList } from "@/features/staff/components/staff-resume-list";
 import type { ChargerChoice } from "@/features/staff/types";
 import {
   EMPLOYEE_TYPE_LABELS,
@@ -38,8 +39,8 @@ export type StaffFormConfirmProps = {
 
 /**
  * 確認, the legacy StaffFormConfirm: every value of steps 1 and 2 in its card, read-only, before
- * 追加 / 保存; repeated rows are numbered (1. 入社日). The legacy file card comes with the
- * file-upload ticket.
+ * 追加 / 保存; repeated rows are numbered (1. 入社日); the 履歴書 last, as the legacy
+ * ファイルをアップロード card.
  */
 export const StaffFormConfirm = ({ title, values, hierarchy, chargers }: StaffFormConfirmProps) => (
   <>
@@ -134,6 +135,10 @@ export const StaffFormConfirm = ({ title, values, hierarchy, chargers }: StaffFo
           value: memo.content ? <span className="whitespace-pre-wrap">{memo.content}</span> : null,
         }))}
       />
+    </ContentCard>
+
+    <ContentCard title="ファイルをアップロード">
+      <StaffResumeList files={values.resumes} />
     </ContentCard>
   </>
 );

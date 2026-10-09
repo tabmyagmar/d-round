@@ -5,6 +5,7 @@ import { FIXED_MEMO_TYPES, formatPostCode } from "@repo/validation";
 import type { CreateStaffInput, StaffFormValues } from "@repo/validation";
 
 import type { StaffDetail } from "@/features/staff/types";
+import { toAttachmentValue } from "@/lib/attachments";
 
 type StaffMemoValue = StaffFormValues["memos"][number];
 
@@ -45,6 +46,7 @@ export const emptyStaffValues = (): DefaultValues<StaffFormValues> => ({
   jobHistories: [newJobHistory()],
   familyMembers: [],
   memos: memosOf([]),
+  resumes: [],
 });
 
 /**
@@ -93,14 +95,20 @@ export const staffValuesOf = (staff: StaffDetail): DefaultValues<StaffFormValues
     birthday: member.birthday ? toIsoDay(member.birthday) : null,
   })),
   memos: memosOf(staff.memos),
+  resumes: staff.resumes.map(toAttachmentValue),
 });
 
-/** The form's values as `staff.create` / `staff.update` input: no address display parts, no empty memos. */
+/**
+ * The form's values as `staff.create` / `staff.update` input: no address display parts, no empty
+ * memos, the 履歴書 as their attachment ids (always the whole set: the API keeps the ones it has).
+ */
 export const toStaffInput = (values: StaffFormValues): CreateStaffInput => {
+  const { resumes, ...fields } = values;
   const { pref: _pref, cityTown: _cityTown, ...address } = values.address;
   return {
-    ...values,
+    ...fields,
     address,
     memos: values.memos.filter((memo) => memo.content.trim() !== ""),
+    resumeIds: resumes.map((resume) => resume.id),
   };
 };

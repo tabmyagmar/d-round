@@ -49,6 +49,21 @@ describe("staffValuesOf", () => {
     });
   });
 
+  it("starts from the stored 履歴書 as file values", () => {
+    const resume = {
+      id: "0199a1b2-0000-7000-8000-000000000001",
+      fileName: "履歴書.pdf",
+      contentType: "application/pdf",
+      size: 1024,
+      url: "https://storage.example/read",
+    };
+
+    expect(staffValuesOf(staffDetail({ resumes: [resume] })).resumes).toEqual([
+      { id: resume.id, name: "履歴書.pdf", size: 1024, type: "application/pdf", url: resume.url },
+    ]);
+    expect(emptyStaffValues().resumes).toEqual([]);
+  });
+
   it("puts the stored memos into the five slots and the added ones after them", () => {
     const staff = staffDetail();
     const memo = (memoType: StaffFormValues["memos"][number]["memoType"], content: string) => ({
@@ -103,9 +118,19 @@ describe("toStaffInput", () => {
         { memoType: "STAFF_MEMO", content: "週3日" },
         { memoType: "ENTRY_EXIT", content: "  " },
       ],
+      resumes: [
+        {
+          id: "0199a1b2-0000-7000-8000-000000000001",
+          name: "a.pdf",
+          size: 1,
+          type: "application/pdf",
+        },
+      ],
     } as StaffFormValues);
 
     expect(input.address).toEqual({ postCode: "1600022", address1: "1-2-3" });
     expect(input.memos).toEqual([{ memoType: "STAFF_MEMO", content: "週3日" }]);
+    expect(input.resumeIds).toEqual(["0199a1b2-0000-7000-8000-000000000001"]);
+    expect(input).not.toHaveProperty("resumes");
   });
 });
