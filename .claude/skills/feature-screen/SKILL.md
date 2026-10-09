@@ -53,7 +53,7 @@ inside its `RowSelectionProvider` (`containers/staffs-container.tsx`).
 ## 3. Detail screen
 
 The container (`containers/user-detail-container.tsx`) owns the queries and the dialogs; the
-components under `components/detail/` are presentational: `DescriptionList` inside `Card`s, a
+components under `components/detail/` are presentational: `DescriptionList` inside `ContentCard`s, a
 toolbar with the actions the ability allows. A card some roles never see loads with `next/dynamic`.
 A long legacy detail keeps its cards as components (`features/staff/components/detail/`); a card
 showing another feature's data comes from that feature as a container the page hands in (the user

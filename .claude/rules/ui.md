@@ -220,11 +220,19 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
 
 ## Composed components (`packages/ui/src/components/composed/`)
 
+- `ContentCard` (`content-card.tsx`) — every titled card (detail, form and list cards), as the
+  legacy `Card` with a `title` and romuten-v3's `ContentCard`: `title?` (semibold, `text-lg`, in
+  `text-primary`, so it stands apart from the values — the legacy `text-wb-900` titles; an icon or a
+  badge may sit beside the text), `description?`, `actions?` (the right of the header), the body
+  (`children`), `className?`, `contentClassName?`; no header without a title or actions. Features
+  never assemble `CardHeader` / `CardTitle` themselves (`AuthCard`, with the logo, is the one
+  exception); a card without a title (the user forms) stays a plain `Card` + `CardContent`.
+  Reference: `apps/web/features/branches/components/detail/branch-detail.tsx`.
 - `DataTable` (`data-table.tsx`) — a `Table` driven by `@tanstack/react-table` v9 (`useTable`,
-  `tableFeatures({ rowSortingFeature, rowSelectionFeature })`) on one `Card`, as the legacy lists:
-  the `CardHeader` shows `title` with the total in an outline `Badge` (`pagination.total`, or the
-  row count without pagination) and the `PaginationBar` on the right; the table sits in the
-  `CardContent`. It is the list's white surface on the page background, so a page never wraps it in
+  `tableFeatures({ rowSortingFeature, rowSelectionFeature })`) on one `ContentCard`, as the legacy
+  lists: the header shows `title` with the total in an outline `Badge` (`pagination.total`, or the
+  row count without pagination) and the `PaginationBar` on the right (`actions`); the table sits in
+  the body. It is the list's white surface on the page background, so a page never wraps it in
   another `Card`. Props: `title?`, `columns`, `data`, `isLoading` (renders `Skeleton` rows),
   `emptyMessage`, optional `pagination`, `sorting`, `rowSelection`, `getRowId`, `className`. Build
   columns with the typed helper `createDataTableColumns<TData>()` — `helper.columns([...])` over
@@ -418,19 +426,20 @@ const form = useForm<UpdateProfileInput>({
 ### Create and update pages
 
 The form is the page's flex column (`<form className="flex flex-1 flex-col gap-6">`): the fields in
-a `Card` centered in the content (`mx-auto w-full max-w-2xl`; `max-w-4xl` for two columns of fields
-and a `Stepper`, as the staff form), then a `StickyBar` holding `FormActions` from
-`@repo/ui/components/form` with the same `mx-auto w-full max-w-*`, so the buttons line up with the
-card's right edge — romuten-v3's stepped create page (`WorkerCreateContainer`: `mx-auto max-w-3xl`
-for the content and the bar's content). A form never sits against the left edge with empty space on
-the right. キャンセル (an outline `Button` rendering a `Link`) is its child; the submit button takes
-`submitLabel`, `pendingLabel`, `pending` (the mutation's) and `disabled` (nothing changed, nothing
-allowed), and shows a spinner with `aria-busy` while pending. Reference:
-`apps/web/features/users/components/form/user-update-form.tsx`. A small form among other content
-(`profile/profile-form.tsx`) keeps its button inline. Where the legacy screen created or edited in a
-modal, the form sits in a `ContentDialog` loaded with `next/dynamic`: the dialog owns the mutation,
-the toast and the list refresh, the two thin forms (create, update) share a fields component, and
-`FormActions` takes `className="*:flex-1"` for the legacy side-by-side キャンセル / submit
+a `Card` (a `ContentCard` when titled) centered in the content (`mx-auto w-full max-w-2xl`;
+`max-w-4xl` for two columns of fields and a `Stepper`, as the staff form), then a `StickyBar`
+holding `FormActions` from `@repo/ui/components/form` with the same `mx-auto w-full max-w-*`, so the
+buttons line up with the card's right edge — romuten-v3's stepped create page
+(`WorkerCreateContainer`: `mx-auto max-w-3xl` for the content and the bar's content). A form never
+sits against the left edge with empty space on the right. キャンセル (an outline `Button` rendering
+a `Link`) is its child; the submit button takes `submitLabel`, `pendingLabel`, `pending` (the
+mutation's) and `disabled` (nothing changed, nothing allowed), and shows a spinner with `aria-busy`
+while pending. Reference: `apps/web/features/users/components/form/user-update-form.tsx`. A small
+form among other content (`profile/profile-form.tsx`) keeps its button inline. Where the legacy
+screen created or edited in a modal, the form sits in a `ContentDialog` loaded with `next/dynamic`:
+the dialog owns the mutation, the toast and the list refresh, the two thin forms (create, update)
+share a fields component, and `FormActions` takes `className="*:flex-1"` for the legacy
+side-by-side キャンセル / submit
 (`apps/web/features/comment-templates/components/comment-template-dialog.tsx`).
 
 ### Shared props (`BaseFieldProps`, `form/types.ts`)
