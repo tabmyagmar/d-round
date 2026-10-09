@@ -100,10 +100,13 @@ export const BranchForm = ({
       ? [...found, chosenClient]
       : found;
 
+  // Create only: an edited branch keeps its 就業先番号, even where a disabled query would read an
+  // answer a create form left in the cache.
+  const fillsNumber = findNextNumber !== undefined;
   const nextNumber = useQuery({
     queryKey: ["branch-form", "next-number", clientId],
     queryFn: async () => (await findNextNumber?.(clientId)) ?? null,
-    enabled: findNextNumber !== undefined && clientId !== "",
+    enabled: fillsNumber && clientId !== "",
     // Asked again whenever a client is chosen, never answered from an earlier choice's cache.
     gcTime: 0,
   });
@@ -112,11 +115,15 @@ export const BranchForm = ({
   const numberFilledForRef = useRef("");
   const { setValue } = form;
   useEffect(() => {
-    if (typeof nextNumber.data === "number" && numberFilledForRef.current !== clientId) {
+    if (
+      fillsNumber &&
+      typeof nextNumber.data === "number" &&
+      numberFilledForRef.current !== clientId
+    ) {
       numberFilledForRef.current = clientId;
       setValue("number", nextNumber.data, { shouldDirty: true, shouldValidate: true });
     }
-  }, [nextNumber.data, clientId, setValue]);
+  }, [fillsNumber, nextNumber.data, clientId, setValue]);
 
   return (
     <form

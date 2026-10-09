@@ -47,10 +47,11 @@ const VALID: BranchFormValues = {
   memo: null,
 };
 
-const renderForm = (overrides: Partial<BranchFormProps> = {}) => {
+const newQueryClient = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+const renderForm = (overrides: Partial<BranchFormProps> = {}, queryClient = newQueryClient()) => {
   const onSubmit = vi.fn();
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
+  const { unmount } = render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         <BranchForm
@@ -72,7 +73,7 @@ const renderForm = (overrides: Partial<BranchFormProps> = {}) => {
       </QueryClientProvider>
     </StrictMode>,
   );
-  return { onSubmit };
+  return { onSubmit, unmount };
 };
 
 /** The step the stepper marks as current. */
@@ -141,6 +142,59 @@ describe("BranchForm", () => {
     expect(number).toHaveProperty("value", "5");
   });
 
+  it("asks again for a client chosen anew, never filling from an earlier choice's answer", async () => {
+    const other = { id: "019a0000-0000-7000-8000-0000000000a2", name: "別会社" };
+    const answers = new Map([
+      [CLIENT.id, [8, 9]],
+      [other.id, [3]],
+    ]);
+    const findNextNumber = vi.fn((clientId: string) =>
+      Promise.resolve(answers.get(clientId)?.shift() ?? 0),
+    );
+    renderForm({
+      defaultValues: emptyBranchValues(),
+      findClients: () => Promise.resolve([CLIENT, other]),
+      findNextNumber,
+    });
+    const picker = screen.getByLabelText(/^クライアント名/);
+    const number = screen.getByLabelText(/^就業先番号/);
+    const pick = async (name: string, filled: string) => {
+      fireEvent.focus(picker);
+      fireEvent.keyDown(picker, { key: "ArrowDown" });
+      choose(await screen.findByRole("option", { name }));
+      await vi.waitFor(() => {
+        expect(number).toHaveProperty("value", filled);
+      });
+    };
+
+    await pick(CLIENT.name, "8");
+    await pick(other.name, "3");
+    // Another branch of 株式会社テスト took 8 meanwhile.
+    await pick(CLIENT.name, "9");
+  });
+
+  it("leaves an edited branch's 就業先番号 alone, whatever a create form looked up", async () => {
+    const queryClient = newQueryClient();
+    const create = renderForm(
+      {
+        defaultValues: { ...emptyBranchValues(), clientId: CLIENT.id },
+        findNextNumber: () => Promise.resolve(8),
+      },
+      queryClient,
+    );
+    await vi.waitFor(() => {
+      expect(screen.getByLabelText(/^就業先番号/)).toHaveProperty("value", "8");
+    });
+    create.unmount();
+
+    // A branch of the same client edited next: no lookup, its own 就業先番号 3.
+    renderForm({ title: "就業先部署編集" }, queryClient);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(screen.getByLabelText(/^就業先番号/)).toHaveProperty("value", "3");
+  });
+
   it("keeps the chosen client when a later search does not return it", async () => {
     const other = { id: "019a0000-0000-7000-8000-0000000000a2", name: "別会社" };
     // Only the search 別 finds it, not the first 20 by reading the empty search returns.
@@ -159,10 +213,10 @@ describe("BranchForm", () => {
     await search("別");
     choose(await screen.findByRole("option", { name: other.name }));
     await search("該当なし");
-    // Closing the list puts the chosen name back in the box, which searches again.
+    // Closing the list puts the chosen name back in the box, which searches for it again.
     fireEvent.keyDown(picker, { key: "Escape" });
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 400));
+    await vi.waitFor(() => {
+      expect(findClients).toHaveBeenCalledWith(other.name);
     });
 
     next();
