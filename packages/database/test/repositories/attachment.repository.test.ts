@@ -132,4 +132,26 @@ describe("attachment repository", () => {
       (await repo.findManyByIds([oldPending.id, freshPending.id])).map((row) => row.id).sort(),
     ).toEqual([oldPending.id, freshPending.id].sort());
   });
+
+  it("counts an uploader's pending rows, locks owners and deletes only DELETED rows", async () => {
+    const repo = createAttachmentRepository(prisma);
+    const uploader = await createUser();
+    const staff = await createStaff();
+    const first = await pending(uploader.id);
+    await pending(uploader.id);
+    await repo.attach([first.id], {
+      uploadedById: uploader.id,
+      kind: "STAFF_RESUME",
+      owner: { staffId: staff.id },
+    });
+
+    expect(await repo.countPending(uploader.id)).toBe(1);
+    await prisma.$transaction(async (tx) => {
+      const locking = createAttachmentRepository(tx);
+      await locking.lockOwner({ userId: uploader.id });
+      await locking.lockOwner({ staffId: staff.id });
+    });
+    expect(await repo.deleteById(first.id)).toBe(0);
+    expect((await repo.findById(first.id))?.status).toBe("ATTACHED");
+  });
 });

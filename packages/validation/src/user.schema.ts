@@ -233,6 +233,7 @@ export type InviteUserInput = z.infer<typeof inviteUserSchema>;
  * プロフィール画像 as `AvatarField` holds it.
  */
 export const inviteUserFormSchema = inviteUserSchema
+  .omit({ avatarId: true })
   .extend({ emailConfirm: emailSchema, avatar: attachmentValueSchema.nullable() })
   .refine((value) => value.email === value.emailConfirm, {
     path: ["emailConfirm"],
@@ -259,7 +260,7 @@ export type UpdateUserInput = z.infer<typeof updateUserSchema>;
  * The edit form: it always holds the profile, so a user from before profiles is asked for one; the
  * form sends it only when it changed (`toUpdateInput`), the プロフィール画像 likewise.
  */
-export const updateUserFormSchema = updateUserSchema.extend({
+export const updateUserFormSchema = updateUserSchema.omit({ avatarId: true }).extend({
   profile: userProfileSchema,
   avatar: attachmentValueSchema.nullable(),
 });

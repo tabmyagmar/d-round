@@ -35,6 +35,28 @@ export const UPLOAD_EXPIRED = "ファイルの有効期限が切れました。�
 export const UPLOAD_INCOMPLETE =
   "ファイルのアップロードが完了していません。もう一度選択してください";
 export const UPLOAD_NOT_ALLOWED = "このファイルは添付できません";
+export const UPLOADS_TOO_MANY =
+  "アップロード中のファイルが多すぎます。保存してから、もう一度お試しください";
+
+/** Uploads one user may hold unattached at once: forms carry four files at most. */
+export const PENDING_UPLOADS_MAX = 20;
+
+/** Which owner a kind belongs to: a プロフィール画像 to a user, a 履歴書 to a staff. */
+export type AttachmentTarget =
+  | { kind: "USER_AVATAR"; owner: { userId: string } }
+  | { kind: "STAFF_RESUME"; owner: { staffId: string } };
+
+const OWNER_COLUMNS = { USER_AVATAR: "userId", STAFF_RESUME: "staffId" } as const satisfies Record<
+  AttachmentKind,
+  "userId" | "staffId"
+>;
+
+/** The type allows only fitting pairs; this catches a cast, before anything is written. */
+const assertOwnerFits = (kind: AttachmentKind, owner: AttachmentOwner): void => {
+  if (!(OWNER_COLUMNS[kind] in owner)) {
+    throw new Error(`A ${kind} attachment belongs to its ${OWNER_COLUMNS[kind]} owner`);
+  }
+};
 
 const uploaderOf = (ctx: RequestContext) => {
   if (!ctx.user) {
@@ -67,8 +89,12 @@ export const createUploadUrl = async (
 ): Promise<UploadTarget> => {
   const uploader = uploaderOf(ctx);
   assertMayUpload(ctx, input.kind);
+  const attachments = createAttachmentRepository(ctx.db);
+  if ((await attachments.countPending(uploader.id)) >= PENDING_UPLOADS_MAX) {
+    throw new ValidationError(UPLOADS_TOO_MANY);
+  }
   const folder = ATTACHMENT_RULES[input.kind].folder;
-  const row = await createAttachmentRepository(ctx.db).create({
+  const row = await attachments.create({
     kind: input.kind,
     objectKey: `${folder}/${crypto.randomUUID()}${fileExtension(input.fileName)}`,
     fileName: input.fileName,
@@ -97,6 +123,9 @@ export const assertUploaded = async (
   owner?: AttachmentOwner,
 ): Promise<void> => {
   const uploader = uploaderOf(ctx);
+  if (owner) {
+    assertOwnerFits(kind, owner);
+  }
   if (new Set(ids).size !== ids.length || ids.length > ATTACHMENT_RULES[kind].maxFiles) {
     throw new ValidationError(UPLOAD_NOT_ALLOWED);
   }
@@ -130,15 +159,18 @@ export const assertUploaded = async (
 /**
  * Inside the owner's write: makes `ids` the owner's files of the kind. New ids (checked by
  * `assertUploaded`) are attached; the owner's other files become DELETED and their objects are
- * deleted after commit. A pending row the sweeper expired in between fails the write.
+ * deleted after commit. A pending row the sweeper expired in between fails the write. The owner's
+ * row is locked first, so two saves of one owner take turns and never both attach.
  */
 export const syncAttachments = async (
   ctx: RequestContext,
   { tx, afterCommit }: TransactionContext,
-  { kind, owner, ids }: { kind: AttachmentKind; owner: AttachmentOwner; ids: readonly string[] },
+  { kind, owner, ids }: AttachmentTarget & { ids: readonly string[] },
 ): Promise<void> => {
   const uploader = uploaderOf(ctx);
+  assertOwnerFits(kind, owner);
   const attachments = createAttachmentRepository(tx);
+  await attachments.lockOwner(owner);
   const current = await attachments.findAttached(owner, kind);
   const currentIds = new Set(current.map((row) => row.id));
   const added = ids.filter((id) => !currentIds.has(id));
@@ -152,22 +184,30 @@ export const syncAttachments = async (
   }
   if (removed.length > 0) {
     await attachments.markDeleted(removed, "ATTACHED");
-    afterCommit(() =>
-      Promise.all(
-        removed.map((id) =>
-          enqueueAttachmentDeleteJob(ctx.attachmentDeleteQueue, id, ctx.requestId),
-        ),
-      ),
-    );
+    afterCommit(async () => {
+      try {
+        await Promise.all(
+          removed.map((id) =>
+            enqueueAttachmentDeleteJob(ctx.attachmentDeleteQueue, id, ctx.requestId),
+          ),
+        );
+      } catch (error) {
+        // The save is committed and the rows say DELETED: the sweeper enqueues them again.
+        ctx.logger.warn(
+          { err: error, attachmentIds: removed },
+          "attachment delete not enqueued; the sweeper retries",
+        );
+      }
+    });
   }
 };
 
 /** The owner's files of a kind with read URLs, for the owner's read procedure. */
 export const viewsOf = async (
   ctx: RequestContext,
-  owner: AttachmentOwner,
-  kind: AttachmentKind,
+  { kind, owner }: AttachmentTarget,
 ): Promise<AttachmentView[]> => {
+  assertOwnerFits(kind, owner);
   const rows = await createAttachmentRepository(ctx.db).findAttached(owner, kind);
   return Promise.all(
     rows.map(async (row) => {

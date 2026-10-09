@@ -33,6 +33,19 @@ export const createAttachmentRepository = (db: DbClient) => ({
   findManyByIds: (ids: readonly string[]): Promise<Attachment[]> =>
     db.attachment.findMany({ where: { id: { in: [...ids] } } }),
 
+  /** Locks the owner's row until the transaction ends, so two saves of one owner take turns. */
+  lockOwner: async (owner: AttachmentOwner): Promise<void> => {
+    if ("userId" in owner) {
+      await db.$queryRaw`SELECT id FROM users WHERE id = ${owner.userId}::uuid FOR UPDATE`;
+    } else {
+      await db.$queryRaw`SELECT id FROM staffs WHERE id = ${owner.staffId}::uuid FOR UPDATE`;
+    }
+  },
+
+  /** How many uploads of this user wait to be attached. */
+  countPending: (uploadedById: string): Promise<number> =>
+    db.attachment.count({ where: { uploadedById, status: "PENDING" } }),
+
   /** The owner's attached files of one kind, in upload order. */
   findAttached: (owner: AttachmentOwner, kind: AttachmentKind): Promise<Attachment[]> =>
     db.attachment.findMany({
@@ -74,9 +87,9 @@ export const createAttachmentRepository = (db: DbClient) => ({
       take: limit,
     }),
 
-  /** Removes the row once its object is gone; 0 when it already was (jobs may repeat). */
+  /** Removes a DELETED row once its object is gone; 0 when it already was (jobs may repeat). */
   deleteById: async (id: string) => {
-    const { count } = await db.attachment.deleteMany({ where: { id } });
+    const { count } = await db.attachment.deleteMany({ where: { id, status: "DELETED" } });
     return count;
   },
 });

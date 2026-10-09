@@ -115,7 +115,7 @@ const withAvatar = async (
   ctx: RequestContext,
   user: UserWithPermissionKeys,
 ): Promise<UserDetail> => {
-  const [avatar] = await viewsOf(ctx, { userId: user.id }, "USER_AVATAR");
+  const [avatar] = await viewsOf(ctx, { kind: "USER_AVATAR", owner: { userId: user.id } });
   return { ...user, avatar: avatar ?? null };
 };
 
@@ -401,6 +401,8 @@ export const update = async (ctx: RequestContext, input: UpdateUserInput): Promi
   const owner = { userId: input.userId };
   const avatarIds = avatarIdsOf(input.avatarId);
   if (avatarIds !== undefined) {
+    // Authorise before the bucket is asked about the uploads; the transaction checks again.
+    assertCan(ctx, "update", await loadUser(ctx, input.userId));
     await assertUploaded(ctx, "USER_AVATAR", avatarIds, owner);
   }
 

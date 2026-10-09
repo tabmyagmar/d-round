@@ -2,12 +2,15 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { withTransaction } from "@repo/database";
 import { attachmentDeleteJobId } from "@repo/queue";
+import type { AttachmentDeleteQueue } from "@repo/queue";
 import { createUploadUrlSchema } from "@repo/validation";
 import type { AttachmentKind } from "@repo/validation";
 
 import type { RequestContext } from "../../../src/core/context";
 import { ForbiddenError, ValidationError } from "../../../src/core/errors";
 import {
+  PENDING_UPLOADS_MAX,
+  UPLOADS_TOO_MANY,
   UPLOAD_EXPIRED,
   UPLOAD_INCOMPLETE,
   UPLOAD_NOT_ALLOWED,
@@ -16,6 +19,7 @@ import {
   syncAttachments,
   viewsOf,
 } from "../../../src/modules/attachment/attachment.service";
+import type { AttachmentTarget } from "../../../src/modules/attachment/attachment.service";
 import { contextFor, createHarness, signedInUser, uniqueEmployeeNumber } from "../../support";
 import type { TestHarness } from "../../support";
 
@@ -64,6 +68,9 @@ const createStaff = () =>
       gender: "FEMALE",
     },
   });
+
+const storedStatus = async (id: string) =>
+  (await h.db.attachment.findUniqueOrThrow({ where: { id } })).status;
 
 const deleteJobOf = (attachmentId: string) =>
   h.attachmentDeleteQueue.getJob(attachmentDeleteJobId(attachmentId));
@@ -149,8 +156,8 @@ describe("assertUploaded", () => {
       }),
     );
 
-    const refusal = (ids: string[], kind: AttachmentKind = "USER_AVATAR") =>
-      assertUploaded(me.ctx, kind, ids, { userId: me.id }).then(
+    const refusal = (ids: string[]) =>
+      assertUploaded(me.ctx, "USER_AVATAR", ids, { userId: me.id }).then(
         () => "passed",
         (error: unknown) => (error instanceof ValidationError ? error.message : "other error"),
       );
@@ -160,7 +167,10 @@ describe("assertUploaded", () => {
     expect(await refusal([expired.id])).toBe(UPLOAD_EXPIRED);
     expect(await refusal([crypto.randomUUID()])).toBe(UPLOAD_EXPIRED);
     expect(await refusal([othersAvatar.id])).toBe(UPLOAD_NOT_ALLOWED);
-    expect(await refusal([foreign.id], "STAFF_RESUME")).toBe(UPLOAD_NOT_ALLOWED);
+    // Another kind's upload, on a create (no owner yet).
+    await expect(assertUploaded(me.ctx, "STAFF_RESUME", [notPut.id])).rejects.toThrow(
+      new ValidationError(UPLOAD_NOT_ALLOWED),
+    );
     // One avatar per user; an id twice is not two files.
     const second = await uploaded(me.ctx, "USER_AVATAR");
     const third = await uploaded(me.ctx, "USER_AVATAR");
@@ -253,7 +263,7 @@ describe("viewsOf", () => {
       }),
     );
 
-    expect(await viewsOf(me.ctx, { userId: me.id }, "USER_AVATAR")).toEqual([
+    expect(await viewsOf(me.ctx, { kind: "USER_AVATAR", owner: { userId: me.id } })).toEqual([
       {
         id: avatar.id,
         fileName: "顔写真.png",
@@ -262,6 +272,85 @@ describe("viewsOf", () => {
         url: `memory://read/${avatar.objectKey}?filename=${encodeURIComponent("顔写真.png")}`,
       },
     ]);
-    expect(await viewsOf(me.ctx, { userId: me.id }, "STAFF_RESUME")).toEqual([]);
+  });
+});
+
+describe("guards around the attach", () => {
+  it("refuses a kind with another kind's owner, whatever the caller's types said", async () => {
+    const admin = await contextOf("admin");
+    const staff = await createStaff();
+    const avatar = await uploaded(admin.ctx, "USER_AVATAR");
+    const mismatched = {
+      kind: "USER_AVATAR",
+      owner: { staffId: staff.id },
+      ids: [avatar.id],
+    } as unknown as AttachmentTarget & { ids: string[] };
+
+    await expect(
+      withTransaction(h.db, (txc) => syncAttachments(admin.ctx, txc, mismatched)),
+    ).rejects.toThrow(/belongs to its userId owner/);
+    await expect(viewsOf(admin.ctx, mismatched)).rejects.toThrow(/belongs to its userId owner/);
+    expect(await storedStatus(avatar.id)).toBe("PENDING");
+  });
+
+  it("lets two saves of one owner take turns, so one avatar stays attached", async () => {
+    const me = await contextOf();
+    const owner = { userId: me.id };
+    const first = await uploaded(me.ctx, "USER_AVATAR");
+    const second = await uploaded(me.ctx, "USER_AVATAR");
+
+    await Promise.all(
+      [first, second].map((avatar) =>
+        withTransaction(h.db, (txc) =>
+          syncAttachments(me.ctx, txc, { kind: "USER_AVATAR", owner, ids: [avatar.id] }),
+        ),
+      ),
+    );
+
+    const attached = await h.db.attachment.count({
+      where: { userId: me.id, kind: "USER_AVATAR", status: "ATTACHED" },
+    });
+    expect(attached).toBe(1);
+  });
+
+  it("keeps a committed save when the delete cannot be enqueued; the sweeper takes over", async () => {
+    const me = await contextOf();
+    const owner = { userId: me.id };
+    const old = await uploaded(me.ctx, "USER_AVATAR");
+    await withTransaction(h.db, (txc) =>
+      syncAttachments(me.ctx, txc, { kind: "USER_AVATAR", owner, ids: [old.id] }),
+    );
+    const replacement = await uploaded(me.ctx, "USER_AVATAR");
+    const redisDown = {
+      ...me.ctx,
+      attachmentDeleteQueue: {
+        add: () => Promise.reject(new Error("redis down")),
+      } as unknown as AttachmentDeleteQueue,
+    };
+
+    await withTransaction(h.db, (txc) =>
+      syncAttachments(redisDown, txc, { kind: "USER_AVATAR", owner, ids: [replacement.id] }),
+    );
+
+    expect(await storedStatus(old.id)).toBe("DELETED");
+    expect(await storedStatus(replacement.id)).toBe("ATTACHED");
+  });
+
+  it("stops handing out upload URLs once a user holds too many unattached uploads", async () => {
+    const me = await contextOf();
+    await h.db.attachment.createMany({
+      data: Array.from({ length: PENDING_UPLOADS_MAX }, () => ({
+        kind: "USER_AVATAR" as const,
+        objectKey: `avatars/${crypto.randomUUID()}.png`,
+        fileName: "face.png",
+        contentType: "image/png",
+        size: 10,
+        uploadedById: me.id,
+      })),
+    });
+
+    await expect(uploaded(me.ctx, "USER_AVATAR")).rejects.toThrow(
+      new ValidationError(UPLOADS_TOO_MANY),
+    );
   });
 });

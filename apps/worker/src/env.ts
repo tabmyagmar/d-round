@@ -13,14 +13,14 @@ export const workerEnvShape = {
   MAIL_SMTP_URL: urlSchema,
   /** Sender shown to recipients, e.g. `My App <no-reply@example.com>`; the display name is the brand. */
   MAIL_FROM: z.string().min(3),
-  /**
-   * Discord webhook for error and fatal log lines; https only, since the URL is a secret. Unset =
-   * no alerts (docs/adr/0010-alerts.md).
-   */
   /** Bucket for attachments (docs/adr/0012-attachments.md), e.g. `d-round-dev`. */
   GCS_BUCKET: z.string().min(3),
   /** Service-account key (JSON) outside the repository; read once at start-up. */
   GCS_KEY_FILE: z.string().min(1),
+  /**
+   * Discord webhook for error and fatal log lines; https only, since the URL is a secret. Unset =
+   * no alerts (docs/adr/0010-alerts.md).
+   */
   DISCORD_ALERT_WEBHOOK_URL: z.url({ protocol: /^https$/ }).optional(),
 };
 

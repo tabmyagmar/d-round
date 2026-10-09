@@ -49,14 +49,19 @@ export const fileExtension = (fileName: string): string => {
   return dot > 0 ? fileName.slice(dot).toLowerCase() : "";
 };
 
+/** C0 and C1 controls, DEL, and the direction marks, embeddings, overrides and isolates. */
+const UNSAFE_NAME_CHARACTERS =
+  // eslint-disable-next-line no-control-regex -- control characters are exactly what goes
+  /[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+
 /**
- * The picked name as shown and stored: no path, no control characters, no surrounding spaces, the
+ * The picked name as shown and stored: no path, no control or direction-override characters (a
+ * right-to-left override can make `exe.pdf` read as `fdp.exe`), no surrounding spaces, the
  * extension lower-cased (the legacy `renameFileExtensionLowercase`).
  */
 export const sanitizeFileName = (raw: string): string => {
   const base = raw.split(/[/\\]/).pop() ?? "";
-  // eslint-disable-next-line no-control-regex -- control characters are exactly what goes
-  const clean = base.replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  const clean = base.replace(UNSAFE_NAME_CHARACTERS, "").trim();
   const extension = fileExtension(clean);
   return extension ? `${clean.slice(0, -extension.length)}${extension}` : clean;
 };
@@ -79,7 +84,10 @@ export const createUploadUrlSchema = z
   })
   .superRefine((input, context) => {
     const rule = ATTACHMENT_RULES[input.kind];
-    const extensions = rule.types[input.contentType];
+    // Own keys only: "toString" or "__proto__" must be refused, not looked up on the prototype.
+    const extensions = Object.hasOwn(rule.types, input.contentType)
+      ? rule.types[input.contentType]
+      : undefined;
     if (!extensions?.includes(fileExtension(input.fileName))) {
       context.addIssue({
         code: "custom",

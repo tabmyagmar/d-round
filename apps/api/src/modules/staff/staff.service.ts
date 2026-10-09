@@ -121,7 +121,7 @@ export type StaffDetail = StaffDetailRow & { resumes: AttachmentView[] };
 /** Read after the write committed, so new files are the ones signed (ADR 0012). */
 const withResumes = async (ctx: RequestContext, staff: StaffDetailRow): Promise<StaffDetail> => ({
   ...staff,
-  resumes: await viewsOf(ctx, { staffId: staff.id }, "STAFF_RESUME"),
+  resumes: await viewsOf(ctx, { kind: "STAFF_RESUME", owner: { staffId: staff.id } }),
 });
 
 export const getById = async (ctx: RequestContext, staffId: string): Promise<StaffDetail> => {

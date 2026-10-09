@@ -27,6 +27,8 @@ describe("sanitizeFileName", () => {
     expect(sanitizeFileName("../../etc/pass\u0000wd.Png")).toBe("passwd.png");
     expect(sanitizeFileName("README")).toBe("README");
     expect(sanitizeFileName(".env")).toBe(".env");
+    expect(sanitizeFileName("履歴書\u202Efdp.exe")).toBe("履歴書fdp.exe");
+    expect(sanitizeFileName("a\u0085b\u2066.pdf")).toBe("ab.pdf");
   });
 
   it("reads the extension after the last dot only when there is a name before it", () => {
@@ -63,6 +65,12 @@ describe("createUploadUrlSchema", () => {
       "5MB以下のファイルを選択してください",
     ]);
     expect(messagesOf({ ...pdf, size: 0 })).toEqual(["空のファイルは選択できません"]);
+    expect(messagesOf({ ...pdf, contentType: "toString" })).toEqual([
+      "この形式のファイルは選択できません",
+    ]);
+    expect(messagesOf({ ...pdf, contentType: "__proto__" })).toEqual([
+      "この形式のファイルは選択できません",
+    ]);
     expect(messagesOf({ ...pdf, fileName: " / " })).toContain("ファイル名がありません");
     expect(createUploadUrlSchema.safeParse({ ...pdf, kind: "CLIENT_IMAGE" }).success).toBe(false);
   });
