@@ -1,9 +1,10 @@
 # Plan: Clients and branches — クライアント管理 + 就業先部署 (list, detail, create, update)
 
 Ticket: `feature/D_ROUND-TBD_client-branch` (off `develop` = `b3a1f29`). Status: **approved
-2026-10-08** ("ok heregjuul") with every decision as written; amendments go to the Log. Two phases
-(A clients, B branches), each green on its own (`yarn verify`), browser-checked as the four roles
-and fast-forwarded into `develop` before the next starts; ≤15 files per commit.
+2026-10-08** ("ok heregjuul") with every decision as written; amendments go to the Log; **closed
+2026-10-09**. Two phases (A clients, B branches), each green on its own (`yarn verify`),
+browser-checked as the four roles and fast-forwarded into `develop` before the next starts; ≤15
+files per commit.
 
 Read before this plan — legacy API:
 `d-round-api/src/database/schema/{client/client,branch/branch, enums}.prisma`,
@@ -578,3 +579,11 @@ writing: Prisma 7 enum arrays (`hasSome`) and nested upsert; Base UI Combobox wi
   warning passed verify and failed the commit); vitest fork workers timing out once under load
   (re-run green); Context7 unavailable (it needs authentication), so the repo's own patterns served
   for the library APIs.
+- 2026-10-09, Close: the plan moves to `docs/plans/2026-10-08-client-branch.md`. The ticket is the
+  39 commits after `78401e9`, each green on `yarn verify`; nothing is pushed and `develop` is
+  untouched. Phase A was not fast-forwarded before phase B began, as the plan meant, because the
+  stray commit `78401e9` (the alerts session's) sits under both: before any fast-forward of
+  `develop` the user drops it (`git rebase --onto b3a1f29 78401e9`), or merges PR #1 first if that
+  merge keeps the commit (no squash). The dev database on 5433 keeps the browser
+  checks' 検証クライアント408649, 検証クライアント496854改 and 検証店605541 (関西). The session's
+  dev servers (web 3000, API 4000) are stopped.
