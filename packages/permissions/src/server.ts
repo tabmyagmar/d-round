@@ -67,8 +67,8 @@ export const definePrismaAbilityFor = (user: AbilityUser | null): ServerAbility 
 
 /**
  * Prisma `where` restricting a User query to rows the ability allows. Callers must check
- * `ability.can(action, "User")` first: with no matching rule CASL returns a fail-closed marker
- * condition that Prisma rejects.
+ * `ability.can(action, "User")` first: with no matching rule CASL returns `{ OR: [] }`, which
+ * matches no row, so the list would come back empty instead of refused.
  */
 export const accessibleUsersWhere = (
   ability: ServerAbility,

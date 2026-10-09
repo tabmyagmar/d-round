@@ -174,8 +174,8 @@ return createUserRepository(ctx.db).findMany({ page, perPage }, { AND: filters }
 `accessibleUsersWhere(ability, action)` (`@repo/permissions/server`) wraps
 `accessibleBy(ability, action).ofType("User")` and returns a `Prisma.UserWhereInput` the service
 composes with its own filters and hands to the repository. **Guard with
-`ability.can(action, "User")` first**: when no rule matches, `@casl/prisma` returns a fail-closed
-marker condition that Prisma rejects at query time — the guard turns that into a clean
+`ability.can(action, "User")` first**: when no rule matches, `@casl/prisma` returns `{ OR: [] }`,
+which matches no row, so the list would come back empty — the guard turns that into a clean
 `ForbiddenError`. Never filter in memory after loading everything.
 
 ## The permission spec is two tests
