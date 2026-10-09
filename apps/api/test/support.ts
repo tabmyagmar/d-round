@@ -8,8 +8,15 @@ import { createPrismaClient, createUserRepository } from "@repo/database";
 import type { PrismaClient, User, UserProfileData } from "@repo/database";
 import { createLogger } from "@repo/logger";
 import type { Logger } from "@repo/logger";
-import { createEmailQueue, createRedisConnection, waitForRedis } from "@repo/queue";
-import type { EmailQueue, RedisConnection } from "@repo/queue";
+import {
+  createAttachmentDeleteQueue,
+  createEmailQueue,
+  createRedisConnection,
+  waitForRedis,
+} from "@repo/queue";
+import type { AttachmentDeleteQueue, EmailQueue, RedisConnection } from "@repo/queue";
+import { createMemoryStorage } from "@repo/storage";
+import type { MemoryStorage } from "@repo/storage";
 import { DEFAULT_ROLE } from "@repo/validation";
 import type {
   CreateBranchInput,
@@ -19,7 +26,7 @@ import type {
 } from "@repo/validation";
 
 import { buildRequestContext } from "../src/core/context";
-import type { RequestContext } from "../src/core/context";
+import type { ContextDeps, RequestContext } from "../src/core/context";
 import { createAuthEmailSenders } from "../src/modules/email/auth-emails";
 
 /** Shared wiring for API tests: real Postgres + Redis (testcontainers), real Better Auth. */
@@ -39,6 +46,9 @@ export type TestHarness = {
   redis: RedisConnection;
   auth: Auth;
   emailQueue: EmailQueue;
+  /** The bucket as a map: `storage.put(key, …)` plays the browser's signed PUT. */
+  storage: MemoryStorage;
+  attachmentDeleteQueue: AttachmentDeleteQueue;
   logger: Logger;
   /** Every verification mail Better Auth asked for (also written to the outbox). */
   sentMails: VerificationEmail[];
@@ -54,6 +64,7 @@ export const createHarness = async (): Promise<TestHarness> => {
   await waitForRedis(redis);
   const logger = silentLogger();
   const emailQueue = createEmailQueue(redis);
+  const attachmentDeleteQueue = createAttachmentDeleteQueue(redis);
   const sentMails: VerificationEmail[] = [];
   // The production callbacks (outbox rows + jobs), with the verification mails also recorded.
   const senders = createAuthEmailSenders({ db, emailQueue, logger });
@@ -75,10 +86,13 @@ export const createHarness = async (): Promise<TestHarness> => {
     redis,
     auth,
     emailQueue,
+    storage: createMemoryStorage(),
+    attachmentDeleteQueue,
     logger,
     sentMails,
     stop: async () => {
       await emailQueue.close();
+      await attachmentDeleteQueue.close();
       await redis.quit();
       await db.$disconnect();
     },
@@ -147,21 +161,23 @@ export const signedInUser = async (
   return { user, email, headers: new Headers({ cookie: cookieHeaderFrom(response) }) };
 };
 
+/** What the composition root hands the app and every request context, from the harness. */
+export const contextDeps = (harness: TestHarness): ContextDeps => ({
+  logger: harness.logger,
+  db: harness.db,
+  redis: harness.redis,
+  auth: harness.auth,
+  webOrigin: TEST_WEB_ORIGIN,
+  storage: harness.storage,
+  attachmentDeleteQueue: harness.attachmentDeleteQueue,
+});
+
 /** A RequestContext exactly as the transport would build it for these headers. */
 export const contextFor = (
   harness: TestHarness,
   headers = new Headers(),
 ): Promise<RequestContext> =>
-  buildRequestContext(
-    { headers, requestId: `test-${crypto.randomUUID()}` },
-    {
-      logger: harness.logger,
-      db: harness.db,
-      redis: harness.redis,
-      auth: harness.auth,
-      webOrigin: TEST_WEB_ORIGIN,
-    },
-  );
+  buildRequestContext({ headers, requestId: `test-${crypto.randomUUID()}` }, contextDeps(harness));
 
 /** The post code the staff tests use; the harness database has no Japan Post master of its own. */
 export const TEST_POST_CODE = "1600022";

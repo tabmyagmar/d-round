@@ -7,7 +7,13 @@ import { createApp } from "../src/app";
 import type { App } from "../src/app";
 import { createRateLimiter } from "../src/middleware/rate-limit";
 
-import { TEST_PASSWORD, TEST_WEB_ORIGIN, cookieHeaderFrom, createHarness } from "./support";
+import {
+  TEST_PASSWORD,
+  TEST_WEB_ORIGIN,
+  contextDeps,
+  cookieHeaderFrom,
+  createHarness,
+} from "./support";
 import type { TestHarness } from "./support";
 
 /** Better Auth over the real HTTP surface, with the outbox and the rate limiter. */
@@ -17,11 +23,7 @@ let app: App;
 beforeAll(async () => {
   h = await createHarness();
   app = createApp({
-    logger: h.logger,
-    db: h.db,
-    redis: h.redis,
-    auth: h.auth,
-    webOrigin: TEST_WEB_ORIGIN,
+    ...contextDeps(h),
     signInRateLimiter: createRateLimiter(h.redis, {
       keyPrefix: `rl-test-${crypto.randomUUID()}`,
       points: 2,

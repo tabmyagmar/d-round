@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { Auth } from "@repo/auth";
 import { childLogger, createDiscordAlertStream, createLogger } from "@repo/logger";
 import { definePrismaAbilityFor } from "@repo/permissions/server";
+import { createMemoryStorage } from "@repo/storage";
 
 import type { AuthUser, RequestContext } from "../../src/core/context";
 import { NotFoundError } from "../../src/core/errors";
@@ -29,6 +30,8 @@ const contextFor = (user: AuthUser | null = null): RequestContext => ({
   redis: {} as RequestContext["redis"],
   auth: {} as Auth,
   webOrigin: "http://localhost:3000",
+  storage: createMemoryStorage(),
+  attachmentDeleteQueue: {} as RequestContext["attachmentDeleteQueue"],
 });
 
 const am: AuthUser = {

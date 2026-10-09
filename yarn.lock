@@ -2660,6 +2660,7 @@ __metadata:
     "@repo/logger": "workspace:*"
     "@repo/permissions": "workspace:*"
     "@repo/queue": "workspace:*"
+    "@repo/storage": "workspace:*"
     "@repo/typescript-config": "workspace:*"
     "@repo/validation": "workspace:*"
     "@trpc/server": "npm:11.18.0"
@@ -2815,7 +2816,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@repo/storage@workspace:packages/storage":
+"@repo/storage@workspace:*, @repo/storage@workspace:packages/storage":
   version: 0.0.0-use.local
   resolution: "@repo/storage@workspace:packages/storage"
   dependencies:
