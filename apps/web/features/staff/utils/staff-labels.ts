@@ -1,11 +1,5 @@
 import type { SelectOption } from "@repo/ui/components/form";
-import {
-  EMPLOYEE_TYPES,
-  FAMILY_RELATIONS,
-  formatPostCode,
-  GENDERS,
-  STAFF_STATUSES,
-} from "@repo/validation";
+import { EMPLOYEE_TYPES, FAMILY_RELATIONS, GENDERS, STAFF_STATUSES } from "@repo/validation";
 import type {
   EmployeeType,
   FamilyRelation,
@@ -100,9 +94,6 @@ export const STAFF_MEMO_TYPE_LABELS: Record<StaffMemoType, string> = {
   OTHER: "その他",
   CUSTOM: "メモ",
 };
-
-/** 郵便番号 as the legacy wrote it: `〒160-0022`, from the stored seven digits or a typed code. */
-export const postCodeLabel = (postCode: string): string => `〒${formatPostCode(postCode)}`;
 
 /** What the staff form says when another staff holds the スタッフ番号 (legacy wording). */
 export const STAFF_NUMBER_TAKEN = "このスタッフ番号は既に使用されています";

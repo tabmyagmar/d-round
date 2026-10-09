@@ -1,0 +1,204 @@
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import type { DefaultValues } from "react-hook-form";
+
+import { Button } from "@repo/ui/components/button";
+import { Stepper } from "@repo/ui/components/composed/stepper";
+import { StickyBar } from "@repo/ui/components/composed/sticky-bar";
+import { FormActions } from "@repo/ui/components/form";
+import { useDebouncedCallback } from "@repo/ui/hooks/use-debounced-callback";
+import { useStepper } from "@repo/ui/hooks/use-stepper";
+import { branchFormSchema } from "@repo/validation";
+import type { BranchFormValues, CreateBranchInput } from "@repo/validation";
+
+import type { AddressParts } from "@/components/source/address-fields";
+import type { SourceHierarchy } from "@/components/source/hierarchy-options";
+import { BranchBasicStep } from "@/features/branches/components/form/branch-basic-step";
+import { BranchFormConfirm } from "@/features/branches/components/form/branch-form-confirm";
+import type { ChargerChoice, ClientOption } from "@/features/branches/types";
+import { toBranchInput } from "@/features/branches/utils/branch-form-input";
+import { BRANCH_STEP_FIELDS, BRANCH_STEP_LABELS } from "@/features/branches/utils/branch-steps";
+
+export type BranchFormProps = {
+  /** 就業先部署登録 or 就業先部署編集: the first card's title. */
+  title: string;
+  defaultValues: DefaultValues<BranchFormValues>;
+  hierarchy: SourceHierarchy;
+  /** The clients matching a search (`client.options`: first 20 by reading). */
+  findClients: (search: string) => Promise<ClientOption[]>;
+  /** An edited branch's client: on offer until another is chosen, whatever the search returns. */
+  storedClient?: ClientOption;
+  /** The chosen client's next 就業先番号 (legacy nextBranchNumber); create only. */
+  findNextNumber?: (clientId: string) => Promise<number>;
+  /** The 担当者 on offer: every active user (legacy chargerUsers), plus an edited branch's own. */
+  chargerOptions: readonly ChargerChoice[];
+  chargersLoading: boolean;
+  findAddress: (postCode: string) => Promise<AddressParts | null>;
+  cancelHref: string;
+  /** 追加 or 保存, on the confirm step. */
+  submitLabel: string;
+  pendingLabel: string;
+  pending: boolean;
+  onSubmit: (input: CreateBranchInput) => void;
+};
+
+/**
+ * The branch form, create and edit, as the legacy BranchForm: 基本情報 → 確認 on one schema, as the
+ * client form. The clients come from a server search (the picker's typed text, debounced) and, on
+ * create, choosing one fills 就業先番号 with its next number, as the legacy did; looked up here
+ * because they depend on the form's own values. A 就業先番号 the client already uses is refused on
+ * save (the legacy had no pre-check).
+ */
+export const BranchForm = ({
+  title,
+  defaultValues,
+  hierarchy,
+  findClients,
+  storedClient,
+  findNextNumber,
+  chargerOptions,
+  chargersLoading,
+  findAddress,
+  cancelHref,
+  submitLabel,
+  pendingLabel,
+  pending,
+  onSubmit,
+}: BranchFormProps) => {
+  // 次へ validates through `trigger`, never a submit, so the form re-validates each change itself
+  // and a corrected field loses its error at once (the legacy BranchForm's `mode: 'onChange'`).
+  const form = useForm<BranchFormValues>({
+    resolver: zodResolver(branchFormSchema),
+    defaultValues,
+    mode: "onChange",
+  });
+  const stepper = useStepper<BranchFormValues>({ steps: BRANCH_STEP_FIELDS });
+
+  const [clientSearch, setClientSearch] = useState("");
+  const searchClients = useDebouncedCallback(setClientSearch);
+  const clients = useQuery({
+    queryKey: ["branch-form", "clients", clientSearch],
+    queryFn: () => findClients(clientSearch),
+    placeholderData: keepPreviousData,
+  });
+  const found = clients.data ?? [];
+  const clientId = useWatch({ control: form.control, name: "clientId" });
+  // The chosen client stays on offer, so a later search that does not return it neither unnames
+  // nor clears the choice: the edited branch's client to begin with, then the one picked.
+  const [chosenClient, setChosenClient] = useState(storedClient);
+  const picked = found.find((client) => client.id === clientId);
+  if (picked && picked.id !== chosenClient?.id) {
+    setChosenClient(picked);
+  }
+  const clientOptions =
+    chosenClient && !found.some((client) => client.id === chosenClient.id)
+      ? [...found, chosenClient]
+      : found;
+
+  // Create only: an edited branch keeps its 就業先番号, even where a disabled query would read an
+  // answer a create form left in the cache.
+  const fillsNumber = findNextNumber !== undefined;
+  const nextNumber = useQuery({
+    queryKey: ["branch-form", "next-number", clientId],
+    queryFn: async () => (await findNextNumber?.(clientId)) ?? null,
+    enabled: fillsNumber && clientId !== "",
+    // Asked again whenever a client is chosen, never answered from an earlier choice's cache.
+    gcTime: 0,
+  });
+  // 就業先番号 takes the chosen client's next number once per choice, as the legacy select did: the
+  // lookup answering again (the window regaining focus) never overwrites a number typed since.
+  const numberFilledForRef = useRef("");
+  const { setValue } = form;
+  useEffect(() => {
+    if (
+      fillsNumber &&
+      typeof nextNumber.data === "number" &&
+      numberFilledForRef.current !== clientId
+    ) {
+      numberFilledForRef.current = clientId;
+      setValue("number", nextNumber.data, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [fillsNumber, nextNumber.data, clientId, setValue]);
+
+  return (
+    <form
+      noValidate
+      className="flex flex-1 flex-col gap-6"
+      onClickCapture={stepper.countSubmitClicks}
+      onSubmit={(event) => {
+        if (stepper.isDoubleClickSubmit()) {
+          event.preventDefault();
+          return;
+        }
+        if (stepper.isLast) {
+          void form.handleSubmit(
+            (values) => {
+              onSubmit(toBranchInput(values));
+            },
+            // Not expected after the first step was checked; shows it with its errors.
+            () => {
+              stepper.goTo(0);
+            },
+          )(event);
+          return;
+        }
+        event.preventDefault();
+        void stepper.goNext(form.trigger);
+      }}
+    >
+      <Stepper
+        steps={BRANCH_STEP_LABELS}
+        current={stepper.current}
+        onStepClick={stepper.goTo}
+        label="入力ステップ"
+        className="mx-auto w-full max-w-4xl"
+      />
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+        {stepper.isFirst ? (
+          <BranchBasicStep
+            control={form.control}
+            title={title}
+            hierarchy={hierarchy}
+            clientOptions={clientOptions}
+            clientsLoading={clients.isFetching}
+            onClientSearch={searchClients}
+            chargerOptions={chargerOptions}
+            chargersLoading={chargersLoading}
+            findAddress={findAddress}
+          />
+        ) : (
+          <BranchFormConfirm
+            title={title}
+            values={form.getValues()}
+            hierarchy={hierarchy}
+            clientName={clientOptions.find((client) => client.id === clientId)?.name ?? clientId}
+            chargers={chargerOptions}
+          />
+        )}
+      </div>
+      <StickyBar>
+        <FormActions
+          className="mx-auto w-full max-w-4xl"
+          submitLabel={stepper.isLast ? submitLabel : "次へ"}
+          pendingLabel={pendingLabel}
+          pending={pending}
+        >
+          {stepper.isFirst ? (
+            <Button variant="outline" render={<Link href={cancelHref} />} nativeButton={false}>
+              キャンセル
+            </Button>
+          ) : (
+            <Button type="button" variant="outline" onClick={stepper.goPrev}>
+              戻る
+            </Button>
+          )}
+        </FormActions>
+      </StickyBar>
+    </form>
+  );
+};

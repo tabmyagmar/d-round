@@ -1,11 +1,14 @@
 import { PageGuard } from "@/components/page-guard";
-import { PlaceholderPage } from "@/components/placeholder-page";
 import { routes } from "@/config/routes";
+import { ClientUpdateContainer } from "@/features/clients/containers/client-update-container";
 
-const ClientUpdatePage = () => (
-  <PageGuard route={routes.client.update}>
-    <PlaceholderPage route={routes.client.update} />
-  </PageGuard>
-);
+const ClientUpdatePage = async ({ params }: { params: Promise<{ id: string }> }) => {
+  const { id } = await params;
+  return (
+    <PageGuard route={routes.client.update}>
+      <ClientUpdateContainer clientId={id} />
+    </PageGuard>
+  );
+};
 
 export default ClientUpdatePage;

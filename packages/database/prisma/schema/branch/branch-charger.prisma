@@ -1,0 +1,15 @@
+// A 担当者 of a 就業先部署 (legacy BranchesOnChargers), as a クライアント's: the form sends the list
+// whole; the service keeps the rows still chosen, removes the others and adds the new ones.
+
+model BranchCharger {
+  branchId  String   @map("branch_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([branchId, userId])
+  @@index([userId])
+  @@map("branch_chargers")
+}

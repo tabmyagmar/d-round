@@ -1,0 +1,16 @@
+// A 担当者 of a クライアント (legacy ClientsOnChargers). The form sends the list whole; the service
+// keeps the rows still chosen, removes the others and adds the new ones. Users are soft-deleted only,
+// so the user stays referenced (Restrict).
+
+model ClientCharger {
+  clientId  String   @map("client_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([clientId, userId])
+  @@index([userId])
+  @@map("client_chargers")
+}

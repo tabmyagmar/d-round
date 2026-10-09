@@ -3,7 +3,7 @@ import type { Ability } from "@casl/ability";
 import { accessibleBy, createPrismaAbility } from "@casl/prisma/runtime";
 import type { Model, PrismaQueryOf, Subjects } from "@casl/prisma/runtime";
 
-import type { CommentTemplate, Prisma, Staff, User } from "@repo/database";
+import type { Branch, Client, CommentTemplate, Prisma, Staff, User } from "@repo/database";
 
 import { canUnscoped } from "./ability";
 import { defineRules } from "./rules";
@@ -19,7 +19,14 @@ export type PrismaQuery = PrismaQueryOf<Prisma.TypeMap>;
 
 /** Every subject by name; the subjects with Prisma models also as tagged rows for row checks. */
 export type ServerSubjects =
-  SubjectName | Subjects<{ User: User; CommentTemplate: CommentTemplate; Staff: Staff }>;
+  | SubjectName
+  | Subjects<{
+      User: User;
+      CommentTemplate: CommentTemplate;
+      Staff: Staff;
+      Client: Client;
+      Branch: Branch;
+    }>;
 
 export type ServerAbility = Ability<[Action, ServerSubjects], PrismaQuery>;
 
@@ -31,6 +38,14 @@ export const prismaUserSubject = (user: User): Model<User, "User"> => subject("U
  * so the answer equals the type's; a later rule (a 担当者 reading their staff) applies through it.
  */
 export const prismaStaffSubject = (staff: Staff): Model<Staff, "Staff"> => subject("Staff", staff);
+
+/** Tags a Prisma Client row for a row check; no row rule today, so it answers like the type. */
+export const prismaClientSubject = (client: Client): Model<Client, "Client"> =>
+  subject("Client", client);
+
+/** Tags a Prisma Branch row for a row check; no row rule today, so it answers like the type. */
+export const prismaBranchSubject = (branch: Branch): Model<Branch, "Branch"> =>
+  subject("Branch", branch);
 
 /** Tags a Prisma CommentTemplate row so the owner rule can be evaluated. */
 export const prismaCommentTemplateSubject = (
@@ -52,8 +67,8 @@ export const definePrismaAbilityFor = (user: AbilityUser | null): ServerAbility 
 
 /**
  * Prisma `where` restricting a User query to rows the ability allows. Callers must check
- * `ability.can(action, "User")` first: with no matching rule CASL returns a fail-closed marker
- * condition that Prisma rejects.
+ * `ability.can(action, "User")` first: with no matching rule CASL returns `{ OR: [] }`, which
+ * matches no row, so the list would come back empty instead of refused.
  */
 export const accessibleUsersWhere = (
   ability: ServerAbility,
@@ -77,5 +92,23 @@ export const accessibleStaffWhere = (
   ability: ServerAbility,
   action: Action = "read",
 ): Prisma.StaffWhereInput => accessibleBy(ability, action).ofType("Staff");
+
+/**
+ * Prisma `where` restricting a Client query to the rows the ability allows (everything with the
+ * grant today). Callers check `ability.can(action, "Client")` first, as for users.
+ */
+export const accessibleClientsWhere = (
+  ability: ServerAbility,
+  action: Action = "read",
+): Prisma.ClientWhereInput => accessibleBy(ability, action).ofType("Client");
+
+/**
+ * Prisma `where` restricting a Branch query to the rows the ability allows (everything with the
+ * grant today). Callers check `ability.can(action, "Branch")` first, as for users.
+ */
+export const accessibleBranchesWhere = (
+  ability: ServerAbility,
+  action: Action = "read",
+): Prisma.BranchWhereInput => accessibleBy(ability, action).ofType("Branch");
 
 export { accessibleBy, canUnscoped };

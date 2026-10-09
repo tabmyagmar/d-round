@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import type { MouseEvent } from "react";
 import type { FieldPath, FieldValues, UseFormTrigger } from "react-hook-form";
 
 export type UseStepperOptions<TValues extends FieldValues> = {
@@ -12,7 +13,10 @@ export type UseStepperOptions<TValues extends FieldValues> = {
  * runs `beforeNext` — an async guard such as a uniqueness check that sets its own field error — and
  * moves on only when both pass, one step from where it was asked; a `goNext` asked while another
  * runs (a second click on 次へ) is ignored. `goTo` goes back to an earlier step (the `Stepper`'s
- * completed steps); forward goes through `goNext` only.
+ * completed steps); forward goes through `goNext` only. `countSubmitClicks` (the form's
+ * `onClickCapture`) and `isDoubleClickSubmit` (first in its `onSubmit`) keep a double click on the
+ * submit button to one step: its second click would land on the button the first one relabelled
+ * (次へ → 追加) and send the form unseen.
  */
 export const useStepper = <TValues extends FieldValues>({ steps }: UseStepperOptions<TValues>) => {
   const [current, setCurrent] = useState(0);
@@ -48,6 +52,22 @@ export const useStepper = <TValues extends FieldValues>({ steps }: UseStepperOpt
     setCurrent((step) => (index >= 0 && index < step ? index : step));
   };
 
+  // How many clicks the submit button's last click counted; Enter counts none.
+  const submitClicksRef = useRef(0);
+
+  const countSubmitClicks = (event: MouseEvent<HTMLFormElement>) => {
+    submitClicksRef.current =
+      event.target instanceof Element && event.target.closest('button[type="submit"]')
+        ? event.detail
+        : 0;
+  };
+
+  const isDoubleClickSubmit = () => {
+    const clicks = submitClicksRef.current;
+    submitClicksRef.current = 0;
+    return clicks > 1;
+  };
+
   return {
     current,
     isFirst: current === 0,
@@ -55,5 +75,7 @@ export const useStepper = <TValues extends FieldValues>({ steps }: UseStepperOpt
     goNext,
     goPrev,
     goTo,
+    countSubmitClicks,
+    isDoubleClickSubmit,
   };
 };

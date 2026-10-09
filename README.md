@@ -128,6 +128,17 @@ deployment places them, and a developer copies them from the legacy d-round-web 
   master, family members, memos and employment periods; スタッフ削除 soft-deletes a 停止 staff. Web:
   `/admin/staff`, `/admin/staff/[id]`, the three-step form on `/admin/staff/create` and
   `/admin/staff/update/[id]`, and the user detail's 担当スタッフ.
+- **Client module** (`docs/adr/0011-clients-and-branches.md`):
+  `client.list / byId / create / update / changeStatus / deleteMany / numberAvailable / options`. A
+  client has エリア, 地域, 受注区分, 担当者 and an address checked against the post-code
+  master; クライアント削除 soft-deletes a 停止 client and frees its number. Web: `/admin/client`,
+  `/admin/client/[id]`, the two-step form on `/admin/client/create` and `/admin/client/update/[id]`.
+- **Branch module** (`docs/adr/0011-clients-and-branches.md`):
+  `branch.list / byId / create / update / changeStatus / deleteMany / nextNumber`.
+  A 就業先部署 belongs to one client and carries one エリア and 地域, 担当者, its 部署 with an
+  address, its 連絡担当者 and a memo; 就業先番号 is unique within the client. Web: `/admin/branch`,
+  `/admin/branch/[id]`, the two-step form on `/admin/branch/create` and `/admin/branch/update/[id]`,
+  and the client detail's 就業先部署情報 with its dialog.
 - **Web shell**: a shadcn sidebar under `/admin` with every page of the legacy d-round-web app
   (workflow, templates, users, audit log, clients, branches, staff, settings), most of them
   placeholders; `/admin/workflow` is the landing page. One route catalog
@@ -186,12 +197,14 @@ apps/
               layout, one page per route), config/ (routes.ts: the route catalog, nav.ts: the
               sidebar), features/auth (login-form, forgot-password-form, new-password-form,
               auth-errors), features/users (containers/, components/, hooks/, utils/, types.ts),
-              features/staff (the same shape), features/comment-templates, features/help,
+              features/staff, features/clients and features/branches (the same shape), features/comment-templates,
+              features/help,
               hooks/ (search-params, use-search, use-table-state), stores/ (row-selection),
               components/ (layout/: app-shell, app-sidebar, nav-main, app-header, page-title, user-menu;
               source/: エリア → 地域 → 都道府県 fields, filter fields and useSourceHierarchy, shared by
-              the features; page-guard, access-denied, placeholder-page, theme-provider), lib/auth (client,
-              server, route-access), lib/trpc, lib/env, lib/brand, lib/position-labels,
+              the features; general-status-badge, page-guard, access-denied, placeholder-page,
+              theme-provider), lib/auth (client, server, route-access), lib/trpc, lib/env, lib/brand,
+              lib/position-labels, lib/general-status-labels, lib/charger-labels,
               test/ (vitest + Testing Library, jsdom per file)
 packages/
   auth/       Better Auth: createAuth (server), createAuthReactClient (browser), admin-plugin
@@ -205,7 +218,9 @@ packages/
               transaction), test/ (testcontainers helper, test/repositories, test/utils, test/seed)
   validation/ zod re-export, shared schemas (user.schema.ts: roles, sign-in, names, 担当者 profile,
               list; source.schema.ts: areas, region codes, post codes, the form address;
-              staff.schema.ts: the staff form and list), createEnv() for env validation
+              staff.schema.ts: the staff form and list; client.schema.ts: statuses, 受注区分, the
+              client form and list; branch.schema.ts: the 就業先部署 form and list), createEnv() for
+              env validation
   queue/      BullMQ + ioredis wrapper: connection, createQueue, createWorker, pub/sub, jobIdFor,
               QUEUE_NAMES, jobs/email.job.ts (EmailJob contract), test/ (testcontainers Redis)
   logger/     pino with redaction, createLogger / childLogger, createDiscordAlertStream (ADR 0010)

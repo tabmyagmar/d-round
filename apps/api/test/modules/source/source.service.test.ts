@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { ForbiddenError } from "../../../src/core/errors";
+import { ForbiddenError, ValidationError } from "../../../src/core/errors";
 import * as sourceService from "../../../src/modules/source/source.service";
 import { contextFor, createHarness, signedInUser } from "../../support";
 import type { TestHarness } from "../../support";
@@ -54,6 +54,24 @@ describe("source service", () => {
       town: "千代田",
     });
     expect(await sourceService.addressByPostCode(ctx, uniquePostCode())).toBeNull();
+  });
+
+  it("lets a write name known codes and refuses unknown regions, prefectures and post codes", async () => {
+    const postCode = uniquePostCode();
+    await h.db.sourceAddress.create({
+      data: { jisCode: 13101, postCode, pref: "東京都", city: "千代田区", town: "千代田" },
+    });
+
+    await expect(
+      sourceService.assertKnownSource(h.db, { regionCodes: [4], prefectureCodes: [13], postCode }),
+    ).resolves.toBeUndefined();
+    await expect(sourceService.assertKnownSource(h.db, {})).resolves.toBeUndefined();
+    await expect(
+      sourceService.assertKnownSource(h.db, { regionCodes: [4, 99], prefectureCodes: [98] }),
+    ).rejects.toThrow(new ValidationError("Unknown region 99, prefecture 98"));
+    await expect(
+      sourceService.assertKnownSource(h.db, { postCode: uniquePostCode() }),
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it("refuses an anonymous context", async () => {

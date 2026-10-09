@@ -1,0 +1,47 @@
+// A 就業先部署 (legacy Branch with its 1:1 Department and BranchContact): a client's workplace. One
+// row holds the 就業先, its 部署 and its 連絡担当者, as the legacy form filled one of each; the
+// address and 担当者 live in their own files beside this one. Soft-deleted
+// (docs/adr/0011-clients-and-branches.md).
+
+model Branch {
+  id                   String        @id @default(uuid(7)) @db.Uuid
+  clientId             String        @map("client_id") @db.Uuid
+  /// 就業先番号 — unique among the client's non-deleted branches (a service rule, ADR 0011).
+  number               Int
+  name                 String        @db.VarChar(100)
+  nameKana             String        @map("name_kana") @db.VarChar(100)
+  /// エリア
+  area                 SourceArea
+  /// 地域, within `area`.
+  regionCode           Int           @map("region_code")
+  /// 部署番号
+  departmentNumber     Int           @map("department_number")
+  departmentName       String        @map("department_name") @db.VarChar(100)
+  departmentNameKana   String        @map("department_name_kana") @db.VarChar(100)
+  departmentFax        String?       @map("department_fax") @db.VarChar(20)
+  /// 連絡担当者 (legacy BranchContact).
+  contactLastName      String        @map("contact_last_name") @db.VarChar(80)
+  contactFirstName     String        @map("contact_first_name") @db.VarChar(80)
+  contactLastNameKana  String        @map("contact_last_name_kana") @db.VarChar(80)
+  contactFirstNameKana String        @map("contact_first_name_kana") @db.VarChar(80)
+  contactPosition      Position      @map("contact_position")
+  contactEmail         String        @map("contact_email") @db.VarChar(255)
+  /// メモ (legacy BranchMemo, one per 就業先部署).
+  memo                 String?
+  status               GeneralStatus @default(ACTIVE)
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+  /// 就業先部署削除 (soft): only a 停止 branch; frees the 就業先番号.
+  deletedAt            DateTime?     @map("deleted_at")
+
+  client   Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  region   SourceRegion    @relation(fields: [regionCode], references: [code], onDelete: Restrict)
+  address  BranchAddress?
+  chargers BranchCharger[]
+
+  @@index([clientId, number])
+  @@index([status])
+  @@index([regionCode])
+  @@index([nameKana])
+  @@map("branches")
+}

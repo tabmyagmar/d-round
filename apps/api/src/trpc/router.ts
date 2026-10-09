@@ -1,4 +1,6 @@
 import { router } from "./init";
+import { branchRouter } from "./routers/branch.router";
+import { clientRouter } from "./routers/client.router";
 import { commentTemplateRouter } from "./routers/comment-template.router";
 import { healthRouter } from "./routers/health.router";
 import { permissionRouter } from "./routers/permission.router";
@@ -7,6 +9,8 @@ import { staffRouter } from "./routers/staff.router";
 import { userRouter } from "./routers/user.router";
 
 export const appRouter = router({
+  branch: branchRouter,
+  client: clientRouter,
   commentTemplate: commentTemplateRouter,
   health: healthRouter,
   permission: permissionRouter,

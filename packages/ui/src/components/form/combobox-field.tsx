@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import type { FieldValues } from "react-hook-form";
 
 import {
@@ -50,7 +51,19 @@ export const ComboboxField = <TValues extends FieldValues>({
   loading = false,
 }: ComboboxFieldProps<TValues>) => {
   const { ref, field, fieldState } = useFormField({ control, name, disabled });
-  const selected = options.find((option) => option.value === field.value) ?? null;
+  const chosen = options.find((option) => option.value === field.value);
+  const chosenValue = chosen?.value;
+  const chosenLabel = chosen?.label;
+  // One object while the chosen option stays the same: Base UI puts the chosen label back into the
+  // input whenever the value changes identity, which would undo a search typed over a chosen value
+  // as soon as its results render the field again with fresh options.
+  const selected = useMemo<SelectOption | null>(
+    () =>
+      chosenValue === undefined || chosenLabel === undefined
+        ? null
+        : { value: chosenValue, label: chosenLabel },
+    [chosenValue, chosenLabel],
+  );
 
   return (
     <FormFieldShell

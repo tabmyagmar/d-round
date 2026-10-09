@@ -1,6 +1,6 @@
 "use client";
 
-import type { Control, FieldPath } from "react-hook-form";
+import type { Control, FieldPath, FieldValues } from "react-hook-form";
 
 import { TextField } from "@repo/ui/components/form";
 
@@ -12,19 +12,31 @@ export type NameValues = {
   firstNameKana?: string | undefined;
 };
 
+/** Where the four parts sit in a form whose keys differ (a 就業先部署's 連絡担当者). */
+export type NameFieldNames<TValues extends FieldValues> = Record<
+  keyof NameValues,
+  FieldPath<TValues>
+>;
+
+export type NameFieldsProps<TValues extends FieldValues> = {
+  control: Control<TValues>;
+  /** Left out where the form's own keys are `NameValues`' (the user and staff forms). */
+  names?: NameFieldNames<TValues>;
+  disabled?: boolean;
+};
+
 /**
  * 姓 / 名 and their katakana readings セイ / メイ, two per row as in the legacy forms: the user
- * forms (invite, edit, profile) and the staff form. The schema (`userNameSchema`) requires all four
- * and full-width katakana for the readings.
+ * forms (invite, edit, profile), the staff form and, through `names`, the 就業先部署 form's
+ * 連絡担当者. The schemas require all four and full-width katakana for the readings.
  */
-export const NameFields = <TValues extends NameValues>({
+export const NameFields = <TValues extends FieldValues>({
   control,
+  names,
   disabled = false,
-}: {
-  control: Control<TValues>;
-  disabled?: boolean;
-}) => {
-  const name = (key: keyof NameValues) => key as FieldPath<TValues>;
+}: NameFieldsProps<TValues>) => {
+  const name = (key: keyof NameValues): FieldPath<TValues> =>
+    names?.[key] ?? (key as FieldPath<TValues>);
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <TextField

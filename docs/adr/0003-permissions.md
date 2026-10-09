@@ -126,3 +126,7 @@ lint error. Changing a permission means changing the matrix test first.
   exists for it — the catalog grants (`Admin_Staff`, rows 1301–1305) decide — so both answer like
   the type; a later rule (a 担当者 reading the staff they are in charge of) applies through them
   without touching the staff service (ADR 0008).
+- **2026-10-08** — `Client` (and `Branch` with its model, phase B of the client ticket) get the same
+  server helpers as `Staff`: `prismaClientSubject` and `accessibleClientsWhere`, with `Client` in
+  `ServerSubjects`. The catalog grants (`Admin_Client`, rows 1201–1205; `Admin_Branch`, rows
+  1801–1805) decide; no row rule exists, so both answer like the type (ADR 0011).

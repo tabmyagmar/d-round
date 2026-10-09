@@ -221,6 +221,7 @@ describe("user router: profile and 担当者 lookups", () => {
       code: "BAD_REQUEST",
     });
     expect(Array.isArray(await admin.user.chargerOptions({ regionCodes: [4] }))).toBe(true);
+    expect(Array.isArray(await admin.user.chargerOptions({}))).toBe(true);
     await expect(
       admin.user.employeeNumberAvailable({ employeeNumber: uniqueEmployeeNumber() }),
     ).resolves.toBe(true);

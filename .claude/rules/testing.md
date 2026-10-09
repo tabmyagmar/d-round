@@ -68,16 +68,18 @@ repositories or services of this repo.
 
 `apps/api/test/support.ts` (real Postgres + Redis, real Better Auth):
 
-| Helper                                     | What it gives you                                                                                                                                                                            |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createHarness()`                          | `{ db, redis, auth, emailQueue, logger, sentMails, stop }`; call `stop()` in `afterAll`                                                                                                      |
-| `signedInUser(h, { role, name, profile })` | creates a verified user with the role via `auth.api.createUser`, signs in; returns `{ user, email, headers }`; with `profile` also a 担当者 profile (unique 社員番号, region 4 unless given) |
-| `uniqueEmployeeNumber()`                   | a 社員番号 / スタッフ番号 no other test of the run uses                                                                                                                                      |
-| `TEST_POST_CODE`, `ensureTestPostCode(h)`  | the post code staff tests use, and the upsert that puts it in `source_addresses` (call it in `beforeAll`)                                                                                    |
-| `staffInput(chargerUserIds, overrides)`    | a parsed `CreateStaffInput` at `TEST_POST_CODE` with a unique スタッフ番号, as the router hands it to the service                                                                            |
-| `contextFor(h, headers?)`                  | a `RequestContext` built by `buildRequestContext` for those headers (anonymous when omitted)                                                                                                 |
-| `cookieHeaderFrom(response)`               | `Cookie` header value from a `Set-Cookie` response, for follow-up HTTP requests                                                                                                              |
-| `TEST_WEB_ORIGIN`, `TEST_PASSWORD`         | constants used by the HTTP tests                                                                                                                                                             |
+| Helper                                             | What it gives you                                                                                                                                                                            |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createHarness()`                                  | `{ db, redis, auth, emailQueue, logger, sentMails, stop }`; call `stop()` in `afterAll`                                                                                                      |
+| `signedInUser(h, { role, name, profile })`         | creates a verified user with the role via `auth.api.createUser`, signs in; returns `{ user, email, headers }`; with `profile` also a 担当者 profile (unique 社員番号, region 4 unless given) |
+| `uniqueEmployeeNumber()`                           | a 社員番号 / スタッフ番号 no other test of the run uses                                                                                                                                      |
+| `TEST_POST_CODE`, `ensureTestPostCode(h)`          | the post code the staff, client and branch tests use, and the upsert that puts it in `source_addresses` (call it in `beforeAll`)                                                             |
+| `staffInput(chargerUserIds, overrides)`            | a parsed `CreateStaffInput` at `TEST_POST_CODE` with a unique スタッフ番号, as the router hands it to the service                                                                            |
+| `clientInput(chargerUserIds, overrides)`           | a parsed `CreateClientInput` at `TEST_POST_CODE` with a unique クライアント番号 (東日本 / 南関東, 派遣)                                                                                      |
+| `branchInput(clientId, chargerUserIds, overrides)` | a parsed `CreateBranchInput` for that client at `TEST_POST_CODE`: 就業先番号 1, 東日本 / 南関東, a 部署 and a 連絡担当者                                                                     |
+| `contextFor(h, headers?)`                          | a `RequestContext` built by `buildRequestContext` for those headers (anonymous when omitted)                                                                                                 |
+| `cookieHeaderFrom(response)`                       | `Cookie` header value from a `Set-Cookie` response, for follow-up HTTP requests                                                                                                              |
+| `TEST_WEB_ORIGIN`, `TEST_PASSWORD`                 | constants used by the HTTP tests                                                                                                                                                             |
 
 Service tests call the service with `await contextFor(h, user.headers)`; router tests wrap the same
 context in `createCallerFactory(appRouter)`; HTTP tests build `createApp(...)` from the harness

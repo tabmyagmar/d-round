@@ -1,4 +1,5 @@
-import { act, cleanup, renderHook } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { StrictMode, useState } from "react";
 import { useForm } from "react-hook-form";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -112,5 +113,46 @@ describe("useStepper", () => {
     });
     expect(result.current.stepper.current).toBe(0);
     expect(result.current.stepper.isFirst).toBe(true);
+  });
+});
+
+/** A form on the stepper's double-click guard, showing how many submits it let through. */
+const GuardedForm = () => {
+  const stepper = useStepper<Values>({ steps: [[], []] });
+  const [submits, setSubmits] = useState(0);
+  return (
+    <form
+      onClickCapture={stepper.countSubmitClicks}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!stepper.isDoubleClickSubmit()) {
+          setSubmits((count) => count + 1);
+        }
+      }}
+    >
+      <button type="submit">次へ</button>
+      <button type="button">戻る</button>
+      <output data-testid="submits">{submits}</output>
+    </form>
+  );
+};
+
+describe("useStepper's double-click guard", () => {
+  it("lets a click and Enter submit, never the second click of a double click", () => {
+    render(
+      <StrictMode>
+        <GuardedForm />
+      </StrictMode>,
+    );
+    const submit = screen.getByRole("button", { name: "次へ" });
+
+    fireEvent.click(submit, { detail: 1 });
+    fireEvent.click(submit, { detail: 2 });
+    expect(screen.getByTestId("submits").textContent).toBe("1");
+
+    // Enter submits without a click; a double click elsewhere before it does not count.
+    fireEvent.click(screen.getByRole("button", { name: "戻る" }), { detail: 2 });
+    fireEvent.submit(submit);
+    expect(screen.getByTestId("submits").textContent).toBe("2");
   });
 });
