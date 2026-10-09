@@ -7,6 +7,7 @@ import type { FieldValues } from "react-hook-form";
 
 import { Button } from "../button";
 
+import { formatSize, matchesAccept } from "./file-utils";
 import { FormFieldShell } from "./form-field-shell";
 import type { BaseFieldProps, FileFieldValue } from "./types";
 import { useFormField } from "./use-form-field";
@@ -27,16 +28,6 @@ export type FileFieldProps<TValues extends FieldValues> = BaseFieldProps<TValues
   dropLabel?: string;
 };
 
-const formatSize = (bytes: number): string => {
-  if (bytes < 1024) {
-    return `${String(bytes)} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(0)} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
 const fileKey = (file: Pick<FileFieldValue, "name" | "size">) =>
   `${file.name}:${String(file.size)}`;
 
@@ -49,25 +40,6 @@ const toFiles = (value: unknown): FileFieldValue[] =>
           typeof (item as FileFieldValue).name === "string",
       )
     : [];
-
-const matchesAccept = (file: File, accept: string | undefined): boolean => {
-  if (!accept) {
-    return true;
-  }
-  const extension = `.${file.name.split(".").pop()?.toLowerCase() ?? ""}`;
-  return accept
-    .split(",")
-    .map((rule) => rule.trim().toLowerCase())
-    .some((rule) => {
-      if (rule.startsWith(".")) {
-        return rule === extension;
-      }
-      if (rule.endsWith("/*")) {
-        return file.type.toLowerCase().startsWith(rule.slice(0, -1));
-      }
-      return file.type.toLowerCase() === rule;
-    });
-};
 
 /**
  * Drop zone + file list. The value is `FileFieldValue[]` (also for `multiple={false}`, then at

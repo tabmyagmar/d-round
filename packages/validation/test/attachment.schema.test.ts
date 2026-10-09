@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   ATTACHMENT_RULES,
   attachmentAccept,
+  attachmentValueSchema,
   createUploadUrlSchema,
   fileExtension,
   sanitizeFileName,
@@ -69,5 +70,25 @@ describe("createUploadUrlSchema", () => {
   it("gives the form its accept list", () => {
     expect(attachmentAccept("USER_AVATAR")).toBe("image/jpeg,image/png,image/webp");
     expect(attachmentAccept("STAFF_RESUME")).toBe("application/pdf");
+  });
+});
+
+describe("attachmentValueSchema", () => {
+  const uploaded = { id: crypto.randomUUID(), name: "顔.png", size: 10, type: "image/png" };
+
+  it("keeps an uploaded file's reference and drops the browser's File", () => {
+    expect(attachmentValueSchema.parse({ ...uploaded, url: "https://x", file: {} })).toEqual({
+      ...uploaded,
+      url: "https://x",
+    });
+  });
+
+  it("stops a submit while a file is still uploading", () => {
+    const { id: _id, ...uploading } = uploaded;
+    const result = attachmentValueSchema.safeParse(uploading);
+
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      "アップロードが完了するまでお待ちください",
+    ]);
   });
 });

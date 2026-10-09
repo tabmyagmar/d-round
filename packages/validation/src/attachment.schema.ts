@@ -96,3 +96,16 @@ export const createUploadUrlSchema = z
     }
   });
 export type CreateUploadUrlInput = z.infer<typeof createUploadUrlSchema>;
+
+/**
+ * A file a form holds (`FileFieldValue` of @repo/ui) once its upload finished: the attachment id
+ * is what the API receives. An entry still uploading has no id and stops the submit here.
+ */
+export const attachmentValueSchema = z.object({
+  id: z.uuid({ error: "アップロードが完了するまでお待ちください" }),
+  name: z.string(),
+  size: z.number(),
+  type: z.string(),
+  url: z.string().optional(),
+});
+export type AttachmentValue = z.infer<typeof attachmentValueSchema>;
