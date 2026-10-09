@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/card";
+import { ContentCard } from "@repo/ui/components/composed/content-card";
 import { DescriptionList } from "@repo/ui/components/composed/description-list";
 import type { BranchFormValues } from "@repo/validation";
 
@@ -30,80 +30,60 @@ export const BranchFormConfirm = ({
   chargers,
 }: BranchFormConfirmProps) => (
   <>
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <DescriptionList
-          items={[
-            { label: "クライアント名", value: clientName },
-            { label: "就業先番号", value: values.number },
-            { label: "就業先名", value: values.name },
-            { label: "就業先名（カタカナ）", value: values.nameKana },
-            { label: "エリア", value: AREA_LABELS[values.area] },
-            {
-              label: "地域",
-              value:
-                hierarchy.regions.find((region) => region.code === values.regionCode)?.name ??
-                String(values.regionCode),
-            },
-            {
-              label: "担当者",
-              value: values.chargerUserIds
-                .map((id) => chargers.find((charger) => charger.id === id)?.name ?? id)
-                .join("、"),
-            },
-          ]}
-        />
-      </CardContent>
-    </Card>
+    <ContentCard title={title}>
+      <DescriptionList
+        items={[
+          { label: "クライアント名", value: clientName },
+          { label: "就業先番号", value: values.number },
+          { label: "就業先名", value: values.name },
+          { label: "就業先名（カタカナ）", value: values.nameKana },
+          { label: "エリア", value: AREA_LABELS[values.area] },
+          {
+            label: "地域",
+            value:
+              hierarchy.regions.find((region) => region.code === values.regionCode)?.name ??
+              String(values.regionCode),
+          },
+          {
+            label: "担当者",
+            value: values.chargerUserIds
+              .map((id) => chargers.find((charger) => charger.id === id)?.name ?? id)
+              .join("、"),
+          },
+        ]}
+      />
+    </ContentCard>
 
-    <Card>
-      <CardHeader>
-        <CardTitle>就業先部署・住所情報登録</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <DescriptionList
-          items={[
-            { label: "部署番号", value: values.departmentNumber },
-            { label: "部署名", value: values.departmentName },
-            { label: "部署名（カタカナ）", value: values.departmentNameKana },
-            { label: "郵便番号", value: postCodeLabel(values.address.postCode) },
-            { label: "住所(県名)", value: values.address.pref },
-            { label: "住所(市町村名)", value: values.address.cityTown },
-            { label: "住所", value: values.address.address1 },
-            { label: "FAX", value: values.departmentFax },
-          ]}
-        />
-      </CardContent>
-    </Card>
+    <ContentCard title="就業先部署・住所情報登録">
+      <DescriptionList
+        items={[
+          { label: "部署番号", value: values.departmentNumber },
+          { label: "部署名", value: values.departmentName },
+          { label: "部署名（カタカナ）", value: values.departmentNameKana },
+          { label: "郵便番号", value: postCodeLabel(values.address.postCode) },
+          { label: "住所(県名)", value: values.address.pref },
+          { label: "住所(市町村名)", value: values.address.cityTown },
+          { label: "住所", value: values.address.address1 },
+          { label: "FAX", value: values.departmentFax },
+        ]}
+      />
+    </ContentCard>
 
-    <Card>
-      <CardHeader>
-        <CardTitle>連絡担当者情報登録</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <DescriptionList
-          items={[
-            { label: "姓", value: values.contactLastName },
-            { label: "名", value: values.contactFirstName },
-            { label: "役職", value: POSITION_LABELS[values.contactPosition] },
-            { label: "セイ", value: values.contactLastNameKana },
-            { label: "メイ", value: values.contactFirstNameKana },
-            { label: "メールアドレス", value: values.contactEmail },
-          ]}
-        />
-      </CardContent>
-    </Card>
+    <ContentCard title="連絡担当者情報登録">
+      <DescriptionList
+        items={[
+          { label: "姓", value: values.contactLastName },
+          { label: "名", value: values.contactFirstName },
+          { label: "役職", value: POSITION_LABELS[values.contactPosition] },
+          { label: "セイ", value: values.contactLastNameKana },
+          { label: "メイ", value: values.contactFirstNameKana },
+          { label: "メールアドレス", value: values.contactEmail },
+        ]}
+      />
+    </ContentCard>
 
-    <Card>
-      <CardHeader>
-        <CardTitle>メモ</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm break-words whitespace-pre-wrap">{values.memo ?? "—"}</p>
-      </CardContent>
-    </Card>
+    <ContentCard title="メモ">
+      <p className="text-sm break-words whitespace-pre-wrap">{values.memo ?? "—"}</p>
+    </ContentCard>
   </>
 );

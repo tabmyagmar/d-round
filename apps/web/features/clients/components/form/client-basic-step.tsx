@@ -2,7 +2,7 @@
 
 import type { Control } from "react-hook-form";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/card";
+import { ContentCard } from "@repo/ui/components/composed/content-card";
 import { FieldGroup } from "@repo/ui/components/field";
 import {
   CheckboxGroupField,
@@ -44,119 +44,109 @@ export const ClientBasicStep = ({
   findAddress,
 }: ClientBasicStepProps) => (
   <>
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <FieldGroup>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <NumberField
-              control={control}
-              name="number"
-              label="クライアント番号"
-              placeholder="クライアント番号"
-              min={1}
-              inputMode="numeric"
-              required
-            />
-            <TextField
-              control={control}
-              name="name"
-              label="クライアント名"
-              placeholder="クライアント名"
-              maxLength={100}
-              required
-            />
-            <TextField
-              control={control}
-              name="nameKana"
-              label="クライアント名(カタカナ)"
-              placeholder="クライアント名(カタカナ)"
-              maxLength={100}
-              required
-            />
-            <HierarchyFields
-              control={control}
-              hierarchy={hierarchy}
-              names={{ areas: "areas", regionCodes: "regionCodes" }}
-              required
-            />
-            <MultiSelectField
-              control={control}
-              name="chargerUserIds"
-              label="担当者"
-              placeholder="担当者を選択"
-              options={chargerOptions.map((charger) => ({
-                value: charger.id,
-                label: charger.name,
-              }))}
-              emptyMessage="該当なし"
-              max={CHARGERS_MAX}
-              loading={chargersLoading}
-              required
-            />
-          </div>
-        </FieldGroup>
-      </CardContent>
-    </Card>
-
-    <Card>
-      <CardHeader>
-        <CardTitle>住所・連絡先情報登録</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <FieldGroup>
-          <AddressFields
+    <ContentCard title={title}>
+      <FieldGroup>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <NumberField
             control={control}
-            names={{
-              postCode: "address.postCode",
-              pref: "address.pref",
-              cityTown: "address.cityTown",
-              address1: "address.address1",
-            }}
-            findAddress={findAddress}
+            name="number"
+            label="クライアント番号"
+            placeholder="クライアント番号"
+            min={1}
+            inputMode="numeric"
+            required
           />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextField
-              control={control}
-              name="phoneNumber"
-              type="tel"
-              label="電話番号"
-              placeholder="03-1234-5678"
-              format={formatPhoneNumber}
-              autoComplete="tel"
-              required
-            />
-            <TextField
-              control={control}
-              name="fax"
-              type="tel"
-              label="FAX"
-              placeholder="03-1234-5678"
-              format={formatPhoneNumber}
-              emptyAs="null"
-            />
-            <TextField
-              control={control}
-              name="webUrl"
-              type="url"
-              label="URL"
-              placeholder="example.com"
-              maxLength={255}
-              emptyAs="null"
-            />
-            <CheckboxGroupField
-              control={control}
-              name="orderTypes"
-              label="受注区分"
-              options={CLIENT_ORDER_TYPE_OPTIONS}
-              orientation="horizontal"
-              required
-            />
-          </div>
-        </FieldGroup>
-      </CardContent>
-    </Card>
+          <TextField
+            control={control}
+            name="name"
+            label="クライアント名"
+            placeholder="クライアント名"
+            maxLength={100}
+            required
+          />
+          <TextField
+            control={control}
+            name="nameKana"
+            label="クライアント名(カタカナ)"
+            placeholder="クライアント名(カタカナ)"
+            maxLength={100}
+            required
+          />
+          <HierarchyFields
+            control={control}
+            hierarchy={hierarchy}
+            names={{ areas: "areas", regionCodes: "regionCodes" }}
+            required
+          />
+          <MultiSelectField
+            control={control}
+            name="chargerUserIds"
+            label="担当者"
+            placeholder="担当者を選択"
+            options={chargerOptions.map((charger) => ({
+              value: charger.id,
+              label: charger.name,
+            }))}
+            emptyMessage="該当なし"
+            max={CHARGERS_MAX}
+            loading={chargersLoading}
+            required
+          />
+        </div>
+      </FieldGroup>
+    </ContentCard>
+
+    <ContentCard title="住所・連絡先情報登録">
+      <FieldGroup>
+        <AddressFields
+          control={control}
+          names={{
+            postCode: "address.postCode",
+            pref: "address.pref",
+            cityTown: "address.cityTown",
+            address1: "address.address1",
+          }}
+          findAddress={findAddress}
+        />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField
+            control={control}
+            name="phoneNumber"
+            type="tel"
+            label="電話番号"
+            placeholder="03-1234-5678"
+            format={formatPhoneNumber}
+            autoComplete="tel"
+            required
+          />
+          <TextField
+            control={control}
+            name="fax"
+            type="tel"
+            label="FAX"
+            placeholder="03-1234-5678"
+            format={formatPhoneNumber}
+            emptyAs="null"
+          />
+          <TextField
+            control={control}
+            name="webUrl"
+            type="url"
+            label="URL"
+            placeholder="example.com"
+            maxLength={255}
+            emptyAs="null"
+          />
+          <CheckboxGroupField
+            control={control}
+            name="orderTypes"
+            label="受注区分"
+            options={CLIENT_ORDER_TYPE_OPTIONS}
+            orientation="horizontal"
+            required
+          />
+        </div>
+      </FieldGroup>
+    </ContentCard>
   </>
 );

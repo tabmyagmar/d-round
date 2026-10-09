@@ -8,13 +8,7 @@ import type { ReactNode } from "react";
 
 import { useAbility } from "@repo/permissions/react";
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/card";
+import { ContentCard } from "@repo/ui/components/composed/content-card";
 import { DescriptionList } from "@repo/ui/components/composed/description-list";
 import { formatDate } from "@repo/ui/components/form";
 import { Skeleton } from "@repo/ui/components/skeleton";
@@ -117,60 +111,50 @@ export const UserDetailContainer = ({ userId, staffs }: UserDetailContainerProps
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>基本情報</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DescriptionList
-              // The legacy detail's fields and order (its read-only user form).
-              items={[
-                { label: "社員番号", value: detail.profile?.employeeNumber },
-                { label: "氏名", value: detail.name },
-                { label: "フリガナ", value: readingOf(detail) },
-                { label: "エリア", value: areaNamesOf(detail.profile) },
-                { label: "地域", value: regionNamesOf(detail.profile) },
-                { label: "部署名", value: detail.profile?.departmentName },
-                {
-                  label: "役職",
-                  value: detail.profile ? POSITION_LABELS[detail.profile.position] : null,
-                },
-                { label: "メールアドレス", value: detail.email },
-                { label: "アカウントタイプ", value: <RoleBadge role={detail.role} /> },
-                {
-                  label: "退職日",
-                  value: detail.profile?.retirementDate
-                    ? formatDate(detail.profile.retirementDate, "ja-JP")
-                    : null,
-                },
-                { label: "ステータス", value: <UserStatusBadge status={userStatusOf(detail)} /> },
-                { label: "登録日", value: formatDate(detail.createdAt, "ja-JP") },
-              ]}
-            />
-          </CardContent>
-        </Card>
+        <ContentCard title="基本情報">
+          <DescriptionList
+            // The legacy detail's fields and order (its read-only user form).
+            items={[
+              { label: "社員番号", value: detail.profile?.employeeNumber },
+              { label: "氏名", value: detail.name },
+              { label: "フリガナ", value: readingOf(detail) },
+              { label: "エリア", value: areaNamesOf(detail.profile) },
+              { label: "地域", value: regionNamesOf(detail.profile) },
+              { label: "部署名", value: detail.profile?.departmentName },
+              {
+                label: "役職",
+                value: detail.profile ? POSITION_LABELS[detail.profile.position] : null,
+              },
+              { label: "メールアドレス", value: detail.email },
+              { label: "アカウントタイプ", value: <RoleBadge role={detail.role} /> },
+              {
+                label: "退職日",
+                value: detail.profile?.retirementDate
+                  ? formatDate(detail.profile.retirementDate, "ja-JP")
+                  : null,
+              },
+              { label: "ステータス", value: <UserStatusBadge status={userStatusOf(detail)} /> },
+              { label: "登録日", value: formatDate(detail.createdAt, "ja-JP") },
+            ]}
+          />
+        </ContentCard>
 
         {showPermissions ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>権限</CardTitle>
-              <CardDescription>
-                マネジャーの権限は担当者ごとに編集画面で調整できます。
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {catalog.isError ? (
-                <p className="text-sm text-destructive">{catalog.error.message}</p>
-              ) : catalog.data ? (
-                <UserPermissionSummary
-                  catalog={catalog.data}
-                  permissionKeys={detail.permissionKeys}
-                />
-              ) : (
-                <Skeleton className="h-24 w-full" />
-              )}
-            </CardContent>
-          </Card>
+          <ContentCard
+            title="権限"
+            description="マネジャーの権限は担当者ごとに編集画面で調整できます。"
+          >
+            {catalog.isError ? (
+              <p className="text-sm text-destructive">{catalog.error.message}</p>
+            ) : catalog.data ? (
+              <UserPermissionSummary
+                catalog={catalog.data}
+                permissionKeys={detail.permissionKeys}
+              />
+            ) : (
+              <Skeleton className="h-24 w-full" />
+            )}
+          </ContentCard>
         ) : null}
       </div>
 
