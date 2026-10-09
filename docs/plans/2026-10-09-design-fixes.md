@@ -109,3 +109,38 @@ borders and shadows, the row menu's "…" trigger colour.
 ## Log
 
 - 2026-10-09: plan approved ("ok").
+- Implemented in seven commits (`36b2f34` date fields, `b6fc65d` ContentCard, `606441f` and
+  `3046108` features on it, `27a4967` menu icons, `8cd1e31` sidebar, `83cf356` logout), each green
+  on `yarn turbo run lint typecheck test test:scripts build format:check` with the main checkout's
+  cache read-only (`--cache=local:r --cache-dir=<main>/.turbo/cache`, the disk is 98% full), and
+  `eslint --max-warnings 0` on the changed files before every commit. Steps done by the orchestrator
+  itself (small, sequential UI steps), as protocol.md allows.
+- Amendments: `83cf356` also edits `.claude/rules/ui.md` (the shell's ログアウト sentence: the
+  confirm and `AppHeader` owning the sign-out), a doc sync the plan's commit 8 did not list. The
+  year buttons use `aria-disabled` (react-day-picker's own `Nav` does, so a focused button keeps the
+  focus) rather than `disabled`; the default end month is a module constant (December fifty years
+  ahead), as `@eslint-react/purity` rejects `new Date()` during render.
+- Browser check (headless Chromium against this worktree's web on :3001 and API on :4001, the dev
+  database): every changed screen as super_admin, admin, manager and am — users list/detail (manager
+  and am get the 403 their grants give), staff list/detail/create, clients list/detail, branches
+  list/detail/create, 定型文管理, 操作方法, profile, user update — no console errors. 生年月日 (max
+  today): `<<` twice shows 2024, `>>` stops at 2026 and is then disabled; 入社日 (no max): `>>`
+  reaches 2027, which the calendar could not show before. ログアウト: いいえ keeps the
+  session, はい lands on `/login`. Mobile (390 px): the header button opens the sheet and « closes
+  it. Menu icons brand blue, ログアウト and 削除 red; card and table titles semibold brand blue.
+- Verifier (once for the MR): PASS — a fresh run of every task with no cache read or written
+  (`--cache=local:,remote:`; turbo 2.10 rejects `--force` with `--cache`), 40/40 including the
+  api/database/worker testcontainers suites; targeted ui and web tests; `eslint --max-warnings 0` on
+  the 33 changed TypeScript files.
+- Reviewer round 1: REQUEST_CHANGES, 0 BLOCKER, 1 SHOULD, 3 NIT. SHOULD: the logout dialog's pending
+  state never reset after a failed sign-out and went beyond the legacy — removed, はい signs out as
+  the legacy `onOk`. NITs: the one-caller `yearLabels` inlined, its English labels now
+  react-day-picker's wording; the shadcn-ui skill pointed at ui.md's patch list and names
+  ContentCard as the card deviation; this Log records the ui.md amendment above. Fixed in `564e154`
+  (decision 1's English "Previous year / Next year" is now "Go to the Previous / Next Year").
+- Reviewer round 2 (`564e154` only): APPROVE, every round-1 finding resolved, nothing new.
+- Security reviewed by hand (no `origin/HEAD` for `/security-review` on this line): UI only, no new
+  data flow or dependency; the sign-out calls moved from `UserMenu` to `AppHeader` unchanged.
+- What slowed the ticket: the worktree's API first pointed at `.env.example`'s database name `app`;
+  the dev database is `workflow` (recorded in the session memory, not in the repo, as `.env` is
+  off-limits).
