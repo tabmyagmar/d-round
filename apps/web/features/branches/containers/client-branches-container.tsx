@@ -61,7 +61,7 @@ export const ClientBranchesContainer = ({ clientId }: { clientId: string }) => {
         onSearch={(search) => {
           setMany({ search });
         }}
-        label="番号・名前・担当者で検索"
+        label="番号・名前で検索"
         className="max-w-xs"
       />
       {branches.isError ? (
