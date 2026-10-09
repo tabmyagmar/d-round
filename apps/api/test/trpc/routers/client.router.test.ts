@@ -31,7 +31,7 @@ describe("client router", () => {
     await expect(anonymous.client.list({})).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
-  it("lets an admin create, read, change the status of and delete a client", async () => {
+  it("lets an admin create, read, update, change the status of and delete a client", async () => {
     const admin = createCaller(
       await contextFor(h, (await signedInUser(h, { role: "admin" })).headers),
     );

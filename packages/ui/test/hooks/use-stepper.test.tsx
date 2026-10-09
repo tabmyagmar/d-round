@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-library/react";
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import { useForm } from "react-hook-form";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -139,7 +139,11 @@ const GuardedForm = () => {
 
 describe("useStepper's double-click guard", () => {
   it("lets a click and Enter submit, never the second click of a double click", () => {
-    render(<GuardedForm />);
+    render(
+      <StrictMode>
+        <GuardedForm />
+      </StrictMode>,
+    );
     const submit = screen.getByRole("button", { name: "次へ" });
 
     fireEvent.click(submit, { detail: 1 });

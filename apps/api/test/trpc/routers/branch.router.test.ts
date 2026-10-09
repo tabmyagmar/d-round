@@ -35,7 +35,7 @@ describe("branch router", () => {
     await expect(anonymous.branch.list({})).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
-  it("lets an admin create, read, change the status of and delete a branch", async () => {
+  it("lets an admin create, read, update, change the status of and delete a branch", async () => {
     const admin = await adminCaller();
     const charger = await signedInUser(h);
     const client = await admin.client.create(clientInput([charger.user.id]));
