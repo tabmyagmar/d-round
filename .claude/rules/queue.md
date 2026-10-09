@@ -139,8 +139,8 @@ object in the bucket follows it.
   `PermanentStorageError` (the bucket answered 400 / 401 / 403) fails the job at once
   (`UnrecoverableError`).
 - The queue drops a job that failed every attempt (`removeOnFail: true`): the `DELETED` row is the
-  record, and the sweeper must be able to add the same job id again. A permanent refusal therefore
-  comes back with every sweep, alerting, until the configuration is fixed (ADR 0012).
+  record, and the sweeper must be able to add the same job id again. What a permanent refusal means
+  for the bucket and the alerts: `docs/attachments.md`.
 - Producers pass `ctx.requestId` as `traceId`; an enqueue that fails after commit is logged, not
   thrown — the sweeper picks the row up.
 - `sweepAttachments` (scheduler id `attachment-sweeper`) expires stale `PENDING` rows and

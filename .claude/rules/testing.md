@@ -64,7 +64,7 @@ AI, object storage. The two existing ones are `createMemoryMailProvider`
 with `failFirst` / `alwaysFailPermanently` knobs, and `createMemoryStorage` (`@repo/storage`), the
 bucket as a map (`put` plays the browser's signed PUT) with `failFirstDeletes` / `refuseDeletes`
 knobs. A browser-side `fetch` to the bucket is stubbed with `vi.stubGlobal`
-(`apps/web/test/lib/ attachments.test.ts`). Never mock Prisma, Redis, BullMQ, Better Auth,
+(`apps/web/test/lib/attachments.test.ts`). Never mock Prisma, Redis, BullMQ, Better Auth,
 repositories or services of this repo.
 
 ## Test harnesses — copy these, do not reinvent them

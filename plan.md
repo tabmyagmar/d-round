@@ -751,3 +751,19 @@ deleted owner's files (rows stay, as the legacy).
   new 履歴書 next to a stored one (the limit of three), confirm, detail links (200, Japanese names),
   one removed; super_admin, manager, AM: own image saved and shown, 履歴書 card read-only for
   manager and AM. No hydration warning on fresh loads.
+- 2026-10-09 — review round 2: REQUEST_CHANGES, 1 BLOCKER, 4 SHOULD, 8 NIT, all fixed:
+  - BLOCKER — the permanent-refusal test could not fail (BullMQ emits `failed` after every attempt):
+    it now waits with a 60 s backoff and asserts the job is gone after its first failure; it fails
+    with the `PermanentStorageError` branch removed and passes with it.
+  - SHOULD — FileField syncs `latestRef` in a layout effect (a passive one could put an older list
+    back after a later upload's write); a failed enqueue after commit logs at `error` (it alerts, as
+    the email outbox); "a missing bucket" was wrong in five places — checked live, a delete in a
+    missing bucket answers 404 and `ignoreNotFound` counts it as done, so only 400 / 401 / 403 are
+    permanent; the upload hook shows the API's own refusal (too many uploads waiting) instead of the
+    generic failure (`uploadRefusalOf`, tested).
+  - NIT — the owner lock is `FOR NO KEY UPDATE` (sign-in and upload inserts referencing the user go
+    on); the concurrent-save test holds the first save open and fails without the lock;
+    `assertUploaded` types its owner from the kind; the AvatarField `upload` doc; U+061C stripped
+    from names; the testing rule's path typo; the refusal policy's timing lives in
+    docs/attachments.md only. A test of the GCS 400 / 401 / 403 mapping against a fake endpoint was
+    not added: the comment in `gcs-storage.ts` states the limits (token-endpoint failures retry).
