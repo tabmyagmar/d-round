@@ -133,6 +133,19 @@ describe("createStaffSchema list bounds", () => {
       message: `${String(STAFF_LIST_MAX)}件以内で入力してください`,
     });
   });
+
+  it("takes up to three 履歴書 ids, each once, or none at all", () => {
+    const ids = Array.from({ length: 4 }, () => crypto.randomUUID());
+
+    expect(createStaffSchema.parse({ ...STAFF, resumeIds: [ids[0], ids[0]] }).resumeIds).toEqual([
+      ids[0],
+    ]);
+    expect(createStaffSchema.parse(STAFF).resumeIds).toBeUndefined();
+    expect(firstIssue(createStaffSchema.safeParse({ ...STAFF, resumeIds: ids }))).toEqual({
+      path: "resumeIds",
+      message: "履歴書は3件までです",
+    });
+  });
 });
 
 describe("staffFormSchema", () => {

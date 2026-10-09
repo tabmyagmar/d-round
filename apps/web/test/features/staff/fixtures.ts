@@ -97,6 +97,7 @@ export const staffDetail = (overrides: Partial<StaffDetail> = {}): StaffDetail =
         updatedAt: CREATED,
       },
     ],
+    resumes: [],
     ...overrides,
   };
 };
