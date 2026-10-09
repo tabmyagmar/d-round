@@ -1,0 +1,98 @@
+import { z } from "zod";
+
+/**
+ * What a file is for (docs/adr/0012-attachments.md). The kind fixes the owner, the accepted types,
+ * the size limit and the bucket folder below; the database enum `AttachmentKind` matches.
+ */
+export const ATTACHMENT_KINDS = ["USER_AVATAR", "STAFF_RESUME"] as const;
+export const attachmentKindSchema = z.enum(ATTACHMENT_KINDS);
+export type AttachmentKind = z.infer<typeof attachmentKindSchema>;
+
+export type AttachmentRule = {
+  /** Accepted content types and the extensions a file of each type may carry. */
+  types: Readonly<Record<string, readonly string[]>>;
+  maxBytes: number;
+  /** Files one owner keeps of this kind. */
+  maxFiles: number;
+  /** Bucket folder: objects are `<folder>/<random uuid><.ext>`. */
+  folder: string;
+};
+
+const MB = 1024 * 1024;
+
+/** The legacy limits: images for the プロフィール画像, up to three PDFs for the 履歴書, 5 MB each. */
+export const ATTACHMENT_RULES: Readonly<Record<AttachmentKind, AttachmentRule>> = {
+  USER_AVATAR: {
+    types: { "image/jpeg": [".jpg", ".jpeg"], "image/png": [".png"], "image/webp": [".webp"] },
+    maxBytes: 5 * MB,
+    maxFiles: 1,
+    folder: "avatars",
+  },
+  STAFF_RESUME: {
+    types: { "application/pdf": [".pdf"] },
+    maxBytes: 5 * MB,
+    maxFiles: 3,
+    folder: "resumes",
+  },
+};
+
+/** Upload and read URLs live this long (the legacy's 15 minutes). */
+export const ATTACHMENT_URL_TTL_SECONDS = 15 * 60;
+
+/** `<input accept>` for a kind: its content types. */
+export const attachmentAccept = (kind: AttachmentKind): string =>
+  Object.keys(ATTACHMENT_RULES[kind].types).join(",");
+
+/** The extension with its dot, lower-cased (`.pdf`), or "" when the name has none. */
+export const fileExtension = (fileName: string): string => {
+  const dot = fileName.lastIndexOf(".");
+  return dot > 0 ? fileName.slice(dot).toLowerCase() : "";
+};
+
+/**
+ * The picked name as shown and stored: no path, no control characters, no surrounding spaces, the
+ * extension lower-cased (the legacy `renameFileExtensionLowercase`).
+ */
+export const sanitizeFileName = (raw: string): string => {
+  const base = raw.split(/[/\\]/).pop() ?? "";
+  // eslint-disable-next-line no-control-regex -- control characters are exactly what goes
+  const clean = base.replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  const extension = fileExtension(clean);
+  return extension ? `${clean.slice(0, -extension.length)}${extension}` : clean;
+};
+
+/** One file the browser is about to upload: the API checks it against the kind's rule. */
+export const createUploadUrlSchema = z
+  .object({
+    kind: attachmentKindSchema,
+    fileName: z
+      .string()
+      .transform(sanitizeFileName)
+      .pipe(
+        z
+          .string()
+          .min(1, { error: "ファイル名がありません" })
+          .max(255, { error: "ファイル名は255文字以内にしてください" }),
+      ),
+    contentType: z.string().max(100),
+    size: z.int().positive({ error: "空のファイルは選択できません" }),
+  })
+  .superRefine((input, context) => {
+    const rule = ATTACHMENT_RULES[input.kind];
+    const extensions = rule.types[input.contentType];
+    if (!extensions?.includes(fileExtension(input.fileName))) {
+      context.addIssue({
+        code: "custom",
+        path: ["contentType"],
+        message: "この形式のファイルは選択できません",
+      });
+    }
+    if (input.size > rule.maxBytes) {
+      context.addIssue({
+        code: "custom",
+        path: ["size"],
+        message: `${String(rule.maxBytes / MB)}MB以下のファイルを選択してください`,
+      });
+    }
+  });
+export type CreateUploadUrlInput = z.infer<typeof createUploadUrlSchema>;

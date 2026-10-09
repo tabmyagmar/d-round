@@ -130,3 +130,10 @@ lint error. Changing a permission means changing the matrix test first.
   server helpers as `Staff`: `prismaClientSubject` and `accessibleClientsWhere`, with `Client` in
   `ServerSubjects`. The catalog grants (`Admin_Client`, rows 1201–1205; `Admin_Branch`, rows
   1801–1805) decide; no row rule exists, so both answer like the type (ADR 0011).
+- **2026-10-09** — A fourth hard-coded rule for uploads: every signed-in user may `create`
+  `Attachment` (ask for a signed upload URL), nothing else on the subject. No catalog row fits — an
+  upload is only a request; the owner's write (`update User`, `create` / `update Staff`) decides
+  whether the file is attached, the attachment service checks the kind (a 履歴書 needs a staff
+  write), and a file is read only through its owner's read procedure. `Attachment` joins
+  `SUBJECT_NAMES` after `Source`; the unit spec expects `create Attachment` for every signed-in
+  holder (ADR 0012).

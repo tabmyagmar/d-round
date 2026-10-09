@@ -6,9 +6,9 @@ import type { Role } from "@repo/validation";
  * plain equalities so both engines interpret them identically.
  *
  * CASL answers "may this user do this kind of thing?" from the catalog grants the session
- * carries, plus two row rules — the own User row and the user's own CommentTemplate rows — and
- * read access to reference data (`Source`) for every signed-in user. Stateful
- * rules (last admin, workflow state) live in services. See
+ * carries, plus two row rules — the own User row and the user's own CommentTemplate rows —, read
+ * access to reference data (`Source`) and the right to start an upload (`Attachment`) for every
+ * signed-in user. Stateful rules (last admin, workflow state) live in services. See
  * .claude/rules/permissions.md and docs/adr/0003-permissions.md.
  */
 
@@ -18,8 +18,8 @@ export type Action = (typeof ACTIONS)[number];
 
 /**
  * The catalog's `modelName` values, then the subjects no catalog row grants: `CommentTemplate`
- * (a user's own 定型文, ADR 0006), which only a row rule below opens, and `Source` (reference data
- * every signed-in user reads).
+ * (a user's own 定型文, ADR 0006), which only a row rule below opens, `Source` (reference data
+ * every signed-in user reads) and `Attachment` (a file upload every signed-in user may start).
  */
 export const SUBJECT_NAMES = [
   "User",
@@ -32,6 +32,7 @@ export const SUBJECT_NAMES = [
   "SourceCsvHistory",
   "CommentTemplate",
   "Source",
+  "Attachment",
 ] as const;
 export type SubjectName = (typeof SUBJECT_NAMES)[number];
 
@@ -106,4 +107,8 @@ export const defineRules = (can: CanFn, user: AbilityUser): void => {
   // Reference data (regions, prefectures, the post-code master): every signed-in user reads it,
   // nobody writes it through the API (ADR 0003, 2026-10-08).
   can("read", "Source");
+
+  // Uploads: every signed-in user may ask for an upload URL; the owner's write decides whether the
+  // file is attached, and its read hands out the file (ADR 0012).
+  can("create", "Attachment");
 };

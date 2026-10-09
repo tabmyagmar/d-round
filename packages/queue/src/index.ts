@@ -7,6 +7,14 @@ export {
 export type { RedisConnection, RedisConnectionOptions } from "./connection";
 export { InvalidJobIdError, jobIdFor } from "./job-id";
 export {
+  ATTACHMENT_DELETE_JOB_ID_PREFIX,
+  ATTACHMENT_DELETE_JOB_NAME,
+  attachmentDeleteJobId,
+  createAttachmentDeleteQueue,
+  enqueueAttachmentDeleteJob,
+} from "./jobs/attachment-delete.job";
+export type { AttachmentDeleteJob, AttachmentDeleteQueue } from "./jobs/attachment-delete.job";
+export {
   EMAIL_JOB_ID_PREFIX,
   EMAIL_JOB_NAME,
   EMAIL_TEMPLATES,

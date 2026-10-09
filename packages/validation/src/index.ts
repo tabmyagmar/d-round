@@ -3,6 +3,7 @@
 export { z } from "zod";
 export type { ZodError, ZodType } from "zod";
 
+export * from "./attachment.schema";
 export * from "./branch.schema";
 export * from "./client.schema";
 export * from "./comment-template.schema";
