@@ -519,8 +519,8 @@ writing: Prisma 7 enum arrays (`hasSome`) and nested upsert; Base UI Combobox wi
     cases move beside their label files (`e297f37`).
   - SHOULD, the next number: a refetch on window focus overwrote a typed 就業先番号. It is written
     once per chosen client, never from an earlier choice's cache (`2afc09b`).
-  - SHOULD, the client detail's branches page by 10, as the legacy `take` 10 (`60d7fb4`, which also
-    names 担当者 in its search label: it fits).
+  - SHOULD, the client detail's branches page by 10, as the legacy `take` 10 (`60d7fb4`;
+    the 担当者 it also put in that table's search label went again in round 2).
   - SHOULD, the Legacy → new table: two rows added (the lists' whole
     address; 地域 following エリア in the client form).
   - SHOULD, the Log: the A and B entries above carry the differences (no `client-picker-field.tsx`,
@@ -549,11 +549,29 @@ writing: Prisma 7 enum arrays (`hasSome`) and nested upsert; Base UI Combobox wi
     count): a follow-up together with the staff rule's identical gap (an advisory lock per number,
     or Serializable).
 - 2026-10-09 — browser re-check of the fixes as super_admin, admin, manager and AM: the client
-  detail's 就業先部署情報 asks for 10 a page and shows the new search label (all four roles); the
-  branch form fills 2 for 検証クライアント408649, keeps a typed 77 through a window-focus refetch
-  after 30 s, keeps a search typed over the chosen client and fills 1 for 検証クライアント496854改;
-  the edit form keeps a typed search and puts the stored client back on Escape; the client and staff
-  forms' 次へ still shows the field errors (super_admin and admin). No console error.
+  detail's 就業先部署情報 asks for 10 a page (all four roles); the branch form fills 2
+  for 検証クライアント408649, keeps a typed 77 through a window-focus refetch after 30 s, keeps a
+  search typed over the chosen client and fills 1 for 検証クライアント496854改; the edit form keeps
+  a typed search and puts the stored client back on Escape; the client and staff forms' 次へ still
+  shows the field errors (super_admin and admin). No console error.
+- 2026-10-09 — review round 2 of `217b436..25c7849` (REQUEST_CHANGES: 0 BLOCKER, 2 SHOULD, 4 NIT)
+  and its fixes:
+  - SHOULD, nothing tested `gcTime: 0`, and a disabled query still reads the cache: an edit form
+    mounted right after a create form had looked up the same client filled the edited
+    branch's 就業先番号 with that answer (a test mounting both on one QueryClient showed 8 over 3).
+    The fill is now create only (`7d10544`), and two tests pin it: a client chosen again is asked
+    again (A, B, A fills 8, 3 and 9; without `gcTime: 0` the second A shows the cached 8), and an
+    edit form after a create form keeps its number.
+  - SHOULD, the client detail's search label named 担当者, but that table's 担当者名 column shows
+    the 連絡担当者 while the search matches the 担当者 users: back to 番号・名前で検索 (`c04a060`).
+  - NIT: `.claude/rules/permissions.md` and `server.ts` said CASL returns a marker condition Prisma
+    rejects; it returns `{ OR: [] }` (`8caaafb`). The router tests' titles name the update and the
+    stepper's guard test renders in StrictMode (`3e29729`); the chosen-client test waits for the
+    re-search instead of 400 ms (`7d10544`).
+  - Browser re-check: the label as all four roles; as super_admin and admin, the create page fills 2
+    for 検証クライアント408649 and the edit page of 検証店605541 opened right after keeps 1. No
+    console error.
+  - The protocol's two review rounds are used up, so these fixes were not reviewed a third time.
 - 2026-10-09 — what slowed the ticket: two sessions on one working tree (the alerts commit on this
   branch, the refused reset and switch); commitlint's subject-case (a subject may not start with a
   PascalCase word); lint-staged's `--max-warnings 0`, which `yarn verify` does not apply (a ref-name
