@@ -201,6 +201,8 @@ from the clients when it is created.
 | `ClientBranches` (`Toolbar` search / 編集 / print / download, `DataTable`, `BranchDetailDialog`)                           | `ClientBranchesContainer` + `client-branches-table.tsx` (branches feature), `BranchDetailDialog`; 編集 in the client header | kept — print / download dropped (decision 12)   |
 | `ClientForm` (`STEP1 / CONFIRM`, `useFormStepper`, `useValidateEntityNumber`, `useCookieValues`)                           | `client-form.tsx` on `Stepper` + `useStepper`, `isNumberFree` guard; no cookie draft                                        | changed — decision 10                           |
 | `ClientFormStep1` (two cards), `ClientFormConfirm`                                                                         | `client-basic-step.tsx`, `client-form-confirm.tsx`                                                                          | kept                                            |
+| `ClientColumns` / `BranchColumns` 郵便番号・住所: 〒 + `address2` (the typed line only)                                    | 〒 + the whole address (`addressLineOf`: 都道府県, 市区町村, 町域 and the typed line), as the details                       | changed — the detail's line (added at review)   |
+| `ClientFormStep1` 地域: every region whatever the エリア (`sourceRegions`)                                                 | `HierarchyFields`: 地域 follows エリア and drops what it no longer covers                                                   | changed — as the staff form (added at review)   |
 | `BranchColumns`: select, 番号 (sort), 名 + カナ (sort), クライアント名 (sort), 担当者, 郵便番号・住所, ステータス, actions | `branches-table.tsx`: the same, `GeneralStatusBadge`, `BranchRowActions`                                                    | kept                                            |
 | `BranchesToolbar`, `BranchFilterContent` (ステータス, エリア, 地域)                                                        | `branches-toolbar.tsx`, `branch-filter-content.tsx`                                                                         | kept minus CSV                                  |
 | `BranchDetail` cards (就業先部署情報, 就業先部署・住所情報, 連絡担当者情報登録, メモ 特に無し)                             | `branch-info-card`, `branch-department-card`, `branch-contact-card` (titled 連絡担当者情報), `branch-memo-card`             | kept — the card title's 登録 dropped            |
@@ -470,3 +472,91 @@ writing: Prisma 7 enum arrays (`hasSome`) and nested upsert; Base UI Combobox wi
   from the working tree), so the work continues on this branch and removing `78401e9` stays with the
   user (Risks). The plan keeps the name `plan-client-branch.md` because `plan.md` is the alerts plan
   in `78401e9`.
+- 2026-10-09, A1–A10: as planned, with these differences. A2's `findChargerIds` left in A5: the
+  detail read carries the 担当者, and an update compares against it. A4's `CHARGERS_MAX` and a
+  shared `chargerUserIdsSchema` came with their first consumer in A5
+  (`user.schema.ts`). クライアント名 sorts by its reading (`nameKana`), as the legacy branch list
+  sorted its names; the legacy client list sorted the kanji. A6 adds `addressLineOf` beside
+  `postCodeLabel` (the staff contact card had it inline; the client list and detail and the branch
+  screens show the same). The client form's 地域 follows エリア through `HierarchyFields`, as the
+  staff form, where the legacy client form offered every region whatever the エリア. A9 keeps
+  `ChargerChoice` in `types.ts` and the legacy save message in `client-labels.ts`
+  (`clientSaveErrorOf`, both containers). The browser check shortened the search label
+  to 番号・名前・担当者で検索 (`364d37d`): the longer one was cut off in the box.
+- 2026-10-09, phase A browser check (admin through every flow; super_admin, manager and AM on the
+  list, row menu, detail and create page): create through the two steps (twice), the
+  taken クライアント番号 kept on its field at 次へ, detail rows, edit, status change from the row
+  menu, delete of the 停止 rows through the toolbar, search by number, the filter popover; manager
+  and AM get 詳細 only and the 403 on create. No console error. The dev database
+  keeps 検証クライアント408649 and 検証クライアント496854改.
+- 2026-10-09, B1–B8: as planned, with these differences. `chargerNamesOf` moved to
+  `lib/charger-labels.ts` before the branch list (`1157ca1`, its second feature). B5 is one
+  `BranchDetail` component (the four cards) instead of four card files, as the legacy BranchDetail
+  served the page and the dialog; `BranchRow` equals `BranchDetail`, so the dialog renders the
+  list's row. The legacy detail's 店舗名（カタカナ） is labelled 就業先名（カタカナ）, as its form;
+  the toast 就業先部署店作成 drops its stray 店. B7 is two commits (values, steps and save message;
+  then the form, containers and pages); the client search and the next number are queries in
+  `BranchForm`, as the staff form's 担当者 lookup, so `client-picker-field.tsx` was not needed — the
+  picker is a `ComboboxField` with `onSearch` and `serverFiltered`. A branch of a client deleted
+  since stays editable: the client is checked only when the branch joins it.
+- 2026-10-09, phase B browser check (admin through every flow; super_admin, manager and AM on the
+  list, row menu, detail, create page and the client detail's dialog): the client chosen by search
+  fills 就業先番号 (1, then 2), a 就業先番号 the client uses is the legacy message on save, the list
+  sorted by client, the four detail cards, edit where another エリア drops the 地域, status and
+  delete, the client detail's table and its dialog. The only console line is the expected 409 of the
+  taken-number check. The dev database keeps 検証店605541 (関西) under 検証クライアント408649.
+- 2026-10-09 — verifier PASS: `yarn verify --force` 40/40 tasks (1250 tests), the schema drift gate
+  "No difference detected", both migrations deployed to the 5433 dev database. Security pass
+  (protocol Step 6, by hand): every procedure sits behind `requireAbility`, no raw SQL, no
+  `dangerouslySetInnerHTML`, the client URL renders as text; the list filters' arrays are unbounded
+  as on the staff list, and the API body limit stays the staff ticket's follow-up.
+- 2026-10-09 — review round 1 (REQUEST_CHANGES: 2 BLOCKER, 4 SHOULD, 6 NIT) and its fixes:
+  - BLOCKER, router tests: an AM's update, changeStatus, deleteMany and number lookups are
+    FORBIDDEN, an admin updates (`3a9f83b`); the permission spec proves `accessibleClientsWhere` and
+    `accessibleBranchesWhere` match no row without the grant (`3a9f83b`), and `accessibleStaffWhere`
+    too, for a uniform spec (`c0107c8`).
+  - BLOCKER, missing tests: the save-error helpers were tested, inside the form-input tests; the
+    cases move beside their label files (`e297f37`).
+  - SHOULD, the next number: a refetch on window focus overwrote a typed 就業先番号. It is written
+    once per chosen client, never from an earlier choice's cache (`2afc09b`).
+  - SHOULD, the client detail's branches page by 10, as the legacy `take` 10 (`60d7fb4`, which also
+    names 担当者 in its search label: it fits).
+  - SHOULD, the Legacy → new table: two rows added (the lists' whole
+    address; 地域 following エリア in the client form).
+  - SHOULD, the Log: the A and B entries above carry the differences (no `client-picker-field.tsx`,
+    one `BranchDetail`, `charger-labels` and `addressLineOf`, the client checked only when a branch
+    joins it).
+  - SHOULD, `.claude/rules/ui.md` described a domain picker with a `byId` lookup, living in the
+    feature that owns the data, which another feature cannot import. It now describes the
+    lookup-prop picker the branch form uses, and the feature-screen skill points to it.
+  - SHOULD, the double-click guard copied into the staff, client and branch forms moves into
+    `useStepper` (`cce9f63`).
+  - NIT, the chosen client's name: the chosen client stays on offer (`2afc09b`). Checking it in the
+    browser showed a worse bug: once a client was chosen, a new search snapped back to its name
+    after the debounce, on create and on edit. `ComboboxField` built a new selected option on every
+    render, and Base UI writes the chosen label back whenever the value changes identity (`e2000c2`,
+    with the field's first test).
+  - NIT, the save-error toast: kept as the reference `comment-template-dialog.tsx` does it (a
+    mutation with its own `onError` shows only its message, without the global
+    toast's エラーが発生しました title). Follow-up for the three: a message per error code in the
+    mutation's `meta`, read by the `MutationCache`.
+  - NIT, the branch list's search label: kept; one naming 担当者 is cut off (266–280 px of text in a
+    244 px box at 1440 px).
+  - NIT, rules: `module-template.md` records the guards that take a transaction client first,
+    `permissions.md` the Prisma models and the where helpers its spec covers, `testing.md`
+    `clientInput` and `branchInput`.
+  - NIT, the number rule races under READ COMMITTED (two saves of one number can both pass the
+    count): a follow-up together with the staff rule's identical gap (an advisory lock per number,
+    or Serializable).
+- 2026-10-09 — browser re-check of the fixes as super_admin, admin, manager and AM: the client
+  detail's 就業先部署情報 asks for 10 a page and shows the new search label (all four roles); the
+  branch form fills 2 for 検証クライアント408649, keeps a typed 77 through a window-focus refetch
+  after 30 s, keeps a search typed over the chosen client and fills 1 for 検証クライアント496854改;
+  the edit form keeps a typed search and puts the stored client back on Escape; the client and staff
+  forms' 次へ still shows the field errors (super_admin and admin). No console error.
+- 2026-10-09 — what slowed the ticket: two sessions on one working tree (the alerts commit on this
+  branch, the refused reset and switch); commitlint's subject-case (a subject may not start with a
+  PascalCase word); lint-staged's `--max-warnings 0`, which `yarn verify` does not apply (a ref-name
+  warning passed verify and failed the commit); vitest fork workers timing out once under load
+  (re-run green); Context7 unavailable (it needs authentication), so the repo's own patterns served
+  for the library APIs.

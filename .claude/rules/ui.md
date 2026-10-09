@@ -280,7 +280,9 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   (`packages/ui/src/hooks/use-stepper.ts`) holds the index over one schema: `steps` lists each
   step's field paths, `goNext(trigger, beforeNext?)` validates them with react-hook-form's `trigger`
   and then runs the async guard (a uniqueness check that sets its own field error) before moving on;
-  `goPrev`, `goTo(earlier)`, `isFirst`, `isLast`. Reference:
+  `goPrev`, `goTo(earlier)`, `isFirst`, `isLast`; `countSubmitClicks` (the form's `onClickCapture`)
+  and `isDoubleClickSubmit()` (first in its `onSubmit`) keep a double click on 次へ to one step, as
+  its second click would land on the relabelled submit (追加) and send the form unseen. Reference:
   `apps/web/features/staff/components/form/staff-form.tsx`.
 - `StickyBar` (`sticky-bar.tsx`) — the bar at the bottom of a page for its main actions, as
   romuten-v3's create and update pages. Render it last in a flex column that fills the page
@@ -463,10 +465,14 @@ whole app in. Shared types: `SelectOption` (`{ value, label, disabled? }`), `Emp
 | `ReadOnlyField`      | — (display only)                                                                       | renders the value in an `<output>`; `format(value)`, `emptyText`                                                                                                                                                                                                                                                                                                            |
 | `ArrayField`         | `object[]`                                                                             | `useFieldArray` wrapper: `renderRow({ index, id, isFirst, isLast, remove })`, `newItem()`, `min`, `max`, `addLabel`, `sortable` (up/down buttons), `emptyMessage`, `hideLabel` (a card title already names the rows); array-level (`root`) errors render below the rows                                                                                                     |
 
-Domain pickers live in the web app, not in `packages/ui`: a `UserPickerField` in
-`apps/web/features/users/` would be a `ComboboxField` backed by `trpc.user.list` (debounced search,
-first 20 matches) plus `user.byId` to label the current value when it is not among the results,
-storing the user id. Build pickers this way, in the feature that owns the data.
+Domain pickers live in the web app, not in `packages/ui`: a `ComboboxField` with `onSearch`,
+`serverFiltered` and `loading` over the rows a search returns (the first 20), storing the row's id.
+The form that needs one takes the search as a lookup prop from its container (features do not import
+each other), debounces the typed text into its query and keeps the chosen row on offer (the edited
+row's to begin with, then the one picked), so a later search that does not return it neither unnames
+nor clears the choice; no `byId` lookup. Reference:
+the 就業先部署 form's クライアント名 (`apps/web/features/branches/components/form/branch-form.tsx`,
+`findClients` backed by `client.options`).
 
 ### Which field for which zod shape
 

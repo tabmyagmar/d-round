@@ -17,6 +17,11 @@ reference implementation — copy its structure for every later module:
 | 3   | `apps/api/src/modules/user/user.service.ts`             | service    | business rules; every function takes `ctx: RequestContext` as FIRST argument |
 | 4   | `apps/api/src/trpc/routers/user.router.ts`              | transport  | procedures: zod input → ability check → service call, nothing else           |
 
+One exception to the first argument: a guard other services call inside their own transaction takes
+that transaction's client first, not a `ctx` — `assertChargersActive(db, userIds)` in
+`user.service.ts` and `assertKnownSource(db, references)` in `source.service.ts` (the staff, client
+and branch services call them with `tx`).
+
 For a new module `<name>` the files are `packages/validation/src/<name>.schema.ts`,
 `packages/database/src/repositories/<name>.repository.ts`,
 `apps/api/src/modules/<name>/<name>.service.ts` and `apps/api/src/trpc/routers/<name>.router.ts`.
