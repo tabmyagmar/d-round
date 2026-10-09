@@ -118,6 +118,29 @@ period using the same deterministic ids, so duplicates collapse.
 
 BullMQ 6 repeatable jobs are **Job Schedulers**; the legacy `repeat` job option no longer exists.
 
+## Attachment deletes — the second outbox
+
+The same shape for files (`docs/adr/0012-attachments.md`): the `attachments` row is the truth, the
+object in the bucket follows it.
+
+| Part         | File                                                                                                                                                             |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Queue names  | `QUEUE_NAMES.attachmentDelete`, `QUEUE_NAMES.attachmentSweeper`                                                                                                  |
+| Job contract | `packages/queue/src/jobs/attachment-delete.job.ts` — `AttachmentDeleteJob`, `attachmentDeleteJobId`, `enqueueAttachmentDeleteJob`, `createAttachmentDeleteQueue` |
+| Row          | `Attachment` (`packages/database/src/repositories/attachment.repository.ts`)                                                                                     |
+| Producer     | `apps/api/src/modules/attachment/attachment.service.ts` — `syncAttachments` marks dropped files `DELETED` and enqueues their deletes after commit                |
+| Consumer     | `apps/worker/src/processors/attachment-delete.processor.ts` — `processAttachmentDeleteJob`, `createAttachmentDeleteWorker`                                       |
+| Sweeper      | `apps/worker/src/schedulers/attachment-sweeper.ts` — `sweepAttachments`, `registerAttachmentSweeper`                                                             |
+| Storage      | `@repo/storage` — `StorageProvider`, GCS, memory (tests)                                                                                                         |
+
+- The processor acts on a `DELETED` row only: the object first (a missing object counts as deleted),
+  then the row; a missing row is done. A storage error throws and BullMQ retries.
+- The queue drops a job that failed every attempt (`removeOnFail: true`): the `DELETED` row is the
+  record, and the sweeper must be able to add the same job id again.
+- `sweepAttachments` every 15 minutes (scheduler id `attachment-sweeper`, batch 200): `PENDING` rows
+  older than 24 h become `DELETED`; `DELETED` rows older than 10 minutes are enqueued again. A row
+  it expires is enqueued by a later sweep, so a row attached in the same instant never meets a job.
+
 ## BullMQ 6 / ioredis 6 notes
 
 - `ioredis` is a peer dependency of BullMQ; we always pass an ioredis instance

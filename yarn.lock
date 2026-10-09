@@ -2944,6 +2944,7 @@ __metadata:
     "@repo/eslint-config": "workspace:*"
     "@repo/logger": "workspace:*"
     "@repo/queue": "workspace:*"
+    "@repo/storage": "workspace:*"
     "@repo/typescript-config": "workspace:*"
     "@repo/validation": "workspace:*"
     "@types/node": "npm:24.13.3"

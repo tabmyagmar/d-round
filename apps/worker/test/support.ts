@@ -3,11 +3,18 @@ import { Writable } from "node:stream";
 import { inject } from "vitest";
 
 import { createOutboxEmailRepository, createPrismaClient } from "@repo/database";
-import type { OutboxEmail, PrismaClient } from "@repo/database";
+import type { Attachment, AttachmentStatus, OutboxEmail, PrismaClient } from "@repo/database";
 import { createLogger } from "@repo/logger";
 import type { Logger } from "@repo/logger";
 import { createQueue, createRedisConnection, waitForRedis } from "@repo/queue";
-import type { EmailJob, EmailQueue, RedisConnection } from "@repo/queue";
+import type {
+  AttachmentDeleteJob,
+  AttachmentDeleteQueue,
+  EmailJob,
+  EmailQueue,
+  RedisConnection,
+  TypedQueue,
+} from "@repo/queue";
 
 import type { MailBrand } from "../src/mail/templates";
 
@@ -96,8 +103,8 @@ export const waitForFinalStatus = async (
 };
 
 /** Resolves once BullMQ reports the job as completed or failed (or the timeout passes). */
-export const waitForJobDone = async (
-  queue: EmailQueue,
+export const waitForJobDone = async <TPayload>(
+  queue: TypedQueue<TPayload>,
   jobId: string,
   timeoutMs = 10_000,
 ): Promise<string> => {
@@ -114,3 +121,42 @@ export const waitForJobDone = async (
 
 export const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
+
+/** An isolated attachment delete queue per test (same options as production, quick retries). */
+export const isolatedAttachmentDeleteQueue = (
+  connection: RedisConnection,
+): { name: string; queue: AttachmentDeleteQueue } => {
+  const name = `attachment-delete-test-${crypto.randomUUID()}`;
+  const queue = createQueue<AttachmentDeleteJob>(name, connection, {
+    defaultJobOptions: { attempts: 2, backoff: { type: "fixed", delay: 20 }, removeOnFail: true },
+  });
+  return { name, queue };
+};
+
+/**
+ * An attachment row of a fresh uploader, `ageMs` old (`created_at`, and `deleted_at` when the
+ * status is DELETED), with its object key under `resumes/`.
+ */
+export const createAttachmentRow = async (
+  db: PrismaClient,
+  { status = "PENDING", ageMs = 0 }: { status?: AttachmentStatus; ageMs?: number } = {},
+): Promise<Attachment> => {
+  const uploader = await db.user.create({
+    data: { name: "添付 太郎", email: `${crypto.randomUUID()}@example.com` },
+  });
+  const at = new Date(Date.now() - ageMs);
+  return db.attachment.create({
+    data: {
+      kind: "USER_AVATAR",
+      status,
+      objectKey: `avatars/${crypto.randomUUID()}.png`,
+      fileName: "face.png",
+      contentType: "image/png",
+      size: 10,
+      uploadedById: uploader.id,
+      ...(status === "ATTACHED" ? { userId: uploader.id, attachedAt: at } : {}),
+      ...(status === "DELETED" ? { deletedAt: at } : {}),
+      createdAt: at,
+    },
+  });
+};
