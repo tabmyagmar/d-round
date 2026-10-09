@@ -26,6 +26,8 @@ apps/web/public/help/*.pdf
 .env
 .env.*
 !.env.example
+# service-account keys (GCS_KEY_FILE points outside the repository)
+**/credentials/
 
 # tests
 coverage/
