@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import type { DefaultValues } from "react-hook-form";
 
@@ -69,11 +68,6 @@ export const ClientForm = ({
   });
   const stepper = useStepper<ClientFormValues>({ steps: CLIENT_STEP_FIELDS });
 
-  // How many clicks the submit button's last click counted: a click that is part of a double
-  // click never moves on or saves, else its second click lands on the button the first one
-  // relabelled (次へ → 追加) and sends the form unseen. Enter counts none.
-  const submitClicksRef = useRef(0);
-
   const isFree = async () => {
     if (await isNumberFree(form.getValues("number"))) {
       return true;
@@ -90,16 +84,9 @@ export const ClientForm = ({
     <form
       noValidate
       className="flex flex-1 flex-col gap-6"
-      onClickCapture={(event) => {
-        submitClicksRef.current =
-          event.target instanceof Element && event.target.closest('button[type="submit"]')
-            ? event.detail
-            : 0;
-      }}
+      onClickCapture={stepper.countSubmitClicks}
       onSubmit={(event) => {
-        const clicks = submitClicksRef.current;
-        submitClicksRef.current = 0;
-        if (clicks > 1) {
+        if (stepper.isDoubleClickSubmit()) {
           event.preventDefault();
           return;
         }
