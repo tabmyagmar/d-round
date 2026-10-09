@@ -1,7 +1,7 @@
 "use client";
 
 import { FileIcon, Loader2Icon, UploadIcon, XIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import type { FieldValues } from "react-hook-form";
 
@@ -72,9 +72,20 @@ export const FileField = <TValues extends FieldValues>({
   // While an upload runs the value holds a file without its id, which the form schema refuses;
   // that is waiting, not an error, so the field shows it only once the uploads are over.
 
+  // Uploads finish after later picks and removals, so every write starts from the latest value,
+  // never from the value an earlier pick saw.
+  const latestRef = useRef<FileFieldValue[]>(files);
+  useEffect(() => {
+    latestRef.current = toFiles(field.value);
+  }, [field.value]);
+  const commit = (next: FileFieldValue[]) => {
+    latestRef.current = next;
+    field.onChange(next);
+  };
+
   const addFiles = async (picked: FileList | File[]) => {
     const errors: string[] = [];
-    let current = files;
+    const current = latestRef.current;
     const accepted: File[] = [];
     for (const file of Array.from(picked)) {
       if (!matchesAccept(file, accept)) {
@@ -97,8 +108,7 @@ export const FileField = <TValues extends FieldValues>({
       type: file.type,
       file,
     }));
-    current = multiple ? [...current, ...entries] : entries;
-    field.onChange(current);
+    commit(multiple ? [...current, ...entries] : entries);
 
     if (!upload) {
       return;
@@ -109,17 +119,17 @@ export const FileField = <TValues extends FieldValues>({
         const entry = { name: file.name, size: file.size, type: file.type };
         try {
           const uploaded = await upload(file);
-          current = current.map((item) =>
-            fileKey(item) === fileKey(entry) ? { ...entry, ...uploaded } : item,
+          commit(
+            latestRef.current.map((item) =>
+              fileKey(item) === fileKey(entry) ? { ...entry, ...uploaded } : item,
+            ),
           );
-          field.onChange(current);
         } catch (error) {
           setLocalErrors((previous) => [
             ...previous,
             `${entry.name}: ${error instanceof Error ? error.message : "アップロードに失敗しました"}`,
           ]);
-          current = current.filter((item) => fileKey(item) !== fileKey(entry));
-          field.onChange(current);
+          commit(latestRef.current.filter((item) => fileKey(item) !== fileKey(entry)));
         } finally {
           setUploading((keys) => keys.filter((key) => key !== fileKey(entry)));
         }
@@ -128,7 +138,7 @@ export const FileField = <TValues extends FieldValues>({
   };
 
   const remove = (target: FileFieldValue) => {
-    field.onChange(files.filter((item) => fileKey(item) !== fileKey(target)));
+    commit(latestRef.current.filter((item) => fileKey(item) !== fileKey(target)));
   };
 
   const onDrop = (event: DragEvent<HTMLButtonElement>) => {

@@ -29,8 +29,9 @@ const isFileValue = (value: unknown): value is FileFieldValue =>
 
 /**
  * One round image: click or drop to pick, uploaded at once, a remove button in the corner. The
- * value is a `FileFieldValue` (or `null`): the stored image's reference, or the picked file while
- * it uploads. A failed upload keeps the previous image and shows why under the circle.
+ * value is a `FileFieldValue` (or `null`): the stored image's reference, or a picked file with a
+ * local preview URL (`url`), first while it uploads and then with its `id`. A failed upload puts
+ * the previous value back, its preview included, and shows why under the circle.
  */
 export const AvatarField = <TValues extends FieldValues>({
   control,
@@ -48,12 +49,14 @@ export const AvatarField = <TValues extends FieldValues>({
 }: AvatarFieldProps<TValues>) => {
   const { ref, field, fieldState } = useFormField({ control, name, disabled });
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  // Preview URLs of picked files; a failed upload may bring an earlier one back, so they are
+  // released only when the field goes away.
+  const previewsRef = useRef<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const value = isFileValue(field.value) ? field.value : null;
-  const shown = preview ?? value?.url ?? null;
+  const shown = value?.url ?? null;
   const locked = Boolean(field.disabled) || uploading;
   // While an upload runs the value holds a file without its id, which the form schema refuses;
   // that is waiting, not an error, so the field shows it only once the upload is over.
@@ -61,11 +64,12 @@ export const AvatarField = <TValues extends FieldValues>({
 
   useEffect(
     () => () => {
-      if (preview) {
-        URL.revokeObjectURL(preview);
+      for (const url of previewsRef.current) {
+        URL.revokeObjectURL(url);
       }
+      previewsRef.current = [];
     },
-    [preview],
+    [],
   );
 
   const pick = async (file: File | undefined) => {
@@ -81,15 +85,16 @@ export const AvatarField = <TValues extends FieldValues>({
       return;
     }
     const previous = value;
-    const entry = { name: file.name, size: file.size, type: file.type };
+    const preview = URL.createObjectURL(file);
+    previewsRef.current.push(preview);
+    const entry = { name: file.name, size: file.size, type: file.type, url: preview };
     setLocalError(null);
-    setPreview(URL.createObjectURL(file));
     field.onChange({ ...entry, file });
     setUploading(true);
     try {
-      field.onChange({ ...entry, ...(await upload(file)) });
+      const { id } = await upload(file);
+      field.onChange({ ...entry, ...(id === undefined ? {} : { id }) });
     } catch (error) {
-      setPreview(null);
       field.onChange(previous);
       setLocalError(
         `${file.name}: ${error instanceof Error ? error.message : "アップロードに失敗しました"}`,
@@ -185,7 +190,6 @@ export const AvatarField = <TValues extends FieldValues>({
               className="absolute -top-1 -right-1 rounded-full"
               aria-label={`${label}を削除`}
               onClick={() => {
-                setPreview(null);
                 setLocalError(null);
                 field.onChange(null);
               }}

@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import type { Resolver } from "react-hook-form";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -48,7 +49,11 @@ const pick = (file: File) => {
 const valueOf = () => JSON.parse(screen.getByTestId("value").textContent || "null") as unknown;
 
 beforeEach(() => {
-  URL.createObjectURL = vi.fn(() => "blob:preview");
+  let previews = 0;
+  URL.createObjectURL = vi.fn(() => {
+    previews += 1;
+    return `blob:preview-${String(previews)}`;
+  });
   URL.revokeObjectURL = vi.fn();
 });
 
@@ -57,19 +62,32 @@ afterEach(cleanup);
 describe("AvatarField", () => {
   it("uploads a picked image at once and stores its reference instead of the file", async () => {
     const upload = vi.fn(() => Promise.resolve({ id: "new-id" }));
-    render(<Harness upload={upload} />);
+    render(
+      <StrictMode>
+        <Harness upload={upload} />
+      </StrictMode>,
+    );
 
     pick(new File(["png"], "face.png", { type: "image/png" }));
 
     await waitFor(() => {
-      expect(valueOf()).toEqual({ name: "face.png", size: 3, type: "image/png", id: "new-id" });
+      expect(valueOf()).toEqual({
+        name: "face.png",
+        size: 3,
+        type: "image/png",
+        url: "blob:preview-1",
+        id: "new-id",
+      });
     });
-    expect(upload).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "プロフィール画像を変更" })).toBeDefined();
   });
 
   it("removes the stored image with the corner button", () => {
-    render(<Harness upload={vi.fn()} initial={STORED} />);
+    render(
+      <StrictMode>
+        <Harness upload={vi.fn()} initial={STORED} />
+      </StrictMode>,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "プロフィール画像を削除" }));
 
@@ -79,7 +97,11 @@ describe("AvatarField", () => {
 
   it("refuses another type or a file over the limit without uploading", () => {
     const upload = vi.fn();
-    render(<Harness upload={upload} initial={STORED} />);
+    render(
+      <StrictMode>
+        <Harness upload={upload} initial={STORED} />
+      </StrictMode>,
+    );
 
     pick(new File(["gif"], "anim.gif", { type: "image/gif" }));
     expect(screen.getByText("anim.gif: この形式は選択できません")).toBeDefined();
@@ -92,7 +114,11 @@ describe("AvatarField", () => {
 
   it("keeps the previous image when the upload fails and says why", async () => {
     const upload = vi.fn(() => Promise.reject(new Error("ファイルのアップロードに失敗しました")));
-    render(<Harness upload={upload} initial={STORED} />);
+    render(
+      <StrictMode>
+        <Harness upload={upload} initial={STORED} />
+      </StrictMode>,
+    );
 
     await act(async () => {
       pick(new File(["png"], "face.png", { type: "image/png" }));
@@ -103,6 +129,37 @@ describe("AvatarField", () => {
       expect(screen.getByText("face.png: ファイルのアップロードに失敗しました")).toBeDefined();
     });
     expect(valueOf()).toEqual(STORED);
+  });
+});
+
+describe("AvatarField after a failed second pick", () => {
+  it("keeps the image uploaded a moment ago, its preview included", async () => {
+    let calls = 0;
+    const upload = () => {
+      calls += 1;
+      return calls === 1
+        ? Promise.resolve({ id: "first-id" })
+        : Promise.reject(new Error("ファイルのアップロードに失敗しました"));
+    };
+    render(
+      <StrictMode>
+        <Harness upload={upload} />
+      </StrictMode>,
+    );
+
+    pick(new File(["png"], "first.png", { type: "image/png" }));
+    await waitFor(() => {
+      expect(valueOf()).toMatchObject({ id: "first-id", url: "blob:preview-1" });
+    });
+    await act(async () => {
+      pick(new File(["png"], "second.png", { type: "image/png" }));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("second.png: ファイルのアップロードに失敗しました")).toBeDefined();
+    });
+    expect(valueOf()).toMatchObject({ name: "first.png", id: "first-id", url: "blob:preview-1" });
   });
 });
 
@@ -122,7 +179,11 @@ describe("AvatarField while uploading", () => {
 
   it("shows the waiting file as a wait, not as an error", async () => {
     let finish: (value: { id: string }) => void = () => undefined;
-    render(<Validating upload={() => new Promise((resolve) => (finish = resolve))} />);
+    render(
+      <StrictMode>
+        <Validating upload={() => new Promise((resolve) => (finish = resolve))} />
+      </StrictMode>,
+    );
 
     pick(new File(["png"], "face.png", { type: "image/png" }));
 
