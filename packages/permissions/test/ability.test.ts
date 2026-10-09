@@ -459,6 +459,13 @@ describe("Staff on the server: grant-driven, no row rule", () => {
     expect(accessibleStaffWhere(ability)).toEqual({});
     expect(accessibleStaffWhere(ability, "delete")).toEqual({});
   });
+
+  it("fails closed without the grant: a where no row matches", () => {
+    const reader = definePrismaAbilityFor(holder([{ action: "read", subject: "Staff" }]));
+
+    expect(accessibleStaffWhere(definePrismaAbilityFor(holder([])))).toEqual({ OR: [] });
+    expect(accessibleStaffWhere(reader, "delete")).toEqual({ OR: [] });
+  });
 });
 
 describe("Client on the server: grant-driven, no row rule", () => {
