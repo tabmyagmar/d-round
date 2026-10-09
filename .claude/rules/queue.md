@@ -50,7 +50,8 @@ that. The email outbox is the reference implementation (`docs/adr/0004-outbox.md
    everywhere else ("Queue consumers (createWorker) may only be created in apps/worker"). One
    processor file per queue: `apps/worker/src/processors/<queue>.processor.ts` exporting
    `create<Queue>Worker(deps)`, registered in the `workers` array of `apps/worker/src/index.ts`
-   (email processor and outbox sweeper today).
+   (today: the email processor, the outbox sweeper, the attachment delete processor and the
+   attachment sweeper).
 4. **Deterministic jobId.** `jobIdFor(prefix, id)` (`packages/queue/src/job-id.ts`) returns
    `<prefix>-<id>`; both parts must match `[A-Za-z0-9_-]+` (BullMQ uses `:` as its key separator, so
    it is excluded) or `InvalidJobIdError` is thrown. Adding a job whose id already exists is a no-op
@@ -134,12 +135,17 @@ object in the bucket follows it.
 | Storage      | `@repo/storage` — `StorageProvider`, GCS, memory (tests)                                                                                                         |
 
 - The processor acts on a `DELETED` row only: the object first (a missing object counts as deleted),
-  then the row; a missing row is done. A storage error throws and BullMQ retries.
+  then the row; a missing row is done. A storage error throws and BullMQ retries; a
+  `PermanentStorageError` (the bucket answered 400 / 401 / 403) fails the job at once
+  (`UnrecoverableError`).
 - The queue drops a job that failed every attempt (`removeOnFail: true`): the `DELETED` row is the
-  record, and the sweeper must be able to add the same job id again.
-- `sweepAttachments` every 15 minutes (scheduler id `attachment-sweeper`, batch 200): `PENDING` rows
-  older than 24 h become `DELETED`; `DELETED` rows older than 10 minutes are enqueued again. A row
-  it expires is enqueued by a later sweep, so a row attached in the same instant never meets a job.
+  record, and the sweeper must be able to add the same job id again. A permanent refusal therefore
+  comes back with every sweep, alerting, until the configuration is fixed (ADR 0012).
+- Producers pass `ctx.requestId` as `traceId`; an enqueue that fails after commit is logged, not
+  thrown — the sweeper picks the row up.
+- `sweepAttachments` (scheduler id `attachment-sweeper`) expires stale `PENDING` rows and
+  re-enqueues stale `DELETED` ones; a row it expires is enqueued by a later sweep, so a row attached
+  in the same instant never meets a job. Its timings: `docs/attachments.md`.
 
 ## BullMQ 6 / ioredis 6 notes
 
@@ -161,7 +167,8 @@ object in the bucket follows it.
   never each other's code.
 - The worker knows nothing about "sending mail" beyond the `MailProvider` interface
   (`apps/worker/src/mail/mail-provider.ts`). `createSmtpMailProvider` (nodemailer, `MAIL_SMTP_URL`,
-  `MAIL_FROM`) is production/dev; `createMemoryMailProvider` is the only test double allowed.
+  `MAIL_FROM`) is production/dev; `createMemoryMailProvider` is the mail double (the attachment
+  worker's is `createMemoryStorage`, `.claude/rules/testing.md`).
 
 ## Tests
 

@@ -713,3 +713,35 @@ deleted owner's files (rows stay, as the legacy).
   (`attachment deleted`), 担当者追加 / 担当者情報編集 show the image field first; super_admin,
   manager and AM — own image saved and shown, the staff detail's 履歴書 card read-only (no 編集 for
   manager and AM). No hydration warning on fresh loads (3000 and 3001 alike).
+- 2026-10-09 — verifier PASS (fresh uncached verify 43/43, 1377 tests; no schema drift; commitlint;
+  zero-warning ESLint on the 88 changed files). Review round 1: REQUEST_CHANGES, 1 BLOCKER, 9
+  SHOULD, 12 NIT. Fixed in `c6c7a50`, `63e505b`, `e8f1e34` and the docs commit:
+  - BLOCKER — FileField wrote each pick's own list back when its uploads finished (a second pick or
+    a removal during an upload was undone): every write now starts from the latest value;
+    FileField's first tests (StrictMode) fail on the old code and pass on the new.
+  - SHOULD — the owner's row is locked in `syncAttachments` (two saves never leave two avatars,
+    tested); kind and owner travel as one `AttachmentTarget` with a runtime check; an enqueue that
+    fails after commit is logged (the sweeper re-enqueues); own keys only for the content type;
+    `traceId` on delete jobs; a permanent bucket refusal fails the job at once and is an accepted,
+    alerting retry per sweep (ADR 0012 Consequences); testing / queue / module-template rules
+    brought up to date.
+  - NIT — env entries above the Discord comment, `update` authorises before the bucket `head`,
+    `deleteById` removes `DELETED` rows only, direction and C1 controls out of names, form schemas
+    drop `avatarId`, no JSON parse error as the key-file error's cause, at most 20 unattached
+    uploads per user, a failed second avatar pick keeps the image just uploaded (its preview is in
+    the value), AvatarField tests in StrictMode asserting values, the attachments doc points at the
+    README for the variables and at itself for the timings.
+- 2026-10-09 — decided while building, against the text above (review round 1 asked to log them):
+  read URLs are always `inline` (the legacy opened 履歴書 in a new tab; `attachment` and the
+  provider's `disposition` option are gone); expired or foreign upload ids are `ValidationError`
+  (BAD_REQUEST: the user picks the file again), not `ConflictError`; the delete worker runs 2 at a
+  time, as planned; the avatar and 履歴書 service tests are `user-avatar.service.test.ts` and
+  `staff-resume.service.test.ts` beside the existing files; there is no test of the upload hook
+  (thin tRPC wiring, covered by the browser check) — its PUT is `uploadToSignedUrl` in
+  `lib/attachments.ts`, kept apart from the hook so it is node-testable without tRPC; every upload
+  failure reads ファイルのアップロードに失敗しました (the form checks type and size before asking,
+  so an API refusal means something the user cannot fix).
+- Open for the user: the key in use is the legacy one, tracked in the legacy git and shared by dev
+  and stg — treat it as exposed; a dedicated service account (or at least a new key) for
+  `d-round-dev`, and rotating the legacy key, are the user's call. `GCS_BUCKET` / `GCS_KEY_FILE` go
+  into the main checkout's `.env` before merging.

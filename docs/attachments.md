@@ -51,16 +51,18 @@ sequenceDiagram
 - `avatarId` / `resumeIds` left out of a write leave the files as they are; `avatarId: null` and a
   shorter `resumeIds` remove files.
 - A rejected owner write (validation, conflict, rollback) attaches nothing: the uploads stay
-  `PENDING` and expire.
+  `PENDING` and expire. A user holds at most 20 unattached uploads at once.
+- Two saves of one owner take turns (the owner's row is locked inside the save), so an owner never
+  ends up with two avatars.
 
 ## Reading a file
 
 There is no generic "read this file" procedure. The owner's read returns the files with signed GET
 URLs valid for 15 minutes: `user.me` / `user.byId` (`avatar`), `staff.byId` (`resumes`). Whoever may
-read the owner may read its files — the owner's ability check is the file's. The header refetches
-`user.me` every 10 minutes, before its image URL expires. Read URLs name the file in
-`Content-Disposition` (`inline`, with the Japanese name), so a PDF opens in the browser and saves
-under its own name.
+read the owner may read its files — the owner's ability check is the file's. The header treats
+`user.me` as fresh for 10 minutes, so a page opened or a tab refocused later fetches new URLs before
+the old ones expire. Read URLs name the file in `Content-Disposition` (`inline`, with the Japanese
+name), so a PDF opens in the browser and saves under its own name.
 
 ## Who may upload
 
@@ -72,12 +74,13 @@ staff write. A pending upload is attachable only by the user who uploaded it.
 
 ## How the bucket is cleaned
 
-| Situation                                   | What happens                                                                                | When                                 |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------ |
-| A file is replaced or removed and saved     | its row becomes `DELETED` in the save's transaction; a job deletes the object, then the row | seconds after the save               |
-| A file is uploaded but its form never saved | the sweeper turns the `PENDING` row `DELETED`; a later sweep enqueues its delete            | 24 h to 24 h 40 min after the upload |
-| A delete job is lost or fails every attempt | the row stays `DELETED`; the sweeper enqueues it again (failed jobs are dropped at once)    | every 15 min, after 10 min grace     |
-| An object is already gone                   | the delete counts as done                                                                   | —                                    |
+| Situation                                        | What happens                                                                                | When                                 |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------- | ------------------------------------ |
+| A file is replaced or removed and saved          | its row becomes `DELETED` in the save's transaction; a job deletes the object, then the row | seconds after the save               |
+| A file is uploaded but its form never saved      | the sweeper turns the `PENDING` row `DELETED`; a later sweep enqueues its delete            | 24 h to 24 h 40 min after the upload |
+| A delete job is lost or fails every attempt      | the row stays `DELETED`; the sweeper enqueues it again (failed jobs are dropped at once)    | every 15 min, after 10 min grace     |
+| An object is already gone                        | the delete counts as done                                                                   | —                                    |
+| The bucket refuses a delete (no role, no bucket) | the job fails at once; the row stays `DELETED`; each sweep tries again and alerts           | until the configuration is fixed     |
 
 The sweeper runs in the worker every 15 minutes (BullMQ job scheduler `attachment-sweeper`, 200 rows
 per sweep). The bucket keeps deleted objects for 7 days (Cloud Storage soft delete, the bucket's
@@ -85,14 +88,10 @@ default), so a mistaken delete can be restored from the console within that time
 
 ## Configuration
 
-| Variable       | Who        | Value                                                                                 |
-| -------------- | ---------- | ------------------------------------------------------------------------------------- |
-| `GCS_BUCKET`   | api/worker | the bucket, `d-round-dev` in development                                              |
-| `GCS_KEY_FILE` | api/worker | absolute path of the service-account key (JSON) outside the repository; read at start |
-
-Both are required: the API and the worker refuse to start without them, and a key file that cannot
-be read stops the process at start-up. Every `credentials/` folder is git-ignored. The service
-account needs `roles/storage.objectAdmin` on the bucket.
+`GCS_BUCKET` and `GCS_KEY_FILE` (README, environment table) are required by the API and the worker,
+which refuse to start without them; a key file that cannot be read stops the process at start-up.
+Every `credentials/` folder is git-ignored. The service account needs `roles/storage.objectAdmin` on
+the bucket.
 
 ## Setting up a bucket
 
@@ -100,7 +99,8 @@ account needs `roles/storage.objectAdmin` on the bucket.
    bucket-level access, public access prevention enforced, no lifecycle rule (a delete rule on
    `avatars/` or `resumes/` would remove live files; the sweeper does the cleaning).
 2. Grant the service account `roles/storage.objectAdmin` on it and put its key outside the
-   repository; point `GCS_KEY_FILE` at it.
+   repository; point `GCS_KEY_FILE` at it. One key per environment, and never a key that was
+   committed anywhere: a leaked key can read and delete every file of the bucket.
 3. Set CORS once (the browser PUTs to the bucket; the signed headers must be allowed):
 
    ```json

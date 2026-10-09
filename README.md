@@ -153,7 +153,7 @@ deployment places them, and a developer copies them from the legacy d-round-web 
 - **Attachments** (`docs/adr/0012-attachments.md`; how they behave at runtime:
   `docs/attachments.md`): プロフィール画像 and 履歴書 on Google Cloud Storage through V4 signed URLs
   (`@repo/storage`); an `attachments` row per object, attached in the owner's write, deleted by a
-  worker job after commit, unsaved uploads swept after 24 h.
+  worker job after commit, unsaved uploads swept by the worker.
 - **Health**: `GET /health` (Postgres + Redis probes) and tRPC `health.ping`; ordered graceful
   shutdown in api and worker, also after an uncaught exception or unhandled rejection; pino logging
   with redaction and request ids; error and fatal log lines alert a Discord channel when

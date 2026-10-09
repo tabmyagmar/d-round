@@ -58,3 +58,9 @@ tickets left プロフィール画像 and 履歴書 out until this decision.
 - A new owner (workflow file fields, 印鑑) is one kind, one nullable column and one additive
   migration. The bucket is not browsable by owner; the table is the index.
 - Read URLs expire after 15 minutes; screens refetch them with the owner (React Query `staleTime`).
+- A bucket that refuses deletes (a key without the role, a missing bucket) is a configuration error:
+  the job fails at once, the row stays `DELETED`, and every sweep tries again and alerts until it is
+  fixed — nothing is lost, and the alert is the signal. Accepted 2026-10-09 (review round 1) instead
+  of a give-up state on the row.
+- Two saves of one owner take turns on the owner's row lock, so the per-kind limit holds under
+  concurrency.

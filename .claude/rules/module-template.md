@@ -248,8 +248,8 @@ soft-deletes the user and deletes its sessions inside one `withTransaction`.)
 Rules:
 
 - `ctx: RequestContext` (`apps/api/src/core/context.ts`) is always the first parameter. It carries
-  `requestId`, `logger`, `headers`, `user`, `ability`, `db`, `redis`, `auth`. Log through
-  `ctx.logger`, never `console`.
+  `requestId`, `logger`, `headers`, `user`, `ability`, `db`, `redis`, `auth`, `webOrigin`, `storage`
+  (the attachments bucket) and `attachmentDeleteQueue`. Log through `ctx.logger`, never `console`.
 - Two authorization layers (`.claude/rules/permissions.md`): the router ran
   `requireAbility(action, "User")` (coarse); the service checks the concrete row with
   `ctx.ability.can(action, prismaUserSubject(row))` and applies stateful rules (last admin,
@@ -349,8 +349,9 @@ it("maps layer-1 denials to FORBIDDEN before touching the service", async () => 
 });
 ```
 
-- `createHarness()` builds `db`, `redis`, `auth`, `emailQueue`, a silent logger and collects the
-  verification mails Better Auth asked for (`sentMails`).
+- `createHarness()` builds `db`, `redis`, `auth`, `emailQueue`, the memory `storage`, the
+  `attachmentDeleteQueue`, a silent logger and collects the verification mails Better Auth asked for
+  (`sentMails`).
 - `signedInUser(h, { role, name })` creates a verified user with the requested role through
   `auth.api.createUser` (server-side, so no session is needed), signs in for real and returns
   `{ user, email, headers }` — `headers` carries the session cookie.
