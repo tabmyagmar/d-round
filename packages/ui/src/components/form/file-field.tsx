@@ -69,6 +69,8 @@ export const FileField = <TValues extends FieldValues>({
   const files = toFiles(field.value);
   const limit = multiple ? maxFiles : 1;
   const full = limit !== undefined && files.length >= limit;
+  // While an upload runs the value holds a file without its id, which the form schema refuses;
+  // that is waiting, not an error, so the field shows it only once the uploads are over.
 
   const addFiles = async (picked: FileList | File[]) => {
     const errors: string[] = [];
@@ -144,7 +146,7 @@ export const FileField = <TValues extends FieldValues>({
       required={required}
       hint={hint}
       description={description}
-      error={fieldState.error}
+      error={uploading.length > 0 ? undefined : fieldState.error}
       className={className}
     >
       <input
@@ -171,7 +173,7 @@ export const FileField = <TValues extends FieldValues>({
       <button
         type="button"
         disabled={Boolean(field.disabled) || full}
-        aria-invalid={fieldState.invalid}
+        aria-invalid={fieldState.invalid && uploading.length === 0}
         className={`flex w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground transition-colors outline-none hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive ${dragging ? "border-ring bg-muted/50" : "border-input"}`}
         onClick={() => {
           inputRef.current?.click();

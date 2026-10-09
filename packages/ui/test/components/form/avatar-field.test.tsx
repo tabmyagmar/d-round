@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useForm, useWatch } from "react-hook-form";
+import type { Resolver } from "react-hook-form";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AvatarField } from "../../../src/components/form/avatar-field";
@@ -102,5 +103,43 @@ describe("AvatarField", () => {
       expect(screen.getByText("face.png: ファイルのアップロードに失敗しました")).toBeDefined();
     });
     expect(valueOf()).toEqual(STORED);
+  });
+});
+
+describe("AvatarField while uploading", () => {
+  /** Like attachmentValueSchema: a file without its id fails at `avatar.id`, checked on every change. */
+  const resolver: Resolver<Values> = (values) =>
+    values.avatar && !values.avatar.id
+      ? { values: {}, errors: { avatar: { id: { type: "required", message: "待ってください" } } } }
+      : { values, errors: {} };
+
+  const Validating = ({ upload }: { upload: (file: File) => Promise<{ id: string }> }) => {
+    const form = useForm<Values>({ mode: "onChange", defaultValues: { avatar: null }, resolver });
+    return (
+      <AvatarField control={form.control} name="avatar" label="プロフィール画像" upload={upload} />
+    );
+  };
+
+  it("shows the waiting file as a wait, not as an error", async () => {
+    let finish: (value: { id: string }) => void = () => undefined;
+    render(<Validating upload={() => new Promise((resolve) => (finish = resolve))} />);
+
+    pick(new File(["png"], "face.png", { type: "image/png" }));
+
+    const circle = await screen.findByRole("button", { name: "プロフィール画像を変更" });
+    await waitFor(() => {
+      expect(screen.getByLabelText("アップロード中")).toBeDefined();
+    });
+    expect(circle.getAttribute("aria-invalid")).toBe("false");
+    expect(screen.queryByText("待ってください")).toBeNull();
+
+    await act(async () => {
+      finish({ id: "new-id" });
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(screen.queryByLabelText("アップロード中")).toBeNull();
+    });
+    expect(circle.getAttribute("aria-invalid")).toBe("false");
   });
 });

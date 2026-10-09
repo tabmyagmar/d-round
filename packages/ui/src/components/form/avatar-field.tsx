@@ -55,6 +55,9 @@ export const AvatarField = <TValues extends FieldValues>({
   const value = isFileValue(field.value) ? field.value : null;
   const shown = preview ?? value?.url ?? null;
   const locked = Boolean(field.disabled) || uploading;
+  // While an upload runs the value holds a file without its id, which the form schema refuses;
+  // that is waiting, not an error, so the field shows it only once the upload is over.
+  const invalid = fieldState.invalid && !uploading;
 
   useEffect(
     () => () => {
@@ -111,7 +114,7 @@ export const AvatarField = <TValues extends FieldValues>({
       required={required}
       hint={hint}
       description={description}
-      error={fieldState.error}
+      error={uploading ? undefined : fieldState.error}
       className={className}
     >
       <input
@@ -132,62 +135,65 @@ export const AvatarField = <TValues extends FieldValues>({
         }}
         onBlur={field.onBlur}
       />
-      <div className="relative w-fit">
-        <button
-          type="button"
-          aria-label={shown ? `${label}を変更` : `${label}を選択`}
-          aria-invalid={fieldState.invalid}
-          disabled={locked}
-          style={{ width: size, height: size }}
-          className={`group relative flex items-center justify-center rounded-full border-2 border-dashed transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed aria-invalid:border-destructive ${dragging ? "border-ring bg-muted/50" : shown ? "border-transparent" : "border-input bg-muted/50 hover:border-ring"}`}
-          onClick={() => {
-            inputRef.current?.click();
-          }}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => {
-            setDragging(false);
-          }}
-          onDrop={onDrop}
-        >
-          <Avatar className="size-full after:border-0">
-            {shown ? <AvatarImage src={shown} alt={label} /> : null}
-            <AvatarFallback className="bg-transparent">
-              <UserRoundIcon className="size-8 text-muted-foreground" />
-            </AvatarFallback>
-          </Avatar>
-          {shown && !locked ? (
-            <span className="absolute inset-0 flex items-center justify-center rounded-full bg-foreground/0 opacity-0 transition-all group-hover:bg-foreground/40 group-hover:opacity-100">
-              <UploadIcon className="size-6 text-background" />
-            </span>
-          ) : null}
-          {uploading ? (
-            <span className="absolute inset-0 flex items-center justify-center rounded-full bg-background/80">
-              <Loader2Icon
-                className="size-6 animate-spin text-primary"
-                aria-label="アップロード中"
-              />
-            </span>
-          ) : null}
-        </button>
-        {value && !locked ? (
-          <Button
+      {/* `Field` stretches its children; the inner box keeps the corner button on the circle. */}
+      <div>
+        <div className="relative w-fit">
+          <button
             type="button"
-            variant="destructive"
-            size="icon-xs"
-            className="absolute -top-1 -right-1 rounded-full"
-            aria-label={`${label}を削除`}
+            aria-label={shown ? `${label}を変更` : `${label}を選択`}
+            aria-invalid={invalid}
+            disabled={locked}
+            style={{ width: size, height: size }}
+            className={`group relative flex items-center justify-center rounded-full border-2 border-dashed transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed aria-invalid:border-destructive ${dragging ? "border-ring bg-muted/50" : shown ? "border-transparent" : "border-input bg-muted/50 hover:border-ring"}`}
             onClick={() => {
-              setPreview(null);
-              setLocalError(null);
-              field.onChange(null);
+              inputRef.current?.click();
             }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => {
+              setDragging(false);
+            }}
+            onDrop={onDrop}
           >
-            <XIcon />
-          </Button>
-        ) : null}
+            <Avatar className="size-full after:border-0">
+              {shown ? <AvatarImage src={shown} alt={label} /> : null}
+              <AvatarFallback className="bg-transparent">
+                <UserRoundIcon className="size-8 text-muted-foreground" />
+              </AvatarFallback>
+            </Avatar>
+            {shown && !locked ? (
+              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-foreground/0 opacity-0 transition-all group-hover:bg-foreground/40 group-hover:opacity-100">
+                <UploadIcon className="size-6 text-background" />
+              </span>
+            ) : null}
+            {uploading ? (
+              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-background/80">
+                <Loader2Icon
+                  className="size-6 animate-spin text-primary"
+                  aria-label="アップロード中"
+                />
+              </span>
+            ) : null}
+          </button>
+          {value && !locked ? (
+            <Button
+              type="button"
+              variant="destructive"
+              size="icon-xs"
+              className="absolute -top-1 -right-1 rounded-full"
+              aria-label={`${label}を削除`}
+              onClick={() => {
+                setPreview(null);
+                setLocalError(null);
+                field.onChange(null);
+              }}
+            >
+              <XIcon />
+            </Button>
+          ) : null}
+        </div>
       </div>
       {localError ? <p className="text-xs text-destructive">{localError}</p> : null}
     </FormFieldShell>
