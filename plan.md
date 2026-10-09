@@ -673,3 +673,43 @@ deleted owner's files (rows stay, as the legacy).
 - 2026-10-09 — `objectAdmin` on `d-round-dev` granted; the key copied (mode 600) to
   `TabSolution/d-round/credentials/google-storage-credential.json`, outside every git repository,
   since the same key serves dev and stg; the legacy file is left untouched.
+- 2026-10-09 — implemented T1–T11 in 15 commits on `feature/D_ROUND-TBD_file-upload` (worktree),
+  each with `yarn verify` green (43/43 tasks). What differs from the text above, each decided while
+  building:
+  - **Names**: the user's image is `avatar` / `avatarId` (inputs, `UserDetail.avatar`), not `image`
+    / `imageId` — Better Auth's `User.image` string column made `image` a type clash; the column
+    stays unused.
+  - **`GCS_BUCKET`, `GCS_KEY_FILE` are always required** (like `BETTER_AUTH_SECRET`), not "unless
+    `NODE_ENV=test`": CI never starts the app, and tests build the memory provider directly. The key
+    file is read in `createGcsStorage`, so a wrong path stops the process at start-up.
+  - **Upload URL size header is exact** (`<size>,<size>`), checked live on `d-round-dev`: another
+    size → 400 `EntityTooSmall`, another type → 403, no range header → 400; the bucket is private
+    (unsigned GET 403).
+  - **`resumeIds` is optional** (absent keeps the files, as `avatarId`), so an older client never
+    wipes a staff's 履歴書.
+  - **Forms hold file values, not ids**: `attachmentValueSchema` (`id` required, so a submit while
+    an upload runs is refused), `profileFormSchema`, the invite / update form schemas' `avatar`,
+    `staffFormSchema.resumes`; `toProfileInput`, `toInviteInput`, `toUpdateInput`, `toStaffInput`
+    send the ids.
+  - **No `features/attachments`**: features do not import each other (`.claude/rules/ui.md`), so the
+    hook is app-level (`apps/web/hooks/use-attachment-upload.ts`) and the PUT + value mapping sit in
+    `apps/web/lib/attachments.ts`; the containers pass `upload*` to the forms, as `findAddress`.
+  - **`@repo/storage` has no `object-key.ts`**: `sanitizeFileName` / `fileExtension` live in
+    `@repo/validation` (the schema transforms the name), the key is built in the service.
+  - **Queue**: the delete queue drops a job that failed every attempt (`removeOnFail: true`) so the
+    sweeper can add the same id again; the sweeper enqueues the rows it expires on a later sweep,
+    not at once, so a row attached in the same instant never meets a job.
+  - **`@google-cloud/storage` 8.2.0**: 8.3.0 and 8.4.0 were 2 days and hours old.
+  - **Bucket**: `d-round-dev` (created 2026-10-09, empty) got CORS for `http://localhost:3000` and
+    `:3001` (the worktree smoke port), `PUT`, the two signed headers, and public access prevention
+    enforced; uniform access was already on; no lifecycle rule; soft delete 7 days (default).
+  - **Browser check fixes** (`accd67f`): the staff form validates on change, so the drop zone turned
+    red while an upload ran — the file fields now show the schema's verdict only once no upload
+    runs; `Field` stretched the avatar box, which put the remove button at the card's edge.
+- 2026-10-09 — browser-checked on 3001/4001 against the dev database `workflow` (migration
+  `add_attachments` applied there, additive) and `d-round-dev`: admin — profile image set and shown
+  in the header, two 履歴書 on a staff edit (confirm lists them, detail links open with the Japanese
+  name, 200), one removed and its object gone seconds later
+  (`attachment deleted`), 担当者追加 / 担当者情報編集 show the image field first; super_admin,
+  manager and AM — own image saved and shown, the staff detail's 履歴書 card read-only (no 編集 for
+  manager and AM). No hydration warning on fresh loads (3000 and 3001 alike).

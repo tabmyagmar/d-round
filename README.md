@@ -91,6 +91,8 @@ missing or malformed value.
 | `MAIL_SMTP_URL`             | worker     | SMTP endpoint, `smtp://localhost:1025` for Mailpit                                                           |
 | `MAIL_FROM`                 | worker     | sender, e.g. `My App <no-reply@example.com>`; the display name is the brand used in emails                   |
 | `DISCORD_ALERT_WEBHOOK_URL` | api/worker | optional; Discord webhook that receives every error and fatal log line (`docs/adr/0010-alerts.md`); a secret |
+| `GCS_BUCKET`                | api/worker | the attachments bucket (`d-round-dev` in development; `docs/attachments.md`)                                 |
+| `GCS_KEY_FILE`              | api/worker | absolute path of the service-account key (JSON) kept outside the repository                                  |
 | `NEXT_PUBLIC_API_URL`       | web        | API origin the browser and the server components call (must be http(s))                                      |
 | `POSTGRES_IMAGE`            | docker     | Postgres image for compose (default `postgres:18-alpine`; `TEST_POSTGRES_IMAGE` for tests)                   |
 
@@ -148,6 +150,10 @@ deployment places them, and a developer copies them from the legacy d-round-web 
 - **Transactional outbox** (`docs/adr/0004-outbox.md`): the API writes an `outbox_emails` row inside
   the transaction and enqueues an ID-only BullMQ job after commit; the worker renders and sends
   through SMTP (Mailpit locally) with retries, and a sweeper re-enqueues stale rows.
+- **Attachments** (`docs/adr/0012-attachments.md`; how they behave at runtime:
+  `docs/attachments.md`): プロフィール画像 and 履歴書 on Google Cloud Storage through V4 signed URLs
+  (`@repo/storage`); an `attachments` row per object, attached in the owner's write, deleted by a
+  worker job after commit, unsaved uploads swept after 24 h.
 - **Health**: `GET /health` (Postgres + Redis probes) and tRPC `health.ping`; ordered graceful
   shutdown in api and worker, also after an uncaught exception or unhandled rejection; pino logging
   with redaction and request ids; error and fatal log lines alert a Discord channel when
@@ -222,7 +228,10 @@ packages/
               client form and list; branch.schema.ts: the 就業先部署 form and list), createEnv() for
               env validation
   queue/      BullMQ + ioredis wrapper: connection, createQueue, createWorker, pub/sub, jobIdFor,
-              QUEUE_NAMES, jobs/email.job.ts (EmailJob contract), test/ (testcontainers Redis)
+              QUEUE_NAMES, jobs/email.job.ts (EmailJob contract), jobs/attachment-delete.job.ts,
+              test/ (testcontainers Redis)
+  storage/    StorageProvider: Google Cloud Storage (V4 signed URLs, head, delete) and the memory
+              provider for tests (ADR 0012)
   logger/     pino with redaction, createLogger / childLogger, createDiscordAlertStream (ADR 0010)
   dayjs/      dayjs configured once (utc, timezone, customParseFormat, ja) and the calendar-day
               helpers toIsoDay / fromIsoDay / todayIsoDay (ADR 0009)
