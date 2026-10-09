@@ -745,3 +745,9 @@ deleted owner's files (rows stay, as the legacy).
   and stg — treat it as exposed; a dedicated service account (or at least a new key) for
   `d-round-dev`, and rotating the legacy key, are the user's call. `GCS_BUCKET` / `GCS_KEY_FILE` go
   into the main checkout's `.env` before merging.
+- 2026-10-09 — browser re-check after review round 1 (3001/4001, `d-round-dev`): picking a file with
+  the name and size of a stored one listed it twice under one React key and stuck the stepper —
+  FileField now refuses it ("すでに選択されています", tested). Then admin: profile image, two
+  new 履歴書 next to a stored one (the limit of three), confirm, detail links (200, Japanese names),
+  one removed; super_admin, manager, AM: own image saved and shown, 履歴書 card read-only for
+  manager and AM. No hydration warning on fresh loads.

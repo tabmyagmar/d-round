@@ -133,4 +133,20 @@ describe("FileField uploads", () => {
     });
     expect(dropZone()?.getAttribute("aria-invalid")).toBe("false");
   });
+
+  it("refuses the same file a second time instead of listing it twice", async () => {
+    const { upload, finish } = deferredUploads();
+    render(
+      <StrictMode>
+        <Harness upload={upload} />
+      </StrictMode>,
+    );
+    pick("a.pdf");
+    await finish("a.pdf", "id-a");
+
+    pick("a.pdf");
+
+    expect(screen.getByText("a.pdf: すでに選択されています")).toBeDefined();
+    expect(valueOf()).toEqual([{ name: "a.pdf", id: "id-a" }]);
+  });
 });

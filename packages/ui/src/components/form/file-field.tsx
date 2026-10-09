@@ -88,7 +88,11 @@ export const FileField = <TValues extends FieldValues>({
     const current = latestRef.current;
     const accepted: File[] = [];
     for (const file of Array.from(picked)) {
-      if (!matchesAccept(file, accept)) {
+      // Files are told apart by name and size; the same file twice would be one row twice.
+      const taken = [...current, ...accepted].some((item) => fileKey(item) === fileKey(file));
+      if (taken) {
+        errors.push(`${file.name}: すでに選択されています`);
+      } else if (!matchesAccept(file, accept)) {
         errors.push(`${file.name}: この形式は選択できません`);
       } else if (maxSize !== undefined && file.size > maxSize) {
         errors.push(`${file.name}: ${formatSize(maxSize)} を超えています`);
