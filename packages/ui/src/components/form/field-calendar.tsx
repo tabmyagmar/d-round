@@ -16,12 +16,6 @@ import { Calendar } from "../calendar";
 /** Without an `endMonth`, the dropdowns reach December fifty years ahead (legacy `InputDatePicker`). */
 const DEFAULT_END_MONTH = new Date(new Date().getFullYear() + 50, 11, 1);
 
-/** react-day-picker names only the month buttons (ja: 前の月へ / 次の月へ); these follow suit. */
-const yearLabels = (localeCode: string | undefined) =>
-  localeCode === "ja"
-    ? { previous: "前の年へ", next: "次の年へ" }
-    : { previous: "Previous year", next: "Next year" };
-
 /**
  * The legacy date picker's navigation: `<<` `<` (year and month dropdowns) `>` `>>`. A year button
  * moves the shown month twelve months, clamped by `goToMonth` to the start and end month, and is
@@ -37,7 +31,12 @@ const YearMonthNav = ({
   ...navProps
 }: NavProps) => {
   const { months, goToMonth, labels, classNames, dayPickerProps } = useDayPicker();
-  const year = yearLabels(dayPickerProps.locale?.code);
+  // react-day-picker names only the month buttons (ja: 前の月へ / 次の月へ, en: Go to the Previous
+  // Month / Go to the Next Month); the year buttons follow suit.
+  const year =
+    dayPickerProps.locale?.code === "ja"
+      ? { previous: "前の年へ", next: "次の年へ" }
+      : { previous: "Go to the Previous Year", next: "Go to the Next Year" };
   const shown = months[0]?.date;
   const atStart = !previousMonth;
   const atEnd = !nextMonth;

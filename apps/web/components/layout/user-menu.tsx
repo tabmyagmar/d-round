@@ -51,7 +51,6 @@ export type UserMenuProps = {
  */
 export const UserMenu = ({ user, onSignOut }: UserMenuProps) => {
   const [confirming, setConfirming] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
 
   return (
     <>
@@ -107,10 +106,7 @@ export const UserMenu = ({ user, onSignOut }: UserMenuProps) => {
           description="ログアウトしますか？"
           confirmLabel="はい"
           cancelLabel="いいえ"
-          pendingLabel="ログアウト中…"
-          pending={signingOut}
           onConfirm={() => {
-            setSigningOut(true);
             void onSignOut();
           }}
         />
