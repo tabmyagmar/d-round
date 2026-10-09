@@ -125,10 +125,15 @@ export const sleep = (ms: number): Promise<void> =>
 /** An isolated attachment delete queue per test (same options as production, quick retries). */
 export const isolatedAttachmentDeleteQueue = (
   connection: RedisConnection,
+  { backoffMs = 20 }: { backoffMs?: number } = {},
 ): { name: string; queue: AttachmentDeleteQueue } => {
   const name = `attachment-delete-test-${crypto.randomUUID()}`;
   const queue = createQueue<AttachmentDeleteJob>(name, connection, {
-    defaultJobOptions: { attempts: 2, backoff: { type: "fixed", delay: 20 }, removeOnFail: true },
+    defaultJobOptions: {
+      attempts: 2,
+      backoff: { type: "fixed", delay: backoffMs },
+      removeOnFail: true,
+    },
   });
   return { name, queue };
 };

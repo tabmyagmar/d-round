@@ -22,9 +22,8 @@ export const ATTACHMENT_DELETE_CONCURRENCY = 2;
  * Deletes the object of a DELETED attachment, then its row (docs/adr/0012-attachments.md).
  * Idempotent: a missing row was done already, a row in any other status is left alone, and a
  * missing object counts as deleted. A storage failure throws, so BullMQ retries; after the last
- * attempt the row stays DELETED and the sweeper enqueues it again. A permanent refusal (no role on
- * the bucket, no bucket) fails the job at once: retrying cannot help, and the sweeper tries again
- * every 15 minutes, alerting, until the configuration is fixed — nothing is lost meanwhile.
+ * attempt the row stays DELETED and the sweeper enqueues it again. A permanent refusal (the bucket
+ * answered 400 / 401 / 403) fails the job at once; what happens next: docs/attachments.md.
  */
 export const processAttachmentDeleteJob = async (
   deps: Pick<AttachmentDeleteDeps, "db" | "storage" | "logger">,

@@ -28,7 +28,7 @@ describe("sanitizeFileName", () => {
     expect(sanitizeFileName("README")).toBe("README");
     expect(sanitizeFileName(".env")).toBe(".env");
     expect(sanitizeFileName("履歴書\u202Efdp.exe")).toBe("履歴書fdp.exe");
-    expect(sanitizeFileName("a\u0085b\u2066.pdf")).toBe("ab.pdf");
+    expect(sanitizeFileName("a\u0085b\u2066\u061c.pdf")).toBe("ab.pdf");
   });
 
   it("reads the extension after the last dot only when there is a name before it", () => {

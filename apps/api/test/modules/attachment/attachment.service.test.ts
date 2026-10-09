@@ -298,19 +298,35 @@ describe("guards around the attach", () => {
     const owner = { userId: me.id };
     const first = await uploaded(me.ctx, "USER_AVATAR");
     const second = await uploaded(me.ctx, "USER_AVATAR");
-
-    await Promise.all(
-      [first, second].map((avatar) =>
-        withTransaction(h.db, (txc) =>
-          syncAttachments(me.ctx, txc, { kind: "USER_AVATAR", owner, ids: [avatar.id] }),
-        ),
-      ),
-    );
-
-    const attached = await h.db.attachment.count({
-      where: { userId: me.id, kind: "USER_AVATAR", status: "ATTACHED" },
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
     });
-    expect(attached).toBe(1);
+    let firstSynced: () => void = () => undefined;
+    const synced = new Promise<void>((resolve) => {
+      firstSynced = resolve;
+    });
+
+    // The first save attaches and stays open; the second must wait on the owner's lock.
+    const one = withTransaction(h.db, async (txc) => {
+      await syncAttachments(me.ctx, txc, { kind: "USER_AVATAR", owner, ids: [first.id] });
+      firstSynced();
+      await held;
+    });
+    await synced;
+    let secondDone = false;
+    const two = withTransaction(h.db, (txc) =>
+      syncAttachments(me.ctx, txc, { kind: "USER_AVATAR", owner, ids: [second.id] }),
+    ).then(() => {
+      secondDone = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(secondDone).toBe(false);
+    release();
+    await Promise.all([one, two]);
+
+    expect(await storedStatus(first.id)).toBe("DELETED");
+    expect(await storedStatus(second.id)).toBe("ATTACHED");
   });
 
   it("keeps a committed save when the delete cannot be enqueued; the sweeper takes over", async () => {

@@ -52,7 +52,7 @@ export const fileExtension = (fileName: string): string => {
 /** C0 and C1 controls, DEL, and the direction marks, embeddings, overrides and isolates. */
 const UNSAFE_NAME_CHARACTERS =
   // eslint-disable-next-line no-control-regex -- control characters are exactly what goes
-  /[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+  /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
 
 /**
  * The picked name as shown and stored: no path, no control or direction-override characters (a

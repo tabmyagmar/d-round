@@ -103,17 +103,20 @@ describe("attachment delete processor", () => {
   it("fails a delete the bucket refuses at once, keeping the row DELETED for the sweeper", async () => {
     const refusing = createMemoryStorage({ refuseDeletes: true });
     const row = await createAttachmentRow(h.db, { status: "DELETED" });
-    const { name, queue } = isolatedAttachmentDeleteQueue(h.connection);
+    // A long backoff: a job that would be retried waits in `delayed` while the test looks.
+    const { name, queue } = isolatedAttachmentDeleteQueue(h.connection, { backoffMs: 60_000 });
     const worker = createAttachmentDeleteWorker({ ...h, storage: refusing, queueName: name });
     try {
-      const failed = new Promise<number>((resolve) => {
-        worker.on("failed", (job) => {
-          resolve(job?.attemptsMade ?? -1);
+      const failed = new Promise<void>((resolve) => {
+        worker.on("failed", () => {
+          resolve();
         });
       });
       await enqueueAttachmentDeleteJob(queue, row.id, "req-refused");
+      await failed;
 
-      expect(await failed).toBe(1);
+      // Gone after its first failure: final (removeOnFail), not waiting for a retry.
+      expect(await queue.getJob(attachmentDeleteJobId(row.id))).toBeUndefined();
       expect((await h.db.attachment.findUniqueOrThrow({ where: { id: row.id } })).status).toBe(
         "DELETED",
       );

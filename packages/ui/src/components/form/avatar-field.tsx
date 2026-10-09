@@ -18,7 +18,7 @@ export type AvatarFieldProps<TValues extends FieldValues> = BaseFieldProps<TValu
   accept?: string;
   /** Limit in bytes. */
   maxSize?: number;
-  /** Uploads the picked image; the stored value becomes the returned reference (`id`, `url`). */
+  /** Uploads the picked image; its `id` joins the value, whose `url` stays the local preview. */
   upload: (file: File) => Promise<Pick<FileFieldValue, "id" | "url">>;
   /** Diameter in pixels. */
   size?: number;

@@ -4,13 +4,14 @@ import { useMutation } from "@tanstack/react-query";
 
 import type { AttachmentKind } from "@repo/validation";
 
-import { UPLOAD_FAILED, uploadToSignedUrl } from "@/lib/attachments";
+import { UPLOAD_FAILED, uploadRefusalOf, uploadToSignedUrl } from "@/lib/attachments";
 import { useTRPC } from "@/lib/trpc/react";
 
 /**
  * The `upload` a file field takes: asks the API for a signed URL of this kind, PUTs the file to
  * the bucket and returns the attachment id, which the form's save attaches (ADR 0012). A failure
- * is the field's message, not the global error toast.
+ * is the field's message, not the global error toast: the API's own refusal when it words one
+ * (`uploadRefusalOf`), ファイルのアップロードに失敗しました otherwise.
  */
 export const useAttachmentUpload = (kind: AttachmentKind) => {
   const trpc = useTRPC();
@@ -19,17 +20,22 @@ export const useAttachmentUpload = (kind: AttachmentKind) => {
   );
 
   return async (file: File): Promise<{ id: string }> => {
+    let target;
     try {
-      const target = await createUploadUrl.mutateAsync({
+      target = await createUploadUrl.mutateAsync({
         kind,
         fileName: file.name,
         contentType: file.type,
         size: file.size,
       });
+    } catch (error) {
+      throw new Error(uploadRefusalOf(error), { cause: error });
+    }
+    try {
       await uploadToSignedUrl(target, file);
-      return { id: target.id };
     } catch {
       throw new Error(UPLOAD_FAILED);
     }
+    return { id: target.id };
   };
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { FileIcon, Loader2Icon, UploadIcon, XIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import type { FieldValues } from "react-hook-form";
 
@@ -73,9 +73,10 @@ export const FileField = <TValues extends FieldValues>({
   // that is waiting, not an error, so the field shows it only once the uploads are over.
 
   // Uploads finish after later picks and removals, so every write starts from the latest value,
-  // never from the value an earlier pick saw.
+  // never from the value an earlier pick saw. A layout effect syncs it in the commit's own task: a
+  // passive effect could run after a later upload's write and put an older list back.
   const latestRef = useRef<FileFieldValue[]>(files);
-  useEffect(() => {
+  useLayoutEffect(() => {
     latestRef.current = toFiles(field.value);
   }, [field.value]);
   const commit = (next: FileFieldValue[]) => {

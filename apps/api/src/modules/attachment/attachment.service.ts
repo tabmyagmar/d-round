@@ -116,11 +116,11 @@ export const createUploadUrl = async (
  * every id the owner does not have yet is a PENDING upload of this user and kind whose object is
  * in the bucket. `owner` is undefined on a create.
  */
-export const assertUploaded = async (
+export const assertUploaded = async <K extends AttachmentKind>(
   ctx: RequestContext,
-  kind: AttachmentKind,
+  kind: K,
   ids: readonly string[],
-  owner?: AttachmentOwner,
+  owner?: Extract<AttachmentTarget, { kind: K }>["owner"],
 ): Promise<void> => {
   const uploader = uploaderOf(ctx);
   if (owner) {
@@ -192,8 +192,9 @@ export const syncAttachments = async (
           ),
         );
       } catch (error) {
-        // The save is committed and the rows say DELETED: the sweeper enqueues them again.
-        ctx.logger.warn(
+        // The save is committed and the rows say DELETED: the sweeper enqueues them again. Logged
+        // as an error, as the email outbox does, so a Redis failure still alerts (ADR 0010).
+        ctx.logger.error(
           { err: error, attachmentIds: removed },
           "attachment delete not enqueued; the sweeper retries",
         );

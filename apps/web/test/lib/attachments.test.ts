@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { UPLOAD_FAILED, toAttachmentValue, uploadToSignedUrl } from "@/lib/attachments";
+import {
+  UPLOAD_FAILED,
+  toAttachmentValue,
+  uploadRefusalOf,
+  uploadToSignedUrl,
+} from "@/lib/attachments";
 
 const target = {
   id: "0199a1b2-0000-7000-8000-000000000001",
@@ -54,5 +59,24 @@ describe("toAttachmentValue", () => {
       type: "application/pdf",
       url: "https://read",
     });
+  });
+});
+
+describe("uploadRefusalOf", () => {
+  it("passes on a refusal the API words for the user and hides everything else", () => {
+    const tooMany = "アップロード中のファイルが多すぎます。保存してから、もう一度お試しください";
+
+    expect(uploadRefusalOf({ message: tooMany, data: { code: "BAD_REQUEST" } })).toBe(tooMany);
+    expect(
+      uploadRefusalOf({
+        message: '[{"code":"custom","path":["size"]}]',
+        data: { code: "BAD_REQUEST" },
+      }),
+    ).toBe(UPLOAD_FAILED);
+    expect(uploadRefusalOf({ message: "Not allowed", data: { code: "FORBIDDEN" } })).toBe(
+      UPLOAD_FAILED,
+    );
+    expect(uploadRefusalOf(new TypeError("Failed to fetch"))).toBe(UPLOAD_FAILED);
+    expect(uploadRefusalOf(undefined)).toBe(UPLOAD_FAILED);
   });
 });

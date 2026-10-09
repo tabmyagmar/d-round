@@ -42,12 +42,12 @@ export type StorageProvider = {
   head: (key: string) => Promise<StoredObject | null>;
   /**
    * Removes the object; resolves when it is already gone (delete jobs may repeat). Throws
-   * `PermanentStorageError` when retrying cannot help (no permission, no bucket).
+   * `PermanentStorageError` when retrying cannot help (the bucket answered 400 / 401 / 403).
    */
   delete: (key: string) => Promise<void>;
 };
 
-/** A storage answer that the same request will get again: wrong credentials, a missing bucket. */
+/** A storage answer the same request will get again: a refused key or role (400 / 401 / 403). */
 export class PermanentStorageError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);

@@ -12,6 +12,18 @@ export type AttachmentView = NonNullable<inferRouterOutputs<AppRouter>["user"]["
 export const UPLOAD_FAILED = "ファイルのアップロードに失敗しました";
 
 /**
+ * What to tell the user when the API refuses an upload URL: its own sentence for a refusal it
+ * words for people (BAD_REQUEST from a service: too many uploads waiting), `UPLOAD_FAILED` for the
+ * rest. An input error's message is zod's issue list as JSON, which says nothing to a user.
+ */
+export const uploadRefusalOf = (error: unknown): string => {
+  const { message, data } = (error ?? {}) as { message?: unknown; data?: { code?: unknown } };
+  return data?.code === "BAD_REQUEST" && typeof message === "string" && !message.startsWith("[")
+    ? message
+    : UPLOAD_FAILED;
+};
+
+/**
  * Sends the file to the signed URL with the headers the signature covers; the bucket refuses
  * another type or size. Throws `UPLOAD_FAILED` when the bucket answers with an error.
  */

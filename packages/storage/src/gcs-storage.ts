@@ -101,6 +101,8 @@ export const createGcsStorage = ({ bucket: bucketName, keyFile }: GcsStorageConf
         await bucket.file(key).delete({ ignoreNotFound: true });
       } catch (error) {
         // 400 / 401 / 403: the request, the key or its role is wrong — every retry fails the same.
+        // A missing bucket answers 404, which `ignoreNotFound` treats as done. A key the token
+        // endpoint refuses (revoked) fails before this call, not as an ApiError: it is retried.
         if (error instanceof ApiError && [400, 401, 403].includes(error.code ?? 0)) {
           throw new PermanentStorageError(`Cloud Storage refused the delete of ${key}`, {
             cause: error,

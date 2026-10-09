@@ -33,12 +33,15 @@ export const createAttachmentRepository = (db: DbClient) => ({
   findManyByIds: (ids: readonly string[]): Promise<Attachment[]> =>
     db.attachment.findMany({ where: { id: { in: [...ids] } } }),
 
-  /** Locks the owner's row until the transaction ends, so two saves of one owner take turns. */
+  /**
+   * Locks the owner's row until the transaction ends, so two saves of one owner take turns. `NO KEY
+   * UPDATE`, as an UPDATE takes: inserts that reference the owner (sessions, uploads) still go on.
+   */
   lockOwner: async (owner: AttachmentOwner): Promise<void> => {
     if ("userId" in owner) {
-      await db.$queryRaw`SELECT id FROM users WHERE id = ${owner.userId}::uuid FOR UPDATE`;
+      await db.$queryRaw`SELECT id FROM users WHERE id = ${owner.userId}::uuid FOR NO KEY UPDATE`;
     } else {
-      await db.$queryRaw`SELECT id FROM staffs WHERE id = ${owner.staffId}::uuid FOR UPDATE`;
+      await db.$queryRaw`SELECT id FROM staffs WHERE id = ${owner.staffId}::uuid FOR NO KEY UPDATE`;
     }
   },
 
