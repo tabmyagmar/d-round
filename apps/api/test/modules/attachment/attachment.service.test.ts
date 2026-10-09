@@ -195,7 +195,10 @@ describe("syncAttachments", () => {
       "ATTACHED",
     ]);
     expect(rows.find((row) => row.id === third.id)?.staffId).toBe(staff.id);
-    expect((await deleteJobOf(second.id))?.data).toEqual({ attachmentId: second.id });
+    expect((await deleteJobOf(second.id))?.data).toEqual({
+      attachmentId: second.id,
+      traceId: admin.ctx.requestId,
+    });
     expect(await deleteJobOf(first.id)).toBeUndefined();
   });
 
@@ -256,7 +259,7 @@ describe("viewsOf", () => {
         fileName: "顔写真.png",
         contentType: "image/png",
         size: 2048,
-        url: `memory://read/${avatar.objectKey}?disposition=inline&filename=${encodeURIComponent("顔写真.png")}`,
+        url: `memory://read/${avatar.objectKey}?filename=${encodeURIComponent("顔写真.png")}`,
       },
     ]);
     expect(await viewsOf(me.ctx, { userId: me.id }, "STAFF_RESUME")).toEqual([]);

@@ -11,6 +11,8 @@ import type { TypedQueue } from "../queue";
  */
 export type AttachmentDeleteJob = {
   attachmentId: string;
+  /** The request that dropped the file (`ctx.requestId`), for the worker's log lines. */
+  traceId?: string;
 };
 
 export const ATTACHMENT_DELETE_JOB_NAME = "delete";
@@ -31,9 +33,11 @@ export const createAttachmentDeleteQueue = (connection: RedisConnection): Attach
   });
 
 /** Producers call this AFTER the transaction that marked the row DELETED committed. */
-export const enqueueAttachmentDeleteJob = (queue: AttachmentDeleteQueue, attachmentId: string) =>
-  queue.add(
-    ATTACHMENT_DELETE_JOB_NAME,
-    { attachmentId },
-    { jobId: attachmentDeleteJobId(attachmentId) },
-  );
+export const enqueueAttachmentDeleteJob = (
+  queue: AttachmentDeleteQueue,
+  attachmentId: string,
+  traceId?: string,
+) =>
+  queue.add(ATTACHMENT_DELETE_JOB_NAME, traceId ? { attachmentId, traceId } : { attachmentId }, {
+    jobId: attachmentDeleteJobId(attachmentId),
+  });

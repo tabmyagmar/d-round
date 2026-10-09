@@ -153,7 +153,11 @@ export const syncAttachments = async (
   if (removed.length > 0) {
     await attachments.markDeleted(removed, "ATTACHED");
     afterCommit(() =>
-      Promise.all(removed.map((id) => enqueueAttachmentDeleteJob(ctx.attachmentDeleteQueue, id))),
+      Promise.all(
+        removed.map((id) =>
+          enqueueAttachmentDeleteJob(ctx.attachmentDeleteQueue, id, ctx.requestId),
+        ),
+      ),
     );
   }
 };
@@ -170,7 +174,6 @@ export const viewsOf = async (
       const read = await ctx.storage.createReadUrl({
         key: row.objectKey,
         fileName: row.fileName,
-        disposition: "inline",
         expiresInSeconds: ATTACHMENT_URL_TTL_SECONDS,
       });
       return {

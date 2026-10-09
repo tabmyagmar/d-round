@@ -21,9 +21,8 @@ export type UploadUrl = {
 
 export type ReadUrlRequest = {
   key: string;
-  /** Sent back as Content-Disposition: `inline` shows the file, `attachment` downloads it. */
+  /** Sent back as `Content-Disposition: inline`: the browser shows the file under this name. */
   fileName: string;
-  disposition: "inline" | "attachment";
   expiresInSeconds: number;
 };
 
@@ -41,9 +40,20 @@ export type StorageProvider = {
   createReadUrl: (request: ReadUrlRequest) => Promise<ReadUrl>;
   /** The object's metadata, or null when nothing was uploaded under the key. */
   head: (key: string) => Promise<StoredObject | null>;
-  /** Removes the object; resolves when it is already gone (delete jobs may repeat). */
+  /**
+   * Removes the object; resolves when it is already gone (delete jobs may repeat). Throws
+   * `PermanentStorageError` when retrying cannot help (no permission, no bucket).
+   */
   delete: (key: string) => Promise<void>;
 };
+
+/** A storage answer that the same request will get again: wrong credentials, a missing bucket. */
+export class PermanentStorageError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "PermanentStorageError";
+  }
+}
 
 /**
  * The headers a signed PUT carries: the content type and the size, both pinned by the signature

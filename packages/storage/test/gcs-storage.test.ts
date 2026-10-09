@@ -60,20 +60,19 @@ describe("createGcsStorage", () => {
     expect(upload.expiresAt.getTime()).toBeGreaterThanOrEqual(before + 900_000);
   });
 
-  it("signs a GET that names the file in Content-Disposition, Japanese names included", async () => {
+  it("signs a GET that shows the file inline under its name, Japanese names included", async () => {
     const storage = createGcsStorage({ bucket: "d-round-test", keyFile });
 
     const read = await storage.createReadUrl({
       key: "resumes/3f2c.pdf",
       fileName: "履歴書 (1).pdf",
-      disposition: "attachment",
       expiresInSeconds: 900,
     });
 
     const url = new URL(read.url);
     expect(url.searchParams.get("X-Goog-SignedHeaders")).toBe("host");
     expect(url.searchParams.get("response-content-disposition")).toBe(
-      "attachment; filename=\"___ (1).pdf\"; filename*=UTF-8''%E5%B1%A5%E6%AD%B4%E6%9B%B8%20%281%29.pdf",
+      "inline; filename=\"___ (1).pdf\"; filename*=UTF-8''%E5%B1%A5%E6%AD%B4%E6%9B%B8%20%281%29.pdf",
     );
   });
 

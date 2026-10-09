@@ -31,6 +31,9 @@ describe("attachment delete job", () => {
 
     expect(second.id).toBe(first.id);
     expect(first.data).toEqual({ attachmentId });
+    const traced = await enqueueAttachmentDeleteJob(queue, crypto.randomUUID(), "req-1");
+    expect(traced.data.traceId).toBe("req-1");
+    await traced.remove();
     expect(first.name).toBe("delete");
     await first.remove();
     await queue.close();

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { ApiError, Storage } from "@google-cloud/storage";
 
-import { uploadHeaders } from "./provider";
+import { PermanentStorageError, uploadHeaders } from "./provider";
 import type { StorageProvider } from "./provider";
 
 export type GcsStorageConfig = {
@@ -22,8 +22,9 @@ const readServiceAccountKey = (keyFile: string) => {
   let key: ServiceAccountKey;
   try {
     key = JSON.parse(readFileSync(keyFile, "utf8")) as ServiceAccountKey;
-  } catch (error) {
-    throw new Error(`GCS_KEY_FILE ${keyFile} is not a readable JSON file`, { cause: error });
+  } catch {
+    // No `cause`: a JSON parse error quotes part of the file, and this one holds a private key.
+    throw new Error(`GCS_KEY_FILE ${keyFile} is not a readable JSON file`);
   }
   if (
     typeof key.project_id !== "string" ||
@@ -39,13 +40,13 @@ const readServiceAccountKey = (keyFile: string) => {
 };
 
 /** RFC 6266: an ASCII fallback plus the UTF-8 name, so Japanese names survive every browser. */
-const contentDisposition = (disposition: "inline" | "attachment", fileName: string) => {
+const inlineDisposition = (fileName: string) => {
   const fallback = fileName.replace(/[^\x20-\x7e]|["\\]/g, "_");
   const encoded = encodeURIComponent(fileName).replace(
     /['()*]/g,
     (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
   );
-  return `${disposition}; filename="${fallback}"; filename*=UTF-8''${encoded}`;
+  return `inline; filename="${fallback}"; filename*=UTF-8''${encoded}`;
 };
 
 /**
@@ -72,13 +73,13 @@ export const createGcsStorage = ({ bucket: bucketName, keyFile }: GcsStorageConf
       return { url, headers, expiresAt: new Date(expires) };
     },
 
-    createReadUrl: async ({ key, fileName, disposition, expiresInSeconds }) => {
+    createReadUrl: async ({ key, fileName, expiresInSeconds }) => {
       const expires = expiry(expiresInSeconds);
       const [url] = await bucket.file(key).getSignedUrl({
         version: "v4",
         action: "read",
         expires,
-        responseDisposition: contentDisposition(disposition, fileName),
+        responseDisposition: inlineDisposition(fileName),
       });
       return { url, expiresAt: new Date(expires) };
     },
@@ -96,7 +97,17 @@ export const createGcsStorage = ({ bucket: bucketName, keyFile }: GcsStorageConf
     },
 
     delete: async (key) => {
-      await bucket.file(key).delete({ ignoreNotFound: true });
+      try {
+        await bucket.file(key).delete({ ignoreNotFound: true });
+      } catch (error) {
+        // 400 / 401 / 403: the request, the key or its role is wrong — every retry fails the same.
+        if (error instanceof ApiError && [400, 401, 403].includes(error.code ?? 0)) {
+          throw new PermanentStorageError(`Cloud Storage refused the delete of ${key}`, {
+            cause: error,
+          });
+        }
+        throw error;
+      }
     },
   };
   return provider;

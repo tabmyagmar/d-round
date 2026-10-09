@@ -1,9 +1,11 @@
-import { uploadHeaders } from "./provider";
+import { PermanentStorageError, uploadHeaders } from "./provider";
 import type { StorageProvider, StoredObject } from "./provider";
 
 export type MemoryStorageOptions = {
   /** Reject the first N deletes with a retryable error (a transient Cloud Storage failure). */
   failFirstDeletes?: number;
+  /** Reject every delete with a `PermanentStorageError` (a key without the bucket role). */
+  refuseDeletes?: boolean;
 };
 
 export type MemoryStorage = StorageProvider & {
@@ -32,9 +34,9 @@ export const createMemoryStorage = (options: MemoryStorageOptions = {}): MemoryS
         expiresAt: expiresAt(expiresInSeconds),
       }),
 
-    createReadUrl: ({ key, fileName, disposition, expiresInSeconds }) =>
+    createReadUrl: ({ key, fileName, expiresInSeconds }) =>
       Promise.resolve({
-        url: `memory://read/${key}?disposition=${disposition}&filename=${encodeURIComponent(fileName)}`,
+        url: `memory://read/${key}?filename=${encodeURIComponent(fileName)}`,
         expiresAt: expiresAt(expiresInSeconds),
       }),
 
@@ -42,6 +44,9 @@ export const createMemoryStorage = (options: MemoryStorageOptions = {}): MemoryS
 
     delete: (key) => {
       state.deletes += 1;
+      if (options.refuseDeletes) {
+        return Promise.reject(new PermanentStorageError(`storage refused the delete of ${key}`));
+      }
       if (options.failFirstDeletes !== undefined && state.deletes <= options.failFirstDeletes) {
         return Promise.reject(new Error(`storage unavailable (delete ${String(state.deletes)})`));
       }

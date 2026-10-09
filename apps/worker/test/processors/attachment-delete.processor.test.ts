@@ -99,4 +99,28 @@ describe("attachment delete processor", () => {
       "DELETED",
     );
   });
+
+  it("fails a delete the bucket refuses at once, keeping the row DELETED for the sweeper", async () => {
+    const refusing = createMemoryStorage({ refuseDeletes: true });
+    const row = await createAttachmentRow(h.db, { status: "DELETED" });
+    const { name, queue } = isolatedAttachmentDeleteQueue(h.connection);
+    const worker = createAttachmentDeleteWorker({ ...h, storage: refusing, queueName: name });
+    try {
+      const failed = new Promise<number>((resolve) => {
+        worker.on("failed", (job) => {
+          resolve(job?.attemptsMade ?? -1);
+        });
+      });
+      await enqueueAttachmentDeleteJob(queue, row.id, "req-refused");
+
+      expect(await failed).toBe(1);
+      expect((await h.db.attachment.findUniqueOrThrow({ where: { id: row.id } })).status).toBe(
+        "DELETED",
+      );
+    } finally {
+      await worker.close();
+      await queue.obliterate({ force: true });
+      await queue.close();
+    }
+  });
 });

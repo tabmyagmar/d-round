@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createMemoryStorage } from "../src/memory-storage";
+import { PermanentStorageError } from "../src/provider";
 
 describe("createMemoryStorage", () => {
   it("answers like the bucket: upload headers, head after a put, delete of a missing key", async () => {
@@ -25,10 +26,9 @@ describe("createMemoryStorage", () => {
     const read = await storage.createReadUrl({
       key: "avatars/a.png",
       fileName: "顔.png",
-      disposition: "inline",
       expiresInSeconds: 60,
     });
-    expect(read.url).toBe("memory://read/avatars/a.png?disposition=inline&filename=%E9%A1%94.png");
+    expect(read.url).toBe("memory://read/avatars/a.png?filename=%E9%A1%94.png");
 
     await storage.delete("avatars/a.png");
     await storage.delete("avatars/a.png");
@@ -43,5 +43,13 @@ describe("createMemoryStorage", () => {
     expect(storage.keys()).toEqual(["resumes/r.pdf"]);
     await storage.delete("resumes/r.pdf");
     expect(storage.keys()).toEqual([]);
+  });
+
+  it("refuses every delete permanently when asked", async () => {
+    const storage = createMemoryStorage({ refuseDeletes: true });
+    storage.put("resumes/r.pdf", { size: 1, contentType: "application/pdf" });
+
+    await expect(storage.delete("resumes/r.pdf")).rejects.toBeInstanceOf(PermanentStorageError);
+    expect(storage.keys()).toEqual(["resumes/r.pdf"]);
   });
 });
