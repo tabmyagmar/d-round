@@ -28,19 +28,22 @@ model User {
   lastNameKana  String? @map("last_name_kana")
   firstNameKana String? @map("first_name_kana")
 
-  roleRef          Role              @relation(fields: [role], references: [key], onDelete: Restrict)
+  roleRef             Role              @relation(fields: [role], references: [key], onDelete: Restrict)
   /// HR fields of a 担当者 (ADR 0007); none until the user is invited or edited with them.
-  profile          UserProfile?
-  sessions         Session[]
-  accounts         Account[]
-  permissions      UserPermission[]
-  commentTemplates CommentTemplate[]
+  profile             UserProfile?
+  sessions            Session[]
+  accounts            Account[]
+  permissions         UserPermission[]
+  commentTemplates    CommentTemplate[]
   /// スタッフ this user is or was 担当者 of (ADR 0008).
-  staffCharges     StaffCharger[]
+  staffCharges        StaffCharger[]
   /// クライアント this user is 担当者 of (ADR 0011).
-  clientCharges    ClientCharger[]
+  clientCharges       ClientCharger[]
   /// 就業先部署 this user is 担当者 of (ADR 0011).
-  branchCharges    BranchCharger[]
+  branchCharges       BranchCharger[]
+  /// Files this user owns (プロフィール画像) and files they uploaded (ADR 0012).
+  attachments         Attachment[]      @relation("UserAttachments")
+  uploadedAttachments Attachment[]      @relation("UploadedAttachments")
 
   @@index([role])
   @@map("users")

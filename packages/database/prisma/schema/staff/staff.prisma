@@ -74,6 +74,8 @@ model Staff {
   familyMembers StaffFamilyMember[]
   memos         StaffMemo[]
   jobHistories  StaffJobHistory[]
+  /// 履歴書 files (ADR 0012).
+  attachments   Attachment[]
 
   @@index([employeeNumber])
   @@index([status])

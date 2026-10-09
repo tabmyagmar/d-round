@@ -1,0 +1,56 @@
+// A file in the bucket and the row that owns it (docs/adr/0012-attachments.md). The row is the
+// truth: PENDING until the owner's write attaches it, DELETED until the worker has removed the
+// object, then gone.
+
+/// What the file is for. Fixes the owner column, the accepted types, the size limit and the bucket
+/// folder (`ATTACHMENT_RULES` in @repo/validation).
+enum AttachmentKind {
+  /// プロフィール画像 of a 担当者 — owner `user_id`
+  USER_AVATAR
+  /// 履歴書 of a スタッフ — owner `staff_id`, up to 3
+  STAFF_RESUME
+
+  @@map("attachment_kind")
+}
+
+/// PENDING: upload URL issued, not attached yet (expired by the sweeper after 24 h). ATTACHED:
+/// owned. DELETED: the object delete is pending (job + sweeper); the row goes after the object.
+enum AttachmentStatus {
+  PENDING
+  ATTACHED
+  DELETED
+
+  @@map("attachment_status")
+}
+
+model Attachment {
+  id           String           @id @default(uuid(7)) @db.Uuid
+  kind         AttachmentKind
+  status       AttachmentStatus @default(PENDING)
+  /// Object name in the bucket: `<folder>/<random uuid><.ext>`; never changes.
+  objectKey    String           @unique @map("object_key") @db.VarChar(255)
+  /// The name as picked (sanitised); shown in the UI and sent as Content-Disposition.
+  fileName     String           @map("file_name") @db.VarChar(255)
+  contentType  String           @map("content_type") @db.VarChar(100)
+  /// Bytes, declared at URL time; the signed PUT accepts exactly this many.
+  size         Int
+  /// Who asked for the upload URL; only they may attach the pending row.
+  uploadedById String           @map("uploaded_by_id") @db.Uuid
+  /// Owner columns: exactly one is set once ATTACHED, the one the kind names (a service rule).
+  userId       String?          @map("user_id") @db.Uuid
+  staffId      String?          @map("staff_id") @db.Uuid
+  attachedAt   DateTime?        @map("attached_at")
+  deletedAt    DateTime?        @map("deleted_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  uploadedBy User   @relation("UploadedAttachments", fields: [uploadedById], references: [id], onDelete: Restrict)
+  user       User?  @relation("UserAttachments", fields: [userId], references: [id], onDelete: Restrict)
+  staff      Staff? @relation(fields: [staffId], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@index([uploadedById])
+  @@index([userId, kind])
+  @@index([staffId, kind])
+  @@map("attachments")
+}
