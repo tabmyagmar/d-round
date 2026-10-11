@@ -20,17 +20,11 @@ export const useAttachmentUpload = (kind: AttachmentKind) => {
   );
 
   return async (file: File): Promise<{ id: string }> => {
-    let target;
-    try {
-      target = await createUploadUrl.mutateAsync({
-        kind,
-        fileName: file.name,
-        contentType: file.type,
-        size: file.size,
+    const target = await createUploadUrl
+      .mutateAsync({ kind, fileName: file.name, contentType: file.type, size: file.size })
+      .catch((error: unknown) => {
+        throw new Error(uploadRefusalOf(error), { cause: error });
       });
-    } catch (error) {
-      throw new Error(uploadRefusalOf(error), { cause: error });
-    }
     try {
       await uploadToSignedUrl(target, file);
     } catch {

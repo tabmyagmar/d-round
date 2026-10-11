@@ -90,6 +90,8 @@ const shutdown = registerGracefulShutdown({
 
 try {
   await waitForRedis(connection);
+  // A wrong bucket would make every delete a 404 that counts as done (docs/attachments.md).
+  await storage.ready();
   await registerOutboxSweeper(sweeperQueue);
   await registerAttachmentSweeper(attachmentSweeperQueue);
   logger.info({ workers: workers.length }, "worker ready");

@@ -36,6 +36,11 @@ export type ReadUrl = {
  * server only signs, checks and deletes (docs/adr/0012-attachments.md).
  */
 export type StorageProvider = {
+  /**
+   * Resolves when the bucket answers; called once at start-up, so a wrong or missing bucket stops
+   * the process instead of turning every delete into a silent 404.
+   */
+  ready: () => Promise<void>;
   createUploadUrl: (request: UploadUrlRequest) => Promise<UploadUrl>;
   createReadUrl: (request: ReadUrlRequest) => Promise<ReadUrl>;
   /** The object's metadata, or null when nothing was uploaded under the key. */

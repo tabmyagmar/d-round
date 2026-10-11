@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { createUploadUrlSchema } from "@repo/validation";
+
 import {
   UPLOAD_FAILED,
   toAttachmentValue,
@@ -67,12 +69,16 @@ describe("uploadRefusalOf", () => {
     const tooMany = "アップロード中のファイルが多すぎます。保存してから、もう一度お試しください";
 
     expect(uploadRefusalOf({ message: tooMany, data: { code: "BAD_REQUEST" } })).toBe(tooMany);
-    expect(
-      uploadRefusalOf({
-        message: '[{"code":"custom","path":["size"]}]',
-        data: { code: "BAD_REQUEST" },
-      }),
-    ).toBe(UPLOAD_FAILED);
+    // An input error, as tRPC sends it: the message of the schema's own ZodError.
+    const inputError = createUploadUrlSchema.safeParse({
+      kind: "STAFF_RESUME",
+      fileName: "a.exe",
+      contentType: "application/x-msdownload",
+      size: 1,
+    }).error;
+    expect(uploadRefusalOf({ message: inputError?.message, data: { code: "BAD_REQUEST" } })).toBe(
+      UPLOAD_FAILED,
+    );
     expect(uploadRefusalOf({ message: "Not allowed", data: { code: "FORBIDDEN" } })).toBe(
       UPLOAD_FAILED,
     );

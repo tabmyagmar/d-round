@@ -74,13 +74,13 @@ staff write. A pending upload is attachable only by the user who uploaded it.
 
 ## How the bucket is cleaned
 
-| Situation                                                             | What happens                                                                                                          | When                                 |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| A file is replaced or removed and saved                               | its row becomes `DELETED` in the save's transaction; a job deletes the object, then the row                           | seconds after the save               |
-| A file is uploaded but its form never saved                           | the sweeper turns the `PENDING` row `DELETED`; a later sweep enqueues its delete                                      | 24 h to 24 h 40 min after the upload |
-| A delete job is lost or fails every attempt                           | the row stays `DELETED`; the sweeper enqueues it again (failed jobs are dropped at once)                              | every 15 min, after 10 min grace     |
-| An object is already gone                                             | the delete counts as done (also when the bucket itself is missing, 404; a wrong bucket name fails every upload first) | —                                    |
-| The bucket refuses a delete (400 / 401 / 403: a key without the role) | the job fails at once; the row stays `DELETED`; each sweep tries again and alerts                                     | until the configuration is fixed     |
+| Situation                                                             | What happens                                                                                                                                  | When                                 |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| A file is replaced or removed and saved                               | its row becomes `DELETED` in the save's transaction; a job deletes the object, then the row                                                   | seconds after the save               |
+| A file is uploaded but its form never saved                           | the sweeper turns the `PENDING` row `DELETED`; a later sweep enqueues its delete                                                              | 24 h to 24 h 40 min after the upload |
+| A delete job is lost or fails every attempt                           | the row stays `DELETED`; the sweeper enqueues it again (failed jobs are dropped at once)                                                      | every 15 min, after 10 min grace     |
+| An object is already gone                                             | the delete counts as done (a missing bucket would answer 404 too; the API and the worker check their bucket at start-up, so it cannot be one) | —                                    |
+| The bucket refuses a delete (400 / 401 / 403: a key without the role) | the job fails at once; the row stays `DELETED`; each sweep tries again and alerts                                                             | until the configuration is fixed     |
 
 The sweeper runs in the worker every 15 minutes (BullMQ job scheduler `attachment-sweeper`, 200 rows
 per sweep). The bucket keeps deleted objects for 7 days (Cloud Storage soft delete, the bucket's
@@ -89,9 +89,9 @@ default), so a mistaken delete can be restored from the console within that time
 ## Configuration
 
 `GCS_BUCKET` and `GCS_KEY_FILE` (README, environment table) are required by the API and the worker,
-which refuse to start without them; a key file that cannot be read stops the process at start-up.
-Every `credentials/` folder is git-ignored. The service account needs `roles/storage.objectAdmin` on
-the bucket.
+which refuse to start without them; a key file that cannot be read, or a bucket the key cannot list
+(missing, misspelt), stops the process at start-up. Every `credentials/` folder is git-ignored. The
+service account needs `roles/storage.objectAdmin` on the bucket.
 
 ## Setting up a bucket
 

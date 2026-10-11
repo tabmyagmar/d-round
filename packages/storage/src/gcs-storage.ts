@@ -58,6 +58,18 @@ export const createGcsStorage = ({ bucket: bucketName, keyFile }: GcsStorageConf
   const expiry = (seconds: number) => Date.now() + seconds * 1000;
 
   const provider: StorageProvider = {
+    // Listing one object needs only `storage.objects.list` (roles/storage.objectAdmin has it);
+    // reading the bucket's metadata would need a bucket role. A missing bucket answers 404.
+    ready: async () => {
+      try {
+        await bucket.getFiles({ maxResults: 1, autoPaginate: false });
+      } catch (error) {
+        throw new Error(`GCS_BUCKET ${bucketName} cannot be read with GCS_KEY_FILE`, {
+          cause: error,
+        });
+      }
+    },
+
     createUploadUrl: async ({ key, contentType, size, expiresInSeconds }) => {
       const expires = expiry(expiresInSeconds);
       const headers = uploadHeaders(contentType, size);
@@ -101,8 +113,9 @@ export const createGcsStorage = ({ bucket: bucketName, keyFile }: GcsStorageConf
         await bucket.file(key).delete({ ignoreNotFound: true });
       } catch (error) {
         // 400 / 401 / 403: the request, the key or its role is wrong — every retry fails the same.
-        // A missing bucket answers 404, which `ignoreNotFound` treats as done. A key the token
-        // endpoint refuses (revoked) fails before this call, not as an ApiError: it is retried.
+        // A missing bucket answers 404, which `ignoreNotFound` treats as done — `ready()` at
+        // start-up rules it out. A key the token endpoint refuses (revoked) fails before this
+        // call, not as an ApiError: it is retried.
         if (error instanceof ApiError && [400, 401, 403].includes(error.code ?? 0)) {
           throw new PermanentStorageError(`Cloud Storage refused the delete of ${key}`, {
             cause: error,

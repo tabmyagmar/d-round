@@ -22,6 +22,7 @@ export const createMemoryStorage = (options: MemoryStorageOptions = {}): MemoryS
   const expiresAt = (seconds: number) => new Date(Date.now() + seconds * 1000);
 
   return {
+    ready: () => Promise.resolve(),
     put: (key, object) => {
       objects.set(key, object);
     },

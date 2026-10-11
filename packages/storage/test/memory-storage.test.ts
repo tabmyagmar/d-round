@@ -6,6 +6,7 @@ import { PermanentStorageError } from "../src/provider";
 describe("createMemoryStorage", () => {
   it("answers like the bucket: upload headers, head after a put, delete of a missing key", async () => {
     const storage = createMemoryStorage();
+    await expect(storage.ready()).resolves.toBeUndefined();
 
     const upload = await storage.createUploadUrl({
       key: "avatars/a.png",

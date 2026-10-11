@@ -313,7 +313,8 @@ describe("guards around the attach", () => {
       firstSynced();
       await held;
     });
-    await synced;
+    // `one` settles first only if the first save failed: then its error is the report.
+    await Promise.race([synced, one]);
     let secondDone = false;
     const two = withTransaction(h.db, (txc) =>
       syncAttachments(me.ctx, txc, { kind: "USER_AVATAR", owner, ids: [second.id] }),

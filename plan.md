@@ -767,3 +767,11 @@ deleted owner's files (rows stay, as the legacy).
     from names; the testing rule's path typo; the refusal policy's timing lives in
     docs/attachments.md only. A test of the GCS 400 / 401 / 403 mapping against a fake endpoint was
     not added: the comment in `gcs-storage.ts` states the limits (token-endpoint failures retry).
+- 2026-10-11 — review round 3 (`f4f245b..ff28ddb`): 0 BLOCKER, 1 SHOULD, 3 NIT, all fixed. SHOULD: a
+  worker with a wrong or missing bucket would have turned every delete into a 404 "done" and
+  orphaned the objects silently; `StorageProvider.ready()` lists one object (needs only
+  `storage.objects.list`, which `objectAdmin` has — reading bucket metadata would need a bucket
+  role) and the API and the worker call it at start-up (checked live: `d-round-dev` ready, a missing
+  bucket refused with 404). NITs: the refusal test uses the schema's real ZodError message, the hook
+  keeps `target` a typed `const`, the concurrent-save test races `synced` with the first save so a
+  failure reports instead of timing out.

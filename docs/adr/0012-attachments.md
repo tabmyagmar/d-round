@@ -64,3 +64,5 @@ tickets left プロフィール画像 and 履歴書 out until this decision.
   of a give-up state on the row.
 - Two saves of one owner take turns on the owner's row lock, so the per-kind limit holds under
   concurrency.
+- A delete in a missing bucket answers 404, which counts as done; so the API and the worker list one
+  object of their bucket at start-up and refuse to start when they cannot (review round 3).

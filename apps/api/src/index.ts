@@ -32,6 +32,8 @@ redis.on("error", (error) => {
 const emailQueue = createEmailQueue(redis);
 // Attachments: signing is local; head and delete call the bucket (ADR 0012).
 const storage = createGcsStorage({ bucket: env.GCS_BUCKET, keyFile: env.GCS_KEY_FILE });
+// Uploads into a wrong bucket would fail one by one; refuse to start instead.
+await storage.ready();
 const attachmentDeleteQueue = createAttachmentDeleteQueue(redis);
 
 const auth = createAuth({
