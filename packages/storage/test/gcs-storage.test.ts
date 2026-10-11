@@ -8,7 +8,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { createGcsStorage } from "../src/gcs-storage";
 
 // Signing is local (the key's private key), so these tests need no network and no bucket. The
-// head / delete calls go to the JSON API and are covered by the smoke check (docs/attachments.md).
+// ready / head / delete calls go to the JSON API and are covered by the smoke check
+// (docs/attachments.md, Setting up a bucket).
 let keyFile: string;
 
 beforeAll(() => {

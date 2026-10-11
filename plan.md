@@ -775,3 +775,11 @@ deleted owner's files (rows stay, as the legacy).
   bucket refused with 404). NITs: the refusal test uses the schema's real ZodError message, the hook
   keeps `target` a typed `const`, the concurrent-save test races `synced` with the first save so a
   failure reports instead of timing out.
+- 2026-10-11 — review round 4 (`6351e84`): 0 BLOCKER, 1 SHOULD, 3 NIT, fixed. SHOULD: the worker
+  created its BullMQ consumers (which take jobs at once) before the bucket check, so a delete job
+  could still meet a wrong bucket — the consumers are now created after `waitForRedis` and
+  `storage.ready()`. NITs: the API's failed start-up check is a `fatal` log line flushed to the
+  alerts before `exit 1` (checked: `api failed to start` with a missing bucket); the refusal test
+  asserts the ZodError message it relies on; `ready` named in the GCS test comment and a start-up
+  step in the bucket checklist; docs/attachments.md says a bucket deleted while running is not
+  noticed.

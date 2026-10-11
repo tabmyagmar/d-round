@@ -32,8 +32,15 @@ redis.on("error", (error) => {
 const emailQueue = createEmailQueue(redis);
 // Attachments: signing is local; head and delete call the bucket (ADR 0012).
 const storage = createGcsStorage({ bucket: env.GCS_BUCKET, keyFile: env.GCS_KEY_FILE });
-// Uploads into a wrong bucket would fail one by one; refuse to start instead.
-await storage.ready();
+// Uploads into a wrong bucket would fail one by one; refuse to start instead, through the logger
+// so the failure reaches Discord too (docs/adr/0010-alerts.md).
+try {
+  await storage.ready();
+} catch (error) {
+  logger.fatal({ err: error }, "api failed to start");
+  await alerts?.flush();
+  process.exit(1);
+}
 const attachmentDeleteQueue = createAttachmentDeleteQueue(redis);
 
 const auth = createAuth({

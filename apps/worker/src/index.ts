@@ -58,13 +58,10 @@ const storage = createGcsStorage({ bucket: env.GCS_BUCKET, keyFile: env.GCS_KEY_
 const attachmentDeleteQueue = createAttachmentDeleteQueue(connection);
 const attachmentSweeperQueue = createAttachmentSweeperQueue(connection);
 
-// Registered in src/processors/*.processor.ts and src/schedulers/* and listed here.
-const workers: { close: () => Promise<void> }[] = [
-  createEmailWorker({ connection, db, provider: mailProvider, logger, brand }),
-  createOutboxSweeperWorker({ connection, db, emailQueue, logger }),
-  createAttachmentDeleteWorker({ connection, db, storage, logger }),
-  createAttachmentSweeperWorker({ connection, db, attachmentDeleteQueue, logger }),
-];
+// Registered in src/processors/*.processor.ts and src/schedulers/* and listed here. A BullMQ
+// worker takes jobs as soon as it exists, so they are created once the checks below passed: a
+// delete consumer started before the bucket check could count a wrong bucket's 404s as done.
+const workers: { close: () => Promise<void> }[] = [];
 
 const shutdown = registerGracefulShutdown({
   logger,
@@ -92,6 +89,12 @@ try {
   await waitForRedis(connection);
   // A wrong bucket would make every delete a 404 that counts as done (docs/attachments.md).
   await storage.ready();
+  workers.push(
+    createEmailWorker({ connection, db, provider: mailProvider, logger, brand }),
+    createOutboxSweeperWorker({ connection, db, emailQueue, logger }),
+    createAttachmentDeleteWorker({ connection, db, storage, logger }),
+    createAttachmentSweeperWorker({ connection, db, attachmentDeleteQueue, logger }),
+  );
   await registerOutboxSweeper(sweeperQueue);
   await registerAttachmentSweeper(attachmentSweeperQueue);
   logger.info({ workers: workers.length }, "worker ready");

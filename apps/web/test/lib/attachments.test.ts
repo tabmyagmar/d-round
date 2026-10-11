@@ -76,6 +76,7 @@ describe("uploadRefusalOf", () => {
       contentType: "application/x-msdownload",
       size: 1,
     }).error;
+    expect(inputError?.message).toMatch(/^\[/);
     expect(uploadRefusalOf({ message: inputError?.message, data: { code: "BAD_REQUEST" } })).toBe(
       UPLOAD_FAILED,
     );
