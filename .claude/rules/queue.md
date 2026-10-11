@@ -141,8 +141,10 @@ object in the bucket follows it.
 - The queue drops a job that failed every attempt (`removeOnFail: true`): the `DELETED` row is the
   record, and the sweeper must be able to add the same job id again. What a permanent refusal means
   for the bucket and the alerts: `docs/attachments.md`.
-- Producers pass `ctx.requestId` as `traceId`; an enqueue that fails after commit is logged, not
-  thrown — the sweeper picks the row up.
+- Producers pass `ctx.requestId` as `traceId` and `notBefore: objectDeletableAt(row.createdAt)`
+  (`@repo/validation`): a delete waits until the file's upload URL has expired, so a replayed URL
+  cannot recreate the object without a row. An enqueue that fails after commit is logged, not thrown
+  — the sweeper picks the row up.
 - `sweepAttachments` (scheduler id `attachment-sweeper`) expires stale `PENDING` rows and
   re-enqueues stale `DELETED` ones; a row it expires is enqueued by a later sweep, so a row attached
   in the same instant never meets a job. Its timings: `docs/attachments.md`.

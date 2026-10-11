@@ -117,6 +117,10 @@ isolate through unique names instead.
   status, the thrown domain error (`await expect(promise).rejects.toBeInstanceOf(NotFoundError)`).
 - Do not assert call counts, call order or private state; do not spy on internal modules.
 - Name tests as behaviour: `it("refuses to demote the last admin")`, not `it("calls update")`.
+- A test written for a fix must fail without the fix: run it once against the old code (or with the
+  guarding branch disabled) before committing. BullMQ emits `failed` after every attempt, and a race
+  only shows when the test holds one side open (file-upload ticket: two review rounds went to tests
+  that passed either way).
 - Each test creates its own data with unique values (`crypto.randomUUID()`) — the container is
   shared by the whole package run — and cleans up what it started (`worker.close()`,
   `queue.obliterate({ force: true })`, disconnect clients) in `afterAll` / `finally`.

@@ -783,3 +783,14 @@ deleted owner's files (rows stay, as the legacy).
   asserts the ZodError message it relies on; `ready` named in the GCS test comment and a start-up
   step in the bucket checklist; docs/attachments.md says a bucket deleted while running is not
   noticed.
+- 2026-10-11 — Step 6 security review (the `/security-review` skill needs `origin/HEAD`, which this
+  checkout lacks, so a separate agent reviewed `develop...HEAD`): no HIGH, authorization holds;
+  MEDIUM — a signed PUT stayed usable for 15 minutes, so after a quick save-and-remove the old URL
+  could recreate the object with no row (unbounded orphans), and within the window overwrite an
+  attached file; LOW — the 20-pending cap could be raced. Fixed: upload URLs are create-only
+  (`x-goog-if-generation-match: 0`, checked live: overwrite 412, header missing 400), the delete job
+  waits until the file's upload URL has expired (`objectDeletableAt`, service and sweeper), and
+  `createUploadUrl` counts under the uploader's row lock (its test, one client per request, fails
+  without the lock 3/3). `d-round-dev` CORS allows the new header (preflight 200).
+- 2026-10-11 — Step 6 lesson for the agents (testing.md): a test written for a fix must fail without
+  the fix — rounds 2 to 4 went to tests that passed either way.

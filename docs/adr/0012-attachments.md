@@ -26,9 +26,11 @@ tickets left プロフィール画像 and 履歴書 out until this decision.
 - **Bucket**: private, uniform bucket-level access, one per environment (`d-round-dev` first). Key
   `{folder}/{random uuid}{.ext}`, stored in `object_key`; the original name lives in the row and is
   sent as `Content-Disposition` on read URLs.
-- **Signed URLs (V4, 15 minutes)**: the upload URL pins `Content-Type` and
-  `x-goog-content-length-range: <size>,<size>` (the declared size, checked against the kind's
-  limit), so the storage refuses anything else; read URLs come only with the owner's read procedure,
+- **Signed URLs (V4, 15 minutes)**: the upload URL pins `Content-Type`,
+  `x-goog-content-length-range: <size>,<size>` (the declared size, checked against the kind's limit)
+  and `x-goog-if-generation-match: 0` (create-only), so the storage refuses anything else and a URL
+  never overwrites an object; an object is deleted only once its upload URL has expired, so a
+  replayed URL cannot put it back with no row; read URLs come only with the owner's read procedure,
   so the owner's ability check is the file's.
 - **Storage access** goes through `@repo/storage` (`StorageProvider`: GCS on
   `@google-cloud/storage`, a memory provider for tests), configured by `GCS_BUCKET` and

@@ -34,7 +34,7 @@ sequenceDiagram
     B->>A: attachment.createUploadUrl {kind, fileName, contentType, size}
     A->>DB: insert attachments (PENDING)
     A-->>B: {id, url, headers, expiresAt} (signed PUT, 15 min)
-    B->>G: PUT url, headers: Content-Type, x-goog-content-length-range: size,size
+    B->>G: PUT url, headers: Content-Type, x-goog-content-length-range: size,size, x-goog-if-generation-match: 0
     G-->>B: 200 (a wrong type → 403, another size → 400)
     Note over B: the field now holds {id, name, size, type}
     B->>A: owner write (user.updateProfile / update / invite: avatarId, staff.create / update: resumeIds)
@@ -74,13 +74,13 @@ staff write. A pending upload is attachable only by the user who uploaded it.
 
 ## How the bucket is cleaned
 
-| Situation                                                             | What happens                                                                                                                                                                                             | When                                 |
-| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| A file is replaced or removed and saved                               | its row becomes `DELETED` in the save's transaction; a job deletes the object, then the row                                                                                                              | seconds after the save               |
-| A file is uploaded but its form never saved                           | the sweeper turns the `PENDING` row `DELETED`; a later sweep enqueues its delete                                                                                                                         | 24 h to 24 h 40 min after the upload |
-| A delete job is lost or fails every attempt                           | the row stays `DELETED`; the sweeper enqueues it again (failed jobs are dropped at once)                                                                                                                 | every 15 min, after 10 min grace     |
-| An object is already gone                                             | the delete counts as done (a missing bucket answers 404 too: the API and the worker check their bucket at start-up, before the worker takes any job, but a bucket deleted while they run is not noticed) | —                                    |
-| The bucket refuses a delete (400 / 401 / 403: a key without the role) | the job fails at once; the row stays `DELETED`; each sweep tries again and alerts                                                                                                                        | until the configuration is fixed     |
+| Situation                                                             | What happens                                                                                                                                                                                             | When                                                                            |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| A file is replaced or removed and saved                               | its row becomes `DELETED` in the save's transaction; a job deletes the object, then the row, once the file's upload URL has expired (a still-valid URL could put the object back)                        | 16 min after the upload at the earliest; seconds after the save for older files |
+| A file is uploaded but its form never saved                           | the sweeper turns the `PENDING` row `DELETED`; a later sweep enqueues its delete                                                                                                                         | 24 h to 24 h 40 min after the upload                                            |
+| A delete job is lost or fails every attempt                           | the row stays `DELETED`; the sweeper enqueues it again (failed jobs are dropped at once)                                                                                                                 | every 15 min, after 10 min grace                                                |
+| An object is already gone                                             | the delete counts as done (a missing bucket answers 404 too: the API and the worker check their bucket at start-up, before the worker takes any job, but a bucket deleted while they run is not noticed) | —                                                                               |
+| The bucket refuses a delete (400 / 401 / 403: a key without the role) | the job fails at once; the row stays `DELETED`; each sweep tries again and alerts                                                                                                                        | until the configuration is fixed                                                |
 
 The sweeper runs in the worker every 15 minutes (BullMQ job scheduler `attachment-sweeper`, 200 rows
 per sweep). The bucket keeps deleted objects for 7 days (Cloud Storage soft delete, the bucket's
@@ -108,7 +108,11 @@ service account needs `roles/storage.objectAdmin` on the bucket.
      {
        "origin": ["http://localhost:3000", "http://localhost:3001"],
        "method": ["PUT"],
-       "responseHeader": ["Content-Type", "x-goog-content-length-range"],
+       "responseHeader": [
+         "Content-Type",
+         "x-goog-content-length-range",
+         "x-goog-if-generation-match"
+       ],
        "maxAgeSeconds": 3600
      }
    ]
