@@ -794,3 +794,7 @@ deleted owner's files (rows stay, as the legacy).
   without the lock 3/3). `d-round-dev` CORS allows the new header (preflight 200).
 - 2026-10-11 — Step 6 lesson for the agents (testing.md): a test written for a fix must fail without
   the fix — rounds 2 to 4 went to tests that passed either way.
+- 2026-10-11 — closed: 27 commits, every one `yarn verify` green; five review rounds (round 5
+  APPROVE) and the security review fixed; browser-checked as the four roles. The plan moved to
+  `docs/plans/2026-10-09-file-upload.md`. Left for the user: merging into develop, `GCS_BUCKET` /
+  `GCS_KEY_FILE` in each `.env`, and a new key or service account in place of the legacy one.
