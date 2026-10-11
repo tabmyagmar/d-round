@@ -112,7 +112,7 @@ describe("attachment delete processor", () => {
           resolve();
         });
       });
-      await enqueueAttachmentDeleteJob(queue, row.id, "req-refused");
+      await enqueueAttachmentDeleteJob(queue, row.id, { traceId: "req-refused" });
       await failed;
 
       // Gone after its first failure: final (removeOnFail), not waiting for a retry.

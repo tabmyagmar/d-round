@@ -1,7 +1,12 @@
-import { createAttachmentRepository } from "@repo/database";
+import { createAttachmentRepository, withTransaction } from "@repo/database";
 import type { Attachment, AttachmentOwner, TransactionContext } from "@repo/database";
 import { enqueueAttachmentDeleteJob } from "@repo/queue";
-import { ATTACHMENT_RULES, ATTACHMENT_URL_TTL_SECONDS, fileExtension } from "@repo/validation";
+import {
+  ATTACHMENT_RULES,
+  ATTACHMENT_URL_TTL_SECONDS,
+  fileExtension,
+  objectDeletableAt,
+} from "@repo/validation";
 import type { AttachmentKind, CreateUploadUrlInput } from "@repo/validation";
 
 import type { RequestContext } from "../../core/context";
@@ -89,18 +94,22 @@ export const createUploadUrl = async (
 ): Promise<UploadTarget> => {
   const uploader = uploaderOf(ctx);
   assertMayUpload(ctx, input.kind);
-  const attachments = createAttachmentRepository(ctx.db);
-  if ((await attachments.countPending(uploader.id)) >= PENDING_UPLOADS_MAX) {
-    throw new ValidationError(UPLOADS_TOO_MANY);
-  }
   const folder = ATTACHMENT_RULES[input.kind].folder;
-  const row = await attachments.create({
-    kind: input.kind,
-    objectKey: `${folder}/${crypto.randomUUID()}${fileExtension(input.fileName)}`,
-    fileName: input.fileName,
-    contentType: input.contentType,
-    size: input.size,
-    uploadedById: uploader.id,
+  // The uploader's row is locked so parallel requests count one after another: the cap holds.
+  const row = await withTransaction(ctx.db, async ({ tx }) => {
+    const attachments = createAttachmentRepository(tx);
+    await attachments.lockOwner({ userId: uploader.id });
+    if ((await attachments.countPending(uploader.id)) >= PENDING_UPLOADS_MAX) {
+      throw new ValidationError(UPLOADS_TOO_MANY);
+    }
+    return attachments.create({
+      kind: input.kind,
+      objectKey: `${folder}/${crypto.randomUUID()}${fileExtension(input.fileName)}`,
+      fileName: input.fileName,
+      contentType: input.contentType,
+      size: input.size,
+      uploadedById: uploader.id,
+    });
   });
   const upload = await ctx.storage.createUploadUrl({
     key: row.objectKey,
@@ -174,7 +183,7 @@ export const syncAttachments = async (
   const current = await attachments.findAttached(owner, kind);
   const currentIds = new Set(current.map((row) => row.id));
   const added = ids.filter((id) => !currentIds.has(id));
-  const removed = current.filter((row) => !ids.includes(row.id)).map((row) => row.id);
+  const removed = current.filter((row) => !ids.includes(row.id));
 
   if (added.length > 0) {
     const attached = await attachments.attach(added, { uploadedById: uploader.id, kind, owner });
@@ -183,19 +192,27 @@ export const syncAttachments = async (
     }
   }
   if (removed.length > 0) {
-    await attachments.markDeleted(removed, "ATTACHED");
+    await attachments.markDeleted(
+      removed.map((row) => row.id),
+      "ATTACHED",
+    );
     afterCommit(async () => {
       try {
+        // Each delete waits until the file's upload URL has expired: deleted earlier, the URL
+        // could put the object back with no row pointing at it.
         await Promise.all(
-          removed.map((id) =>
-            enqueueAttachmentDeleteJob(ctx.attachmentDeleteQueue, id, ctx.requestId),
+          removed.map((row) =>
+            enqueueAttachmentDeleteJob(ctx.attachmentDeleteQueue, row.id, {
+              traceId: ctx.requestId,
+              notBefore: objectDeletableAt(row.createdAt),
+            }),
           ),
         );
       } catch (error) {
         // The save is committed and the rows say DELETED: the sweeper enqueues them again. Logged
         // as an error, as the email outbox does, so a Redis failure still alerts (ADR 0010).
         ctx.logger.error(
-          { err: error, attachmentIds: removed },
+          { err: error, attachmentIds: removed.map((row) => row.id) },
           "attachment delete not enqueued; the sweeper retries",
         );
       }

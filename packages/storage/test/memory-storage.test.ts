@@ -18,6 +18,7 @@ describe("createMemoryStorage", () => {
     expect(upload.headers).toEqual({
       "Content-Type": "image/png",
       "x-goog-content-length-range": "10,10",
+      "x-goog-if-generation-match": "0",
     });
 
     expect(await storage.head("avatars/a.png")).toBeNull();

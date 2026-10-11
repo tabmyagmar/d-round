@@ -31,7 +31,7 @@ beforeAll(() => {
 });
 
 describe("createGcsStorage", () => {
-  it("signs a V4 PUT that pins the content type and the exact size", async () => {
+  it("signs a create-only V4 PUT that pins the content type and the exact size", async () => {
     const storage = createGcsStorage({ bucket: "d-round-test", keyFile });
     const before = Date.now();
 
@@ -52,11 +52,12 @@ describe("createGcsStorage", () => {
     );
     expect(Number(url.searchParams.get("X-Goog-Expires"))).toBeGreaterThanOrEqual(899);
     expect(url.searchParams.get("X-Goog-SignedHeaders")).toBe(
-      "content-type;host;x-goog-content-length-range",
+      "content-type;host;x-goog-content-length-range;x-goog-if-generation-match",
     );
     expect(upload.headers).toEqual({
       "Content-Type": "application/pdf",
       "x-goog-content-length-range": "1234,1234",
+      "x-goog-if-generation-match": "0",
     });
     expect(upload.expiresAt.getTime()).toBeGreaterThanOrEqual(before + 900_000);
   });

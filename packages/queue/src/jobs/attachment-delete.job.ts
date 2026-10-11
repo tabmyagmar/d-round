@@ -32,12 +32,20 @@ export const createAttachmentDeleteQueue = (connection: RedisConnection): Attach
     defaultJobOptions: { removeOnFail: true },
   });
 
+export type EnqueueAttachmentDeleteOptions = {
+  /** The request that dropped the file (`ctx.requestId`). */
+  traceId?: string;
+  /** The job waits until then (`objectDeletableAt`: the upload URL must have expired). */
+  notBefore?: Date;
+};
+
 /** Producers call this AFTER the transaction that marked the row DELETED committed. */
 export const enqueueAttachmentDeleteJob = (
   queue: AttachmentDeleteQueue,
   attachmentId: string,
-  traceId?: string,
+  { traceId, notBefore }: EnqueueAttachmentDeleteOptions = {},
 ) =>
   queue.add(ATTACHMENT_DELETE_JOB_NAME, traceId ? { attachmentId, traceId } : { attachmentId }, {
     jobId: attachmentDeleteJobId(attachmentId),
+    delay: notBefore ? Math.max(0, notBefore.getTime() - Date.now()) : 0,
   });

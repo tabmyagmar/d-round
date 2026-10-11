@@ -72,16 +72,18 @@ export const createGcsStorage = ({ bucket: bucketName, keyFile }: GcsStorageConf
 
     createUploadUrl: async ({ key, contentType, size, expiresInSeconds }) => {
       const expires = expiry(expiresInSeconds);
-      const headers = uploadHeaders(contentType, size);
+      const { "Content-Type": _contentType, ...extensionHeaders } = uploadHeaders(
+        contentType,
+        size,
+      );
       const [url] = await bucket.file(key).getSignedUrl({
         version: "v4",
         action: "write",
         expires,
         contentType,
-        extensionHeaders: {
-          "x-goog-content-length-range": headers["x-goog-content-length-range"],
-        },
+        extensionHeaders,
       });
+      const headers = uploadHeaders(contentType, size);
       return { url, headers, expiresAt: new Date(expires) };
     },
 

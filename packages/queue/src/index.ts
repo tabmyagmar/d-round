@@ -13,7 +13,11 @@ export {
   createAttachmentDeleteQueue,
   enqueueAttachmentDeleteJob,
 } from "./jobs/attachment-delete.job";
-export type { AttachmentDeleteJob, AttachmentDeleteQueue } from "./jobs/attachment-delete.job";
+export type {
+  AttachmentDeleteJob,
+  AttachmentDeleteQueue,
+  EnqueueAttachmentDeleteOptions,
+} from "./jobs/attachment-delete.job";
 export {
   EMAIL_JOB_ID_PREFIX,
   EMAIL_JOB_NAME,

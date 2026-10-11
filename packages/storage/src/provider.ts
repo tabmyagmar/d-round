@@ -61,10 +61,12 @@ export class PermanentStorageError extends Error {
 }
 
 /**
- * The headers a signed PUT carries: the content type and the size, both pinned by the signature
- * (`x-goog-content-length-range` is enforced by Cloud Storage).
+ * The headers a signed PUT carries, all pinned by the signature: the content type, the exact size
+ * (`x-goog-content-length-range`) and create-only (`x-goog-if-generation-match: 0`, so a URL can
+ * never overwrite an object, 412). Cloud Storage enforces each.
  */
 export const uploadHeaders = (contentType: string, size: number) => ({
   "Content-Type": contentType,
   "x-goog-content-length-range": `${String(size)},${String(size)}`,
+  "x-goog-if-generation-match": "0",
 });

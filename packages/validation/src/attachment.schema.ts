@@ -39,6 +39,14 @@ export const ATTACHMENT_RULES: Readonly<Record<AttachmentKind, AttachmentRule>> 
 /** Upload and read URLs live this long (the legacy's 15 minutes). */
 export const ATTACHMENT_URL_TTL_SECONDS = 15 * 60;
 
+/**
+ * When the object of a row created at `createdAt` may be deleted: once its upload URL has expired
+ * (plus a minute for clock skew). Deleted earlier, the still-valid URL could put it back with no
+ * row pointing at it.
+ */
+export const objectDeletableAt = (createdAt: Date): Date =>
+  new Date(createdAt.getTime() + (ATTACHMENT_URL_TTL_SECONDS + 60) * 1000);
+
 /** `<input accept>` for a kind: its content types. */
 export const attachmentAccept = (kind: AttachmentKind): string =>
   Object.keys(ATTACHMENT_RULES[kind].types).join(",");

@@ -55,9 +55,10 @@ describe("attachment sweeper", () => {
       expect(await statusOf(stalePending.id)).toBe("DELETED");
       expect(await statusOf(freshPending.id)).toBe("PENDING");
       expect(await statusOf(attached.id)).toBe("ATTACHED");
-      expect((await queue.getJob(attachmentDeleteJobId(lostDelete.id)))?.data).toEqual({
-        attachmentId: lostDelete.id,
-      });
+      const lost = await queue.getJob(attachmentDeleteJobId(lostDelete.id));
+      expect(lost?.data).toEqual({ attachmentId: lostDelete.id });
+      // Created 11 minutes ago: its upload URL still works for a few minutes, so the job waits.
+      expect(lost?.opts.delay).toBeGreaterThan(0);
       expect(await queue.getJob(attachmentDeleteJobId(freshDelete.id))).toBeUndefined();
       // Expired now, enqueued by a later sweep once its grace period passed.
       expect(await queue.getJob(attachmentDeleteJobId(stalePending.id))).toBeUndefined();

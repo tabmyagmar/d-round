@@ -1,6 +1,6 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
-import { withTransaction } from "@repo/database";
+import { createPrismaClient, withTransaction } from "@repo/database";
 import { attachmentDeleteJobId } from "@repo/queue";
 import type { AttachmentDeleteQueue } from "@repo/queue";
 import { createUploadUrlSchema } from "@repo/validation";
@@ -100,6 +100,7 @@ describe("createUploadUrl", () => {
     expect(target.headers).toEqual({
       "Content-Type": "image/png",
       "x-goog-content-length-range": "2048,2048",
+      "x-goog-if-generation-match": "0",
     });
     expect(target.expiresAt.getTime()).toBeGreaterThanOrEqual(before + 15 * 60_000);
   });
@@ -205,10 +206,10 @@ describe("syncAttachments", () => {
       "ATTACHED",
     ]);
     expect(rows.find((row) => row.id === third.id)?.staffId).toBe(staff.id);
-    expect((await deleteJobOf(second.id))?.data).toEqual({
-      attachmentId: second.id,
-      traceId: admin.ctx.requestId,
-    });
+    const job = await deleteJobOf(second.id);
+    expect(job?.data).toEqual({ attachmentId: second.id, traceId: admin.ctx.requestId });
+    // Uploaded a moment ago: the delete waits until the upload URL can no longer recreate it.
+    expect(job?.opts.delay).toBeGreaterThan(15 * 60_000);
     expect(await deleteJobOf(first.id)).toBeUndefined();
   });
 
@@ -369,5 +370,60 @@ describe("guards around the attach", () => {
     await expect(uploaded(me.ctx, "USER_AVATAR")).rejects.toThrow(
       new ValidationError(UPLOADS_TOO_MANY),
     );
+  });
+
+  it("holds the cap when many upload URLs are asked for at once", async () => {
+    const me = await contextOf();
+    await h.db.attachment.createMany({
+      data: Array.from({ length: PENDING_UPLOADS_MAX - 1 }, () => ({
+        kind: "USER_AVATAR" as const,
+        objectKey: `avatars/${crypto.randomUUID()}.png`,
+        fileName: "face.png",
+        contentType: "image/png",
+        size: 10,
+        uploadedById: me.id,
+      })),
+    });
+    // One client (and connection) per request, so the requests really run side by side.
+    const clients = Array.from({ length: 5 }, () =>
+      createPrismaClient({ connectionString: inject("databaseUrl") }),
+    );
+
+    try {
+      const results = await Promise.allSettled(
+        clients.map((db) =>
+          createUploadUrl(
+            { ...me.ctx, db },
+            createUploadUrlSchema.parse({ kind: "USER_AVATAR", size: 10, ...FILES.USER_AVATAR }),
+          ),
+        ),
+      );
+
+      expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+      expect(
+        await h.db.attachment.count({ where: { uploadedById: me.id, status: "PENDING" } }),
+      ).toBe(PENDING_UPLOADS_MAX);
+    } finally {
+      await Promise.all(clients.map((db) => db.$disconnect()));
+    }
+  });
+
+  it("deletes a file uploaded long ago at once", async () => {
+    const me = await contextOf();
+    const owner = { userId: me.id };
+    const old = await uploaded(me.ctx, "USER_AVATAR");
+    await withTransaction(h.db, (txc) =>
+      syncAttachments(me.ctx, txc, { kind: "USER_AVATAR", owner, ids: [old.id] }),
+    );
+    await h.db.attachment.update({
+      where: { id: old.id },
+      data: { createdAt: new Date(Date.now() - 60 * 60_000) },
+    });
+
+    await withTransaction(h.db, (txc) =>
+      syncAttachments(me.ctx, txc, { kind: "USER_AVATAR", owner, ids: [] }),
+    );
+
+    expect((await deleteJobOf(old.id))?.opts.delay).toBe(0);
   });
 });

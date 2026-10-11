@@ -3,6 +3,7 @@ import type { PrismaClient } from "@repo/database";
 import type { Logger } from "@repo/logger";
 import { QUEUE_NAMES, createQueue, createWorker, enqueueAttachmentDeleteJob } from "@repo/queue";
 import type { AttachmentDeleteQueue, RedisConnection, TypedQueue, TypedWorker } from "@repo/queue";
+import { objectDeletableAt } from "@repo/validation";
 
 /**
  * Cleans the bucket the row way (docs/adr/0012-attachments.md). Every
@@ -54,7 +55,9 @@ export const sweepAttachments = async (
     ATTACHMENT_SWEEP_BATCH,
   );
   for (const row of lost) {
-    await enqueueAttachmentDeleteJob(deps.attachmentDeleteQueue, row.id);
+    await enqueueAttachmentDeleteJob(deps.attachmentDeleteQueue, row.id, {
+      notBefore: objectDeletableAt(row.createdAt),
+    });
   }
 
   if (expired > 0 || lost.length > 0) {
