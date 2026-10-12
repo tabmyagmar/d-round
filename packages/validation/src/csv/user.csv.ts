@@ -1,8 +1,7 @@
 import { z } from "zod";
 
-import { requiredText } from "../common.schema";
 import type { SourceArea } from "../source.schema";
-import { emailSchema, employeeNumberSchema, kanaSchema } from "../user.schema";
+import { emailSchema, userNameSchema, userProfileSchema } from "../user.schema";
 import type { Position, Role } from "../user.schema";
 
 import {
@@ -75,14 +74,14 @@ export type UserCsvRow = {
 
 const userRowSchema = (lookups: CsvLookups, email: z.ZodType<string | null>) =>
   z.object({
-    employeeNumber: integerCell("社員番号", employeeNumberSchema("社員番号")),
-    lastName: textCell(requiredText("姓", 80)),
-    firstName: textCell(requiredText("名", 80)),
-    lastNameKana: textCell(kanaSchema("セイ")),
-    firstNameKana: textCell(kanaSchema("メイ")),
+    employeeNumber: integerCell("社員番号", userProfileSchema.shape.employeeNumber),
+    lastName: textCell(userNameSchema.shape.lastName),
+    firstName: textCell(userNameSchema.shape.firstName),
+    lastNameKana: textCell(userNameSchema.shape.lastNameKana),
+    firstNameKana: textCell(userNameSchema.shape.firstNameKana),
     areas: labelListCell(AREA_BY_LABEL, "エリアを選択してください"),
     regionCodes: nameListCell(lookups.regionCodeByName, "地域を選択してください"),
-    departmentName: textCell(requiredText("部署名", 80)),
+    departmentName: textCell(userProfileSchema.shape.departmentName),
     position: labelCell(POSITION_BY_LABEL, "役職を選択してください"),
     email,
     role: labelCell(ROLE_BY_LABEL, "アカウントタイプを選択してください"),

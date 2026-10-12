@@ -328,11 +328,17 @@ describe("user repository", () => {
     const free = `${crypto.randomUUID()}@example.com`;
 
     expect(
-      (await repo.findTakenEmails([active.email.toUpperCase(), deactivated.email, free])).sort(),
+      (
+        await repo.findTakenEmailsIncludingDeleted([
+          active.email.toUpperCase(),
+          deactivated.email,
+          free,
+        ])
+      ).sort(),
     ).toEqual([active.email, deactivated.email].sort());
     expect(
       (
-        await repo.findTakenEmployeeNumbers([
+        await repo.findTakenEmployeeNumbersIncludingDeleted([
           activeProfile.employeeNumber,
           deactivatedProfile.employeeNumber,
           activeProfile.employeeNumber + 1,

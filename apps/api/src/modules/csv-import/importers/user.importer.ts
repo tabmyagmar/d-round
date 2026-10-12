@@ -41,8 +41,10 @@ export const userCreateImporter: CsvImporter<UserCsvRow> = {
   check: async (ctx, rows) => {
     const users = createUserRepository(ctx.db);
     const [takenEmails, takenNumbers] = await Promise.all([
-      users.findTakenEmails(rows.flatMap(({ row }) => (row.email ? [row.email] : []))),
-      users.findTakenEmployeeNumbers(rows.map(({ row }) => row.employeeNumber)),
+      users.findTakenEmailsIncludingDeleted(
+        rows.flatMap(({ row }) => (row.email ? [row.email] : [])),
+      ),
+      users.findTakenEmployeeNumbersIncludingDeleted(rows.map(({ row }) => row.employeeNumber)),
     ]);
     const emails = new Set(takenEmails.map(lower));
     const numbers = new Set(takenNumbers);

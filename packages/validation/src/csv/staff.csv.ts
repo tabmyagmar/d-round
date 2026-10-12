@@ -1,12 +1,10 @@
 import { z } from "zod";
 
-import { requiredText } from "../common.schema";
 import { phoneSchema } from "../phone.schema";
 import { addressSchema, postCodeSchema } from "../source.schema";
 import type { SourceArea } from "../source.schema";
 import { createStaffSchema, jobHistorySchema } from "../staff.schema";
 import type { EmployeeType, Gender } from "../staff.schema";
-import { employeeNumberSchema, kanaSchema } from "../user.schema";
 import type { Position } from "../user.schema";
 
 import {
@@ -110,16 +108,16 @@ export type StaffCreateCsvRow = StaffCsvRow & {
 
 const baseShape = (lookups: CsvLookups) => ({
   employeeType: labelCell(EMPLOYEE_TYPE_BY_LABEL, "雇用区分を選択してください"),
-  employeeNumber: integerCell("スタッフ番号", employeeNumberSchema("スタッフ番号")),
-  lastName: textCell(requiredText("姓", 80)),
-  firstName: textCell(requiredText("名", 80)),
-  lastNameKana: textCell(kanaSchema("セイ")),
-  firstNameKana: textCell(kanaSchema("メイ")),
+  employeeNumber: integerCell("スタッフ番号", createStaffSchema.shape.employeeNumber),
+  lastName: textCell(createStaffSchema.shape.lastName),
+  firstName: textCell(createStaffSchema.shape.firstName),
+  lastNameKana: textCell(createStaffSchema.shape.lastNameKana),
+  firstNameKana: textCell(createStaffSchema.shape.firstNameKana),
   areas: labelListCell(AREA_BY_LABEL, "エリアを選択してください"),
   regionCodes: nameListCell(lookups.regionCodeByName, "地域を選択してください"),
   prefectureCodes: nameListCell(lookups.prefectureCodeByName, "都道府県を選択してください"),
   chargerEmails: emailListCell("担当者を選択してください"),
-  branchName: textCell(requiredText("支店名", 100)),
+  branchName: textCell(createStaffSchema.shape.branchName),
   position: labelCell(POSITION_BY_LABEL, "役職を選択してください"),
   birthday: dateCellOf(createStaffSchema.shape.birthday),
   gender: labelCell(GENDER_BY_LABEL, "性別を選択してください"),

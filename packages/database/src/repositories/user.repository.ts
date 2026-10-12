@@ -118,7 +118,7 @@ export const createUserRepository = (db: DbClient) => ({
     }),
 
   /** The addresses among `emails` a user already has, deactivated users included (case-blind). */
-  findTakenEmails: async (emails: readonly string[]): Promise<string[]> => {
+  findTakenEmailsIncludingDeleted: async (emails: readonly string[]): Promise<string[]> => {
     const users = await db.user.findMany({
       where: { email: { in: [...emails], mode: "insensitive" } },
       select: { email: true },
@@ -126,8 +126,10 @@ export const createUserRepository = (db: DbClient) => ({
     return users.map((user) => user.email);
   },
 
-  /** The 社員番号 among `employeeNumbers` some profile already holds. */
-  findTakenEmployeeNumbers: async (employeeNumbers: readonly number[]): Promise<number[]> => {
+  /** The 社員番号 among `employeeNumbers` some profile already holds, deactivated users' included. */
+  findTakenEmployeeNumbersIncludingDeleted: async (
+    employeeNumbers: readonly number[],
+  ): Promise<number[]> => {
     const profiles = await db.userProfile.findMany({
       where: { employeeNumber: { in: [...employeeNumbers] } },
       select: { employeeNumber: true },

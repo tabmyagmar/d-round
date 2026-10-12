@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import { createBranchSchema } from "../branch.schema";
+import { createClientSchema } from "../client.schema";
 import { addressSchema, postCodeSchema } from "../source.schema";
 import type { SourceArea } from "../source.schema";
-import { employeeNumberSchema } from "../user.schema";
 import type { Position } from "../user.schema";
 
 import {
@@ -104,7 +104,7 @@ const shape = createBranchSchema.shape;
 
 const branchRowSchema = (lookups: CsvLookups) =>
   z.object({
-    clientNumber: integerCell("クライアント番号", employeeNumberSchema("クライアント番号")),
+    clientNumber: integerCell("クライアント番号", createClientSchema.shape.number),
     number: integerCell("就業先番号", shape.number),
     name: textCell(shape.name),
     nameKana: textCell(shape.nameKana),
