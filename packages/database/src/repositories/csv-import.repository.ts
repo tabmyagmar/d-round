@@ -133,9 +133,17 @@ export const createCsvImportRepository = (db: DbClient) => ({
   recordRowResult: (rowId: string, outcome: CsvImportRowOutcome): Promise<CsvImportRow> =>
     db.csvImportRow.update({ where: { id: rowId }, data: outcome }),
 
-  /** One more confirmed row handled: the dialog's progress and the sweeper's heartbeat. */
-  incrementProcessed: (id: string): Promise<CsvImport> =>
-    db.csvImport.update({ where: { id }, data: { processedCount: { increment: 1 } } }),
+  /**
+   * One more confirmed row handled: the dialog's progress and the sweeper's heartbeat. False when
+   * the import left IMPORTING (the sweeper failed it): the import stops there.
+   */
+  incrementProcessed: async (id: string): Promise<boolean> => {
+    const { count } = await db.csvImport.updateMany({
+      where: { id, status: "IMPORTING" },
+      data: { processedCount: { increment: 1 } },
+    });
+    return count === 1;
+  },
 
   /** How many rows the import wrote and refused so far. */
   countResults: async (csvImportId: string): Promise<{ imported: number; failed: number }> => {
@@ -161,14 +169,19 @@ export const createCsvImportRepository = (db: DbClient) => ({
     return count === 1;
   },
 
-  /** CHECKING or IMPORTING → FAILED with the reason; false when it is no longer in `from`. */
+  /**
+   * CHECKING or IMPORTING → FAILED with the reason; false when it is no longer in `from`. With
+   * `staleBefore` (the sweeper's cut-off) only while its last change is older still: a heartbeat
+   * that landed after the sweeper looked keeps the import going.
+   */
   markFailed: async (
     id: string,
     from: Extract<CsvImportStatus, "CHECKING" | "IMPORTING">,
     lastError: string,
+    staleBefore?: Date,
   ): Promise<boolean> => {
     const { count } = await db.csvImport.updateMany({
-      where: { id, status: from },
+      where: { id, status: from, ...(staleBefore ? { updatedAt: { lt: staleBefore } } : {}) },
       data: { status: "FAILED", lastError },
     });
     return count === 1;

@@ -21,6 +21,7 @@ export const processCsvImportJob = async (deps: JobDeps, job: Job<CsvImportJob>)
   const input = {
     csvImportId: job.data.csvImportId,
     traceId: job.data.traceId,
+    jobId: job.id,
     lastAttempt: job.attemptsStarted >= (job.opts.attempts ?? 1),
   };
   const outcome =

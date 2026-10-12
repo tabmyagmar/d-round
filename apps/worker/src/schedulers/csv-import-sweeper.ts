@@ -15,8 +15,9 @@ import type { CsvImportQueue, RedisConnection, TypedQueue, TypedWorker } from "@
  * Keeps CSV imports moving (docs/adr/0013-csv-import.md). Every `CSV_IMPORT_SWEEP_INTERVAL_MS`: an
  * UPLOADED or CONFIRMED import older than `CSV_IMPORT_SWEEP_GRACE_MS` lost its job (a crash between
  * commit and enqueue, a Redis flush) and is enqueued again with the same id; a CHECKING or
- * IMPORTING import without progress for `CSV_IMPORT_STALE_MS` was stopped (BullMQ gave up on a
- * stalled job) and is failed with a reason — an import is never run twice.
+ * IMPORTING import without progress for `CSV_IMPORT_STALE_MS` is failed with a reason — re-run, a
+ * check still at work would end as skipped under its job's id (a completed job keeps it for 24 h),
+ * and an import is never run twice. A heartbeat newer than the cut-off keeps the import going.
  */
 
 export type CsvImportSweepJob = Record<string, never>;
@@ -57,10 +58,24 @@ export const sweepCsvImports = async (deps: CsvImportSweepDeps): Promise<CsvImpo
   }
   let failed = 0;
   for (const csvImport of checking) {
-    failed += (await imports.markFailed(csvImport.id, "CHECKING", CSV_CHECK_INTERRUPTED)) ? 1 : 0;
+    failed += (await imports.markFailed(
+      csvImport.id,
+      "CHECKING",
+      CSV_CHECK_INTERRUPTED,
+      stoppedBefore,
+    ))
+      ? 1
+      : 0;
   }
   for (const csvImport of importing) {
-    failed += (await imports.markFailed(csvImport.id, "IMPORTING", CSV_IMPORT_INTERRUPTED)) ? 1 : 0;
+    failed += (await imports.markFailed(
+      csvImport.id,
+      "IMPORTING",
+      CSV_IMPORT_INTERRUPTED,
+      stoppedBefore,
+    ))
+      ? 1
+      : 0;
   }
 
   const requeued = uploaded.length + confirmed.length;

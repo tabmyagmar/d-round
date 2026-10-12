@@ -129,6 +129,21 @@ describe("csv import repository", () => {
       importedCount: 1,
       failedCount: 1,
     });
+    // The heartbeat counts only while importing: a finished or failed import stops the loop.
+    expect(await repo.incrementProcessed(csvImport.id)).toBe(false);
+  });
+
+  it("lets a heartbeat newer than the sweeper's cut-off keep the import going", async () => {
+    const repo = createCsvImportRepository(prisma);
+    const csvImport = await createImport((await createUser()).id);
+    await repo.claimCheck(csvImport.id);
+
+    expect(
+      await repo.markFailed(csvImport.id, "CHECKING", "中断", new Date(Date.now() - 60_000)),
+    ).toBe(false);
+    expect(
+      await repo.markFailed(csvImport.id, "CHECKING", "中断", new Date(Date.now() + 60_000)),
+    ).toBe(true);
   });
 
   it("fails an import only from the status it names", async () => {

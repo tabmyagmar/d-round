@@ -1,15 +1,17 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 
 import {
+  QUEUE_NAMES,
   createCsvImportQueue,
   createRedisConnection,
+  createWorker,
   csvCheckJobId,
   csvImportJobId,
   enqueueCsvCheckJob,
   enqueueCsvImportJob,
   waitForRedis,
 } from "../src/index";
-import type { RedisConnection } from "../src/index";
+import type { CsvImportJob, RedisConnection } from "../src/index";
 
 let connection: RedisConnection;
 
@@ -54,5 +56,35 @@ describe("csv import jobs", () => {
     await check.remove();
     await run.remove();
     await queue.close();
+  });
+
+  it("let a job that failed for good be enqueued again under its id", async () => {
+    const queue = createCsvImportQueue(connection);
+    const csvImportId = crypto.randomUUID();
+    const worker = createWorker<CsvImportJob>(
+      QUEUE_NAMES.csvImport,
+      () => Promise.reject(new Error("the import broke")),
+      connection,
+    );
+    const failed = new Promise<void>((resolve) => {
+      worker.on("failed", () => {
+        resolve();
+      });
+    });
+
+    try {
+      await enqueueCsvImportJob(queue, csvImportId);
+      await failed;
+      await worker.close();
+
+      // Dropped at once (`removeOnFail`): the sweeper's re-enqueue under the same id is not a no-op.
+      expect(await queue.getJob(csvImportJobId(csvImportId))).toBeUndefined();
+      const again = await enqueueCsvImportJob(queue, csvImportId);
+      expect(await again.getState()).toBe("waiting");
+    } finally {
+      await worker.close();
+      await queue.obliterate({ force: true });
+      await queue.close();
+    }
   });
 });

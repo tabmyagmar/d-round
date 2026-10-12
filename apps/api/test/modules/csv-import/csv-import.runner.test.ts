@@ -6,7 +6,10 @@ import { createMemoryStorage } from "@repo/storage";
 
 import {
   CSV_CHECK_FAILED,
+  CSV_CHECK_INTERRUPTED,
   CSV_FILE_MISSING,
+  CSV_IMPORT_FAILED,
+  CSV_IMPORT_INTERRUPTED,
   CSV_UPLOADER_INACTIVE,
   runCsvCheck,
   runCsvImport,
@@ -65,6 +68,44 @@ const job = (csvImportId: string, lastAttempt = true) => ({
 
 const stored = (id: string) => h.db.csvImport.findUniqueOrThrow({ where: { id } });
 const rowsOf = async (id: string) => createCsvImportRepository(h.db).findRows(id);
+
+/** A door the test opens: the side holding it waits until then. */
+const door = () => {
+  let open: () => void = () => undefined;
+  const opened = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return { opened, open };
+};
+
+/** Polls until `ready` holds (10 s at most). */
+const until = async (ready: () => Promise<boolean>) => {
+  const deadline = Date.now() + 10_000;
+  while (!(await ready())) {
+    if (Date.now() > deadline) {
+      throw new Error("timed out waiting");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+};
+
+/**
+ * Holds a lock on one import row until `release` opens: the import writes that line's entity,
+ * then waits to record its result — the moment a sweeper or a failure can overtake it.
+ */
+const holdRow = (rowId: string) => {
+  const locked = door();
+  const release = door();
+  const holder = h.db.$transaction(
+    async (tx) => {
+      await tx.$queryRaw`SELECT id FROM csv_import_rows WHERE id = ${rowId}::uuid FOR UPDATE`;
+      locked.open();
+      await release.opened;
+    },
+    { timeout: 30_000 },
+  );
+  return { locked: locked.opened, release: release.open, holder };
+};
 
 /** Confirms every valid row, as `csvImport.confirm` will. */
 const confirmAll = async (uploader: SignedInUser, csvImportId: string) => {
@@ -283,5 +324,124 @@ describe("runCsvImport", () => {
       email: target.email,
       profile: { departmentName: "人事部", position: "FULL_TIME_EMPLOYEE" },
     });
+  });
+});
+
+describe("the import and the sweeper", () => {
+  it("keeps the sweeper's verdict on a check it failed meanwhile and stores no rows", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const csvImport = await uploaded(admin, userCsv(userLine().text));
+    const reached = door();
+    const download = door();
+    const held = {
+      ...contextDeps(h),
+      storage: {
+        ...h.storage,
+        download: async (key: string) => {
+          reached.open();
+          await download.opened;
+          return h.storage.download(key);
+        },
+      },
+    };
+
+    const run = runCsvCheck(held, job(csvImport.id));
+    await reached.opened;
+    expect(
+      await createCsvImportRepository(h.db).markFailed(
+        csvImport.id,
+        "CHECKING",
+        CSV_CHECK_INTERRUPTED,
+      ),
+    ).toBe(true);
+    download.open();
+
+    expect(await run).toBe("skipped");
+    expect(await stored(csvImport.id)).toMatchObject({
+      status: "FAILED",
+      lastError: CSV_CHECK_INTERRUPTED,
+    });
+    expect(await rowsOf(csvImport.id)).toEqual([]);
+  });
+
+  it("stops an import the sweeper failed between two lines, the line written recorded", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const first = userLine();
+    const second = userLine();
+    const csvImport = await uploaded(admin, userCsv(first.text, second.text));
+    await runCsvCheck(contextDeps(h), job(csvImport.id));
+    await confirmAll(admin, csvImport.id);
+    const [firstRow] = await rowsOf(csvImport.id);
+    const hold = holdRow(firstRow?.id ?? "");
+    await hold.locked;
+
+    const run = runCsvImport(contextDeps(h), job(csvImport.id));
+    await until(async () => (await createUserRepository(h.db).findByEmail(first.email)) !== null);
+    expect(
+      await createCsvImportRepository(h.db).markFailed(
+        csvImport.id,
+        "IMPORTING",
+        CSV_IMPORT_INTERRUPTED,
+      ),
+    ).toBe(true);
+    hold.release();
+    await hold.holder;
+
+    expect(await run).toBe("skipped");
+    expect(await createUserRepository(h.db).findByEmail(second.email)).toBeNull();
+    expect(await stored(csvImport.id)).toMatchObject({
+      status: "FAILED",
+      lastError: CSV_IMPORT_INTERRUPTED,
+      processedCount: 0,
+    });
+    expect((await rowsOf(csvImport.id)).map((row) => row.result)).toEqual(["IMPORTED", null]);
+  });
+
+  it("fails an import that breaks outside a line, keeping what it wrote", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const line = userLine();
+    const csvImport = await uploaded(admin, userCsv(line.text, userLine().text));
+    await runCsvCheck(contextDeps(h), job(csvImport.id));
+    await confirmAll(admin, csvImport.id);
+    const [firstRow] = await rowsOf(csvImport.id);
+    const hold = holdRow(firstRow?.id ?? "");
+    await hold.locked;
+
+    const run = runCsvImport(contextDeps(h), job(csvImport.id));
+    // The import waits to record the line's result: its database connection is cut there.
+    let waiting: number | undefined;
+    await until(async () => {
+      const [backend] = await h.db.$queryRaw<{ pid: number }[]>`
+        SELECT pid FROM pg_stat_activity
+        WHERE wait_event_type = 'Lock' AND query ILIKE '%csv_import_rows%'`;
+      waiting = backend?.pid;
+      return waiting !== undefined;
+    });
+    await h.db.$queryRaw`SELECT pg_terminate_backend(${waiting}::int)`;
+    hold.release();
+    await hold.holder;
+
+    expect(await run).toBe("failed");
+    expect(await stored(csvImport.id)).toMatchObject({
+      status: "FAILED",
+      lastError: CSV_IMPORT_FAILED,
+    });
+    expect(await createUserRepository(h.db).findByEmail(line.email)).not.toBeNull();
+  });
+
+  it("fails an import whose uploader left after confirming, writing nothing", async () => {
+    const leaving = await signedInUser(h, { role: "admin" });
+    const line = userLine();
+    const csvImport = await uploaded(leaving, userCsv(line.text));
+    await runCsvCheck(contextDeps(h), job(csvImport.id));
+    await confirmAll(leaving, csvImport.id);
+    await createUserRepository(h.db).softDelete(leaving.user.id);
+
+    expect(await runCsvImport(contextDeps(h), job(csvImport.id))).toBe("failed");
+    expect(await stored(csvImport.id)).toMatchObject({
+      status: "FAILED",
+      lastError: CSV_UPLOADER_INACTIVE,
+    });
+    expect(await createUserRepository(h.db).findByEmail(line.email)).toBeNull();
   });
 });

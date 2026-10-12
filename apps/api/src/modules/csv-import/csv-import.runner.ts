@@ -36,6 +36,8 @@ export const CSV_IMPORT_INTERRUPTED =
 export type CsvJobInput = {
   csvImportId: string;
   traceId?: string | undefined;
+  /** The BullMQ job, for the logs (queue.md: every job log line names its job). */
+  jobId?: string | undefined;
   /** BullMQ will not try the job again: a failure now is final. */
   lastAttempt: boolean;
 };
@@ -44,7 +46,11 @@ export type CsvJobInput = {
 export type CsvJobOutcome = "missing" | "skipped" | "checked" | "imported" | "failed";
 
 const loggerOf = (deps: ContextDeps, job: CsvJobInput) =>
-  deps.logger.child({ csvImportId: job.csvImportId, traceId: job.traceId ?? null });
+  deps.logger.child({
+    csvImportId: job.csvImportId,
+    jobId: job.jobId ?? null,
+    traceId: job.traceId ?? null,
+  });
 
 /** A stored row's cells (written by the check as a JSON object of strings). */
 const cellsOf = (data: unknown): CsvCells =>
@@ -180,13 +186,21 @@ export const runCsvImport = async (deps: ContextDeps, job: CsvJobInput): Promise
         outcome = { result: "FAILED", resultError: rowErrorMessage(error) };
       }
       await imports.recordRowResult(row.id, outcome);
-      await imports.incrementProcessed(csvImport.id);
+      if (!(await imports.incrementProcessed(csvImport.id))) {
+        // The sweeper failed it meanwhile: its verdict stands and no further row is written.
+        log.warn({ lineNumber: row.lineNumber }, "csv import: the import left IMPORTING; stopped");
+        return "skipped";
+      }
     }
     const counts = await imports.countResults(csvImport.id);
-    await imports.markImported(csvImport.id, {
+    const imported = await imports.markImported(csvImport.id, {
       importedCount: counts.imported,
       failedCount: counts.failed,
     });
+    if (!imported) {
+      log.warn(counts, "csv import: the import left IMPORTING before it was marked imported");
+      return "skipped";
+    }
     log.info(counts, "csv imported");
     return "imported";
   } catch (error) {
