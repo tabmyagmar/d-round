@@ -850,3 +850,34 @@ build what the CSV jobs need on top of it.
     error CSV is there whenever a line needs attention).
   - Smaller: the runner's log lines carry the job id; an unprocessed line's message says its result
     is unknown; the lookups that include deactivated users say so in their names.
+- 2026-10-13 — review round 2 and the security review, done by the orchestrator (protocol
+  guardrail): the three agents stopped on the organisation's spend limit (HTTP 429) before
+  reporting. Round 2 read the fix commits `ac1c30a..a1dbb3f`; every round-1 BLOCKER and SHOULD is
+  fixed or logged above. Found and fixed: the 「CSV」 menu still offered 履歴 on 1402 alone after
+  round 1 made the services ask for the entity's read as well; the menu now offers each item as the
+  services allow it (D11) — ダウンロード and 履歴 need 1402 and the read of every
+  row, 追加 / 更新 need those (following an import reads it) and 1401 with the entity's create /
+  update. No role changes today. A repository test pins that the heartbeat (an `updateMany`) moves
+  `updated_at`, which the sweeper's cut-off relies on. Left as is: ダウンロード履歴 closes back onto
+  a fresh download dialog (the legacy nested it, so the picks stayed); the result
+  step's 未登録 badge where the error CSV says a line's result is unknown.
+- 2026-10-13 — security review (the MR `9182870..HEAD`): no exploitable issue. Checked: every
+  procedure's router and service grants, another user's import or download not found; the job runs
+  with the uploader's grants read when it starts and fails for a deactivated or banned uploader;
+  each line is written through the entity's service (the role rule of `user.service`); a CSV upload
+  needs 1401 and a browser never gets an upload URL for `CSV_EXPORT`; an import attaches only its
+  uploader's own PENDING file; the 5 MB upload cap, 150 lines and a zod rule per cell; xlsx cells
+  are strings (no formulas); the error CSV returns only the uploader's own cells to them; job
+  payloads carry ids only and the logs no cell values; no secret in the diff, the SheetJS tarball is
+  pinned by checksum, the worker's new env is validated as the API's.
+- 2026-10-13 — Step 6 lesson for the agents (testing.md): `Failed to connect to Reaper` and
+  `Timeout waiting for worker` come from the machine, not the code — three verify runs of this
+  ticket died on them and passed when run again.
+- 2026-10-13 — closed: 36 commits, every one `yarn verify` green (43/43); two review rounds per side
+  and the security review (round 2 and the security review by the orchestrator, above);
+  browser-checked as the four roles and at 375 px, the menu again after round 2 (the same items for
+  every role; the manager's 履歴 and ダウンロード履歴 open without an error). The plan moved to
+  `docs/plans/2026-10-12-csv-import.md`. Left for the user: merging into develop; the worker's
+  `BETTER_AUTH_SECRET`, `API_URL` and `WEB_ORIGIN`; the four manual PDFs under
+  `apps/web/public/csv/manual/`; `add_csv_imports` and `add_csv_exports` in each environment; Redis
+  `maxmemory-policy noeviction`.

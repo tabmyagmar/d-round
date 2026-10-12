@@ -56,7 +56,9 @@ Anything touching Postgres or Redis runs against testcontainers:
   `declare module "vitest" { interface ProvidedContext { databaseUrl: string } }`.
   `apps/api/test/global-setup.ts` starts both and is the template for workspaces that need both.
 - Docker must be running. `turbo.json` passes `DOCKER_*` and `TESTCONTAINERS_*` through to tasks.
-  Hook timeouts are generous (`hookTimeout` 120–180 s) because the first image pull is slow.
+  Hook timeouts are generous (`hookTimeout` 120–180 s) because the first image pull is slow. A run
+  that dies on `Failed to connect to Reaper` (testcontainers) or `Timeout waiting for worker`
+  (vitest on a loaded machine) failed on the machine, not the code: run it again before debugging.
 
 Mocks are allowed only for **external providers** we do not run locally: HTTP APIs, mail, payment,
 AI, object storage. The two existing ones are `createMemoryMailProvider`
