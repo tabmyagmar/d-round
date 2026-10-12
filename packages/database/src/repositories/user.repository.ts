@@ -135,6 +135,24 @@ export const createUserRepository = (db: DbClient) => ({
     return profiles.map((profile) => profile.employeeNumber);
   },
 
+  /**
+   * Active users with these addresses (case-blind) within `where` (the service composes it), with
+   * the regions their profile covers: a CSV's 担当者メールアドレス.
+   */
+  findWithRegionsByEmails: (emails: readonly string[], where: Prisma.UserWhereInput = {}) =>
+    db.user.findMany({
+      where: {
+        AND: [where, { deletedAt: null, email: { in: [...emails], mode: "insensitive" } }],
+      },
+      select: {
+        id: true,
+        email: true,
+        profile: {
+          select: { regions: { select: { regionCode: true }, orderBy: { regionCode: "asc" } } },
+        },
+      },
+    }),
+
   /** Active users by 社員番号, with their profile: the targets of a CSV update. */
   findByEmployeeNumbers: (employeeNumbers: readonly number[]): Promise<UserWithProfile[]> =>
     db.user.findMany({

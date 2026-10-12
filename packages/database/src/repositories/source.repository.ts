@@ -31,6 +31,15 @@ export const createSourceRepository = (db: DbClient) => ({
   findPrefectures: (): Promise<SourcePrefectureOption[]> =>
     db.sourcePrefecture.findMany({ select: PREFECTURE_SELECT, orderBy: { code: "asc" } }),
 
+  /** The post codes among `postCodes` the master knows (seven digits each). */
+  findKnownPostCodes: async (postCodes: readonly string[]): Promise<string[]> =>
+    (
+      await db.sourceAddress.findMany({
+        where: { postCode: { in: [...postCodes] } },
+        select: { postCode: true },
+      })
+    ).map((address) => address.postCode),
+
   /** `postCode` is seven digits (the form's hyphen is gone by then). */
   findAddressByPostCode: (postCode: string): Promise<SourceAddressParts | null> =>
     db.sourceAddress.findUnique({ where: { postCode }, select: ADDRESS_SELECT }),

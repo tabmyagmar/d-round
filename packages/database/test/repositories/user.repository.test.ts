@@ -341,6 +341,28 @@ describe("user repository", () => {
     ).toEqual([activeProfile.employeeNumber, deactivatedProfile.employeeNumber].sort());
   });
 
+  it("finds active users by address with the regions they cover, within a where", async () => {
+    const repo = createUserRepository(prisma);
+    const charger = await createUser({ group: group(), role: "am" });
+    const admin = await createUser({ group: group(), role: "admin" });
+    const deactivated = await createUser({ group: group() });
+    await repo.upsertProfile(charger.id, profileData());
+    await repo.replaceProfileRegions(charger.id, [4, 5]);
+    await repo.softDelete(deactivated.id);
+
+    const found = await repo.findWithRegionsByEmails(
+      [charger.email.toUpperCase(), admin.email, deactivated.email],
+      { role: { not: "admin" } },
+    );
+    expect(found).toEqual([
+      {
+        id: charger.id,
+        email: charger.email,
+        profile: { regions: [{ regionCode: 4 }, { regionCode: 5 }] },
+      },
+    ]);
+  });
+
   it("finds active users by 社員番号 with their profile", async () => {
     const repo = createUserRepository(prisma);
     const active = await createUser({ group: group() });

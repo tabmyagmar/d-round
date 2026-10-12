@@ -64,6 +64,7 @@ describe("source repository", () => {
           town: "テスト町",
         });
         expect(await repo.findAddressByPostCode("0009998")).toBeNull();
+        expect(await repo.findKnownPostCodes(["0009999", "0009998"])).toEqual(["0009999"]);
         throw ROLLBACK;
       }),
     ).rejects.toBe(ROLLBACK);

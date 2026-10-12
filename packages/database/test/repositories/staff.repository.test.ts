@@ -220,6 +220,24 @@ describe("staff repository", () => {
     });
   });
 
+  it("finds the non-deleted staff holding some スタッフ番号", async () => {
+    await scenario(async (tx) => {
+      const repo = createStaffRepository(tx);
+      const employeeNumber = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+      const { id } = await repo.create(write({ employeeNumber }));
+      const gone = await repo.create(write({ employeeNumber: employeeNumber + 1 }));
+      await repo.softDeleteMany([gone.id]);
+
+      expect(
+        await repo.findActiveByEmployeeNumbers([
+          employeeNumber,
+          employeeNumber + 1,
+          employeeNumber + 2,
+        ]),
+      ).toEqual([{ id, employeeNumber }]);
+    });
+  });
+
   it("changes the status and finds the staff a user is in charge of, within the caller's where", async () => {
     await scenario(async (tx) => {
       const repo = createStaffRepository(tx);
