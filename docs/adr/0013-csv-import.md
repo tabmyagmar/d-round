@@ -31,9 +31,13 @@ The plan for this port is `docs/plans/2026-10-12-csv-import.md` (`plan.md` while
   enqueued after commit. The check claims `UPLOADED` or `CHECKING` — a retry of the same job may run
   again, the check only reads and replaces rows — and its last failed attempt marks the import
   `FAILED`. A sweeper (every 2 minutes) re-enqueues `UPLOADED` and `CONFIRMED` imports older than a
-  minute, and fails `CHECKING` and `IMPORTING` imports whose `updated_at` (bumped by every row) is
-  older than 10 minutes: a job BullMQ gave up on stays in Redis under its deterministic id for 7
-  days, so re-enqueuing it would be a no-op.
+  minute, and fails `CHECKING` and `IMPORTING` imports whose `updated_at` (set by the check's claim,
+  bumped by every imported row) is older than 10 minutes. Re-enqueuing those would not help: a check
+  still at work would end as skipped under its job's id, which a completed job keeps for 24 h, and
+  an import is never run twice. The queue drops a job that failed for good at once, so the sweeper's
+  re-enqueue of a lost `UPLOADED` or `CONFIRMED` import is never a no-op; the fail names the
+  sweeper's cut-off, so a heartbeat that landed after the sweeper looked keeps the import going, and
+  an import the sweeper failed stops at its next row.
 - **Per-row import**: each confirmed row is one call of the entity's service (its own transaction);
   a refused row records its message and the others go on. An interrupted import is not resumed: rows
   already written keep their result and the error CSV lists the rest.
@@ -58,8 +62,9 @@ The plan for this port is `docs/plans/2026-10-12-csv-import.md` (`plan.md` while
   so 履歴 hands out the same file again (the legacy kept base64 in the database). The API writes it
   itself (`storeFile`: the PENDING row first, so the sweeper removes an object the transaction never
   attached); a browser never gets its upload URL. Making a download, or downloading it again, needs
-  1402 and the entity's read on every row (`canUnscoped`; a クライアント's 就業先部署 sheet needs
-  the branch read too), and every download is its maker's only.
+  1402 and the entity's read on every row (`canUnscoped`; a クライアント's 就業先部署 sheet, and so
+  downloading a クライアント file again, needs the branch read too), and every download is its
+  maker's only.
 
 ## Alternatives
 

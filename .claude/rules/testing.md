@@ -73,7 +73,7 @@ Prisma, Redis, BullMQ, Better Auth, repositories or services of this repo.
 
 | Helper                                             | What it gives you                                                                                                                                                                            |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createHarness()`                                  | `{ db, redis, auth, emailQueue, storage, attachmentDeleteQueue, logger, sentMails, stop }` (`storage` is the memory bucket); call `stop()` in `afterAll`                                     |
+| `createHarness()`                                  | `{ db, redis, auth, emailQueue, storage, attachmentDeleteQueue, csvImportQueue, logger, sentMails, stop }` (`storage` is the memory bucket); call `stop()` in `afterAll`                     |
 | `contextDeps(h)`                                   | the `ContextDeps` the composition root would pass: for `createApp(...)` and hand-built contexts                                                                                              |
 | `signedInUser(h, { role, name, profile })`         | creates a verified user with the role via `auth.api.createUser`, signs in; returns `{ user, email, headers }`; with `profile` also a 担当者 profile (unique 社員番号, region 4 unless given) |
 | `uniqueEmployeeNumber()`                           | a 社員番号 / スタッフ番号 no other test of the run uses                                                                                                                                      |
@@ -102,6 +102,8 @@ then `h.storage.put(row.objectKey, …)` as the browser's PUT
 | `waitForJobDone(queue, jobId)`                             | polls until BullMQ reports `completed` / `failed` (any typed queue)                                                 |
 | `isolatedAttachmentDeleteQueue(connection)`                | a uniquely named delete queue with quick retries; pass `name` as `queueName` to `createAttachmentDeleteWorker`      |
 | `createAttachmentRow(db, { status, ageMs })`               | an `attachments` row of a fresh uploader, optionally back-dated (`created_at`, `deleted_at`) for sweeper tests      |
+| `isolatedCsvImportQueue(connection, { attempts })`         | a uniquely named `CsvImportQueue` with quick retries; pass `name` as `queueName` to `createCsvImportWorker`         |
+| `createCsvImportRow(db, { status, ageMs })`                | a `csv_imports` row of a fresh admin uploader and its file's attachment (`objectKey`), optionally back-dated        |
 
 Both `test/global-setup.ts` files start Postgres and Redis once per workspace run and are the
 template for any workspace that needs both.

@@ -767,9 +767,10 @@ build what the CSV jobs need on top of it.
   each ticket is one or more commits named after it.
 - 2026-10-12 — amendments while building T1–T6:
   - D3: a check that fails is not released to UPLOADED; its claim accepts CHECKING, so the retry of
-    the same job runs again, and a CHECKING import without progress for 10 minutes is failed (a job
-    BullMQ gave up on stays in Redis under its id for 7 days, so a re-enqueue would be a no-op). The
-    csv-import queue drops failed jobs at once (`removeOnFail`), as the attachment deletes do.
+    the same job runs again, and a CHECKING import without progress for 10 minutes is failed (a
+    check still at work would end as skipped under its job's id, which a completed job keeps for 24
+    h, and an import never runs twice). The csv-import queue drops failed jobs at once
+    (`removeOnFail`), as the attachment deletes do.
   - Order: T3 (storage) and T4 (the CSV module) were built before T2, so the runners were written
     against the real download and parser; T2 and T5 share commits.
   - D6: `csv-parse`'s browser build is one self-contained ESM file (no imports), so the bundling
@@ -815,3 +816,37 @@ build what the CSV jobs need on top of it.
     (社員番号 required, 住所 the part after the post code's address); a test parses each against its
     type. The manuals are git-ignored as the help PDFs, under ASCII names
     (`public/csv/manual/user.pdf`, …).
+- 2026-10-12 — review round 1 (server side: 2 BLOCKER, 4 SHOULD, 4 NIT; web side: 1 BLOCKER, 6
+  SHOULD, 8 NIT), all addressed:
+  - D11 in the services: every history read (an import, its lines, its error CSV, the list) needs
+    1402 and the entity's read of every row, as does the download history; a クライアント file is
+    handed out again only with the branch read too, as it may hold the branch sheet.
+  - D3 race: the per-row heartbeat counts only an IMPORTING import and the loop stops at the first
+    refusal (the sweeper failed it); `markImported`'s refusal is logged; the sweeper's `markFailed`
+    names its cut-off, so a heartbeat that landed after it looked keeps the import going. The tests
+    hold one side open: a gated download (the check), a row lock (the import), a cut connection (a
+    failure outside a line); the heartbeat test fails with its guard disabled.
+  - Tests added: nothing enqueued after a refused confirm; an import whose uploader left; a failed
+    import job re-added under its id; the menu without 1401; the 登録 step.
+  - D7 deviation: the client and branch CSVs do not check a 担当者 against the row's 地域 — their
+    forms offer every active 担当者 (`user.chargerOptions({})`); the スタッフ CSV does, as its form
+    does, so T8's "a 担当者 outside the 地域" is a staff test.
+  - The CSV row schemas take the forms' own shapes (`userNameSchema`, `userProfileSchema`,
+    `createStaffSchema`, `createClientSchema`) instead of copies of their arguments.
+  - Web: a dialog opened from another goes back to it when closed (履歴 → 登録 / 確認 → 履歴 on the
+    same 追加 / 更新 list; ダウンロード → 履歴 → ダウンロード), as the legacy's nested dialogs; the
+    download dialog's rules and messages are `createCsvExportSchema`'s own; the counters and the
+    progress bar the legacy did not have are gone; the legacy two full-width footer buttons
+    (`*:flex-1`); the 続柄 labels moved to `apps/web/lib/family-relation-labels.ts`, shared with the
+    staff feature, so the download dialog no longer loads the CSV parser; the list refreshed after
+    an import is the entity's router only.
+  - D13 as built: the steps are presentational and the import dialog owns the queries (D13 said each
+    step reads `byId`); files D13 did not list: `export/csv-export-form.tsx`, the two history
+    tables, `lib/download.ts`.
+  - Legacy texts changed: the rows table is 取込データ (the legacy エラーリスト listed every row
+    too), its first column 追加される / 更新される (the legacy said 追加された / 追加される for
+    both), the new 行 column and the 社員番号 / スタッフ番号 line (the update key), the history
+    titles CSVインポート履歴 / CSVダウンロード履歴; a clean check offers no リストダウンロード (the
+    error CSV is there whenever a line needs attention).
+  - Smaller: the runner's log lines carry the job id; an unprocessed line's message says its result
+    is unknown; the lookups that include deactivated users say so in their names.
