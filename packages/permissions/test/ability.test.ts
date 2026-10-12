@@ -4,8 +4,8 @@
  * The rules are grant-driven: a signed-in user carries effective catalog grants
  * `{ action, subject }` and `defineRules` turns every grant it knows into an unscoped `can`, then
  * adds the row rules: the self rule on the own User row and the owner rule on the user's own
- * CommentTemplate rows (personal data no catalog row grants), and the reference rule (every
- * signed-in user reads `Source`). This file knows nothing about roles: which role holds
+ * CommentTemplate rows (personal data no catalog row grants), the reference rule (every
+ * signed-in user reads `Source`) and the upload rule (every signed-in user may `create Attachment`). This file knows nothing about roles: which role holds
  * which grant is the catalog's business (`permissions.csv`, proven against the database by
  * `apps/api/test/permission-catalog.test.ts`). Changing the shape of a rule means changing this
  * file first — the failing cell documents the change — then `rules.ts`.
@@ -153,6 +153,10 @@ const isOwnerRule = ({ action, subject, relation }: Cell): boolean =>
 const isReferenceRule = ({ action, subject }: Cell): boolean =>
   subject === "Source" && action === "read";
 
+/** The upload rule: every signed-in user may start an upload (ADR 0012). */
+const isUploadRule = ({ action, subject }: Cell): boolean =>
+  subject === "Attachment" && action === "create";
+
 /** What a signed-in user holding exactly `grants` may do: the granted cells plus the rules. */
 const expectedFor = (grants: readonly PermissionGrant[]): Record<string, boolean> =>
   Object.fromEntries(
@@ -161,6 +165,7 @@ const expectedFor = (grants: readonly PermissionGrant[]): Record<string, boolean
       isSelfRule(cell) ||
         isOwnerRule(cell) ||
         isReferenceRule(cell) ||
+        isUploadRule(cell) ||
         grants.some((grant) => grant.action === cell.action && grant.subject === cell.subject),
     ]),
   );
@@ -188,6 +193,7 @@ describe("the typed lists", () => {
       "SourceCsvHistory",
       "CommentTemplate",
       "Source",
+      "Attachment",
     ]);
     for (const action of ACTIONS) {
       expect(isAction(action)).toBe(true);
@@ -282,6 +288,19 @@ describe("the reference rule (Source)", () => {
       expect(ability.can(action, "Source")).toBe(false);
     }
     expect(defineAbilityFor(null).can("read", "Source")).toBe(false);
+  });
+});
+
+describe("the upload rule (Attachment)", () => {
+  it("lets every signed-in user start an upload and nothing else on the subject", () => {
+    const ability = defineAbilityFor(holder([]));
+
+    expect(ability.can("create", "Attachment")).toBe(true);
+    expect(canUnscoped(ability, "create", "Attachment")).toBe(true);
+    for (const action of ["read", "update", "delete", "status", "changeRole"] as const) {
+      expect(ability.can(action, "Attachment")).toBe(false);
+    }
+    expect(defineAbilityFor(null).can("create", "Attachment")).toBe(false);
   });
 });
 

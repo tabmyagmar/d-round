@@ -5,7 +5,8 @@ import type { Logger } from "@repo/logger";
 import type { PermissionGrant } from "@repo/permissions";
 import { definePrismaAbilityFor } from "@repo/permissions/server";
 import type { ServerAbility } from "@repo/permissions/server";
-import type { RedisConnection } from "@repo/queue";
+import type { AttachmentDeleteQueue, RedisConnection } from "@repo/queue";
+import type { StorageProvider } from "@repo/storage";
 import { DEFAULT_ROLE, roleSchema } from "@repo/validation";
 import type { Role } from "@repo/validation";
 
@@ -38,6 +39,10 @@ export type RequestContext = {
   auth: Auth;
   /** The web app's origin: CORS, and the links the API puts in mails (`core/web-links.ts`). */
   webOrigin: string;
+  /** The attachments bucket: signed URLs, head, delete (ADR 0012). */
+  storage: StorageProvider;
+  /** Object deletes run in the worker; services enqueue them after commit. */
+  attachmentDeleteQueue: AttachmentDeleteQueue;
 };
 
 export type ContextDeps = {
@@ -47,6 +52,8 @@ export type ContextDeps = {
   auth: Auth;
   /** Browser origin allowed to call the API with cookies; also the base of mailed links. */
   webOrigin: string;
+  storage: StorageProvider;
+  attachmentDeleteQueue: AttachmentDeleteQueue;
 };
 
 export type ContextInput = {
@@ -86,5 +93,7 @@ export const buildRequestContext = async (
     redis: deps.redis,
     auth: deps.auth,
     webOrigin: deps.webOrigin,
+    storage: deps.storage,
+    attachmentDeleteQueue: deps.attachmentDeleteQueue,
   };
 };

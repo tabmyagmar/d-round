@@ -15,6 +15,7 @@ import { StaffFamilyTable } from "@/features/staff/components/detail/staff-famil
 import { StaffInfoCard } from "@/features/staff/components/detail/staff-info-card";
 import { StaffJobHistoryTable } from "@/features/staff/components/detail/staff-job-history-table";
 import { StaffMemosCard } from "@/features/staff/components/detail/staff-memos-card";
+import { StaffResumeCard } from "@/features/staff/components/detail/staff-resume-card";
 import { StaffStatusBadge } from "@/features/staff/components/staff-status-badge";
 import { staffNameOf, staffReadingOf } from "@/features/staff/utils/staff-labels";
 import { useTRPC } from "@/lib/trpc/react";
@@ -39,8 +40,8 @@ type OpenDialog = "status" | "delete" | null;
 
 /**
  * スタッフ情報詳細 (read-only, as the legacy StaffContainer): スタッフ情報 on the left;
- * 住所・連絡先情報, 在籍情報, 家族情報 and メモ on the right. The legacy 履歴書 card comes with the
- * file-upload ticket. After スタッフ削除 the page goes back to the list.
+ * 住所・連絡先情報, 在籍情報, 家族情報, メモ and 履歴書 on the right. After スタッフ削除 the page goes
+ * back to the list.
  */
 export const StaffDetailContainer = ({ staffId }: { staffId: string }) => {
   const trpc = useTRPC();
@@ -97,6 +98,7 @@ export const StaffDetailContainer = ({ staffId }: { staffId: string }) => {
           <StaffJobHistoryTable staff={detail} />
           <StaffFamilyTable familyMembers={detail.familyMembers} />
           <StaffMemosCard memos={detail.memos} />
+          <StaffResumeCard resumes={detail.resumes} />
         </div>
       </div>
 

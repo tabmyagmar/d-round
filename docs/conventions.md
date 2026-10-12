@@ -242,6 +242,8 @@ up to 200 characters for this reason. Human-only commits carry no trailer.
     the brand used in emails, `apps/worker/src/mail/mail-from.ts`);
   - api and worker: optional `DISCORD_ALERT_WEBHOOK_URL` (error and fatal alerts,
     `docs/adr/0010-alerts.md`; a secret, since whoever holds it can post to the channel);
+  - api and worker: `GCS_BUCKET` and `GCS_KEY_FILE` (the attachments bucket and the path of a
+    service-account key kept outside the repository, `docs/adr/0012-attachments.md`);
   - web: `NEXT_PUBLIC_API_URL`.
 
 ## Authentication and sessions

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { dayjs, ISO_DAY, todayIsoDay } from "@repo/dayjs";
 
+import { ATTACHMENT_RULES, attachmentValueSchema } from "./attachment.schema";
 import { idSchema, paginationSchema, requiredText } from "./common.schema";
 import { phoneSchema } from "./phone.schema";
 import {
@@ -147,7 +148,9 @@ export const staffMemoSchema = z.object({
   content: z.string().max(2000, { error: "メモは2000文字以内で入力してください" }),
 });
 
-/** スタッフ追加: every field of the legacy form but the file upload (its own ticket). */
+const RESUMES_TOO_MANY = `履歴書は${String(ATTACHMENT_RULES.STAFF_RESUME.maxFiles)}件までです`;
+
+/** スタッフ追加: every field of the legacy form, the 履歴書 as uploaded attachment ids. */
 export const createStaffSchema = z.object({
   employeeType: employeeTypeSchema,
   employeeNumber: employeeNumberSchema("スタッフ番号"),
@@ -182,11 +185,28 @@ export const createStaffSchema = z.object({
   jobHistories: z.array(jobHistorySchema).max(STAFF_LIST_MAX, { error: LIST_TOO_LONG }),
   familyMembers: z.array(familyMemberSchema).max(STAFF_LIST_MAX, { error: LIST_TOO_LONG }),
   memos: z.array(staffMemoSchema).max(STAFF_LIST_MAX, { error: LIST_TOO_LONG }),
+  /**
+   * 履歴書: uploaded attachment ids (`attachment.createUploadUrl`), distinct, up to three; absent
+   * leaves the files as they are (ADR 0012).
+   */
+  resumeIds: z
+    .array(idSchema)
+    .max(ATTACHMENT_RULES.STAFF_RESUME.maxFiles, { error: RESUMES_TOO_MANY })
+    .transform((ids) => [...new Set(ids)])
+    .optional(),
 });
 export type CreateStaffInput = z.output<typeof createStaffSchema>;
 
-/** The staff form (create and edit): the API's fields with the address as `AddressFields` edits it. */
-export const staffFormSchema = createStaffSchema.extend({ address: addressFormSchema });
+/**
+ * The staff form (create and edit): the API's fields with the address as `AddressFields` edits it
+ * and the 履歴書 as `FileField` holds them (`toStaffInput` sends their ids).
+ */
+export const staffFormSchema = createStaffSchema.omit({ resumeIds: true }).extend({
+  address: addressFormSchema,
+  resumes: z
+    .array(attachmentValueSchema)
+    .max(ATTACHMENT_RULES.STAFF_RESUME.maxFiles, { error: RESUMES_TOO_MANY }),
+});
 export type StaffFormValues = z.input<typeof staffFormSchema>;
 
 /** スタッフ情報編集: the whole form again (the lists are replaced, ADR 0008). */

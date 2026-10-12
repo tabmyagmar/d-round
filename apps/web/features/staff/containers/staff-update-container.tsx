@@ -12,6 +12,7 @@ import { useSourceHierarchy } from "@/components/source/use-source-hierarchy";
 import { href, routes } from "@/config/routes";
 import { StaffForm } from "@/features/staff/components/form/staff-form";
 import { staffValuesOf } from "@/features/staff/utils/staff-form-input";
+import { useAttachmentUpload } from "@/hooks/use-attachment-upload";
 import { useTRPC } from "@/lib/trpc/react";
 
 /**
@@ -21,6 +22,7 @@ import { useTRPC } from "@/lib/trpc/react";
  */
 export const StaffUpdateContainer = ({ staffId }: { staffId: string }) => {
   const trpc = useTRPC();
+  const uploadResume = useAttachmentUpload("STAFF_RESUME");
   const queryClient = useQueryClient();
   const router = useRouter();
   const staff = useQuery(trpc.staff.byId.queryOptions({ staffId }));
@@ -66,6 +68,7 @@ export const StaffUpdateContainer = ({ staffId }: { staffId: string }) => {
       storedChargers={detail.chargers
         .filter((charger) => charger.unassignedAt === null)
         .map((charger) => charger.user)}
+      uploadResume={uploadResume}
       findAddress={(postCode) =>
         queryClient.query(trpc.source.addressByPostCode.queryOptions({ postCode }))
       }

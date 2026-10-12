@@ -3,7 +3,8 @@ import { serve } from "@hono/node-server";
 import { createAuth } from "@repo/auth";
 import { disconnectPrismaClient, getPrismaClient } from "@repo/database";
 import { createDiscordAlertStream, createLogger } from "@repo/logger";
-import { createEmailQueue, createRedisConnection } from "@repo/queue";
+import { createAttachmentDeleteQueue, createEmailQueue, createRedisConnection } from "@repo/queue";
+import { createGcsStorage } from "@repo/storage";
 
 import { createApp } from "./app";
 import { loadApiEnv } from "./env";
@@ -29,6 +30,18 @@ redis.on("error", (error) => {
   logger.error({ err: error }, "redis connection error");
 });
 const emailQueue = createEmailQueue(redis);
+// Attachments: signing is local; head and delete call the bucket (ADR 0012).
+const storage = createGcsStorage({ bucket: env.GCS_BUCKET, keyFile: env.GCS_KEY_FILE });
+// Uploads into a wrong bucket would fail one by one; refuse to start instead, through the logger
+// so the failure reaches Discord too (docs/adr/0010-alerts.md).
+try {
+  await storage.ready();
+} catch (error) {
+  logger.fatal({ err: error }, "api failed to start");
+  await alerts?.flush();
+  process.exit(1);
+}
+const attachmentDeleteQueue = createAttachmentDeleteQueue(redis);
 
 const auth = createAuth({
   prisma: db,
@@ -40,7 +53,15 @@ const auth = createAuth({
   ...createAuthEmailSenders({ db, emailQueue, logger }),
 });
 
-const app = createApp({ logger, db, redis, auth, webOrigin: env.WEB_ORIGIN });
+const app = createApp({
+  logger,
+  db,
+  redis,
+  auth,
+  webOrigin: env.WEB_ORIGIN,
+  storage,
+  attachmentDeleteQueue,
+});
 
 const server = serve({ fetch: app.fetch, port: env.API_PORT }, (info) => {
   logger.info({ port: info.port, webOrigin: env.WEB_ORIGIN, apiUrl: env.API_URL }, "api listening");
@@ -63,6 +84,7 @@ registerGracefulShutdown({
         }),
     },
     { name: "email queue", run: () => emailQueue.close() },
+    { name: "attachment delete queue", run: () => attachmentDeleteQueue.close() },
     { name: "redis", run: () => redis.quit() },
     { name: "database", run: () => disconnectPrismaClient() },
     // Last, so the failure of a step above still reaches Discord.

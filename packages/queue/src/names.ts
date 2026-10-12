@@ -7,6 +7,10 @@ export const QUEUE_NAMES = {
   email: "email",
   /** Repeatable job that re-enqueues stale PENDING outbox emails (apps/worker). */
   outboxSweeper: "outbox-sweeper",
+  /** Deletes the object of a DELETED attachment, then its row (ADR 0012). */
+  attachmentDelete: "attachment-delete",
+  /** Repeatable job that expires stale PENDING attachments and re-enqueues lost deletes. */
+  attachmentSweeper: "attachment-sweeper",
 } as const satisfies Record<string, string>;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];

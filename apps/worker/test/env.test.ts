@@ -9,6 +9,8 @@ const complete = {
   REDIS_URL: "redis://localhost:6379",
   MAIL_SMTP_URL: "smtp://localhost:1025",
   MAIL_FROM: "Acme <no-reply@example.com>",
+  GCS_BUCKET: "d-round-test",
+  GCS_KEY_FILE: "/secrets/gcs-key.json",
 };
 
 describe("loadWorkerEnv", () => {
@@ -20,12 +22,15 @@ describe("loadWorkerEnv", () => {
     expect(env.MAIL_SMTP_URL).toBe("smtp://localhost:1025");
   });
 
-  it("refuses to start without REDIS_URL or the mail settings", () => {
+  it("refuses to start without REDIS_URL, the mail or the attachment bucket settings", () => {
     const { REDIS_URL: _redis, ...withoutRedis } = complete;
     expect(() => loadWorkerEnv(withoutRedis)).toThrow(EnvValidationError);
 
     const { MAIL_SMTP_URL: _smtp, ...withoutSmtp } = complete;
     expect(() => loadWorkerEnv(withoutSmtp)).toThrow(EnvValidationError);
+
+    const { GCS_KEY_FILE: _keyFile, ...withoutKeyFile } = complete;
+    expect(() => loadWorkerEnv(withoutKeyFile)).toThrow(EnvValidationError);
   });
 
   it("starts without a Discord webhook and refuses one that is not an https URL", () => {

@@ -17,6 +17,7 @@ const renderForm = (isEmployeeNumberFree = vi.fn().mockResolvedValue(true)) => {
       canEditPermissions
       hierarchy={HIERARCHY}
       isEmployeeNumberFree={isEmployeeNumberFree}
+      uploadAvatar={vi.fn()}
       pending={false}
       onSubmit={onSubmit}
     />,

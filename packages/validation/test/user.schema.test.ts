@@ -350,6 +350,7 @@ describe("inviteUserFormSchema", () => {
   const valid = {
     email: "new@example.com",
     emailConfirm: "new@example.com",
+    avatar: null,
     lastName: "新規",
     firstName: "太郎",
     lastNameKana: "シンキ",
@@ -404,6 +405,13 @@ describe("updateUserSchema", () => {
   it("rejects an empty permission key and a role outside the catalog", () => {
     expect(updateUserSchema.safeParse({ userId, permissionKeys: [""] }).success).toBe(false);
     expect(updateUserSchema.safeParse({ userId, role: "owner" }).success).toBe(false);
+  });
+
+  it("takes an uploaded avatar id, null to remove the avatar, or nothing to keep it", () => {
+    expect(updateUserSchema.parse({ userId, avatarId: userId }).avatarId).toBe(userId);
+    expect(updateUserSchema.parse({ userId, avatarId: null }).avatarId).toBeNull();
+    expect("avatarId" in updateUserSchema.parse({ userId })).toBe(false);
+    expect(updateUserSchema.safeParse({ userId, avatarId: "face.png" }).success).toBe(false);
   });
 });
 

@@ -7,11 +7,11 @@ import { DEFAULT_ROLE } from "@repo/validation";
 import { REQUEST_ID_HEADER, buildRequestContext, toAuthUser } from "../../src/core/context";
 import {
   TEST_PASSWORD,
+  contextDeps,
   contextFor,
   cookieHeaderFrom,
   createHarness,
   signedInUser,
-  TEST_WEB_ORIGIN,
 } from "../support";
 import type { TestHarness } from "../support";
 
@@ -25,13 +25,7 @@ afterAll(async () => {
   await h.stop();
 });
 
-const deps = () => ({
-  logger: h.logger,
-  db: h.db,
-  redis: h.redis,
-  auth: h.auth,
-  webOrigin: TEST_WEB_ORIGIN,
-});
+const deps = () => contextDeps(h);
 
 describe("buildRequestContext", () => {
   it("prefers the explicit request id, then the header, then generates one", async () => {

@@ -46,12 +46,15 @@ paths:
     `branch/` (ADR 0011): `branch.prisma` (`Branch`: required client, one 地域 by `code`,
     the 部署 and the 連絡担当者 as columns, `GeneralStatus`, soft-deleted, 就業先番号 unique within
     the client's non-deleted rows by a service rule), `branch-address.prisma` (`BranchAddress`) and
-    `branch-charger.prisma` (`BranchCharger`), as the client's. `access/` is our authorization
-    catalog; `auth/` stays Better Auth's, and `auth/user.prisma` only gains relation fields
-    (`permissions UserPermission[]`, `profile UserProfile?`, `staffCharges StaffCharger[]`,
-    `clientCharges ClientCharger[]`, `branchCharges BranchCharger[]`, no column, and `roleRef Role`
-    over the existing `role` column), `@@index([role])` and `role`'s NOT NULL / default — see
-    "Better Auth models" below.
+    `branch-charger.prisma` (`BranchCharger`), as the client's. The files in `attachment/` (ADR
+    0012): `attachment.prisma` (`enum AttachmentKind`, `enum AttachmentStatus` + `Attachment`: one
+    row per object in the bucket, `PENDING` → `ATTACHED` → `DELETED`, one nullable owner column per
+    owner — `user_id`, `staff_id` — plus the uploader, all `Restrict`). `access/` is our
+    authorization catalog; `auth/` stays Better Auth's, and `auth/user.prisma` only gains relation
+    fields (`permissions UserPermission[]`, `profile UserProfile?`, `staffCharges StaffCharger[]`,
+    `clientCharges ClientCharger[]`, `branchCharges BranchCharger[]`, `attachments` /
+    `uploadedAttachments Attachment[]`, no column, and `roleRef Role` over the existing `role`
+    column), `@@index([role])` and `role`'s NOT NULL / default — see "Better Auth models" below.
   - Prisma merges every `.prisma` file in the folder; relations may point at models in other files.
     A new module gets a new folder.
 - Seeds live in `packages/database/prisma/seed/`: one `<dataset>.seed.ts` per dataset exporting a
@@ -144,6 +147,7 @@ paths:
 | `20261008055605_add_staffs`                                        | enums `employee_type`, `gender`, `staff_status`, `family_relation`, `staff_memo_type`; tables `staffs`, `staff_addresses` (FK `post_code` → `source_addresses`, Restrict), `staff_regions`, `staff_prefectures` (composite keys, Restrict to the codes), `staff_chargers` (FK `user_id` → `users.id`, Restrict), `staff_family_members`, `staff_memos`, `staff_job_histories` (Cascade to the staff; ADR 0008) |
 | `20261008233611_add_clients`                                       | enums `general_status`, `client_order_type`; tables `clients`, `client_addresses` (FK `post_code` → `source_addresses`, Restrict), `client_regions` (composite key, Restrict to the code), `client_chargers` (composite key, FK `user_id` → `users.id`, Restrict; Cascade to the client; ADR 0011)                                                                                                             |
 | `20261009001843_add_branches`                                      | tables `branches` (FK `client_id` → `clients.id` and `region_code` → `source_regions.code`, Restrict; the 部署 and 連絡担当者 as columns; `contact_position position`), `branch_addresses` (FK `post_code` → `source_addresses`, Restrict), `branch_chargers` (composite key, FK `user_id` → `users.id`, Restrict; Cascade to the branch; ADR 0011)                                                            |
+| `20261009055901_add_attachments`                                   | enums `attachment_kind`, `attachment_status`; table `attachments` (unique `object_key`; FKs `uploaded_by_id` and `user_id` → `users.id`, `staff_id` → `staffs.id`, Restrict; ADR 0012)                                                                                                                                                                                                                         |
 
 The template shipped `0001_init` as its single baseline. Once a migration has been applied anywhere,
 never edit it; add a new one.

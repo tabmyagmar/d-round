@@ -45,6 +45,8 @@ import type {
 import type { AuthUser, RequestContext } from "../../core/context";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../core/errors";
 import { webLinks } from "../../core/web-links";
+import { assertUploaded, syncAttachments, viewsOf } from "../attachment/attachment.service";
+import type { AttachmentView } from "../attachment/attachment.service";
 
 /**
  * User module — the reference implementation of .claude/rules/module-template.md.
@@ -89,20 +91,46 @@ const assertCan = (ctx: RequestContext, action: RowAction, user: User): void => 
 
 /**
  * A user as the detail and edit screens need it: the row, the 担当者 profile with its regions
- * (ADR 0007) and the effective permission keys.
+ * (ADR 0007), the effective permission keys and the プロフィール画像 (`avatar`) with a read URL
+ * (ADR 0012); Better Auth's own `image` column stays unused.
  */
-export type UserDetail = UserWithProfile & { permissionKeys: string[] };
+export type UserDetail = UserWithProfile & {
+  permissionKeys: string[];
+  avatar: AttachmentView | null;
+};
+
+type UserWithPermissionKeys = Omit<UserDetail, "avatar">;
 
 /** Effective grants (role ∪ ALLOW − DENY, ADR 0003) as catalog keys, ascending. */
-const withPermissionKeys = async (db: DbClient, user: UserWithProfile): Promise<UserDetail> => {
+const withPermissionKeys = async (
+  db: DbClient,
+  user: UserWithProfile,
+): Promise<UserWithPermissionKeys> => {
   const grants = await createPermissionRepository(db).findEffectiveGrants(user.id, user.role);
   return { ...user, permissionKeys: grants.map((grant) => grant.key) };
+};
+
+/** Read after the write committed, so a new avatar is the one signed. */
+const withAvatar = async (
+  ctx: RequestContext,
+  user: UserWithPermissionKeys,
+): Promise<UserDetail> => {
+  const [avatar] = await viewsOf(ctx, { kind: "USER_AVATAR", owner: { userId: user.id } });
+  return { ...user, avatar: avatar ?? null };
+};
+
+/** `avatarId` as the attachment guards take it: absent → untouched, null → none. */
+const avatarIdsOf = (avatarId: string | null | undefined): string[] | undefined => {
+  if (avatarId === undefined) {
+    return undefined;
+  }
+  return avatarId === null ? [] : [avatarId];
 };
 
 export const getById = async (ctx: RequestContext, userId: string): Promise<UserDetail> => {
   const user = await loadUser(ctx, userId);
   assertCan(ctx, "read", user);
-  return withPermissionKeys(ctx.db, user);
+  return withAvatar(ctx, await withPermissionKeys(ctx.db, user));
 };
 
 /** Role and permission edits need catalog row 1106 (`changeRole User`). */
@@ -329,14 +357,26 @@ export const updateProfile = async (
   assertCan(ctx, "update", target);
 
   const data = nameChanges(target, input);
-  if (Object.keys(data).length === 0) {
+  const avatarIds = avatarIdsOf(input.avatarId);
+  if (Object.keys(data).length === 0 && avatarIds === undefined) {
     return target;
+  }
+  const owner = { userId: target.id };
+  if (avatarIds !== undefined) {
+    await assertUploaded(ctx, "USER_AVATAR", avatarIds, owner);
   }
 
   // Unique violations become ConflictError here, never in the repository or the router. The
   // profile fields above carry no unique constraint today; keep the translation when you add one.
   try {
-    return await createUserRepository(ctx.db).updateProfile(target.id, data);
+    return await withTransaction(ctx.db, async (txc) => {
+      if (avatarIds !== undefined) {
+        await syncAttachments(ctx, txc, { kind: "USER_AVATAR", owner, ids: avatarIds });
+      }
+      return Object.keys(data).length > 0
+        ? createUserRepository(txc.tx).updateProfile(target.id, data)
+        : target;
+    });
   } catch (error) {
     const translated = translateDatabaseError(error);
     if (translated?.name === "UniqueViolationError") {
@@ -358,8 +398,16 @@ export const updateProfile = async (
  */
 export const update = async (ctx: RequestContext, input: UpdateUserInput): Promise<UserDetail> => {
   const { user: actor } = requireUser(ctx);
+  const owner = { userId: input.userId };
+  const avatarIds = avatarIdsOf(input.avatarId);
+  if (avatarIds !== undefined) {
+    // Authorise before the bucket is asked about the uploads; the transaction checks again.
+    assertCan(ctx, "update", await loadUser(ctx, input.userId));
+    await assertUploaded(ctx, "USER_AVATAR", avatarIds, owner);
+  }
 
-  return withTransaction(ctx.db, async ({ tx }) => {
+  const saved = await withTransaction(ctx.db, async (txc) => {
+    const { tx } = txc;
     const users = createUserRepository(tx);
     const permissions = createPermissionRepository(tx);
     const target = await users.findById(input.userId);
@@ -371,6 +419,10 @@ export const update = async (ctx: RequestContext, input: UpdateUserInput): Promi
     const changes = nameChanges(target, input);
     if (Object.keys(changes).length > 0) {
       await users.updateProfile(target.id, changes);
+    }
+
+    if (avatarIds !== undefined) {
+      await syncAttachments(ctx, txc, { kind: "USER_AVATAR", owner, ids: avatarIds });
     }
 
     if (input.profile !== undefined) {
@@ -408,12 +460,13 @@ export const update = async (ctx: RequestContext, input: UpdateUserInput): Promi
       await permissions.replaceUserOverrides(target.id, [], actor.id);
     }
 
-    const saved = await users.findById(target.id);
-    if (!saved) {
+    const updated = await users.findById(target.id);
+    if (!updated) {
       throw new NotFoundError("User", target.id);
     }
-    return withPermissionKeys(tx, saved);
+    return withPermissionKeys(tx, updated);
   });
+  return withAvatar(ctx, saved);
 };
 
 export const deactivate = async (ctx: RequestContext, userId: string): Promise<User> => {
@@ -508,6 +561,10 @@ export const invite = async (ctx: RequestContext, input: InviteUserInput): Promi
     overrides = await overridesFor(ctx.db, actor, input.role, input.permissionKeys);
   }
   await assertProfileWritable(ctx.db, input.profile);
+  const avatarIds = avatarIdsOf(input.avatarId);
+  if (avatarIds !== undefined) {
+    await assertUploaded(ctx, "USER_AVATAR", avatarIds);
+  }
 
   let createdId: string;
   try {
@@ -526,7 +583,8 @@ export const invite = async (ctx: RequestContext, input: InviteUserInput): Promi
   // the invitation goes out. Better Auth created the user, so a failure here leaves the user
   // without them and without a mail: the error says to complete the user and re-send.
   try {
-    await withTransaction(ctx.db, async ({ tx }) => {
+    await withTransaction(ctx.db, async (txc) => {
+      const { tx } = txc;
       await createUserRepository(tx).updateProfile(createdId, {
         lastName: input.lastName,
         firstName: input.firstName,
@@ -536,6 +594,10 @@ export const invite = async (ctx: RequestContext, input: InviteUserInput): Promi
       await saveProfile(tx, createdId, input.profile);
       if (overrides) {
         await createPermissionRepository(tx).replaceUserOverrides(createdId, overrides, actor.id);
+      }
+      if (avatarIds !== undefined) {
+        const owner = { userId: createdId };
+        await syncAttachments(ctx, txc, { kind: "USER_AVATAR", owner, ids: avatarIds });
       }
     });
   } catch (error) {
@@ -547,7 +609,7 @@ export const invite = async (ctx: RequestContext, input: InviteUserInput): Promi
 
   // The user exists even if the mail cannot be queued; the admin re-sends from the user page.
   await mailPasswordLink(ctx, input.email);
-  return withPermissionKeys(ctx.db, await loadUser(ctx, createdId));
+  return withAvatar(ctx, await withPermissionKeys(ctx.db, await loadUser(ctx, createdId)));
 };
 
 /**

@@ -39,10 +39,10 @@ Actions `create | read | update | delete | status | changeRole` (the catalog's `
 parent rows carry `all` and never grant). Subjects are the catalog's `modelName` values
 (`SUBJECT_NAMES`: `User`, `Client`, `Staff`, `Branch`, `AuditLog`, `Workflow`, `WorkflowTemplate`,
 `SourceCsvHistory`), then the subjects no catalog row grants: `CommentTemplate` (a user's own定型文,
-ADR 0006) and `Source` (reference data: regions, prefectures, the post-code master); `User`,
-`Staff`, `Client`, `Branch` and `CommentTemplate` have Prisma models today. Conditions are plain
-equalities on subject attributes (`id` on `User`, `createdBy` on `CommentTemplate`) so both engines
-interpret them identically.
+ADR 0006), `Source` (reference data: regions, prefectures, the post-code master) and `Attachment` (a
+file upload, ADR 0012); `User`, `Staff`, `Client`, `Branch` and `CommentTemplate` have Prisma models
+today. Conditions are plain equalities on subject attributes (`id` on `User`, `createdBy` on
+`CommentTemplate`) so both engines interpret them identically.
 
 ### The rule set (`rules.ts`)
 
@@ -62,11 +62,19 @@ export const defineRules = (can: CanFn, user: AbilityUser): void => {
 
   // Reference data: every signed-in user reads it, nobody writes it through the API.
   can("read", "Source");
+
+  // Uploads: every signed-in user may ask for an upload URL; the owner decides the rest (ADR 0012).
+  can("create", "Attachment");
 };
 ```
 
 Reference data (`Source`) is the third hard-coded rule: unconditional, so `canUnscoped` is true for
 every signed-in user, and the `source` router's procedures are `requireAbility("read", "Source")`.
+
+Uploads (`Attachment`) are the fourth: every signed-in user may `create` one (the `attachment`
+router's `createUploadUrl`), nothing else. The attachment service adds the kind rule (a 履歴書 needs
+`create` or `update Staff`), the owner's write decides the attach (the user and staff services), and
+files are read only through the owner's read procedure — there is no `read Attachment`.
 
 A personal subject (data a user owns, not data the organisation administers) is a row rule like the
 second one, not a catalog row. Its procedures still use `requireAbility(action, subject)` — the
@@ -183,11 +191,12 @@ which matches no row, so the list would come back empty — the guard turns that
 - `packages/permissions/test/ability.test.ts` is the grant-driven unit spec: for every action ×
   subject a user holding only that grant `can` exactly that cell on other rows plus the row rules on
   their own rows (`User` and `CommentTemplate` are asked on an own and a foreign row); grants with
-  `all` or an unknown subject are ignored; empty grants → the row rules and `read Source` only;
-  anonymous → nothing; the Prisma ability answers exactly like the browser ability;
-  `accessibleUsersWhere`, `accessibleCommentTemplatesWhere`, the grant-only `accessibleStaffWhere`,
-  `accessibleClientsWhere` and `accessibleBranchesWhere` (an empty where with the grant, one no row
-  matches without it) and `canUnscoped` are covered. It knows nothing about roles.
+  `all` or an unknown subject are ignored; empty grants → the row rules, `read Source` and
+  `create Attachment` only; anonymous → nothing; the Prisma ability answers exactly like the browser
+  ability; `accessibleUsersWhere`, `accessibleCommentTemplatesWhere`, the grant-only
+  `accessibleStaffWhere`, `accessibleClientsWhere` and `accessibleBranchesWhere` (an empty where
+  with the grant, one no row matches without it) and `canUnscoped` are covered. It knows nothing
+  about roles.
 - `apps/api/test/permission-catalog.test.ts` is the DB-backed catalog spec: after the seed, for
   every role × catalog row, `ctx.ability.can(action, modelName)` equals "a `role_permissions` row
   exists" (never for `all`), a user `ALLOW` adds and a `DENY` removes, and every catalog action and

@@ -1,12 +1,13 @@
 "use client";
 
 import { FileIcon, Loader2Icon, UploadIcon, XIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import type { FieldValues } from "react-hook-form";
 
 import { Button } from "../button";
 
+import { formatSize, matchesAccept } from "./file-utils";
 import { FormFieldShell } from "./form-field-shell";
 import type { BaseFieldProps, FileFieldValue } from "./types";
 import { useFormField } from "./use-form-field";
@@ -27,16 +28,6 @@ export type FileFieldProps<TValues extends FieldValues> = BaseFieldProps<TValues
   dropLabel?: string;
 };
 
-const formatSize = (bytes: number): string => {
-  if (bytes < 1024) {
-    return `${String(bytes)} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(0)} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
 const fileKey = (file: Pick<FileFieldValue, "name" | "size">) =>
   `${file.name}:${String(file.size)}`;
 
@@ -49,25 +40,6 @@ const toFiles = (value: unknown): FileFieldValue[] =>
           typeof (item as FileFieldValue).name === "string",
       )
     : [];
-
-const matchesAccept = (file: File, accept: string | undefined): boolean => {
-  if (!accept) {
-    return true;
-  }
-  const extension = `.${file.name.split(".").pop()?.toLowerCase() ?? ""}`;
-  return accept
-    .split(",")
-    .map((rule) => rule.trim().toLowerCase())
-    .some((rule) => {
-      if (rule.startsWith(".")) {
-        return rule === extension;
-      }
-      if (rule.endsWith("/*")) {
-        return file.type.toLowerCase().startsWith(rule.slice(0, -1));
-      }
-      return file.type.toLowerCase() === rule;
-    });
-};
 
 /**
  * Drop zone + file list. The value is `FileFieldValue[]` (also for `multiple={false}`, then at
@@ -97,13 +69,31 @@ export const FileField = <TValues extends FieldValues>({
   const files = toFiles(field.value);
   const limit = multiple ? maxFiles : 1;
   const full = limit !== undefined && files.length >= limit;
+  // While an upload runs the value holds a file without its id, which the form schema refuses;
+  // that is waiting, not an error, so the field shows it only once the uploads are over.
+
+  // Uploads finish after later picks and removals, so every write starts from the latest value,
+  // never from the value an earlier pick saw. A layout effect syncs it in the commit's own task: a
+  // passive effect could run after a later upload's write and put an older list back.
+  const latestRef = useRef<FileFieldValue[]>(files);
+  useLayoutEffect(() => {
+    latestRef.current = toFiles(field.value);
+  }, [field.value]);
+  const commit = (next: FileFieldValue[]) => {
+    latestRef.current = next;
+    field.onChange(next);
+  };
 
   const addFiles = async (picked: FileList | File[]) => {
     const errors: string[] = [];
-    let current = files;
+    const current = latestRef.current;
     const accepted: File[] = [];
     for (const file of Array.from(picked)) {
-      if (!matchesAccept(file, accept)) {
+      // Files are told apart by name and size; the same file twice would be one row twice.
+      const taken = [...current, ...accepted].some((item) => fileKey(item) === fileKey(file));
+      if (taken) {
+        errors.push(`${file.name}: すでに選択されています`);
+      } else if (!matchesAccept(file, accept)) {
         errors.push(`${file.name}: この形式は選択できません`);
       } else if (maxSize !== undefined && file.size > maxSize) {
         errors.push(`${file.name}: ${formatSize(maxSize)} を超えています`);
@@ -123,8 +113,7 @@ export const FileField = <TValues extends FieldValues>({
       type: file.type,
       file,
     }));
-    current = multiple ? [...current, ...entries] : entries;
-    field.onChange(current);
+    commit(multiple ? [...current, ...entries] : entries);
 
     if (!upload) {
       return;
@@ -135,17 +124,17 @@ export const FileField = <TValues extends FieldValues>({
         const entry = { name: file.name, size: file.size, type: file.type };
         try {
           const uploaded = await upload(file);
-          current = current.map((item) =>
-            fileKey(item) === fileKey(entry) ? { ...entry, ...uploaded } : item,
+          commit(
+            latestRef.current.map((item) =>
+              fileKey(item) === fileKey(entry) ? { ...entry, ...uploaded } : item,
+            ),
           );
-          field.onChange(current);
         } catch (error) {
           setLocalErrors((previous) => [
             ...previous,
             `${entry.name}: ${error instanceof Error ? error.message : "アップロードに失敗しました"}`,
           ]);
-          current = current.filter((item) => fileKey(item) !== fileKey(entry));
-          field.onChange(current);
+          commit(latestRef.current.filter((item) => fileKey(item) !== fileKey(entry)));
         } finally {
           setUploading((keys) => keys.filter((key) => key !== fileKey(entry)));
         }
@@ -154,7 +143,7 @@ export const FileField = <TValues extends FieldValues>({
   };
 
   const remove = (target: FileFieldValue) => {
-    field.onChange(files.filter((item) => fileKey(item) !== fileKey(target)));
+    commit(latestRef.current.filter((item) => fileKey(item) !== fileKey(target)));
   };
 
   const onDrop = (event: DragEvent<HTMLButtonElement>) => {
@@ -172,7 +161,7 @@ export const FileField = <TValues extends FieldValues>({
       required={required}
       hint={hint}
       description={description}
-      error={fieldState.error}
+      error={uploading.length > 0 ? undefined : fieldState.error}
       className={className}
     >
       <input
@@ -199,7 +188,7 @@ export const FileField = <TValues extends FieldValues>({
       <button
         type="button"
         disabled={Boolean(field.disabled) || full}
-        aria-invalid={fieldState.invalid}
+        aria-invalid={fieldState.invalid && uploading.length === 0}
         className={`flex w-full flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground transition-colors outline-none hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive ${dragging ? "border-ring bg-muted/50" : "border-input"}`}
         onClick={() => {
           inputRef.current?.click();

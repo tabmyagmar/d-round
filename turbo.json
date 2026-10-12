@@ -14,7 +14,9 @@
     "REDIS_URL",
     "MAIL_SMTP_URL",
     "MAIL_FROM",
-    "DISCORD_ALERT_WEBHOOK_URL"
+    "DISCORD_ALERT_WEBHOOK_URL",
+    "GCS_BUCKET",
+    "GCS_KEY_FILE"
   ],
   "globalPassThroughEnv": [
     "DOCKER_HOST",

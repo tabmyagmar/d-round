@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import { useForm } from "react-hook-form";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Role } from "@repo/validation";
 
@@ -36,6 +36,7 @@ const Harness = ({ role, options, disabled = false, canEditPermissions }: Harnes
       roleField={{ options, disabled }}
       canEditPermissions={canEditPermissions}
       hierarchy={HIERARCHY}
+      uploadAvatar={vi.fn()}
     />
   );
 };

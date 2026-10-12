@@ -1,12 +1,24 @@
 import { disconnectPrismaClient, getPrismaClient } from "@repo/database";
 import { createDiscordAlertStream, createLogger } from "@repo/logger";
-import { createEmailQueue, createRedisConnection, waitForRedis } from "@repo/queue";
+import {
+  createAttachmentDeleteQueue,
+  createEmailQueue,
+  createRedisConnection,
+  waitForRedis,
+} from "@repo/queue";
+import { createGcsStorage } from "@repo/storage";
 
 import { loadWorkerEnv } from "./env";
 import { registerGracefulShutdown } from "./lib/graceful-shutdown";
 import { mailDisplayName } from "./mail/mail-from";
 import { createSmtpMailProvider } from "./mail/smtp-mail-provider";
+import { createAttachmentDeleteWorker } from "./processors/attachment-delete.processor";
 import { createEmailWorker } from "./processors/email.processor";
+import {
+  createAttachmentSweeperQueue,
+  createAttachmentSweeperWorker,
+  registerAttachmentSweeper,
+} from "./schedulers/attachment-sweeper";
 import {
   createOutboxSweeperQueue,
   createOutboxSweeperWorker,
@@ -15,7 +27,8 @@ import {
 
 /**
  * Worker process bootstrap. Every BullMQ consumer in the system is started from here and
- * nowhere else: the email processor and the outbox sweeper.
+ * nowhere else: the email processor and the outbox sweeper, the attachment delete processor and
+ * the attachment sweeper.
  */
 const env = loadWorkerEnv();
 // Error and fatal lines also go to Discord when a webhook is set (docs/adr/0010-alerts.md).
@@ -40,18 +53,30 @@ const mailProvider = createSmtpMailProvider({ smtpUrl: env.MAIL_SMTP_URL, from: 
 const brand = { appName: mailDisplayName(env.MAIL_FROM) };
 const emailQueue = createEmailQueue(connection);
 const sweeperQueue = createOutboxSweeperQueue(connection);
+// Attachments: objects are deleted after the row says so (docs/adr/0012-attachments.md).
+const storage = createGcsStorage({ bucket: env.GCS_BUCKET, keyFile: env.GCS_KEY_FILE });
+const attachmentDeleteQueue = createAttachmentDeleteQueue(connection);
+const attachmentSweeperQueue = createAttachmentSweeperQueue(connection);
 
-// Registered in src/processors/*.processor.ts and src/schedulers/* and listed here.
-const workers: { close: () => Promise<void> }[] = [
-  createEmailWorker({ connection, db, provider: mailProvider, logger, brand }),
-  createOutboxSweeperWorker({ connection, db, emailQueue, logger }),
-];
+// Registered in src/processors/*.processor.ts and src/schedulers/* and listed here. A BullMQ
+// worker takes jobs as soon as it exists, so they are created once the checks below passed: a
+// delete consumer started before the bucket check could count a wrong bucket's 404s as done.
+const workers: { close: () => Promise<void> }[] = [];
 
 const shutdown = registerGracefulShutdown({
   logger,
   steps: [
     { name: "workers", run: () => Promise.all(workers.map((worker) => worker.close())) },
-    { name: "queues", run: () => Promise.all([emailQueue.close(), sweeperQueue.close()]) },
+    {
+      name: "queues",
+      run: () =>
+        Promise.all([
+          emailQueue.close(),
+          sweeperQueue.close(),
+          attachmentDeleteQueue.close(),
+          attachmentSweeperQueue.close(),
+        ]),
+    },
     { name: "mail provider", run: () => mailProvider.close?.() },
     { name: "redis", run: () => connection.quit() },
     { name: "database", run: () => disconnectPrismaClient() },
@@ -62,7 +87,16 @@ const shutdown = registerGracefulShutdown({
 
 try {
   await waitForRedis(connection);
+  // A wrong bucket would make every delete a 404 that counts as done (docs/attachments.md).
+  await storage.ready();
+  workers.push(
+    createEmailWorker({ connection, db, provider: mailProvider, logger, brand }),
+    createOutboxSweeperWorker({ connection, db, emailQueue, logger }),
+    createAttachmentDeleteWorker({ connection, db, storage, logger }),
+    createAttachmentSweeperWorker({ connection, db, attachmentDeleteQueue, logger }),
+  );
   await registerOutboxSweeper(sweeperQueue);
+  await registerAttachmentSweeper(attachmentSweeperQueue);
   logger.info({ workers: workers.length }, "worker ready");
 } catch (error) {
   logger.fatal({ err: error }, "worker failed to start");

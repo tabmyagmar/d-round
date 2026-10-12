@@ -3,6 +3,8 @@
 // Import via "@repo/ui/components/form".
 export { ArrayField } from "./array-field";
 export type { ArrayFieldProps, ArrayFieldRow } from "./array-field";
+export { AvatarField } from "./avatar-field";
+export type { AvatarFieldProps } from "./avatar-field";
 export { CheckboxField } from "./checkbox-field";
 export type { CheckboxFieldProps } from "./checkbox-field";
 export { CheckboxGroupField } from "./checkbox-group-field";

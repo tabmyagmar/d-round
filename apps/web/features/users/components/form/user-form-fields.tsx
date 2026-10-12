@@ -5,10 +5,16 @@ import { useController, useWatch } from "react-hook-form";
 import type { Control, FieldPath } from "react-hook-form";
 
 import { FieldGroup } from "@repo/ui/components/field";
-import { DateField, NumberField, SelectField, TextField } from "@repo/ui/components/form";
+import {
+  AvatarField,
+  DateField,
+  NumberField,
+  SelectField,
+  TextField,
+} from "@repo/ui/components/form";
 import { ja } from "@repo/ui/lib/calendar-locale";
-import { isOverridableRole } from "@repo/validation";
-import type { Role, UserProfileInput } from "@repo/validation";
+import { ATTACHMENT_RULES, attachmentAccept, isOverridableRole } from "@repo/validation";
+import type { AttachmentValue, Role, UserProfileInput } from "@repo/validation";
 
 import { NameFields } from "@/components/name-fields";
 import type { NameValues } from "@/components/name-fields";
@@ -22,6 +28,7 @@ import { POSITION_OPTIONS } from "@/lib/position-labels";
 
 /** The fields both user forms share; each form's values have at least these keys. */
 export type UserFieldValues = NameValues & {
+  avatar?: AttachmentValue | null | undefined;
   role?: Role | undefined;
   permissionKeys?: string[] | undefined;
   profile?: ProfileFormValues | undefined;
@@ -66,12 +73,14 @@ export type UserFormFieldsProps<TValues extends UserFieldValues> = {
   canEditPermissions: boolean;
   /** Regions for エリア → 地域 (`useSourceHierarchy` in the container). */
   hierarchy: SourceHierarchy;
+  /** Uploads a picked プロフィール画像 (`useAttachmentUpload("USER_AVATAR")` in the container). */
+  uploadAvatar: (file: File) => Promise<{ id: string }>;
   /** Rendered between 役職 and アカウントタイプ (the email fields). */
   children?: ReactNode;
 };
 
 /**
- * What the invite form and the edit form share, in the legacy order: 社員番号, 姓 / 名 / セイ / メイ,
+ * What the invite form and the edit form share, in the legacy order: プロフィール画像, 社員番号, 姓 / 名 / セイ / メイ,
  * エリア / 地域, 部署名 / 役職, (the form's email fields), アカウントタイプ / 退職日 and, for a manager,
  * 権限（詳細設定）. Each form owns its schema and submit.
  */
@@ -80,12 +89,21 @@ export const UserFormFields = <TValues extends UserFieldValues>({
   roleField,
   canEditPermissions,
   hierarchy,
+  uploadAvatar,
   children,
 }: UserFormFieldsProps<TValues>) => {
   const role = useWatch({ control, name: path<TValues>("role") }) as Role | undefined;
 
   return (
     <FieldGroup>
+      <AvatarField
+        control={control}
+        name={path<TValues>("avatar")}
+        label="プロフィール画像"
+        accept={attachmentAccept("USER_AVATAR")}
+        maxSize={ATTACHMENT_RULES.USER_AVATAR.maxBytes}
+        upload={uploadAvatar}
+      />
       <div className="grid gap-4 sm:grid-cols-2">
         <NumberField
           control={control}

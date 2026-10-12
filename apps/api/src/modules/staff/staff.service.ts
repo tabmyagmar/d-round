@@ -25,6 +25,8 @@ import type {
 
 import type { RequestContext } from "../../core/context";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../core/errors";
+import { assertUploaded, syncAttachments, viewsOf } from "../attachment/attachment.service";
+import type { AttachmentView } from "../attachment/attachment.service";
 import { assertKnownSource } from "../source/source.service";
 import { assertChargersActive } from "../user/user.service";
 
@@ -113,11 +115,20 @@ export const list = async (
   );
 };
 
-export const getById = async (ctx: RequestContext, staffId: string): Promise<StaffDetailRow> => {
+/** A staff as the detail and edit screens need it, with the 履歴書 files and their read URLs. */
+export type StaffDetail = StaffDetailRow & { resumes: AttachmentView[] };
+
+/** Read after the write committed, so new files are the ones signed (ADR 0012). */
+const withResumes = async (ctx: RequestContext, staff: StaffDetailRow): Promise<StaffDetail> => ({
+  ...staff,
+  resumes: await viewsOf(ctx, { kind: "STAFF_RESUME", owner: { staffId: staff.id } }),
+});
+
+export const getById = async (ctx: RequestContext, staffId: string): Promise<StaffDetail> => {
   assertMay(ctx, "read");
   const staff = await loadStaff(ctx.db, staffId);
   assertCanRow(ctx, "read", staff);
-  return staff;
+  return withResumes(ctx, staff);
 };
 
 const STAFF_NUMBER_TAKEN = "This staff number is already in use";
@@ -179,30 +190,47 @@ const toWrite = (input: CreateStaffInput): StaffWrite => ({
   })),
 });
 
-/** スタッフ追加 (catalog row 1301): the staff and everything of it in one transaction. */
+/** スタッフ追加 (catalog row 1301): the staff and everything of it, 履歴書 included, in one transaction. */
 export const create = async (
   ctx: RequestContext,
   input: CreateStaffInput,
-): Promise<StaffDetailRow> => {
+): Promise<StaffDetail> => {
   assertMay(ctx, "create");
-  return withTransaction(ctx.db, async ({ tx }) => {
+  const resumeIds = input.resumeIds ?? [];
+  await assertUploaded(ctx, "STAFF_RESUME", resumeIds);
+  const created = await withTransaction(ctx.db, async (txc) => {
+    const { tx } = txc;
     await assertWritable(tx, input);
     await assertChargersActive(tx, input.chargerUserIds);
     const { id } = await createStaffRepository(tx).create(toWrite(input));
+    await syncAttachments(ctx, txc, {
+      kind: "STAFF_RESUME",
+      owner: { staffId: id },
+      ids: resumeIds,
+    });
     return loadStaff(tx, id);
   });
+  return withResumes(ctx, created);
 };
 
 /**
  * スタッフ情報編集 (row 1303): the fields and address, the code sets and lists replaced, and the
- * 担当者 moved — the removed ones closed (their history stays), the new ones added and checked.
+ * 担当者 moved — the removed ones closed (their history stays), the new ones added and checked —,
+ * and, when `resumeIds` is given, the 履歴書 files made those (dropped files are deleted after
+ * commit).
  */
 export const update = async (
   ctx: RequestContext,
   input: UpdateStaffInput,
-): Promise<StaffDetailRow> => {
+): Promise<StaffDetail> => {
   assertMay(ctx, "update");
-  return withTransaction(ctx.db, async ({ tx }) => {
+  const owner = { staffId: input.staffId };
+  const { resumeIds } = input;
+  if (resumeIds !== undefined) {
+    await assertUploaded(ctx, "STAFF_RESUME", resumeIds, owner);
+  }
+  const updated = await withTransaction(ctx.db, async (txc) => {
+    const { tx } = txc;
     const staffs = createStaffRepository(tx);
     const current = await loadStaff(tx, input.staffId);
     assertCanRow(ctx, "update", current);
@@ -224,8 +252,12 @@ export const update = async (
     if (added.length > 0) {
       await staffs.addChargers(current.id, added);
     }
+    if (resumeIds !== undefined) {
+      await syncAttachments(ctx, txc, { kind: "STAFF_RESUME", owner, ids: resumeIds });
+    }
     return loadStaff(tx, current.id);
   });
+  return withResumes(ctx, updated);
 };
 
 /** ステータス変更 (row 1305); the same status is a no-op. */

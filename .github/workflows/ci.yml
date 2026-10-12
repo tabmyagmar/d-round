@@ -55,7 +55,10 @@ jobs:
       REDIS_URL: redis://localhost:6379
 
     steps:
+      # Full history: the Conventional Commits step reads the pull request's base..head range.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -88,8 +91,11 @@ jobs:
         working-directory: packages/database
         run: yarn prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code
 
+      # Two tasks at a time, as the runner has two CPUs: with turbo's default of ten, lint, build and
+      # every workspace's tests (each with its own containers and workers) starve one another, and
+      # the slowest tests time out (the 124,809-row address seed, the jsdom calendar).
       - name: Verify (lint, typecheck, test, build, format check)
-        run: yarn verify
+        run: yarn verify --concurrency=2
 
       - name: Conventional Commits (pull requests)
         if: github.event_name == 'pull_request'

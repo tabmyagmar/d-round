@@ -16,6 +16,7 @@
     "@repo/database": "workspace:*",
     "@repo/logger": "workspace:*",
     "@repo/queue": "workspace:*",
+    "@repo/storage": "workspace:*",
     "@repo/validation": "workspace:*",
     "dotenv": "17.4.2",
     "nodemailer": "10.0.1"

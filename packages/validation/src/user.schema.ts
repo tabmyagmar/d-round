@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { attachmentValueSchema } from "./attachment.schema";
 import { idSchema, paginationSchema, requiredText } from "./common.schema";
 import { permissionKeysSchema } from "./permission.schema";
 import {
@@ -192,12 +193,25 @@ export const userIdSchema = z.object({ userId: idSchema });
 /** The name parts, each optional: an edit sends only the parts that changed. */
 const userNamePatchShape = userNameSchema.partial().shape;
 
+/**
+ * プロフィール画像: an uploaded attachment id (`attachment.createUploadUrl`), `null` to remove the
+ * avatar, absent to leave it as it is (ADR 0012).
+ */
+const avatarIdSchema = idSchema.nullable().optional();
+
 /** Self edit when `userId` is omitted; admins may pass another user's id. */
 export const updateProfileSchema = z.object({
   userId: idSchema.optional(),
   ...userNamePatchShape,
+  avatarId: avatarIdSchema,
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+/** /admin/profile: the name parts and the プロフィール画像 as `AvatarField` holds it. */
+export const profileFormSchema = updateProfileSchema
+  .omit({ userId: true, avatarId: true })
+  .extend({ avatar: attachmentValueSchema.nullable() });
+export type ProfileFormInput = z.infer<typeof profileFormSchema>;
 
 /**
  * An admin creates a user without a password; the user sets one from the invitation mail.
@@ -210,12 +224,17 @@ export const inviteUserSchema = z.object({
   role: roleSchema,
   permissionKeys: permissionKeysSchema.optional(),
   profile: userProfileSchema,
+  avatarId: avatarIdSchema,
 });
 export type InviteUserInput = z.infer<typeof inviteUserSchema>;
 
-/** The invite form: the email typed twice, since the invitation goes to that address. */
+/**
+ * The invite form: the email typed twice, since the invitation goes to that address, and the
+ * プロフィール画像 as `AvatarField` holds it.
+ */
 export const inviteUserFormSchema = inviteUserSchema
-  .extend({ emailConfirm: emailSchema })
+  .omit({ avatarId: true })
+  .extend({ emailConfirm: emailSchema, avatar: attachmentValueSchema.nullable() })
   .refine((value) => value.email === value.emailConfirm, {
     path: ["emailConfirm"],
     error: "メールアドレスが一致していません",
@@ -233,14 +252,18 @@ export const updateUserSchema = z.object({
   role: roleSchema.optional(),
   permissionKeys: permissionKeysSchema.optional(),
   profile: userProfileSchema.optional(),
+  avatarId: avatarIdSchema,
 });
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 
 /**
  * The edit form: it always holds the profile, so a user from before profiles is asked for one; the
- * form sends it only when it changed (`toUpdateInput`).
+ * form sends it only when it changed (`toUpdateInput`), the プロフィール画像 likewise.
  */
-export const updateUserFormSchema = updateUserSchema.extend({ profile: userProfileSchema });
+export const updateUserFormSchema = updateUserSchema.omit({ avatarId: true }).extend({
+  profile: userProfileSchema,
+  avatar: attachmentValueSchema.nullable(),
+});
 export type UpdateUserFormInput = z.infer<typeof updateUserFormSchema>;
 
 /** Columns the user list may be sorted by; anything else is rejected, never passed to Prisma. */

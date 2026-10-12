@@ -12,5 +12,8 @@ export default defineProject({
     name: "@repo/ui",
     environment: "jsdom",
     include: ["test/**/*.test.{ts,tsx}"],
+    // CI runs every workspace's tasks at once on one runner, where a jsdom render is tens of times
+    // slower than here: the calendar test takes 250 ms locally and took 10 s there.
+    testTimeout: 30_000,
   },
 });

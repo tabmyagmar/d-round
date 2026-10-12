@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useState } from "react";
 
-import { Avatar, AvatarFallback } from "@repo/ui/components/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/avatar";
 import { Button } from "@repo/ui/components/button";
 import {
   DropdownMenu,
@@ -41,6 +41,8 @@ const initialsOf = (name: string): string =>
 
 export type UserMenuProps = {
   user: CurrentUser;
+  /** The プロフィール画像 (a signed read URL), or null for the initials. */
+  avatarUrl: string | null;
   /** Signs out and leaves the page; the header owns it. */
   onSignOut: () => Promise<void>;
 };
@@ -49,7 +51,7 @@ export type UserMenuProps = {
  * The header's user menu: who is signed in, with プロフィール and ログアウト, which asks first
  * (legacy `ProfileModals`: ログアウト確認 / ログアウトしますか？ / はい / いいえ).
  */
-export const UserMenu = ({ user, onSignOut }: UserMenuProps) => {
+export const UserMenu = ({ user, avatarUrl, onSignOut }: UserMenuProps) => {
   const [confirming, setConfirming] = useState(false);
 
   return (
@@ -60,6 +62,7 @@ export const UserMenu = ({ user, onSignOut }: UserMenuProps) => {
           aria-label={user.name}
         >
           <Avatar>
+            {avatarUrl ? <AvatarImage src={avatarUrl} alt="" /> : null}
             <AvatarFallback>{initialsOf(user.name)}</AvatarFallback>
           </Avatar>
           <span className="hidden max-w-40 truncate md:inline">{user.name}</span>

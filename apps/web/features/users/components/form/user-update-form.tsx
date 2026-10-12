@@ -18,6 +18,7 @@ import type { UserDetail } from "@/features/users/types";
 import type { RoleFieldState } from "@/features/users/utils/role-field-state";
 import { profileFormValuesOf, toUpdateInput } from "@/features/users/utils/user-form-input";
 import { EMPLOYEE_NUMBER_TAKEN } from "@/features/users/utils/user-labels";
+import { toAttachmentValue } from "@/lib/attachments";
 
 export type UserUpdateFormProps = {
   user: UserDetail;
@@ -26,6 +27,8 @@ export type UserUpdateFormProps = {
   hierarchy: SourceHierarchy;
   /** Asked before saving a changed 社員番号 (legacy userNumberExists, the user left out). */
   isEmployeeNumberFree: (employeeNumber: number) => Promise<boolean>;
+  /** Uploads a picked プロフィール画像 (`useAttachmentUpload("USER_AVATAR")`). */
+  uploadAvatar: (file: File) => Promise<{ id: string }>;
   pending: boolean;
   onSubmit: (input: UpdateUserInput) => void;
 };
@@ -41,6 +44,7 @@ export const UserUpdateForm = ({
   canEditPermissions,
   hierarchy,
   isEmployeeNumberFree,
+  uploadAvatar,
   pending,
   onSubmit,
 }: UserUpdateFormProps) => {
@@ -58,6 +62,7 @@ export const UserUpdateForm = ({
       role: currentRole,
       ...(isOverridableRole(currentRole) ? { permissionKeys: user.permissionKeys } : {}),
       profile: profileFormValuesOf(user.profile),
+      avatar: user.avatar ? toAttachmentValue(user.avatar) : null,
     },
   });
 
@@ -88,6 +93,7 @@ export const UserUpdateForm = ({
             roleField={roleField}
             canEditPermissions={canEditPermissions}
             hierarchy={hierarchy}
+            uploadAvatar={uploadAvatar}
           >
             <FormFieldShell htmlFor="user-email" label="メールアドレス" error={undefined}>
               <p id="user-email" className="text-sm break-all">

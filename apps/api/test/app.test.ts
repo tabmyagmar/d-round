@@ -6,7 +6,7 @@ import { createApp } from "../src/app";
 import type { App } from "../src/app";
 import { REQUEST_ID_HEADER } from "../src/core/context";
 
-import { TEST_WEB_ORIGIN, createHarness } from "./support";
+import { TEST_WEB_ORIGIN, contextDeps, createHarness } from "./support";
 import type { TestHarness } from "./support";
 
 /** End-to-end over the real HTTP surface with real Postgres and Redis behind it. */
@@ -15,13 +15,7 @@ let app: App;
 
 beforeAll(async () => {
   h = await createHarness();
-  app = createApp({
-    logger: h.logger,
-    db: h.db,
-    redis: h.redis,
-    auth: h.auth,
-    webOrigin: TEST_WEB_ORIGIN,
-  });
+  app = createApp(contextDeps(h));
 });
 
 afterAll(async () => {
@@ -41,11 +35,7 @@ describe("GET /health", () => {
 
   it("returns 503 when a dependency is down", async () => {
     const degraded = createApp({
-      logger: h.logger,
-      db: h.db,
-      redis: h.redis,
-      auth: h.auth,
-      webOrigin: TEST_WEB_ORIGIN,
+      ...contextDeps(h),
       probes: { database: () => Promise.reject(new Error("down")), redis: () => h.redis.ping() },
     });
 

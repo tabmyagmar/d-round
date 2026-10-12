@@ -14,6 +14,7 @@ import { useSourceHierarchy } from "@/components/source/use-source-hierarchy";
 import { href, routes } from "@/config/routes";
 import { UserUpdateForm } from "@/features/users/components/form/user-update-form";
 import { roleFieldState } from "@/features/users/utils/role-field-state";
+import { useAttachmentUpload } from "@/hooks/use-attachment-upload";
 import { useTRPC } from "@/lib/trpc/react";
 
 export type Caller = { id: string; role: Role };
@@ -24,6 +25,7 @@ export type Caller = { id: string; role: Role };
  */
 export const UserUpdateContainer = ({ userId, caller }: { userId: string; caller: Caller }) => {
   const trpc = useTRPC();
+  const uploadAvatar = useAttachmentUpload("USER_AVATAR");
   const queryClient = useQueryClient();
   const router = useRouter();
   const canChangeRole = useAbility().can("changeRole", "User");
@@ -63,6 +65,7 @@ export const UserUpdateContainer = ({ userId, caller }: { userId: string; caller
       })}
       canEditPermissions={canChangeRole && user.data.id !== caller.id}
       hierarchy={hierarchy}
+      uploadAvatar={uploadAvatar}
       isEmployeeNumberFree={(employeeNumber) =>
         // A failed check lets the save through: the API refuses a taken number anyway.
         queryClient

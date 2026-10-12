@@ -27,6 +27,7 @@ export const STAFF_STEP_FIELDS: readonly (readonly FieldPath<StaffFormValues>[])
     "emergencyPhoneNumber",
     "email",
     "jobHistories",
+    "resumes",
   ],
   ["familyMembers", "memos"],
   [],

@@ -1,5 +1,7 @@
 // Public surface of @repo/database. Consumers never import from src/generated directly.
 export {
+  AttachmentKind,
+  AttachmentStatus,
   ClientOrderType,
   CommentFor,
   EmployeeType,
@@ -16,6 +18,7 @@ export {
 } from "./generated/prisma/client";
 export type {
   Account,
+  Attachment,
   Branch,
   BranchAddress,
   BranchCharger,

@@ -11,6 +11,7 @@ import { useSourceHierarchy } from "@/components/source/use-source-hierarchy";
 import { href, routes } from "@/config/routes";
 import { UserCreateForm } from "@/features/users/components/form/user-create-form";
 import { roleFieldState } from "@/features/users/utils/role-field-state";
+import { useAttachmentUpload } from "@/hooks/use-attachment-upload";
 import { useTRPC } from "@/lib/trpc/react";
 
 /**
@@ -19,6 +20,7 @@ import { useTRPC } from "@/lib/trpc/react";
  */
 export const UserCreateContainer = ({ callerRole }: { callerRole: Role }) => {
   const trpc = useTRPC();
+  const uploadAvatar = useAttachmentUpload("USER_AVATAR");
   const queryClient = useQueryClient();
   const router = useRouter();
   const canChangeRole = useAbility().can("changeRole", "User");
@@ -39,6 +41,7 @@ export const UserCreateContainer = ({ callerRole }: { callerRole: Role }) => {
       roleField={roleFieldState({ callerRole, canChangeRole })}
       canEditPermissions={canChangeRole}
       hierarchy={hierarchy}
+      uploadAvatar={uploadAvatar}
       isEmployeeNumberFree={(employeeNumber) =>
         // A failed check lets the invite through: the API refuses a taken number anyway.
         queryClient

@@ -50,6 +50,7 @@ const VALID: StaffFormValues = {
     { memoType: "STAFF_MEMO", content: "週3日勤務希望" },
     { memoType: "ENTRY_EXIT", content: "" },
   ],
+  resumes: [],
 };
 
 const renderForm = (overrides: Partial<StaffFormProps> = {}) => {
@@ -65,6 +66,7 @@ const renderForm = (overrides: Partial<StaffFormProps> = {}) => {
           hierarchy={HIERARCHY}
           findChargers={findChargers}
           findAddress={() => Promise.resolve({ pref: "東京都", city: "新宿区", town: "新宿" })}
+          uploadResume={vi.fn()}
           isEmployeeNumberFree={() => Promise.resolve(true)}
           templates={[]}
           cancelHref="/admin/staff"

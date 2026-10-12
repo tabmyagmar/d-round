@@ -20,6 +20,7 @@ const USER: UserDetail = {
     profile: userProfile({ employeeNumber: 12 }),
   }),
   permissionKeys: ["1202"],
+  avatar: null,
 };
 
 /** Rendered in StrictMode, as `next dev` does: effects mount, unmount and mount again. */
@@ -36,6 +37,7 @@ const renderForm = (
         canEditPermissions
         hierarchy={HIERARCHY}
         isEmployeeNumberFree={isEmployeeNumberFree}
+        uploadAvatar={vi.fn()}
         pending={false}
         onSubmit={onSubmit}
       />
@@ -73,7 +75,11 @@ describe("UserUpdateForm", () => {
   it.each(["am", "admin"] as const)(
     "keeps 保存 disabled for an untouched %s, who has no permission field",
     (role) => {
-      renderForm({ ...userRow({ role, profile: userProfile() }), permissionKeys: [] });
+      renderForm({
+        ...userRow({ role, profile: userProfile() }),
+        permissionKeys: [],
+        avatar: null,
+      });
 
       expect(screen.queryByRole("button", { name: "権限（詳細設定）" })).toBeNull();
       expect(screen.getByRole("button", { name: "保存" })).toHaveProperty("disabled", true);

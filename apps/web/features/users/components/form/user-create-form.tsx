@@ -24,12 +24,14 @@ export type UserCreateFormProps = {
   hierarchy: SourceHierarchy;
   /** Asked before sending (legacy userNumberExists); a taken number stays on the field. */
   isEmployeeNumberFree: (employeeNumber: number) => Promise<boolean>;
+  /** Uploads a picked プロフィール画像 (`useAttachmentUpload("USER_AVATAR")`). */
+  uploadAvatar: (file: File) => Promise<{ id: string }>;
   pending: boolean;
   onSubmit: (input: InviteUserInput) => void;
 };
 
 /**
- * 担当者追加 (invite): the legacy fields — 社員番号, 姓 / 名 / セイ / メイ, エリア / 地域, 部署名 / 役職,
+ * 担当者追加 (invite): the legacy fields — プロフィール画像, 社員番号, 姓 / 名 / セイ / メイ, エリア / 地域, 部署名 / 役職,
  * the email typed twice, アカウントタイプ / 退職日 and a manager's permissions — with キャンセル /
  * 招待メールを送信 in the bar at the bottom of the page. AM is preselected when the caller may give
  * it.
@@ -39,6 +41,7 @@ export const UserCreateForm = ({
   canEditPermissions,
   hierarchy,
   isEmployeeNumberFree,
+  uploadAvatar,
   pending,
   onSubmit,
 }: UserCreateFormProps) => {
@@ -53,6 +56,7 @@ export const UserCreateForm = ({
       emailConfirm: "",
       role: roleField.options.includes("am") ? "am" : (roleField.options[0] ?? DEFAULT_ROLE),
       profile: EMPTY_PROFILE,
+      avatar: null,
     },
   });
 
@@ -79,6 +83,7 @@ export const UserCreateForm = ({
             roleField={roleField}
             canEditPermissions={canEditPermissions}
             hierarchy={hierarchy}
+            uploadAvatar={uploadAvatar}
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField

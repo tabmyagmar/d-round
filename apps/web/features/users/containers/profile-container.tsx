@@ -9,11 +9,14 @@ import { Skeleton } from "@repo/ui/components/skeleton";
 
 import { PasswordChangeForm } from "@/features/users/components/profile/password-change-form";
 import { ProfileForm } from "@/features/users/components/profile/profile-form";
+import { useAttachmentUpload } from "@/hooks/use-attachment-upload";
+import { toAttachmentValue } from "@/lib/attachments";
 import { useTRPC } from "@/lib/trpc/react";
 
 export const ProfileContainer = () => {
   const trpc = useTRPC();
   const me = useQuery(trpc.user.me.queryOptions());
+  const uploadAvatar = useAttachmentUpload("USER_AVATAR");
 
   if (me.isPending) {
     return <Skeleton className="h-64 w-full max-w-xl" />;
@@ -32,13 +35,16 @@ export const ProfileContainer = () => {
       <Card>
         <CardContent>
           <ProfileForm
-            key={me.data.updatedAt.toISOString()}
+            // A saved name or image remounts the form with what is stored now.
+            key={`${me.data.updatedAt.toISOString()}:${me.data.avatar?.id ?? ""}`}
             initial={{
               lastName: me.data.lastName,
               firstName: me.data.firstName,
               lastNameKana: me.data.lastNameKana,
               firstNameKana: me.data.firstNameKana,
             }}
+            avatar={me.data.avatar ? toAttachmentValue(me.data.avatar) : null}
+            uploadAvatar={uploadAvatar}
           />
         </CardContent>
       </Card>
