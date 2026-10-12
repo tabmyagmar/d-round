@@ -1,0 +1,30 @@
+// A CSV download (docs/adr/0013-csv-import.md): who downloaded how many rows of which list, and
+// when; the file itself is the CSV_EXPORT attachment, so 履歴 hands out the same file again.
+
+/// What the file lists (the legacy EnumCsvDownloadType without the workflow, not ported yet).
+enum CsvExportType {
+  USER
+  STAFF
+  CLIENT
+  BRANCH
+
+  @@map("csv_export_type")
+}
+
+model CsvExport {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  type        CsvExportType
+  /// `UserData_20261012.xlsx`, as the legacy named them.
+  fileName    String        @map("file_name") @db.VarChar(255)
+  /// Rows in the file's first sheet (the legacy 人数).
+  rowCount    Int           @map("row_count")
+  /// Who downloaded it; only they see it in 履歴 (the legacy rule).
+  createdById String        @map("created_by_id") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  createdBy   User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  attachments Attachment[]
+
+  @@index([createdById, type, createdAt])
+  @@map("csv_exports")
+}

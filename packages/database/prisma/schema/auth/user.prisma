@@ -46,6 +46,8 @@ model User {
   uploadedAttachments Attachment[]      @relation("UploadedAttachments")
   /// CSV imports this user uploaded (ADR 0013).
   csvImports          CsvImport[]
+  /// CSV downloads this user made (ADR 0013).
+  csvExports          CsvExport[]
 
   @@index([role])
   @@map("users")

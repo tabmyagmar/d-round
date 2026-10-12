@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { createPrismaClient, withTransaction } from "@repo/database";
 import { attachmentDeleteJobId } from "@repo/queue";
 import type { AttachmentDeleteQueue } from "@repo/queue";
-import { createUploadUrlSchema } from "@repo/validation";
+import { XLSX_CONTENT_TYPE, createUploadUrlSchema } from "@repo/validation";
 import type { AttachmentKind } from "@repo/validation";
 
 import type { RequestContext } from "../../../src/core/context";
@@ -16,6 +16,7 @@ import {
   UPLOAD_NOT_ALLOWED,
   assertUploaded,
   createUploadUrl,
+  storeFile,
   syncAttachments,
   viewsOf,
 } from "../../../src/modules/attachment/attachment.service";
@@ -42,6 +43,7 @@ const FILES: Record<AttachmentKind, { fileName: string; contentType: string }> =
   USER_AVATAR: { fileName: "顔写真.PNG", contentType: "image/png" },
   STAFF_RESUME: { fileName: "履歴書.pdf", contentType: "application/pdf" },
   CSV_IMPORT: { fileName: "担当者.csv", contentType: "text/csv" },
+  CSV_EXPORT: { fileName: "UserData_20261012.xlsx", contentType: XLSX_CONTENT_TYPE },
 };
 
 /** An upload URL as the router would hand it out, and (unless `upload: false`) the PUT done. */
@@ -136,6 +138,39 @@ describe("createUploadUrl for a CSV", () => {
     await expect(createUploadUrl(admin.ctx, input)).resolves.toMatchObject({
       url: expect.stringMatching(/^memory:\/\/upload\/csv-imports\//) as unknown,
     });
+  });
+
+  it("never hands a browser the upload URL of a ダウンロード's workbook", async () => {
+    const admin = await contextOf("admin");
+    const input = createUploadUrlSchema.parse({
+      kind: "CSV_EXPORT",
+      size: 10,
+      ...FILES.CSV_EXPORT,
+    });
+
+    await expect(createUploadUrl(admin.ctx, input)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});
+
+describe("storeFile", () => {
+  it("stores a file the API wrote as a PENDING row and its object, for the owner to attach", async () => {
+    const me = await contextOf("admin");
+    const body = new TextEncoder().encode("workbook");
+
+    const id = await storeFile(me.ctx, "CSV_EXPORT", { ...FILES.CSV_EXPORT, body });
+
+    const row = await h.db.attachment.findUniqueOrThrow({ where: { id } });
+    expect(row).toMatchObject({
+      kind: "CSV_EXPORT",
+      status: "PENDING",
+      fileName: "UserData_20261012.xlsx",
+      contentType: XLSX_CONTENT_TYPE,
+      size: body.length,
+      uploadedById: me.id,
+      csvExportId: null,
+    });
+    expect(row.objectKey).toMatch(/^csv-exports\/[0-9a-f-]{36}\.xlsx$/);
+    expect(await h.storage.download(row.objectKey)).toEqual(body);
   });
 });
 
