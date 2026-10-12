@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createCallerFactory } from "../../../src/trpc/init";
 import { appRouter } from "../../../src/trpc/router";
-import { startImport, userCsv, userLine } from "../../modules/csv-import/user-csv";
+import { startImport } from "../../modules/csv-import/csv-flow";
+import { userCsv, userLine } from "../../modules/csv-import/user-csv";
 import { contextFor, createHarness, signedInUser } from "../../support";
 import type { TestHarness } from "../../support";
 

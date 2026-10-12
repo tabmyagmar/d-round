@@ -1,4 +1,5 @@
 import type { SourceArea } from "../source.schema";
+import type { EmployeeType, Gender } from "../staff.schema";
 import type { Position, Role } from "../user.schema";
 
 /**
@@ -39,3 +40,17 @@ export const ROLE_BY_LABEL = {
   AM: "am",
   スタッフ: "am",
 } as const satisfies Record<string, Role>;
+
+export const EMPLOYEE_TYPE_BY_LABEL = {
+  役員: "EXECUTIVE",
+  正社員: "FULL_TIME",
+  契約社員: "CONTRACT",
+  アルバイト: "PART_TIME",
+  その他: "OTHER",
+} as const satisfies Record<string, EmployeeType>;
+
+export const GENDER_BY_LABEL = {
+  男性: "MALE",
+  女性: "FEMALE",
+  その他: "OTHER",
+} as const satisfies Record<string, Gender>;

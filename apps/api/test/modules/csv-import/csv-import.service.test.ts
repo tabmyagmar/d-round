@@ -22,7 +22,8 @@ import {
 import { contextDeps, contextFor, createHarness, signedInUser } from "../../support";
 import type { TestHarness } from "../../support";
 
-import { startImport, userCsv, userLine } from "./user-csv";
+import { startImport } from "./csv-flow";
+import { userCsv, userLine } from "./user-csv";
 
 let h: TestHarness;
 
@@ -51,7 +52,7 @@ describe("csvImport.create", () => {
     expect(csvImport).toMatchObject({
       status: "UPLOADED",
       type: "USER_CREATE",
-      fileName: "担当者.csv",
+      fileName: "取込.csv",
     });
     expect(await h.db.attachment.findFirst({ where: { csvImportId: csvImport.id } })).toMatchObject(
       {
@@ -83,7 +84,7 @@ describe("csvImport.create", () => {
       csvImportService.create(admin.ctx, { type: "USER_CREATE", attachmentId: target.id }),
     ).rejects.toThrow(UPLOAD_INCOMPLETE);
     await expect(
-      startImport(h, admin.ctx, userCsv(userLine().text), "STAFF_CREATE"),
+      startImport(h, admin.ctx, userCsv(userLine().text), "CLIENT_CREATE"),
     ).rejects.toThrow(CSV_TYPE_UNSUPPORTED);
   });
 });
@@ -176,7 +177,7 @@ describe("csvImport.errorCsv", () => {
 
     const { fileName, text } = await csvImportService.errorCsv(ctx, csvImport.id);
 
-    expect(fileName).toBe("担当者_エラー.csv");
+    expect(fileName).toBe("取込_エラー.csv");
     const [header, ...lines] = text
       .replace(/^\uFEFF/u, "")
       .trimEnd()

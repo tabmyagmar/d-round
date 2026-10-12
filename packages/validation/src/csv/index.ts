@@ -4,4 +4,5 @@ export * from "./cells";
 export * from "./define";
 export * from "./file";
 export * from "./labels";
+export * from "./staff.csv";
 export * from "./user.csv";

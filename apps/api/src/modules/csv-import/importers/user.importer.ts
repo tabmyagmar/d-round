@@ -5,7 +5,7 @@ import type { UserCsvRow } from "@repo/validation/csv";
 
 import { ValidationError } from "../../../core/errors";
 import * as userService from "../../user/user.service";
-import { uploaderOf } from "../csv-importer";
+import { errorsByLine, uploaderOf } from "../csv-importer";
 import type { CsvImporter } from "../csv-importer";
 
 /**
@@ -34,16 +34,6 @@ const labelOfRole = (role: string) =>
   Object.entries(ROLE_BY_LABEL).find(([, code]) => code === role)?.[0] ?? role;
 
 const lower = (value: string) => value.toLowerCase();
-
-const errorsByLine = () => {
-  const errors = new Map<number, string[]>();
-  return {
-    errors,
-    add: (lineNumber: number, message: string) => {
-      errors.set(lineNumber, [...(errors.get(lineNumber) ?? []), message]);
-    },
-  };
-};
 
 export const userCreateImporter: CsvImporter<UserCsvRow> = {
   definition: userCreateCsv,

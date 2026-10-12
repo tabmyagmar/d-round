@@ -146,7 +146,7 @@ describe("runCsvCheck", () => {
     });
     const leftBehind = await uploaded(leaving, userCsv(userLine().text));
     await createUserRepository(h.db).softDelete(leaving.user.id);
-    const notPorted = await uploaded(admin, userCsv(userLine().text), "STAFF_CREATE");
+    const notPorted = await uploaded(admin, userCsv(userLine().text), "CLIENT_CREATE");
 
     for (const csvImport of [noFile, leftBehind, notPorted]) {
       expect(await runCsvCheck(contextDeps(h), job(csvImport.id))).toBe("failed");

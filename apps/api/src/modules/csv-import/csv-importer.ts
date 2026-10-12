@@ -69,6 +69,17 @@ export const csvTypeRunner = <TRow>(importer: CsvImporter<TRow>): CsvTypeRunner 
   },
 });
 
+/** The database checks' errors, collected by line number. */
+export const errorsByLine = () => {
+  const errors = new Map<number, string[]>();
+  return {
+    errors,
+    add: (lineNumber: number, message: string) => {
+      errors.set(lineNumber, [...(errors.get(lineNumber) ?? []), message]);
+    },
+  };
+};
+
 /** The uploader the import acts for (a job context always has one). */
 export const uploaderOf = (ctx: RequestContext) => {
   if (!ctx.user) {

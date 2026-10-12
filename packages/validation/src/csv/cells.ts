@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { toHalfWidthDigits } from "../common.schema";
+import { emailSchema } from "../user.schema";
 
 /**
  * Cell readers for the CSV row schemas: each takes the cell's text (always a string, "" when
@@ -135,28 +136,66 @@ export const nameListCell = (codeByName: ReadonlyMap<string, number>, required: 
   );
 
 const DATE = /^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/u;
+const DATE_FORMAT = "日付は YYYY/MM/DD の形式で入力してください";
+
+/** A date as Excel writes it (`2026/1/5`, `2026/01/05`, `2026-01-05`) → `yyyy-MM-dd`, or an issue. */
+const readDate = (value: string, context: z.core.$RefinementCtx): string => {
+  const [year = Number.NaN, month = Number.NaN, day = Number.NaN] = (
+    DATE.exec(toHalfWidthDigits(value))?.slice(1) ?? []
+  ).map(Number);
+  // Date.UTC rolls 2026/2/30 over to March: a day that does not exist reads back differently.
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const exists =
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  if (!exists) {
+    context.addIssue({ code: "custom", message: DATE_FORMAT });
+    return z.NEVER;
+  }
+  return date.toISOString().slice(0, 10);
+};
 
 /**
- * An optional date as Excel writes it (`2026/1/5`, `2026/01/05`, `2026-01-05`) → `yyyy-MM-dd`, the
- * forms' format; a day that does not exist is refused. An empty cell is `null`.
+ * An optional date (`yyyy-MM-dd`, the forms' format); a day that does not exist is refused. An
+ * empty cell is `null`.
  */
 export const dateCell = () =>
+  z.string().transform((value, context) => (value === "" ? null : readDate(value, context)));
+
+/**
+ * A date for a form schema (`createStaffSchema.shape.birthday`, which also checks the age): an
+ * empty cell is `null`, so the schema says whether the date is required.
+ */
+export const dateCellOf = <T extends z.ZodType>(schema: T) =>
+  z.preprocess(
+    (value, context) =>
+      typeof value === "string" && value !== "" ? readDate(value, context) : null,
+    schema,
+  );
+
+/**
+ * Several addresses in one cell (担当者メールアドレス), lower-cased; a malformed or repeated one is an
+ * issue. An empty cell is the `required` issue.
+ */
+export const emailListCell = (required: string) =>
   z.string().transform((value, context) => {
-    if (value === "") {
-      return null;
-    }
-    const [year = Number.NaN, month = Number.NaN, day = Number.NaN] = (
-      DATE.exec(toHalfWidthDigits(value))?.slice(1) ?? []
-    ).map(Number);
-    // Date.UTC rolls 2026/2/30 over to March: a day that does not exist reads back differently.
-    const date = new Date(Date.UTC(year, month - 1, day));
-    const exists =
-      date.getUTCFullYear() === year &&
-      date.getUTCMonth() === month - 1 &&
-      date.getUTCDate() === day;
-    if (!exists) {
-      context.addIssue({ code: "custom", message: "日付は YYYY/MM/DD の形式で入力してください" });
+    const items = splitList(value);
+    if (items.length === 0) {
+      context.addIssue({ code: "custom", message: required });
       return z.NEVER;
     }
-    return date.toISOString().slice(0, 10);
+    const emails: string[] = [];
+    for (const item of items) {
+      const email = item.toLowerCase();
+      if (emails.includes(email)) {
+        context.addIssue({ code: "custom", message: `「${item}」が重複しています` });
+      } else if (emailSchema.safeParse(item).success) {
+        emails.push(email);
+      } else {
+        context.addIssue({
+          code: "custom",
+          message: `「${item}」はメールアドレスの形式ではありません`,
+        });
+      }
+    }
+    return emails;
   });
