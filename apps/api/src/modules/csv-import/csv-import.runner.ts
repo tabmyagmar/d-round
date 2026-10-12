@@ -25,7 +25,6 @@ export const CSV_UPLOADER_INACTIVE =
   "アップロードした担当者が利用停止されているため、処理できませんでした";
 export const CSV_FILE_MISSING =
   "アップロードされたファイルが見つかりません。もう一度アップロードしてください";
-export const CSV_TYPE_UNSUPPORTED = "この種類のCSVはまだ取り込めません";
 export const CSV_CHECK_FAILED = "確認中にエラーが発生しました。もう一度アップロードしてください";
 export const CSV_IMPORT_FAILED =
   "登録中にエラーが発生しました。結果を確認し、登録されていない行をもう一度アップロードしてください";
@@ -81,9 +80,6 @@ export const runCsvCheck = async (deps: ContextDeps, job: CsvJobInput): Promise<
 
   try {
     const runner = CSV_IMPORTERS[csvImport.type];
-    if (!runner) {
-      return await fail(CSV_TYPE_UNSUPPORTED);
-    }
     const ctx = await buildJobContext(
       { userId: csvImport.createdById, traceId: job.traceId },
       deps,
@@ -164,9 +160,6 @@ export const runCsvImport = async (deps: ContextDeps, job: CsvJobInput): Promise
 
   try {
     const runner = CSV_IMPORTERS[csvImport.type];
-    if (!runner) {
-      return await fail(CSV_TYPE_UNSUPPORTED);
-    }
     const ctx = await buildJobContext(
       { userId: csvImport.createdById, traceId: job.traceId },
       deps,

@@ -7,7 +7,6 @@ import { createMemoryStorage } from "@repo/storage";
 import {
   CSV_CHECK_FAILED,
   CSV_FILE_MISSING,
-  CSV_TYPE_UNSUPPORTED,
   CSV_UPLOADER_INACTIVE,
   runCsvCheck,
   runCsvImport,
@@ -138,7 +137,7 @@ describe("runCsvCheck", () => {
     expect(await rowsOf(csvImport.id)).toEqual([]);
   });
 
-  it("fails an import whose file is gone, whose uploader left or whose type is not ported yet", async () => {
+  it("fails an import whose file is gone or whose uploader left", async () => {
     const admin = await signedInUser(h, { role: "admin" });
     const leaving = await signedInUser(h, { role: "admin" });
     const noFile = await uploaded(admin, userCsv(userLine().text), "USER_CREATE", {
@@ -146,14 +145,12 @@ describe("runCsvCheck", () => {
     });
     const leftBehind = await uploaded(leaving, userCsv(userLine().text));
     await createUserRepository(h.db).softDelete(leaving.user.id);
-    const notPorted = await uploaded(admin, userCsv(userLine().text), "CLIENT_CREATE");
 
-    for (const csvImport of [noFile, leftBehind, notPorted]) {
+    for (const csvImport of [noFile, leftBehind]) {
       expect(await runCsvCheck(contextDeps(h), job(csvImport.id))).toBe("failed");
     }
     expect((await stored(noFile.id)).lastError).toBe(CSV_FILE_MISSING);
     expect((await stored(leftBehind.id)).lastError).toBe(CSV_UPLOADER_INACTIVE);
-    expect((await stored(notPorted.id)).lastError).toBe(CSV_TYPE_UNSUPPORTED);
   });
 
   it("is tried again after a failure and fails the import on the last attempt", async () => {

@@ -25,8 +25,11 @@ export type CsvLookups = {
 export type CsvTypeDefinition<TRow> = {
   type: CsvImportType;
   columns: readonly CsvColumn[];
-  /** Column keys whose values must be unique within one file (compared trimmed, lower-cased). */
-  uniqueKeys: readonly string[];
+  /**
+   * Values that must be unique within one file (compared trimmed, lower-cased): a column key, or
+   * several keys whose values together must be (a 就業先番号 within its クライアント番号).
+   */
+  uniqueKeys: readonly (string | readonly string[])[];
   /** Cells → the row the importer works with; issues name their column key as the path. */
   rowSchema: (lookups: CsvLookups) => z.ZodType<TRow>;
 };
@@ -56,7 +59,10 @@ export const checkCsvLines = <TRow>(
   lookups: CsvLookups,
 ): CheckedCsvLine<TRow>[] => {
   const schema = definition.rowSchema(lookups);
-  const seen = new Map(definition.uniqueKeys.map((key) => [key, new Set<string>()]));
+  const seen = definition.uniqueKeys.map((spec) => ({
+    keys: typeof spec === "string" ? [spec] : spec,
+    values: new Set<string>(),
+  }));
 
   return lines.map((line) => {
     const errors: string[] = [];
@@ -70,13 +76,15 @@ export const checkCsvLines = <TRow>(
         );
       }
     }
-    for (const [key, values] of seen) {
-      const value = line.cells[key]?.trim().toLowerCase() ?? "";
-      if (value === "") {
+    for (const { keys, values } of seen) {
+      const parts = keys.map((key) => line.cells[key]?.trim().toLowerCase() ?? "");
+      if (parts.some((part) => part === "")) {
         continue;
       }
+      const value = parts.join("-");
       if (values.has(value)) {
-        errors.push(`${labelOf(definition.columns, key) ?? key}: ${value} CSV内で重複しています`);
+        const label = keys.map((key) => labelOf(definition.columns, key) ?? key).join("・");
+        errors.push(`${label}: ${value} CSV内で重複しています`);
       } else {
         values.add(value);
       }

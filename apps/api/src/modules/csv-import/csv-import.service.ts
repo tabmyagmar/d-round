@@ -18,7 +18,6 @@ import type { RequestContext } from "../../core/context";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../core/errors";
 import { UPLOAD_EXPIRED, assertUploaded, syncAttachments } from "../attachment/attachment.service";
 
-import { CSV_TYPE_UNSUPPORTED } from "./csv-import.runner";
 import { uploaderOf } from "./csv-importer";
 import { CSV_IMPORTERS } from "./importers";
 
@@ -89,9 +88,6 @@ export const create = async (
 ): Promise<CsvImport> => {
   const uploader = uploaderOf(ctx);
   assertMayImport(ctx, input.type);
-  if (!CSV_IMPORTERS[input.type]) {
-    throw new ValidationError(CSV_TYPE_UNSUPPORTED);
-  }
   await assertUploaded(ctx, "CSV_IMPORT", [input.attachmentId]);
   const file = await createAttachmentRepository(ctx.db).findById(input.attachmentId);
   if (!file) {
@@ -203,7 +199,7 @@ export const errorCsv = async (
   csvImportId: string,
 ): Promise<{ fileName: string; text: string }> => {
   const csvImport = await ownImport(ctx, csvImportId);
-  const columns = CSV_IMPORTERS[csvImport.type]?.definition.columns ?? [];
+  const columns = CSV_IMPORTERS[csvImport.type].definition.columns;
   const lines = (await createCsvImportRepository(ctx.db).findRows(csvImport.id)).flatMap((row) => {
     const message = attentionOf(csvImport, row);
     return message === null

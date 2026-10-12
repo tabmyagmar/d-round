@@ -1,3 +1,4 @@
+import type { ClientOrderType } from "../client.schema";
 import type { SourceArea } from "../source.schema";
 import type { EmployeeType, Gender } from "../staff.schema";
 import type { Position, Role } from "../user.schema";
@@ -54,3 +55,10 @@ export const GENDER_BY_LABEL = {
   女性: "FEMALE",
   その他: "OTHER",
 } as const satisfies Record<string, Gender>;
+
+/** 受注区分 (legacy `clientOrderTypeMap`). */
+export const ORDER_TYPE_BY_LABEL = {
+  業務請負: "CONTRACT_WORK",
+  派遣: "DISPATCH",
+  スポット: "SPOT_WORK",
+} as const satisfies Record<string, ClientOrderType>;

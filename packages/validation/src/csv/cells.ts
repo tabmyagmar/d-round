@@ -116,6 +116,27 @@ export const listCell = <TCode>(
     return codes;
   });
 
+/**
+ * One name of reference data loaded at run time (a 就業先部署's single 地域) → its code; an unknown
+ * name lists the known ones. An empty cell is the `required` issue.
+ */
+export const nameCell = (codeByName: ReadonlyMap<string, number>, required: string) =>
+  z.string().transform((value, context) => {
+    if (value === "") {
+      context.addIssue({ code: "custom", message: required });
+      return z.NEVER;
+    }
+    const code = codeByName.get(value);
+    if (code === undefined) {
+      context.addIssue({
+        code: "custom",
+        message: `「${value}」は使えません（${allowed([...codeByName.keys()])}）`,
+      });
+      return z.NEVER;
+    }
+    return code;
+  });
+
 /** A `listCell` over labels of a closed set. */
 export const labelListCell = <TCode extends string>(
   codeByLabel: Readonly<Record<string, TCode>>,

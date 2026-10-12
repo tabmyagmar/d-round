@@ -8,11 +8,7 @@ import {
   UPLOAD_INCOMPLETE,
   createUploadUrl,
 } from "../../../src/modules/attachment/attachment.service";
-import {
-  CSV_TYPE_UNSUPPORTED,
-  runCsvCheck,
-  runCsvImport,
-} from "../../../src/modules/csv-import/csv-import.runner";
+import { runCsvCheck, runCsvImport } from "../../../src/modules/csv-import/csv-import.runner";
 import * as csvImportService from "../../../src/modules/csv-import/csv-import.service";
 import {
   CSV_LINES_NOT_IMPORTABLE,
@@ -64,7 +60,7 @@ describe("csvImport.create", () => {
     expect(job?.data).toEqual({ csvImportId: csvImport.id, traceId: ctx.requestId });
   });
 
-  it("refuses an uploader without the entity's grant, a file not uploaded and a type not ported yet", async () => {
+  it("refuses an uploader without the entity's grant and a file not uploaded", async () => {
     const manager = await contextOf("manager");
     const admin = await contextOf("admin");
 
@@ -83,9 +79,6 @@ describe("csvImport.create", () => {
     await expect(
       csvImportService.create(admin.ctx, { type: "USER_CREATE", attachmentId: target.id }),
     ).rejects.toThrow(UPLOAD_INCOMPLETE);
-    await expect(
-      startImport(h, admin.ctx, userCsv(userLine().text), "CLIENT_CREATE"),
-    ).rejects.toThrow(CSV_TYPE_UNSUPPORTED);
   });
 });
 
