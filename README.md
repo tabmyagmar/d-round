@@ -103,7 +103,11 @@ sidebar and on the auth card) and auth background (`apps/web/public/auth-backgro
 The 操作方法 page links guide books under `apps/web/public/help/` (`guidebook.pdf`, list in
 `apps/web/features/help/utils/help-guides.ts`). They are too large for git and are ignored: a
 deployment places them, and a developer copies them from the legacy d-round-web checkout
-(`public/help/ガイドブック.pdf`).
+(`public/help/ガイドブック.pdf`). The CSV dialogs' CSVデータ説明書 are ignored the same way:
+`apps/web/public/csv/manual/{user,staff,client,branch}.pdf` (named in
+`apps/web/features/csv/utils/csv-type-content.ts`), copied from the legacy
+`public/csv/manual/<TYPE>/CSVデータの項目説明_*.pdf`. The CSVデータフォーマット templates beside
+them (`public/csv/template/`) are committed.
 
 ## What is included
 
