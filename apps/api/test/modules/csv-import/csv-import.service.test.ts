@@ -95,6 +95,8 @@ describe("csvImport.confirm", () => {
     await expect(
       csvImportService.confirm(ctx, { csvImportId: csvImport.id, lineNumbers: [2, 3] }),
     ).rejects.toThrow(CSV_LINES_NOT_IMPORTABLE);
+    // The refused confirm rolled back: nothing was enqueued after a commit that never came.
+    expect(await h.csvImportQueue.getJob(csvImportJobId(csvImport.id))).toBeUndefined();
     expect((await csvImportService.byId(ctx, csvImport.id)).status).toBe("CHECKED");
     expect((await csvImportService.rows(ctx, csvImport.id)).map((row) => row.selected)).toEqual([
       false,
@@ -141,6 +143,23 @@ describe("reading imports", () => {
       perPage: 20,
     });
     expect(page.items.map((item) => item.id)).not.toContain(csvImport.id);
+  });
+
+  it("shows one's history only with the entity's read grant still held", async () => {
+    const { signedIn, ctx } = await contextOf("admin");
+    const csvImport = await startImport(h, ctx, userCsv(userLine().text));
+    // Grants are read at session lookup, so the DENY row goes in before the context is built.
+    await h.db.userPermission.create({
+      data: { userId: signedIn.user.id, permissionKey: "1102", effect: "DENY" },
+    });
+    const denied = await contextFor(h, signedIn.headers);
+
+    for (const read of [csvImportService.byId, csvImportService.rows, csvImportService.errorCsv]) {
+      await expect(read(denied, csvImport.id)).rejects.toBeInstanceOf(ForbiddenError);
+    }
+    await expect(
+      csvImportService.list(denied, { type: "USER_CREATE", page: 1, perPage: 20 }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it("pages one type's imports newest first, with the uploader", async () => {

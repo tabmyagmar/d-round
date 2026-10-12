@@ -202,15 +202,17 @@ export const create = async (
   return { ...csvExport, url: await urlOf(ctx, csvExport.id) };
 };
 
-/** 履歴: the caller's downloads of one type, newest first. */
-export const list = (
+/** 履歴: the caller's downloads of one type, newest first, for whoever may download it now. */
+export const list = async (
   ctx: RequestContext,
   query: ListCsvExportsQuery,
-): Promise<PageResult<CsvExportListItem>> =>
-  createCsvExportRepository(ctx.db).findPage(
+): Promise<PageResult<CsvExportListItem>> => {
+  assertMayExport(ctx, query.type);
+  return createCsvExportRepository(ctx.db).findPage(
     { page: query.page, perPage: query.perPage },
     { createdById: makerOf(ctx).id, type: query.type },
   );
+};
 
 /**
  * 履歴's ダウンロード: a new read URL for one of the caller's files. The file holds the entity's data,
@@ -222,5 +224,9 @@ export const downloadUrl = async (
 ): Promise<CsvExportFile> => {
   const csvExport = await ownExport(ctx, csvExportId);
   assertMayExport(ctx, csvExport.type);
+  if (csvExport.type === "CLIENT") {
+    // The file may hold the clients' 就業先部署情報 sheet: the branch grant goes with it.
+    assertMayExport(ctx, "BRANCH");
+  }
   return { ...csvExport, url: await urlOf(ctx, csvExport.id) };
 };

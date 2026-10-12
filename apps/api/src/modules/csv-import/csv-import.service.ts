@@ -30,7 +30,7 @@ import { CSV_IMPORTERS } from "./importers";
 
 export const CSV_NOT_CONFIRMABLE = "この取込は確定できません。履歴から状況を確認してください";
 export const CSV_LINES_NOT_IMPORTABLE = "エラーのある行、またはファイルにない行は登録できません";
-export const CSV_ROW_NOT_PROCESSED = "登録されませんでした（処理が中断されました）";
+export const CSV_ROW_NOT_PROCESSED = "処理が中断されたため、登録されたか確認できませんでした";
 
 /** What each type writes, and so the grant its uploader needs besides catalog 1401. */
 const ENTITY_GRANTS = {
@@ -58,6 +58,19 @@ const assertMayImport = (ctx: RequestContext, type: CsvImportType): void => {
   }
 };
 
+/**
+ * History, an import's lines and its error CSV (D11): catalog 1402 and the read of every row of
+ * the entity, checked here as well as in the router.
+ */
+const assertMayRead = (ctx: RequestContext, type: CsvImportType): void => {
+  if (
+    !ctx.ability.can("read", "SourceCsvHistory") ||
+    !canUnscoped(ctx.ability, "read", ENTITY_GRANTS[type].subject)
+  ) {
+    throw new ForbiddenError("このCSV取込を見る権限がありません");
+  }
+};
+
 /** The caller's own import; another user's is not found, so its existence does not leak. */
 const ownImport = async (ctx: RequestContext, csvImportId: string): Promise<CsvImport> => {
   const uploader = uploaderOf(ctx);
@@ -65,6 +78,13 @@ const ownImport = async (ctx: RequestContext, csvImportId: string): Promise<CsvI
   if (csvImport?.createdById !== uploader.id) {
     throw new NotFoundError("CsvImport", csvImportId);
   }
+  return csvImport;
+};
+
+/** The caller's own import, which they may read now. */
+const readableImport = async (ctx: RequestContext, csvImportId: string): Promise<CsvImport> => {
+  const csvImport = await ownImport(ctx, csvImportId);
+  assertMayRead(ctx, csvImport.type);
   return csvImport;
 };
 
@@ -153,23 +173,25 @@ export const confirm = async (
 };
 
 export const byId = (ctx: RequestContext, csvImportId: string): Promise<CsvImport> =>
-  ownImport(ctx, csvImportId);
+  readableImport(ctx, csvImportId);
 
 /** The import's rows in CSV order (150 at most): cells, errors, choice and result. */
 export const rows = async (ctx: RequestContext, csvImportId: string): Promise<CsvImportRow[]> => {
-  const csvImport = await ownImport(ctx, csvImportId);
+  const csvImport = await readableImport(ctx, csvImportId);
   return createCsvImportRepository(ctx.db).findRows(csvImport.id);
 };
 
 /** 履歴: the caller's imports of one type, newest first. */
-export const list = (
+export const list = async (
   ctx: RequestContext,
   query: ListCsvImportsQuery,
-): Promise<PageResult<CsvImportListItem>> =>
-  createCsvImportRepository(ctx.db).findPage(
+): Promise<PageResult<CsvImportListItem>> => {
+  assertMayRead(ctx, query.type);
+  return createCsvImportRepository(ctx.db).findPage(
     { page: query.page, perPage: query.perPage },
     { createdById: uploaderOf(ctx).id, type: query.type },
   );
+};
 
 /** The message of a row that needs attention, or null for a row that is fine. */
 const attentionOf = (csvImport: CsvImport, row: CsvImportRow): string | null => {
@@ -198,7 +220,7 @@ export const errorCsv = async (
   ctx: RequestContext,
   csvImportId: string,
 ): Promise<{ fileName: string; text: string }> => {
-  const csvImport = await ownImport(ctx, csvImportId);
+  const csvImport = await readableImport(ctx, csvImportId);
   const columns = CSV_IMPORTERS[csvImport.type].definition.columns;
   const lines = (await createCsvImportRepository(ctx.db).findRows(csvImport.id)).flatMap((row) => {
     const message = attentionOf(csvImport, row);

@@ -334,4 +334,31 @@ describe("csvExport history", () => {
       NotFoundError,
     );
   });
+
+  it("hands a file out again only with the grants it takes to make it now", async () => {
+    const { admin, ctx, chargerId } = await adminWithCharger();
+    const client = await clientService.create(ctx, clientInput([chargerId]));
+    const csvExport = await exportOf(ctx, { type: "CLIENT", ids: [client.id], fields: ["name"] });
+    // Grants are read at session lookup, so the DENY rows go in before each context is built.
+    await h.db.userPermission.create({
+      data: { userId: admin.user.id, permissionKey: "1802", effect: "DENY" },
+    });
+    const noBranches = await contextFor(h, admin.headers);
+
+    // A client's file may hold its branches' sheet: without the branch grant, not again.
+    await expect(csvExportService.downloadUrl(noBranches, csvExport.id)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(
+      (await csvExportService.list(noBranches, { type: "CLIENT", page: 1, perPage: 20 })).items,
+    ).toHaveLength(1);
+
+    await h.db.userPermission.create({
+      data: { userId: admin.user.id, permissionKey: "1202", effect: "DENY" },
+    });
+    const noClients = await contextFor(h, admin.headers);
+    await expect(
+      csvExportService.list(noClients, { type: "CLIENT", page: 1, perPage: 20 }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
 });
