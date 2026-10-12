@@ -3,6 +3,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { listUsersSchema } from "@repo/validation";
@@ -30,9 +31,10 @@ const UserStatusDialog = dynamic(
 /**
  * 担当者管理: the URL is the list's state (search, role, status, page, sort), read through the
  * API's own input schema; the previous page stays on screen while the next one loads. The selected
- * rows live in the list's row selection (`RowSelectionProvider`), shared by the table and toolbar.
+ * rows live in the list's row selection (`RowSelectionProvider`), shared by the table and toolbar;
+ * the page hands in the CSV feature's menu, which downloads them.
  */
-export const UsersContainer = () => {
+export const UsersContainer = ({ csvMenu }: { csvMenu?: ReactNode }) => {
   const trpc = useTRPC();
   const { searchParams, setMany } = useSearch();
   const input = useMemo(() => parseSearchParams(listUsersSchema, searchParams), [searchParams]);
@@ -46,7 +48,12 @@ export const UsersContainer = () => {
   return (
     <RowSelectionProvider>
       <div className="flex flex-col gap-4">
-        <UsersToolbar filters={filters} regions={hierarchy.regions} onChange={setMany} />
+        <UsersToolbar
+          filters={filters}
+          regions={hierarchy.regions}
+          onChange={setMany}
+          csvMenu={csvMenu}
+        />
         {users.isError ? (
           <Alert variant="destructive">
             <AlertTitle>担当者一覧を読み込めませんでした</AlertTitle>

@@ -3,6 +3,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { listClientsSchema } from "@repo/validation";
@@ -35,7 +36,7 @@ const ClientDeleteDialog = dynamic(
 );
 
 /** The list inside its row selection: deleted clients leave the selection. */
-const ClientsList = () => {
+const ClientsList = ({ csvMenu }: { csvMenu: ReactNode }) => {
   const trpc = useTRPC();
   const { searchParams, setMany } = useSearch();
   const input = useMemo(() => parseSearchParams(listClientsSchema, searchParams), [searchParams]);
@@ -53,6 +54,7 @@ const ClientsList = () => {
   return (
     <div className="flex flex-col gap-4">
       <ClientsToolbar
+        csvMenu={csvMenu}
         filters={filters}
         names={hierarchy}
         onChange={setMany}
@@ -105,10 +107,11 @@ const ClientsList = () => {
 
 /**
  * クライアント管理: the URL is the list's state (search, filters, page, sort), read through the
- * API's own input schema; the previous page stays on screen while the next one loads.
+ * API's own input schema; the previous page stays on screen while the next one loads. The page hands in
+ * the CSV feature's menu (`csvMenu`), which downloads the selected rows.
  */
-export const ClientsContainer = () => (
+export const ClientsContainer = ({ csvMenu }: { csvMenu?: ReactNode }) => (
   <RowSelectionProvider>
-    <ClientsList />
+    <ClientsList csvMenu={csvMenu} />
   </RowSelectionProvider>
 );
