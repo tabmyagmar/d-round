@@ -760,3 +760,25 @@ build what the CSV jobs need on top of it.
 ## Log
 
 - 2026-10-12 — draft written (phase 2 of the brief); waiting for the answers to the open questions.
+- 2026-10-12 — approved by the user ("ok heregjuul"): every open question takes its recommended
+  answer (1 the worker runs `@repo/api/jobs`, 2 imported users get the invitation mail, 3 per-row
+  import, 4 own imports only, 5 SheetJS 0.20.3, 6 the manual PDFs git-ignored as the help PDFs, 7
+  the stage order). One branch for the epic (`feature/D_ROUND-TBD_csv-import`, no Backlog keys yet);
+  each ticket is one or more commits named after it.
+- 2026-10-12 — amendments while building T1–T6:
+  - D3: a check that fails is not released to UPLOADED; its claim accepts CHECKING, so the retry of
+    the same job runs again, and a CHECKING import without progress for 10 minutes is failed (a job
+    BullMQ gave up on stays in Redis under its id for 7 days, so a re-enqueue would be a no-op). The
+    csv-import queue drops failed jobs at once (`removeOnFail`), as the attachment deletes do.
+  - Order: T3 (storage) and T4 (the CSV module) were built before T2, so the runners were written
+    against the real download and parser; T2 and T5 share commits.
+  - D6: `csv-parse`'s browser build is one self-contained ESM file (no imports), so the bundling
+    spike passed without papaparse; the CSV module is the separate entry `@repo/validation/csv`.
+  - D7: the row schemas are built from the forms' own schema pieces, read through cell readers
+    (`textCell`, `integerCell`, `labelCell`, `listCell`, `dateCell` — dates as Excel writes them,
+    `2026/1/5` included); a message gets the column's name unless it already names it.
+  - 担当者 CSV: 社員番号 is required, as on the form (the legacy numbered blanks itself); the roles
+    are アドミン, マネージャー / マネジャー, AM and スタッフ (both AM: the legacy browser check
+    wanted スタッフ, its server AM); an update cannot change the address (no screen can), and finds
+    its 担当者 by 社員番号.
+  - The CSV queue rides in the request context (`ctx.csvImportQueue`), as the attachment deletes'.
