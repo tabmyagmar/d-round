@@ -16,8 +16,9 @@ export type StepperProps = {
 /**
  * The steps of a multi-step form, as romuten-v3's `Stepper`: a numbered circle per step (a check
  * once completed) with its label, joined by a line, the current step marked `aria-current="step"`.
- * Going back goes through the completed steps when `onStepClick` is given; going forward is the
- * form's job after it validated the step (`useStepper`). Hook-free.
+ * Below `sm` only the current step keeps its label on screen (four labels do not fit 375 px); the
+ * others stay for screen readers. Going back goes through the completed steps when `onStepClick`
+ * is given; going forward is the form's job after it validated the step (`useStepper`). Hook-free.
  */
 export const Stepper = ({
   steps,
@@ -48,6 +49,7 @@ export const Stepper = ({
               className={cn(
                 "text-sm whitespace-nowrap",
                 completed || isCurrent ? "font-medium text-foreground" : "text-muted-foreground",
+                !isCurrent && "max-sm:sr-only",
               )}
             >
               {step}
