@@ -55,7 +55,10 @@ jobs:
       REDIS_URL: redis://localhost:6379
 
     steps:
+      # Full history: the Conventional Commits step reads the pull request's base..head range.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
