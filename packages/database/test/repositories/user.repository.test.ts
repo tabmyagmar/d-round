@@ -316,6 +316,50 @@ describe("user repository", () => {
     expect(await repo.countProfilesByEmployeeNumber(data.employeeNumber + 1)).toBe(0);
   });
 
+  it("finds the addresses and 社員番号 already taken, deactivated users included", async () => {
+    const repo = createUserRepository(prisma);
+    const active = await createUser({ group: group() });
+    const deactivated = await createUser({ group: group() });
+    const activeProfile = profileData();
+    const deactivatedProfile = profileData();
+    await repo.upsertProfile(active.id, activeProfile);
+    await repo.upsertProfile(deactivated.id, deactivatedProfile);
+    await repo.softDelete(deactivated.id);
+    const free = `${crypto.randomUUID()}@example.com`;
+
+    expect(
+      (await repo.findTakenEmails([active.email.toUpperCase(), deactivated.email, free])).sort(),
+    ).toEqual([active.email, deactivated.email].sort());
+    expect(
+      (
+        await repo.findTakenEmployeeNumbers([
+          activeProfile.employeeNumber,
+          deactivatedProfile.employeeNumber,
+          activeProfile.employeeNumber + 1,
+        ])
+      ).sort(),
+    ).toEqual([activeProfile.employeeNumber, deactivatedProfile.employeeNumber].sort());
+  });
+
+  it("finds active users by 社員番号 with their profile", async () => {
+    const repo = createUserRepository(prisma);
+    const active = await createUser({ group: group() });
+    const deactivated = await createUser({ group: group() });
+    const activeProfile = profileData();
+    const deactivatedProfile = profileData();
+    await repo.upsertProfile(active.id, activeProfile);
+    await repo.upsertProfile(deactivated.id, deactivatedProfile);
+    await repo.softDelete(deactivated.id);
+
+    const found = await repo.findByEmployeeNumbers([
+      activeProfile.employeeNumber,
+      deactivatedProfile.employeeNumber,
+    ]);
+    expect(found.map((user) => [user.id, user.profile?.employeeNumber])).toEqual([
+      [active.id, activeProfile.employeeNumber],
+    ]);
+  });
+
   it("lists charger options in kana order, users without kana last, deactivated users never", async () => {
     const repo = createUserRepository(prisma);
     const prefix = group();

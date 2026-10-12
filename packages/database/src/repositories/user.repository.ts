@@ -117,6 +117,31 @@ export const createUserRepository = (db: DbClient) => ({
       where: { employeeNumber, ...(exceptUserId ? { userId: { not: exceptUserId } } : {}) },
     }),
 
+  /** The addresses among `emails` a user already has, deactivated users included (case-blind). */
+  findTakenEmails: async (emails: readonly string[]): Promise<string[]> => {
+    const users = await db.user.findMany({
+      where: { email: { in: [...emails], mode: "insensitive" } },
+      select: { email: true },
+    });
+    return users.map((user) => user.email);
+  },
+
+  /** The 社員番号 among `employeeNumbers` some profile already holds. */
+  findTakenEmployeeNumbers: async (employeeNumbers: readonly number[]): Promise<number[]> => {
+    const profiles = await db.userProfile.findMany({
+      where: { employeeNumber: { in: [...employeeNumbers] } },
+      select: { employeeNumber: true },
+    });
+    return profiles.map((profile) => profile.employeeNumber);
+  },
+
+  /** Active users by 社員番号, with their profile: the targets of a CSV update. */
+  findByEmployeeNumbers: (employeeNumbers: readonly number[]): Promise<UserWithProfile[]> =>
+    db.user.findMany({
+      where: { deletedAt: null, profile: { employeeNumber: { in: [...employeeNumbers] } } },
+      include: WITH_PROFILE,
+    }),
+
   /** Sets the profile's regions to exactly `regionCodes`; run it in the profile's transaction. */
   replaceProfileRegions: async (userId: string, regionCodes: readonly number[]): Promise<void> => {
     await db.userProfileRegion.deleteMany({ where: { userId } });
