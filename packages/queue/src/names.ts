@@ -11,6 +11,10 @@ export const QUEUE_NAMES = {
   attachmentDelete: "attachment-delete",
   /** Repeatable job that expires stale PENDING attachments and re-enqueues lost deletes. */
   attachmentSweeper: "attachment-sweeper",
+  /** Checks and imports uploaded CSV files: jobs `check` and `import` (ADR 0013). */
+  csvImport: "csv-import",
+  /** Repeatable job that re-enqueues lost CSV jobs and fails interrupted ones (apps/worker). */
+  csvImportSweeper: "csv-import-sweeper",
 } as const satisfies Record<string, string>;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
