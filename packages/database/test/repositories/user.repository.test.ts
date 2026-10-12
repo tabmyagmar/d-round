@@ -363,6 +363,19 @@ describe("user repository", () => {
     ]);
   });
 
+  it("lists the users of a where by 社員番号, deactivated ones included", async () => {
+    const repo = createUserRepository(prisma);
+    const active = await createUser({ group: group() });
+    const deactivated = await createUser({ group: group() });
+    const base = 10_000 + Math.floor(Math.random() * 2_000_000_000);
+    await repo.upsertProfile(active.id, profileData({ employeeNumber: base + 1 }));
+    await repo.upsertProfile(deactivated.id, profileData({ employeeNumber: base }));
+    await repo.softDelete(deactivated.id);
+
+    const users = await repo.findManyIncludingDeleted({ id: { in: [active.id, deactivated.id] } });
+    expect(users.map((user) => user.id)).toEqual([deactivated.id, active.id]);
+  });
+
   it("finds active users by 社員番号 with their profile", async () => {
     const repo = createUserRepository(prisma);
     const active = await createUser({ group: group() });

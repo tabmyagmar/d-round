@@ -159,6 +159,21 @@ describe("client repository", () => {
     });
   });
 
+  it("lists the non-deleted clients of a where with their regions, by クライアント番号", async () => {
+    await scenario(async (tx) => {
+      const repo = createClientRepository(tx);
+      const number = uniqueNumber();
+      const second = await repo.create(write({ number: number + 1 }));
+      const first = await repo.create(write({ number }));
+      const gone = await repo.create(write({ number: number + 2 }));
+      await repo.softDeleteMany([gone.id]);
+
+      const clients = await repo.findManyDetailed({ id: { in: [first.id, second.id, gone.id] } });
+      expect(clients.map((row) => row.id)).toEqual([first.id, second.id]);
+      expect(clients[0]?.regions.map((region) => region.region.name)).toEqual(["南関東"]);
+    });
+  });
+
   it("finds the non-deleted clients holding some クライアント番号", async () => {
     await scenario(async (tx) => {
       const repo = createClientRepository(tx);

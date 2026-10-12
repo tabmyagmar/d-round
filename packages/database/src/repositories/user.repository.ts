@@ -153,6 +153,17 @@ export const createUserRepository = (db: DbClient) => ({
       },
     }),
 
+  /**
+   * Every user `where` matches, deactivated ones included (a 停止 user is listed and exported, as
+   * the legacy did), with their profile, by 社員番号: a CSV download.
+   */
+  findManyIncludingDeleted: (where: Prisma.UserWhereInput): Promise<UserWithProfile[]> =>
+    db.user.findMany({
+      where,
+      include: WITH_PROFILE,
+      orderBy: [{ profile: { employeeNumber: "asc" } }, { id: "asc" }],
+    }),
+
   /** Active users by 社員番号, with their profile: the targets of a CSV update. */
   findByEmployeeNumbers: (employeeNumbers: readonly number[]): Promise<UserWithProfile[]> =>
     db.user.findMany({

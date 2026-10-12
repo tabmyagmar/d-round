@@ -8,6 +8,7 @@ export * from "./branch.schema";
 export * from "./client.schema";
 export * from "./comment-template.schema";
 export * from "./common.schema";
+export * from "./csv-export.schema";
 export * from "./csv-import.schema";
 export * from "./permission.schema";
 export * from "./phone.schema";

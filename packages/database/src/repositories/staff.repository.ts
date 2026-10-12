@@ -234,6 +234,14 @@ export const createStaffRepository = (db: DbClient) => ({
     await db.staffCharger.createMany({ data: userIds.map((userId) => ({ staffId, userId })) });
   },
 
+  /** The non-deleted staff `where` matches, with everything the detail shows, by スタッフ番号. */
+  findManyDetailed: (where: Prisma.StaffWhereInput): Promise<StaffDetailRow[]> =>
+    db.staff.findMany({
+      where: { AND: [where, { deletedAt: null }] },
+      include: STAFF_DETAIL_INCLUDE,
+      orderBy: [{ employeeNumber: "asc" }, { id: "asc" }],
+    }),
+
   /** The non-deleted staff holding these スタッフ番号 (a CSV's numbers: taken, or update targets). */
   findActiveByEmployeeNumbers: (
     employeeNumbers: readonly number[],

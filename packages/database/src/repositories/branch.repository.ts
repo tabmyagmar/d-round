@@ -110,6 +110,14 @@ export const createBranchRepository = (db: DbClient) => ({
     });
   },
 
+  /** The non-deleted branches `where` matches, by クライアント番号 and 就業先番号. */
+  findManyDetailed: (where: Prisma.BranchWhereInput): Promise<BranchRow[]> =>
+    db.branch.findMany({
+      where: { AND: [where, { deletedAt: null }] },
+      include: BRANCH_INCLUDE,
+      orderBy: [{ client: { number: "asc" } }, { number: "asc" }, { id: "asc" }],
+    }),
+
   /** The non-deleted branches of these clients, by 就業先番号 (a CSV's branches: taken, or targets). */
   findActiveByClientIds: (
     clientIds: readonly string[],
