@@ -782,3 +782,14 @@ build what the CSV jobs need on top of it.
     wanted スタッフ, its server AM); an update cannot change the address (no screen can), and finds
     its 担当者 by 社員番号.
   - The CSV queue rides in the request context (`ctx.csvImportQueue`), as the attachment deletes'.
+- 2026-10-12 — amendments while building T7–T10:
+  - T10: the download columns live in `packages/validation/src/csv-export.schema.ts` (main entry),
+    not in `csv/*.csv.ts`: the dialog and the input schema need them, and the main entry must not
+    load the CSV parser. The browser sends column keys; the API owns headers and cells.
+  - T10: the staff download's 緊急連絡先 column is headed 緊急連絡先（電話番号）, as on the form
+    (the legacy headed it 電話番号, twice in one sheet); 住所（県・市） is the post
+    code's 都道府県・市区町村・町域 and 住所 the typed line, as the legacy split address1 /
+    address2.
+  - T10: the client download's 就業先部署情報 sheet lists every non-deleted branch of the clients
+    (the legacy `branchIds` was never sent) and needs the branch read grant; downloading a file
+    again needs the grants to make it now.

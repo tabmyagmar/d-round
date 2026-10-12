@@ -49,6 +49,17 @@ The plan for this port is `docs/plans/2026-10-12-csv-import.md` (`plan.md` while
 - **Visibility**: the uploader only, for every role (the legacy rule
   `SourceCsvHistory: { createdBy }`); upload needs catalog 1401 (`create SourceCsvHistory`), history
   1402 (`read`), each plus the entity's own grant.
+- **Downloads** (`csvExport`, the legacy `download<Type>Csv`): the rows ticked in a list (1–500, the
+  legacy limit) with the columns picked, as an xlsx written inside the request — 500 rows take no
+  job. SheetJS 0.20.3 from its CDN tarball writes it as the legacy did (the npm `xlsx` stops at
+  0.18.5). The browser sends column keys only; headers and cells are the API's (the legacy walked
+  whatever field path the browser sent). The workbook is an attachment of kind `CSV_EXPORT` owned by
+  a `csv_exports` row (type, file name, row count, maker; migration `add_csv_exports`),
+  so 履歴 hands out the same file again (the legacy kept base64 in the database). The API writes it
+  itself (`storeFile`: the PENDING row first, so the sweeper removes an object the transaction never
+  attached); a browser never gets its upload URL. Making a download, or downloading it again, needs
+  1402 and the entity's read on every row (`canUnscoped`; a クライアント's 就業先部署 sheet needs
+  the branch read too), and every download is its maker's only.
 
 ## Alternatives
 
