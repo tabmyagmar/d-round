@@ -1,12 +1,13 @@
 import { CsvError, parse } from "csv-parse/browser/esm/sync";
 
+import { CSV_MAX_ROWS } from "../csv-import.schema";
+
 /**
  * Reading and writing CSV files (docs/adr/0013-csv-import.md). The browser runs these on the picked
  * file for instant feedback, the worker on the stored file; the same code decides both.
  */
 
-/** Data rows one file may hold (the legacy limit, now inclusive). */
-export const CSV_MAX_ROWS = 150;
+export { CSV_MAX_ROWS };
 
 /** A cell's value by column key, trimmed. Columns the file lacks are absent. */
 export type CsvCells = Readonly<Record<string, string>>;

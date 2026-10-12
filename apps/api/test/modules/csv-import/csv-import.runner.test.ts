@@ -15,6 +15,8 @@ import {
 import { contextDeps, createHarness, signedInUser, uniqueEmployeeNumber } from "../../support";
 import type { SignedInUser, TestHarness } from "../../support";
 
+import { userCsv, userLine } from "./user-csv";
+
 let h: TestHarness;
 
 beforeAll(async () => {
@@ -24,51 +26,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await h.stop();
 });
-
-const HEADER =
-  "社員番号（必須）,姓（必須）,名（必須）,セイ（必須）,メイ（必須）,エリア（必須）,地区（必須）,部署名（必須）,役職（必須）,メールアドレス（必須）,アカウントタイプ（必須）,退職日";
-
-type UserLine = {
-  employeeNumber: string;
-  lastName: string;
-  lastNameKana: string;
-  regions: string;
-  position: string;
-  email: string;
-  role: string;
-};
-
-const userLine = (overrides: Partial<UserLine> = {}) => {
-  const line: UserLine = {
-    employeeNumber: String(uniqueEmployeeNumber()),
-    lastName: "山田",
-    lastNameKana: "ヤマダ",
-    regions: "南関東",
-    position: "正社員",
-    email: `${crypto.randomUUID()}@example.com`,
-    role: "AM",
-    ...overrides,
-  };
-  return {
-    ...line,
-    text: [
-      line.employeeNumber,
-      line.lastName,
-      "太郎",
-      line.lastNameKana,
-      "タロウ",
-      "東日本",
-      `"${line.regions}"`,
-      "人事部",
-      line.position,
-      line.email,
-      line.role,
-      "",
-    ].join(","),
-  };
-};
-
-const csvOf = (...lines: string[]) => [HEADER, ...lines].join("\r\n");
 
 /** An import as `csvImport.create` leaves it: UPLOADED, its file attached and in the bucket. */
 const uploaded = async (
@@ -127,7 +84,7 @@ describe("runCsvCheck", () => {
     const valid = userLine();
     const csvImport = await uploaded(
       admin,
-      csvOf(
+      userCsv(
         valid.text,
         userLine({ lastNameKana: "やまだ" }).text,
         userLine({ email: existing.email }).text,
@@ -158,7 +115,7 @@ describe("runCsvCheck", () => {
 
   it("refuses a role the uploader may not give, as the form would not offer it", async () => {
     const manager = await signedInUser(h, { role: "manager" });
-    const csvImport = await uploaded(manager, csvOf(userLine({ role: "アドミン" }).text));
+    const csvImport = await uploaded(manager, userCsv(userLine({ role: "アドミン" }).text));
 
     await runCsvCheck(contextDeps(h), job(csvImport.id));
 
@@ -184,12 +141,12 @@ describe("runCsvCheck", () => {
   it("fails an import whose file is gone, whose uploader left or whose type is not ported yet", async () => {
     const admin = await signedInUser(h, { role: "admin" });
     const leaving = await signedInUser(h, { role: "admin" });
-    const noFile = await uploaded(admin, csvOf(userLine().text), "USER_CREATE", {
+    const noFile = await uploaded(admin, userCsv(userLine().text), "USER_CREATE", {
       inBucket: false,
     });
-    const leftBehind = await uploaded(leaving, csvOf(userLine().text));
+    const leftBehind = await uploaded(leaving, userCsv(userLine().text));
     await createUserRepository(h.db).softDelete(leaving.user.id);
-    const notPorted = await uploaded(admin, csvOf(userLine().text), "STAFF_CREATE");
+    const notPorted = await uploaded(admin, userCsv(userLine().text), "STAFF_CREATE");
 
     for (const csvImport of [noFile, leftBehind, notPorted]) {
       expect(await runCsvCheck(contextDeps(h), job(csvImport.id))).toBe("failed");
@@ -201,7 +158,7 @@ describe("runCsvCheck", () => {
 
   it("is tried again after a failure and fails the import on the last attempt", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const csvImport = await uploaded(admin, csvOf(userLine().text));
+    const csvImport = await uploaded(admin, userCsv(userLine().text));
     const storage = createMemoryStorage();
     const broken = {
       ...contextDeps(h),
@@ -222,7 +179,7 @@ describe("runCsvCheck", () => {
 
   it("does nothing the second time, or for an import that does not exist", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const csvImport = await uploaded(admin, csvOf(userLine().text));
+    const csvImport = await uploaded(admin, userCsv(userLine().text));
 
     expect(await runCsvCheck(contextDeps(h), job(csvImport.id))).toBe("checked");
     expect(await runCsvCheck(contextDeps(h), job(csvImport.id))).toBe("skipped");
@@ -235,7 +192,7 @@ describe("runCsvImport", () => {
     const admin = await signedInUser(h, { role: "admin" });
     const first = userLine({ position: "AM" });
     const second = userLine();
-    const csvImport = await uploaded(admin, csvOf(first.text, second.text));
+    const csvImport = await uploaded(admin, userCsv(first.text, second.text));
     await runCsvCheck(contextDeps(h), job(csvImport.id));
     await confirmAll(admin, csvImport.id);
     // Someone takes the second address between the check and the import.
@@ -279,7 +236,7 @@ describe("runCsvImport", () => {
 
   it("acts with the uploader's current grants: a permission revoked since the check fails the rows", async () => {
     const admin = await signedInUser(h, { role: "admin" });
-    const csvImport = await uploaded(admin, csvOf(userLine().text));
+    const csvImport = await uploaded(admin, userCsv(userLine().text));
     await runCsvCheck(contextDeps(h), job(csvImport.id));
     await confirmAll(admin, csvImport.id);
     await h.db.userPermission.create({
@@ -305,7 +262,7 @@ describe("runCsvImport", () => {
     const unknown = uniqueEmployeeNumber();
     const csvImport = await uploaded(
       admin,
-      csvOf(
+      userCsv(
         userLine({ employeeNumber: String(targetNumber), lastName: "改名", email: "" }).text,
         userLine({ employeeNumber: String(unknown) }).text,
         userLine({ employeeNumber: String(otherNumber), email: "new@example.com" }).text,

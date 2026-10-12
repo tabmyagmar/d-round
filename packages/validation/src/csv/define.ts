@@ -1,24 +1,12 @@
-import { z } from "zod";
+import type { z } from "zod";
+
+import type { CsvImportType } from "../csv-import.schema";
 
 import { columnLabel } from "./file";
 import type { CsvColumn, ParsedCsvLine } from "./file";
 
-/**
- * What a CSV file adds or updates — the database enum `CsvImportType` matches (the legacy
- * EnumCsvUploadType). An UPDATE row finds its target by its number column.
- */
-export const CSV_IMPORT_TYPES = [
-  "USER_CREATE",
-  "USER_UPDATE",
-  "STAFF_CREATE",
-  "STAFF_UPDATE",
-  "CLIENT_CREATE",
-  "CLIENT_UPDATE",
-  "BRANCH_CREATE",
-  "BRANCH_UPDATE",
-] as const;
-export const csvImportTypeSchema = z.enum(CSV_IMPORT_TYPES);
-export type CsvImportType = z.infer<typeof csvImportTypeSchema>;
+export { CSV_IMPORT_TYPES, csvImportTypeSchema } from "../csv-import.schema";
+export type { CsvImportType } from "../csv-import.schema";
 
 /**
  * Reference data the row schemas turn names into codes with (地域, 都道府県): the browser has it
