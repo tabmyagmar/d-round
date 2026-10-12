@@ -9,6 +9,8 @@ enum AttachmentKind {
   USER_AVATAR
   /// 履歴書 of a スタッフ — owner `staff_id`, up to 3
   STAFF_RESUME
+  /// The file of a CSV import — owner `csv_import_id` (ADR 0013)
+  CSV_IMPORT
 
   @@map("attachment_kind")
 }
@@ -39,18 +41,21 @@ model Attachment {
   /// Owner columns: exactly one is set once ATTACHED, the one the kind names (a service rule).
   userId       String?          @map("user_id") @db.Uuid
   staffId      String?          @map("staff_id") @db.Uuid
+  csvImportId  String?          @map("csv_import_id") @db.Uuid
   attachedAt   DateTime?        @map("attached_at")
   deletedAt    DateTime?        @map("deleted_at")
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
 
-  uploadedBy User   @relation("UploadedAttachments", fields: [uploadedById], references: [id], onDelete: Restrict)
-  user       User?  @relation("UserAttachments", fields: [userId], references: [id], onDelete: Restrict)
-  staff      Staff? @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  uploadedBy User       @relation("UploadedAttachments", fields: [uploadedById], references: [id], onDelete: Restrict)
+  user       User?      @relation("UserAttachments", fields: [userId], references: [id], onDelete: Restrict)
+  staff      Staff?     @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  csvImport  CsvImport? @relation(fields: [csvImportId], references: [id], onDelete: Restrict)
 
   @@index([status, createdAt])
   @@index([uploadedById])
   @@index([userId, kind])
   @@index([staffId, kind])
+  @@index([csvImportId, kind])
   @@map("attachments")
 }

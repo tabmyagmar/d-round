@@ -5,6 +5,7 @@ export * from "./attachment.repository";
 export * from "./branch.repository";
 export * from "./client.repository";
 export * from "./comment-template.repository";
+export * from "./csv-import.repository";
 export * from "./outbox-email.repository";
 export * from "./permission.repository";
 export * from "./source.repository";

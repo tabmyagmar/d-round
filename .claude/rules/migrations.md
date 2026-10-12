@@ -49,12 +49,16 @@ paths:
     `branch-charger.prisma` (`BranchCharger`), as the client's. The files in `attachment/` (ADR
     0012): `attachment.prisma` (`enum AttachmentKind`, `enum AttachmentStatus` + `Attachment`: one
     row per object in the bucket, `PENDING` → `ATTACHED` → `DELETED`, one nullable owner column per
-    owner — `user_id`, `staff_id` — plus the uploader, all `Restrict`). `access/` is our
-    authorization catalog; `auth/` stays Better Auth's, and `auth/user.prisma` only gains relation
-    fields (`permissions UserPermission[]`, `profile UserProfile?`, `staffCharges StaffCharger[]`,
-    `clientCharges ClientCharger[]`, `branchCharges BranchCharger[]`, `attachments` /
-    `uploadedAttachments Attachment[]`, no column, and `roleRef Role` over the existing `role`
-    column), `@@index([role])` and `role`'s NOT NULL / default — see "Better Auth models" below.
+    owner — `user_id`, `staff_id`, `csv_import_id` — plus the uploader, all `Restrict`). The CSV
+    imports in `csv/` (ADR 0013): `csv-import.prisma` (`enum CsvImportType`, `enum CsvImportStatus`
+    - `CsvImport`: one row per uploaded file, its counts and `updated_at` as the sweeper's
+      heartbeat) and `csv-import-row.prisma` (`enum CsvImportRowResult` + `CsvImportRow`: one row
+      per data line, Cascade to the import, unique `(csv_import_id, line_number)`). `access/` is our
+      authorization catalog; `auth/` stays Better Auth's, and `auth/user.prisma` only gains relation
+      fields (`permissions UserPermission[]`, `profile UserProfile?`, `staffCharges StaffCharger[]`,
+      `clientCharges ClientCharger[]`, `branchCharges BranchCharger[]`, `attachments` /
+      `uploadedAttachments Attachment[]`, no column, and `roleRef Role` over the existing `role`
+      column), `@@index([role])` and `role`'s NOT NULL / default — see "Better Auth models" below.
   - Prisma merges every `.prisma` file in the folder; relations may point at models in other files.
     A new module gets a new folder.
 - Seeds live in `packages/database/prisma/seed/`: one `<dataset>.seed.ts` per dataset exporting a
@@ -148,6 +152,7 @@ paths:
 | `20261008233611_add_clients`                                       | enums `general_status`, `client_order_type`; tables `clients`, `client_addresses` (FK `post_code` → `source_addresses`, Restrict), `client_regions` (composite key, Restrict to the code), `client_chargers` (composite key, FK `user_id` → `users.id`, Restrict; Cascade to the client; ADR 0011)                                                                                                             |
 | `20261009001843_add_branches`                                      | tables `branches` (FK `client_id` → `clients.id` and `region_code` → `source_regions.code`, Restrict; the 部署 and 連絡担当者 as columns; `contact_position position`), `branch_addresses` (FK `post_code` → `source_addresses`, Restrict), `branch_chargers` (composite key, FK `user_id` → `users.id`, Restrict; Cascade to the branch; ADR 0011)                                                            |
 | `20261009055901_add_attachments`                                   | enums `attachment_kind`, `attachment_status`; table `attachments` (unique `object_key`; FKs `uploaded_by_id` and `user_id` → `users.id`, `staff_id` → `staffs.id`, Restrict; ADR 0012)                                                                                                                                                                                                                         |
+| `20261012043637_add_csv_imports`                                   | enums `csv_import_type`, `csv_import_status`, `csv_import_row_result`; tables `csv_imports` (FK `created_by_id` → `users.id`, Restrict) and `csv_import_rows` (Cascade to the import; unique `(csv_import_id, line_number)`); `attachment_kind` value `CSV_IMPORT`, nullable `attachments.csv_import_id` (Restrict; ADR 0013)                                                                                  |
 
 The template shipped `0001_init` as its single baseline. Once a migration has been applied anywhere,
 never edit it; add a new one.
