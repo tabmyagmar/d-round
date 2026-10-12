@@ -7,9 +7,11 @@ import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
 import type { DataTableRowSelectionState } from "@repo/ui/components/composed/data-table";
 import { LoadingState } from "@repo/ui/components/composed/loading-state";
+import { StatusBadge } from "@repo/ui/components/composed/status-badge";
 import { FormActions } from "@repo/ui/components/form";
 
 import { CsvRowsTable } from "@/features/csv/components/import/csv-rows-table";
+import type { CsvRowState } from "@/features/csv/components/import/csv-rows-table";
 import type { CsvImport, CsvImportRow } from "@/features/csv/types";
 import type { CsvSummaryColumn } from "@/features/csv/utils/csv-type-content";
 
@@ -28,6 +30,17 @@ export type CsvCheckStepProps = {
 };
 
 const importable = (row: CsvImportRow) => row.errors.length === 0;
+
+/** Each line's check: its errors, and whether it can be imported (legacy 取込完了 / 取込不可). */
+const CHECK_STATE: CsvRowState = {
+  notesOf: (row) => row.errors,
+  badgeOf: (row) =>
+    importable(row) ? (
+      <StatusBadge tone="success">取込完了</StatusBadge>
+    ) : (
+      <StatusBadge tone="danger">取込不可</StatusBadge>
+    ),
+};
 
 /** Every importable line, chosen: the legacy ticked them all when the detail opened. */
 const allImportable = (rows: CsvImportRow[]): DataTableRowSelectionState =>
@@ -56,26 +69,20 @@ const CheckedRows = ({
         onConfirm(selected.map((row) => row.lineNumber));
       }}
     >
-      <div className="flex items-start gap-2 rounded-md bg-accent px-3 py-2 text-sm leading-relaxed text-accent-foreground">
-        <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
-        <p>
+      <Alert className="border-transparent bg-accent text-accent-foreground">
+        <Info aria-hidden />
+        <AlertDescription className="text-accent-foreground">
           このままアップロードするデータの最前列にあるチェックボックスを選択してください。
           <br />
           取込不可なデータはアップロードすることはできないため、CSVデータを修正してから再度アップロードお願いします。
-        </p>
-      </div>
-      <p className="text-sm">
-        取込データ入数: {csvImport.totalCount}
-        <span className="ml-3 text-muted-foreground">
-          取込可能: {csvImport.validCount} / 取込不可: {refused}
-        </span>
-      </p>
+        </AlertDescription>
+      </Alert>
       <div className="max-h-[50vh] overflow-y-auto">
         <CsvRowsTable
           rows={rows}
           isLoading={false}
           summary={summary}
-          mode="check"
+          state={CHECK_STATE}
           rowSelection={{
             state: selection,
             onChange: setSelection,
@@ -145,6 +152,6 @@ export const CsvCheckStep = (props: CsvCheckStepProps) => {
   return rows ? (
     <CheckedRows {...props} rows={rows} />
   ) : (
-    <CsvRowsTable rows={undefined} isLoading summary={props.summary} mode="check" />
+    <CsvRowsTable rows={undefined} isLoading summary={props.summary} state={CHECK_STATE} />
   );
 };

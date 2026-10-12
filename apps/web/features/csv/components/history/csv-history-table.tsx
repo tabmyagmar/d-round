@@ -1,7 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
-
 import { Button } from "@repo/ui/components/button";
 import { createDataTableColumns, DataTable } from "@repo/ui/components/composed/data-table";
 import type { DataTablePagination } from "@repo/ui/components/composed/data-table";
@@ -98,7 +96,7 @@ export const CsvHistoryTable = ({
   pagination,
   onOpen,
 }: CsvHistoryTableProps) => {
-  const columns = useMemo(() => historyColumns(onOpen), [onOpen]);
+  const columns = historyColumns(onOpen);
   return (
     <DataTable
       title={title}

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PermissionGrant } from "@repo/permissions";
@@ -33,11 +34,13 @@ afterEach(() => {
 
 const renderMenu = (grants: readonly PermissionGrant[], entity: CsvEntity = "user") => {
   render(
-    <AbilityProvider user={userWith(grants)}>
-      <RowSelectionProvider>
-        <CsvMenu entity={entity} />
-      </RowSelectionProvider>
-    </AbilityProvider>,
+    <StrictMode>
+      <AbilityProvider user={userWith(grants)}>
+        <RowSelectionProvider>
+          <CsvMenu entity={entity} />
+        </RowSelectionProvider>
+      </AbilityProvider>
+    </StrictMode>,
   );
 };
 
@@ -57,6 +60,17 @@ describe("CsvMenu", () => {
     renderMenu(AM_GRANTS, "staff");
 
     expect(screen.queryByRole("button", { name: "CSV" })).toBeNull();
+  });
+
+  it("hides 追加 and 更新 without the CSV upload grant (catalog 1401), whatever the entity grants", () => {
+    renderMenu([
+      { action: "read", subject: "SourceCsvHistory" },
+      { action: "create", subject: "User" },
+      { action: "update", subject: "User" },
+      { action: "read", subject: "User" },
+    ]);
+
+    expect(itemNames()).toEqual(["ダウンロード", "履歴"]);
   });
 
   it("offers each item only with the entity's grant as well", () => {

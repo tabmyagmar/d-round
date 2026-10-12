@@ -4,10 +4,27 @@ import { Download } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { Button } from "@repo/ui/components/button";
+import { StatusBadge } from "@repo/ui/components/composed/status-badge";
 
 import { CsvRowsTable } from "@/features/csv/components/import/csv-rows-table";
+import type { CsvRowState } from "@/features/csv/components/import/csv-rows-table";
 import type { CsvImport, CsvImportRow } from "@/features/csv/types";
 import type { CsvSummaryColumn } from "@/features/csv/utils/csv-type-content";
+
+/** Each confirmed line's result (legacy 送信完了 / 送信エラー); 未登録 when the import never reached it. */
+const RESULT_STATE: CsvRowState = {
+  notesOf: (row) => (row.resultError === null ? [] : [row.resultError]),
+  badgeOf: (row) => {
+    if (row.result === "IMPORTED") {
+      return <StatusBadge tone="success">送信完了</StatusBadge>;
+    }
+    return row.result === "FAILED" ? (
+      <StatusBadge tone="danger">送信エラー</StatusBadge>
+    ) : (
+      <StatusBadge tone="neutral">未登録</StatusBadge>
+    );
+  },
+};
 
 export type CsvResultStepProps = {
   csvImport: CsvImport;
@@ -56,7 +73,7 @@ export const CsvResultStep = ({
           rows={rows?.filter((row) => row.selected)}
           isLoading={rows === undefined}
           summary={summary}
-          mode="result"
+          state={RESULT_STATE}
         />
       </div>
       <div className="flex flex-wrap justify-end gap-2">

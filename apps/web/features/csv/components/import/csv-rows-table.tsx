@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
+import type { ReactNode } from "react";
 
 import { createDataTableColumns, DataTable } from "@repo/ui/components/composed/data-table";
 import type { DataTableRowSelection } from "@repo/ui/components/composed/data-table";
-import { StatusBadge } from "@repo/ui/components/composed/status-badge";
 
 import type { CsvImportRow } from "@/features/csv/types";
 import { summaryLineOf } from "@/features/csv/utils/csv-type-content";
@@ -12,27 +12,13 @@ import type { CsvSummaryColumn } from "@/features/csv/utils/csv-type-content";
 
 const helper = createDataTableColumns<CsvImportRow>();
 
-/** 内容確認: whether the line can be imported (the legacy row badges 取込完了 / 取込不可). */
-const CheckBadge = ({ row }: { row: CsvImportRow }) =>
-  row.errors.length === 0 ? (
-    <StatusBadge tone="success">取込完了</StatusBadge>
-  ) : (
-    <StatusBadge tone="danger">取込不可</StatusBadge>
-  );
-
-/** 結果: the line's result (legacy 送信完了 / 送信エラー); 未登録 when the import never reached it. */
-const ResultBadge = ({ row }: { row: CsvImportRow }) => {
-  if (row.result === "IMPORTED") {
-    return <StatusBadge tone="success">送信完了</StatusBadge>;
-  }
-  return row.result === "FAILED" ? (
-    <StatusBadge tone="danger">送信エラー</StatusBadge>
-  ) : (
-    <StatusBadge tone="neutral">未登録</StatusBadge>
-  );
+/** What a step shows of a line beside its cells: its messages (説明欄) and its badge. */
+export type CsvRowState = {
+  notesOf: (row: CsvImportRow) => readonly string[];
+  badgeOf: (row: CsvImportRow) => ReactNode;
 };
 
-const rowColumns = (summary: readonly CsvSummaryColumn[], mode: "check" | "result") =>
+const rowColumns = (summary: readonly CsvSummaryColumn[], { notesOf, badgeOf }: CsvRowState) =>
   helper.columns([
     helper.accessor("lineNumber", {
       header: "行",
@@ -61,27 +47,18 @@ const rowColumns = (summary: readonly CsvSummaryColumn[], mode: "check" | "resul
     helper.display({
       id: "notes",
       header: "説明欄",
-      cell: ({ row }) => {
-        const messages =
-          mode === "check"
-            ? row.original.errors
-            : row.original.resultError === null
-              ? []
-              : [row.original.resultError];
-        return (
-          <ul className="flex max-w-80 flex-col gap-0.5 text-xs whitespace-pre-line text-destructive">
-            {messages.map((message) => (
-              <li key={message}>{message}</li>
-            ))}
-          </ul>
-        );
-      },
+      cell: ({ row }) => (
+        <ul className="flex max-w-80 flex-col gap-0.5 text-xs whitespace-pre-line text-destructive">
+          {notesOf(row.original).map((message) => (
+            <li key={message}>{message}</li>
+          ))}
+        </ul>
+      ),
     }),
     helper.display({
       id: "status",
       header: "ステータス",
-      cell: ({ row }) =>
-        mode === "check" ? <CheckBadge row={row.original} /> : <ResultBadge row={row.original} />,
+      cell: ({ row }) => badgeOf(row.original),
     }),
   ]);
 
@@ -90,24 +67,24 @@ export type CsvRowsTableProps = {
   isLoading: boolean;
   /** The type's summary cells (`CSV_TYPE_CONTENT[type].summary`). */
   summary: readonly CsvSummaryColumn[];
-  /** 内容確認 shows each line's check, 結果 its result. */
-  mode: "check" | "result";
+  /** The step's 説明欄 and badge of a line; module-level, so the columns are built once. */
+  state: CsvRowState;
   /** 内容確認: lines without errors can be chosen for 確定. */
   rowSelection?: DataTableRowSelection<CsvImportRow>;
 };
 
 /**
  * The lines of an import (the legacy detail modals' table, one for every type): 行, the type's
- * summary cells, 説明欄 (the check's errors or the result's message) and ステータス.
+ * summary cells, 説明欄 and ステータス as the step says them.
  */
 export const CsvRowsTable = ({
   rows,
   isLoading,
   summary,
-  mode,
+  state,
   rowSelection,
 }: CsvRowsTableProps) => {
-  const columns = useMemo(() => rowColumns(summary, mode), [summary, mode]);
+  const columns = useMemo(() => rowColumns(summary, state), [summary, state]);
   return (
     <DataTable
       title="取込データ"

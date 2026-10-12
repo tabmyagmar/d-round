@@ -20,6 +20,8 @@ const PER_PAGE = 10;
 
 export type CsvHistoryDialogProps = {
   entity: CsvEntity;
+  /** The list shown first: back from an import, its type's; otherwise 追加. */
+  initialType?: CsvImportType;
   onOpenChange: (open: boolean) => void;
   /** A row's 登録 / 確認: the menu opens the import dialog at the import. */
   onOpenImport: (type: CsvImportType, csvImportId: string) => void;
@@ -30,10 +32,15 @@ export type CsvHistoryDialogProps = {
  * imports of the list's 追加 or 更新, ten a page, polled while one of them is still being worked
  * on, so 確認中 turns into 確認完了 without a reload.
  */
-export const CsvHistoryDialog = ({ entity, onOpenChange, onOpenImport }: CsvHistoryDialogProps) => {
+export const CsvHistoryDialog = ({
+  entity,
+  initialType,
+  onOpenChange,
+  onOpenImport,
+}: CsvHistoryDialogProps) => {
   const trpc = useTRPC();
   const { label, createType, updateType } = CSV_ENTITIES[entity];
-  const [type, setType] = useState<CsvImportType>(createType);
+  const [type, setType] = useState<CsvImportType>(initialType ?? createType);
   const [page, setPage] = useState(1);
   const imports = useQuery(
     trpc.csvImport.list.queryOptions(

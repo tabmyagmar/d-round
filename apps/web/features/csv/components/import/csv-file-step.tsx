@@ -127,6 +127,7 @@ export const CsvFileStep = ({
         </a>
       </div>
       <FormActions
+        className="*:flex-1"
         submitLabel="アップロード"
         pendingLabel="アップロード中…"
         pending={pending}

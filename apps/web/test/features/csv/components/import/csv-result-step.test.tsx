@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CsvResultStep } from "@/features/csv/components/import/csv-result-step";
@@ -12,22 +13,24 @@ afterEach(cleanup);
 
 const renderStep = (csvImport: CsvImport) => {
   render(
-    <CsvResultStep
-      csvImport={csvImport}
-      rows={[
-        csvRowOf(2, { selected: true, result: "IMPORTED" }),
-        csvRowOf(3, {
-          selected: true,
-          result: "FAILED",
-          resultError: "既に登録されているため、登録できませんでした",
-        }),
-        csvRowOf(4, { errors: ["セイ: 全角カタカナで入力してください"] }),
-      ]}
-      summary={CSV_TYPE_CONTENT.USER_CREATE.summary}
-      downloading={false}
-      onDownloadErrors={vi.fn()}
-      onClose={vi.fn()}
-    />,
+    <StrictMode>
+      <CsvResultStep
+        csvImport={csvImport}
+        rows={[
+          csvRowOf(2, { selected: true, result: "IMPORTED" }),
+          csvRowOf(3, {
+            selected: true,
+            result: "FAILED",
+            resultError: "既に登録されているため、登録できませんでした",
+          }),
+          csvRowOf(4, { errors: ["セイ: 全角カタカナで入力してください"] }),
+        ]}
+        summary={CSV_TYPE_CONTENT.USER_CREATE.summary}
+        downloading={false}
+        onDownloadErrors={vi.fn()}
+        onClose={vi.fn()}
+      />
+    </StrictMode>,
   );
 };
 

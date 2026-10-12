@@ -58,11 +58,18 @@ const CsvExportHistoryDialog = dynamic(
   { ssr: false },
 );
 
+/** 履歴, opened at the 追加 or 更新 list of a type. */
+type CsvHistoryTarget = { kind: "history"; type?: CsvImportType };
+
+/**
+ * The dialog shown. One opened from another goes back to it when closed, as the legacy's nested
+ * dialogs did (the detail's 戻る returned to 履歴; ダウンロード履歴 closed onto the download).
+ */
 type CsvMenuTarget =
-  | { kind: "import"; type: CsvImportType; csvImportId?: string }
-  | { kind: "history" }
+  | { kind: "import"; type: CsvImportType; csvImportId?: string; back?: CsvHistoryTarget }
+  | CsvHistoryTarget
   | { kind: "export" }
-  | { kind: "export-history" };
+  | { kind: "export-history"; back?: { kind: "export" } };
 
 type CsvMenuItem = { key: string; label: string; icon: ReactNode; target: CsvMenuTarget };
 
@@ -118,7 +125,7 @@ export const CsvMenu = ({ entity }: { entity: CsvEntity }) => {
 
   const closeDialog = (open: boolean) => {
     if (!open) {
-      setTarget(null);
+      setTarget(target && "back" in target ? (target.back ?? null) : null);
     }
   };
 
@@ -170,6 +177,7 @@ export const CsvMenu = ({ entity }: { entity: CsvEntity }) => {
       {target?.kind === "import" ? (
         <CsvImportDialog
           key={target.csvImportId ?? target.type}
+          entity={entity}
           type={target.type}
           {...(target.csvImportId === undefined ? {} : { csvImportId: target.csvImportId })}
           onOpenChange={closeDialog}
@@ -178,9 +186,10 @@ export const CsvMenu = ({ entity }: { entity: CsvEntity }) => {
       {target?.kind === "history" ? (
         <CsvHistoryDialog
           entity={entity}
+          {...(target.type === undefined ? {} : { initialType: target.type })}
           onOpenChange={closeDialog}
           onOpenImport={(type, csvImportId) => {
-            setTarget({ kind: "import", type, csvImportId });
+            setTarget({ kind: "import", type, csvImportId, back: { kind: "history", type } });
           }}
         />
       ) : null}
@@ -190,7 +199,7 @@ export const CsvMenu = ({ entity }: { entity: CsvEntity }) => {
           ids={Object.keys(rowSelection)}
           onOpenChange={closeDialog}
           onShowHistory={() => {
-            setTarget({ kind: "export-history" });
+            setTarget({ kind: "export-history", back: { kind: "export" } });
           }}
         />
       ) : null}

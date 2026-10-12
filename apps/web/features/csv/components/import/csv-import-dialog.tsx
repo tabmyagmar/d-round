@@ -15,6 +15,7 @@ import { CsvCheckStep } from "@/features/csv/components/import/csv-check-step";
 import { CsvFileStep } from "@/features/csv/components/import/csv-file-step";
 import { CsvProgressStep } from "@/features/csv/components/import/csv-progress-step";
 import { CsvResultStep } from "@/features/csv/components/import/csv-result-step";
+import type { CsvEntity } from "@/features/csv/types";
 import { checkCsvFile, csvLookupsOf } from "@/features/csv/utils/csv-file-check";
 import {
   CSV_IMPORT_STEPS,
@@ -28,6 +29,8 @@ import { saveTextFile } from "@/lib/download";
 import { useTRPC } from "@/lib/trpc/react";
 
 export type CsvImportDialogProps = {
+  /** The list the menu belongs to: it is read again once lines were written. */
+  entity: CsvEntity;
   type: CsvImportType;
   /** An import opened from 履歴, at its step; without one the dialog starts at ファイル選択. */
   csvImportId?: string;
@@ -40,6 +43,7 @@ export type CsvImportDialogProps = {
  * minutes". Owns the import's queries and mutations; the steps are presentational.
  */
 export const CsvImportDialog = ({
+  entity,
   type,
   csvImportId: openedId,
   onOpenChange,
@@ -112,8 +116,14 @@ export const CsvImportDialog = ({
       );
     }
     if (status === "IMPORTED" || status === "FAILED") {
-      // Lines were written: the list behind the dialog reads them.
-      void queryClient.invalidateQueries();
+      // Lines were written: the list behind the dialog and its details are read again.
+      const written = {
+        user: trpc.user.pathFilter(),
+        staff: trpc.staff.pathFilter(),
+        client: trpc.client.pathFilter(),
+        branch: trpc.branch.pathFilter(),
+      }[entity];
+      void queryClient.invalidateQueries(written);
     }
     onOpenChange(false);
   };

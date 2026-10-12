@@ -18,10 +18,11 @@ const click = (url: string, fileName?: string) => {
 export const saveTextFile = (text: string, fileName: string, type = "text/csv;charset=utf-8") => {
   const url = URL.createObjectURL(new Blob([text], { type }));
   click(url, fileName);
-  // Revoked after the click has started the download.
+  // Revoked once the save has surely started: Firefox and Safari read the URL after the click
+  // returns (FileSaver.js waits 40 s as well).
   setTimeout(() => {
     URL.revokeObjectURL(url);
-  }, 0);
+  }, 40_000);
 };
 
 export const downloadFromUrl = (url: string) => {
