@@ -68,3 +68,8 @@ tickets left プロフィール画像 and 履歴書 out until this decision.
   concurrency.
 - A delete in a missing bucket answers 404, which counts as done; so the API and the worker list one
   object of their bucket at start-up and refuse to start when they cannot (review round 3).
+
+## Changes
+
+- 2026-10-12 — A third owner: the file of a CSV import, kind `CSV_IMPORT`, owner column
+  `attachments.csv_import_id` (ADR 0013, migration `add_csv_imports`).

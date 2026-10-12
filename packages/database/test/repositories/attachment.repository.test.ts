@@ -154,4 +154,35 @@ describe("attachment repository", () => {
     expect(await repo.deleteById(first.id)).toBe(0);
     expect((await repo.findById(first.id))?.status).toBe("ATTACHED");
   });
+
+  it("attaches the import's file to the import", async () => {
+    const attachments = createAttachmentRepository(prisma);
+    const user = await createUser();
+    const csvImport = await prisma.csvImport.create({
+      data: { type: "USER_CREATE", fileName: "担当者.csv", createdById: user.id },
+    });
+    const file = await attachments.create({
+      kind: "CSV_IMPORT",
+      objectKey: `csv-imports/${crypto.randomUUID()}.csv`,
+      fileName: "担当者.csv",
+      contentType: "text/csv",
+      size: 128,
+      uploadedById: user.id,
+    });
+
+    await prisma.$transaction(async (tx) => {
+      const locked = createAttachmentRepository(tx);
+      await locked.lockOwner({ csvImportId: csvImport.id });
+      expect(
+        await locked.attach([file.id], {
+          uploadedById: user.id,
+          kind: "CSV_IMPORT",
+          owner: { csvImportId: csvImport.id },
+        }),
+      ).toBe(1);
+    });
+    expect(await attachments.findAttached({ csvImportId: csvImport.id }, "CSV_IMPORT")).toEqual([
+      expect.objectContaining({ id: file.id, status: "ATTACHED" }),
+    ]);
+  });
 });

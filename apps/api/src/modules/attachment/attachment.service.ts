@@ -46,15 +46,17 @@ export const UPLOADS_TOO_MANY =
 /** Uploads one user may hold unattached at once: forms carry four files at most. */
 export const PENDING_UPLOADS_MAX = 20;
 
-/** Which owner a kind belongs to: a プロフィール画像 to a user, a 履歴書 to a staff. */
+/** Which owner a kind belongs to: a プロフィール画像 to a user, a 履歴書 to a staff, a CSV to its import. */
 export type AttachmentTarget =
   | { kind: "USER_AVATAR"; owner: { userId: string } }
-  | { kind: "STAFF_RESUME"; owner: { staffId: string } };
+  | { kind: "STAFF_RESUME"; owner: { staffId: string } }
+  | { kind: "CSV_IMPORT"; owner: { csvImportId: string } };
 
-const OWNER_COLUMNS = { USER_AVATAR: "userId", STAFF_RESUME: "staffId" } as const satisfies Record<
-  AttachmentKind,
-  "userId" | "staffId"
->;
+const OWNER_COLUMNS = {
+  USER_AVATAR: "userId",
+  STAFF_RESUME: "staffId",
+  CSV_IMPORT: "csvImportId",
+} as const satisfies Record<AttachmentKind, "userId" | "staffId" | "csvImportId">;
 
 /** The type allows only fitting pairs; this catches a cast, before anything is written. */
 const assertOwnerFits = (kind: AttachmentKind, owner: AttachmentOwner): void => {
@@ -70,12 +72,20 @@ const uploaderOf = (ctx: RequestContext) => {
   return ctx.user;
 };
 
-const isOwnedBy = (row: Attachment, owner: AttachmentOwner): boolean =>
-  "userId" in owner ? row.userId === owner.userId : row.staffId === owner.staffId;
+const isOwnedBy = (row: Attachment, owner: AttachmentOwner): boolean => {
+  if ("userId" in owner) {
+    return row.userId === owner.userId;
+  }
+  if ("staffId" in owner) {
+    return row.staffId === owner.staffId;
+  }
+  return row.csvImportId === owner.csvImportId;
+};
 
 /**
- * A 履歴書 is picked on the staff form only, by someone who may create or update a staff. Who may
- * set a プロフィール画像 is the user write's decision (their own, or `update User`).
+ * A 履歴書 is picked on the staff form only, by someone who may create or update a staff; a CSV by
+ * someone who may upload CSV files (catalog 1401). Who may set a プロフィール画像 is the user
+ * write's decision (their own, or `update User`).
  */
 const assertMayUpload = (ctx: RequestContext, kind: AttachmentKind): void => {
   if (
@@ -84,6 +94,9 @@ const assertMayUpload = (ctx: RequestContext, kind: AttachmentKind): void => {
     !ctx.ability.can("update", "Staff")
   ) {
     throw new ForbiddenError("Not allowed to upload staff files");
+  }
+  if (kind === "CSV_IMPORT" && !ctx.ability.can("create", "SourceCsvHistory")) {
+    throw new ForbiddenError("Not allowed to upload CSV files");
   }
 };
 

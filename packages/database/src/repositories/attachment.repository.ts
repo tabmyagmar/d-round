@@ -11,7 +11,7 @@ export type CreateAttachmentData = {
 };
 
 /** The owner column an attachment is attached to; the kind decides which (a service rule). */
-export type AttachmentOwner = { userId: string } | { staffId: string };
+export type AttachmentOwner = { userId: string } | { staffId: string } | { csvImportId: string };
 
 export type AttachData = {
   uploadedById: string;
@@ -40,8 +40,10 @@ export const createAttachmentRepository = (db: DbClient) => ({
   lockOwner: async (owner: AttachmentOwner): Promise<void> => {
     if ("userId" in owner) {
       await db.$queryRaw`SELECT id FROM users WHERE id = ${owner.userId}::uuid FOR NO KEY UPDATE`;
-    } else {
+    } else if ("staffId" in owner) {
       await db.$queryRaw`SELECT id FROM staffs WHERE id = ${owner.staffId}::uuid FOR NO KEY UPDATE`;
+    } else {
+      await db.$queryRaw`SELECT id FROM csv_imports WHERE id = ${owner.csvImportId}::uuid FOR NO KEY UPDATE`;
     }
   },
 

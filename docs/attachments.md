@@ -13,7 +13,8 @@ sweeper as queue code: `../.claude/rules/queue.md` (Attachment deletes).
   goes through a signed URL.
 - **Rows**: `attachments` (`packages/database/prisma/schema/attachment/attachment.prisma`) — one row
   per object: kind, status, object key, original name, content type, size, uploader and the owner
-  column (`user_id` for a プロフィール画像, `staff_id` for a 履歴書).
+  column (`user_id` for a プロフィール画像, `staff_id` for a 履歴書, `csv_import_id` for the file of
+  a CSV import — ADR 0013).
 - **Storage access**: `@repo/storage` (`packages/storage`): `createGcsStorage` signs V4 URLs locally
   from the service-account key (no request per URL), `head` and `delete` call the JSON API;
   `createMemoryStorage` replaces it in tests.

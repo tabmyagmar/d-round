@@ -75,9 +75,21 @@ describe("createUploadUrlSchema", () => {
     expect(createUploadUrlSchema.safeParse({ ...pdf, kind: "CLIENT_IMAGE" }).success).toBe(false);
   });
 
+  it("accepts a CSV as Windows with Excel reports it, but only with the .csv extension", () => {
+    const csv = { kind: "CSV_IMPORT", fileName: "担当者.csv", contentType: "text/csv", size: 120 };
+    expect(createUploadUrlSchema.safeParse(csv).success).toBe(true);
+    expect(
+      createUploadUrlSchema.safeParse({ ...csv, contentType: "application/vnd.ms-excel" }).success,
+    ).toBe(true);
+    expect(messagesOf({ ...csv, fileName: "担当者.xls" })).toEqual([
+      "この形式のファイルは選択できません",
+    ]);
+  });
+
   it("gives the form its accept list", () => {
     expect(attachmentAccept("USER_AVATAR")).toBe("image/jpeg,image/png,image/webp");
     expect(attachmentAccept("STAFF_RESUME")).toBe("application/pdf");
+    expect(attachmentAccept("CSV_IMPORT")).toBe("text/csv,application/vnd.ms-excel");
   });
 });
 

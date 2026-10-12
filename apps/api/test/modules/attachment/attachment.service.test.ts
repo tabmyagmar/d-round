@@ -41,6 +41,7 @@ const contextOf = async (role: "admin" | "am" = "am") => {
 const FILES: Record<AttachmentKind, { fileName: string; contentType: string }> = {
   USER_AVATAR: { fileName: "顔写真.PNG", contentType: "image/png" },
   STAFF_RESUME: { fileName: "履歴書.pdf", contentType: "application/pdf" },
+  CSV_IMPORT: { fileName: "担当者.csv", contentType: "text/csv" },
 };
 
 /** An upload URL as the router would hand it out, and (unless `upload: false`) the PUT done. */
@@ -117,6 +118,23 @@ describe("createUploadUrl", () => {
     await expect(createUploadUrl(am.ctx, input)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(createUploadUrl(admin.ctx, input)).resolves.toMatchObject({
       url: expect.stringMatching(/^memory:\/\/upload\/resumes\//) as unknown,
+    });
+  });
+});
+
+describe("createUploadUrl for a CSV", () => {
+  it("lets only someone who may upload CSV files (catalog 1401) upload one", async () => {
+    const am = await contextOf("am");
+    const admin = await contextOf("admin");
+    const input = createUploadUrlSchema.parse({
+      kind: "CSV_IMPORT",
+      size: 10,
+      ...FILES.CSV_IMPORT,
+    });
+
+    await expect(createUploadUrl(am.ctx, input)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(createUploadUrl(admin.ctx, input)).resolves.toMatchObject({
+      url: expect.stringMatching(/^memory:\/\/upload\/csv-imports\//) as unknown,
     });
   });
 });
