@@ -135,15 +135,19 @@ describe("csv import repository", () => {
 
   it("lets a heartbeat newer than the sweeper's cut-off keep the import going", async () => {
     const repo = createCsvImportRepository(prisma);
-    const csvImport = await createImport((await createUser()).id);
-    await repo.claimCheck(csvImport.id);
+    const uploader = await createUser();
+    const csvImport = await checkedImport(uploader.id);
+    await repo.selectRows(csvImport.id, [2]);
+    await repo.markConfirmed(csvImport.id, uploader.id, 1);
+    await repo.claimImport(csvImport.id);
+    // The sweeper found it quiet for 11 minutes; a line was handled before it came to fail it.
+    await backdate(csvImport.id, 11);
+    const cutOff = new Date(Date.now() - 10 * 60_000);
+    expect(await repo.incrementProcessed(csvImport.id)).toBe(true);
 
-    expect(
-      await repo.markFailed(csvImport.id, "CHECKING", "中断", new Date(Date.now() - 60_000)),
-    ).toBe(false);
-    expect(
-      await repo.markFailed(csvImport.id, "CHECKING", "中断", new Date(Date.now() + 60_000)),
-    ).toBe(true);
+    expect(await repo.markFailed(csvImport.id, "IMPORTING", "中断", cutOff)).toBe(false);
+    await backdate(csvImport.id, 11);
+    expect(await repo.markFailed(csvImport.id, "IMPORTING", "中断", cutOff)).toBe(true);
   });
 
   it("fails an import only from the status it names", async () => {
