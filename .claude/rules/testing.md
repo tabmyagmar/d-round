@@ -62,10 +62,10 @@ Mocks are allowed only for **external providers** we do not run locally: HTTP AP
 AI, object storage. The two existing ones are `createMemoryMailProvider`
 (`apps/worker/src/mail/memory-mail-provider.ts`), an implementation of the `MailProvider` interface
 with `failFirst` / `alwaysFailPermanently` knobs, and `createMemoryStorage` (`@repo/storage`), the
-bucket as a map (`put` plays the browser's signed PUT) with `failFirstDeletes` / `refuseDeletes`
-knobs. A browser-side `fetch` to the bucket is stubbed with `vi.stubGlobal`
-(`apps/web/test/lib/attachments.test.ts`). Never mock Prisma, Redis, BullMQ, Better Auth,
-repositories or services of this repo.
+bucket as a map (`put` plays the browser's signed PUT, with a `body` when the server reads the file
+back through `download`) with `failFirstDeletes` / `refuseDeletes` knobs. A browser-side `fetch` to
+the bucket is stubbed with `vi.stubGlobal` (`apps/web/test/lib/attachments.test.ts`). Never mock
+Prisma, Redis, BullMQ, Better Auth, repositories or services of this repo.
 
 ## Test harnesses — copy these, do not reinvent them
 

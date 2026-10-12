@@ -54,4 +54,27 @@ describe("createMemoryStorage", () => {
     await expect(storage.delete("resumes/r.pdf")).rejects.toBeInstanceOf(PermanentStorageError);
     expect(storage.keys()).toEqual(["resumes/r.pdf"]);
   });
+
+  it("hands the server the bytes it reads and stores the files it writes, never twice", async () => {
+    const storage = createMemoryStorage();
+    const body = new TextEncoder().encode("姓,名\r\n佐藤,一郎\r\n");
+
+    expect(await storage.download("csv-imports/a.csv")).toBeNull();
+    storage.put("csv-imports/a.csv", { size: body.length, contentType: "text/csv", body });
+    expect(await storage.download("csv-imports/a.csv")).toEqual(body);
+
+    const xlsx = new Uint8Array([0x50, 0x4b, 0x03, 0x04]);
+    await storage.upload("csv-exports/b.xlsx", xlsx, "application/vnd.ms-excel");
+    expect(await storage.head("csv-exports/b.xlsx")).toEqual({
+      size: 4,
+      contentType: "application/vnd.ms-excel",
+    });
+    expect(await storage.download("csv-exports/b.xlsx")).toEqual(xlsx);
+    await expect(storage.upload("csv-exports/b.xlsx", xlsx, "text/csv")).rejects.toThrow(
+      "already exists",
+    );
+
+    await storage.delete("csv-imports/a.csv");
+    expect(await storage.download("csv-imports/a.csv")).toBeNull();
+  });
 });

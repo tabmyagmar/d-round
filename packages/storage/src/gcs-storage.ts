@@ -127,6 +127,27 @@ export const createGcsStorage = ({ bucket: bucketName, keyFile }: GcsStorageConf
         throw error;
       }
     },
+
+    download: async (key) => {
+      try {
+        const [contents] = await bucket.file(key).download();
+        return new Uint8Array(contents);
+      } catch (error) {
+        if (error instanceof ApiError && error.code === 404) {
+          return null;
+        }
+        throw error;
+      }
+    },
+
+    // Create-only, as the signed uploads (`ifGenerationMatch: 0`): a key is never written twice.
+    upload: async (key, body, contentType) => {
+      await bucket.file(key).save(Buffer.from(body), {
+        contentType,
+        resumable: false,
+        preconditionOpts: { ifGenerationMatch: 0 },
+      });
+    },
   };
   return provider;
 };

@@ -16,8 +16,9 @@ sweeper as queue code: `../.claude/rules/queue.md` (Attachment deletes).
   column (`user_id` for a プロフィール画像, `staff_id` for a 履歴書, `csv_import_id` for the file of
   a CSV import — ADR 0013).
 - **Storage access**: `@repo/storage` (`packages/storage`): `createGcsStorage` signs V4 URLs locally
-  from the service-account key (no request per URL), `head` and `delete` call the JSON API;
-  `createMemoryStorage` replaces it in tests.
+  from the service-account key (no request per URL), `head`, `delete`, `download` and `upload` call
+  the JSON API (`download` and `upload` serve the files the server processes itself: a CSV import's
+  file, a CSV export — ADR 0013); `createMemoryStorage` replaces it in tests.
 - **API**: `attachment.createUploadUrl` (`apps/api/src/modules/attachment/attachment.service.ts`)
   and the guards the owners' services call (`assertUploaded`, `syncAttachments`, `viewsOf`).
 - **Worker**: `attachment-delete.processor.ts` and `attachment-sweeper.ts` in `apps/worker`.

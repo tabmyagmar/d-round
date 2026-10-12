@@ -9,8 +9,8 @@ export type MemoryStorageOptions = {
 };
 
 export type MemoryStorage = StorageProvider & {
-  /** Stores what the browser's signed PUT would have stored. */
-  put: (key: string, object: StoredObject) => void;
+  /** Stores what the browser's signed PUT would have stored; `body` for files the server reads. */
+  put: (key: string, object: StoredObject & { body?: Uint8Array }) => void;
   /** The keys stored right now. */
   keys: () => string[];
 };
@@ -18,13 +18,17 @@ export type MemoryStorage = StorageProvider & {
 /** Test double for the bucket — an external provider, the only kind of thing tests may fake. */
 export const createMemoryStorage = (options: MemoryStorageOptions = {}): MemoryStorage => {
   const objects = new Map<string, StoredObject>();
+  const bodies = new Map<string, Uint8Array>();
   const state = { deletes: 0 };
   const expiresAt = (seconds: number) => new Date(Date.now() + seconds * 1000);
 
   return {
     ready: () => Promise.resolve(),
-    put: (key, object) => {
+    put: (key, { body, ...object }) => {
       objects.set(key, object);
+      if (body) {
+        bodies.set(key, body);
+      }
     },
     keys: () => [...objects.keys()],
 
@@ -52,6 +56,19 @@ export const createMemoryStorage = (options: MemoryStorageOptions = {}): MemoryS
         return Promise.reject(new Error(`storage unavailable (delete ${String(state.deletes)})`));
       }
       objects.delete(key);
+      bodies.delete(key);
+      return Promise.resolve();
+    },
+
+    download: (key) =>
+      Promise.resolve(objects.has(key) ? (bodies.get(key) ?? new Uint8Array()) : null),
+
+    upload: (key, body, contentType) => {
+      if (objects.has(key)) {
+        return Promise.reject(new Error(`an object already exists under ${key}`));
+      }
+      objects.set(key, { size: body.length, contentType });
+      bodies.set(key, body);
       return Promise.resolve();
     },
   };
