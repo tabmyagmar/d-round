@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Hono + tRPC API server (transport adapters → services → repositories)",
   "exports": {
+    "./jobs": "./src/jobs/index.ts",
     "./router": "./src/trpc/router.ts"
   },
   "scripts": {
