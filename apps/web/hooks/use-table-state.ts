@@ -28,6 +28,20 @@ export const PAGINATION_LABELS: DataTablePaginationLabels = {
   pageInput: "ページ",
 };
 
+/** `DataTable`'s pagination over a page of results; a dialog's list keeps its page in state. */
+export const paginationOf = (
+  current: PageSummary,
+  onPageChange: (page: number) => void,
+): DataTablePagination => ({
+  page: current.page,
+  totalPages: current.totalPages,
+  total: current.total,
+  hasPrev: current.hasPrev,
+  hasNext: current.hasNext,
+  onPageChange,
+  labels: PAGINATION_LABELS,
+});
+
 /**
  * `DataTable` sorting and pagination bound to the URL (`sortBy`, `sortOrder`, `page`), for a list
  * whose query input is read from the same URL. Pass the current page of results, if any.
@@ -50,17 +64,9 @@ export const useTableState = (
   const pagination = useMemo(
     (): DataTablePagination | undefined =>
       current
-        ? {
-            page: current.page,
-            totalPages: current.totalPages,
-            total: current.total,
-            hasPrev: current.hasPrev,
-            hasNext: current.hasNext,
-            onPageChange: (page) => {
-              setMany({ page: pageToParam(page) });
-            },
-            labels: PAGINATION_LABELS,
-          }
+        ? paginationOf(current, (page) => {
+            setMany({ page: pageToParam(page) });
+          })
         : undefined,
     [current, setMany],
   );
