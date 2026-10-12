@@ -2,7 +2,12 @@ import { serve } from "@hono/node-server";
 
 import { disconnectPrismaClient, getPrismaClient } from "@repo/database";
 import { createDiscordAlertStream, createLogger } from "@repo/logger";
-import { createAttachmentDeleteQueue, createEmailQueue, createRedisConnection } from "@repo/queue";
+import {
+  createAttachmentDeleteQueue,
+  createCsvImportQueue,
+  createEmailQueue,
+  createRedisConnection,
+} from "@repo/queue";
 import { createGcsStorage } from "@repo/storage";
 
 import { createApp } from "./app";
@@ -41,6 +46,7 @@ try {
   process.exit(1);
 }
 const attachmentDeleteQueue = createAttachmentDeleteQueue(redis);
+const csvImportQueue = createCsvImportQueue(redis);
 
 const auth = createAppAuth({
   db,
@@ -60,6 +66,7 @@ const app = createApp({
   webOrigin: env.WEB_ORIGIN,
   storage,
   attachmentDeleteQueue,
+  csvImportQueue,
 });
 
 const server = serve({ fetch: app.fetch, port: env.API_PORT }, (info) => {
@@ -84,6 +91,7 @@ registerGracefulShutdown({
     },
     { name: "email queue", run: () => emailQueue.close() },
     { name: "attachment delete queue", run: () => attachmentDeleteQueue.close() },
+    { name: "csv import queue", run: () => csvImportQueue.close() },
     { name: "redis", run: () => redis.quit() },
     { name: "database", run: () => disconnectPrismaClient() },
     // Last, so the failure of a step above still reaches Discord.

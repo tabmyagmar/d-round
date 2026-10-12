@@ -4,11 +4,12 @@ import { createAppAuth } from "@repo/api/jobs";
 import type { JobDeps } from "@repo/api/jobs";
 import {
   createAttachmentDeleteQueue,
+  createCsvImportQueue,
   createEmailQueue,
   csvCheckJobId,
   enqueueCsvCheckJob,
 } from "@repo/queue";
-import type { AttachmentDeleteQueue, EmailQueue } from "@repo/queue";
+import type { AttachmentDeleteQueue, CsvImportQueue, EmailQueue } from "@repo/queue";
 import { createMemoryStorage } from "@repo/storage";
 import type { MemoryStorage } from "@repo/storage";
 
@@ -24,16 +25,19 @@ import {
 let h: WorkerHarness;
 let emailQueue: EmailQueue;
 let attachmentDeleteQueue: AttachmentDeleteQueue;
+let csvImportQueue: CsvImportQueue;
 
 beforeAll(async () => {
   h = await createWorkerHarness();
   emailQueue = createEmailQueue(h.connection);
   attachmentDeleteQueue = createAttachmentDeleteQueue(h.connection);
+  csvImportQueue = createCsvImportQueue(h.connection);
 });
 
 afterAll(async () => {
   await emailQueue.close();
   await attachmentDeleteQueue.close();
+  await csvImportQueue.close();
   await h.stop();
 });
 
@@ -53,6 +57,7 @@ const jobDeps = (storage: MemoryStorage): JobDeps => ({
   webOrigin: "http://localhost:3000",
   storage,
   attachmentDeleteQueue,
+  csvImportQueue,
 });
 
 /** Runs the check job of `csvImportId` through a real worker on an isolated queue. */

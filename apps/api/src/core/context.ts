@@ -6,7 +6,7 @@ import type { Logger } from "@repo/logger";
 import type { PermissionGrant } from "@repo/permissions";
 import { definePrismaAbilityFor } from "@repo/permissions/server";
 import type { ServerAbility } from "@repo/permissions/server";
-import type { AttachmentDeleteQueue, RedisConnection } from "@repo/queue";
+import type { AttachmentDeleteQueue, CsvImportQueue, RedisConnection } from "@repo/queue";
 import type { StorageProvider } from "@repo/storage";
 import { DEFAULT_ROLE, roleSchema } from "@repo/validation";
 import type { Role } from "@repo/validation";
@@ -44,6 +44,8 @@ export type RequestContext = {
   storage: StorageProvider;
   /** Object deletes run in the worker; services enqueue them after commit. */
   attachmentDeleteQueue: AttachmentDeleteQueue;
+  /** CSV checks and imports run in the worker; the CSV service enqueues them after commit. */
+  csvImportQueue: CsvImportQueue;
 };
 
 export type ContextDeps = {
@@ -55,6 +57,7 @@ export type ContextDeps = {
   webOrigin: string;
   storage: StorageProvider;
   attachmentDeleteQueue: AttachmentDeleteQueue;
+  csvImportQueue: CsvImportQueue;
 };
 
 export type ContextInput = {
@@ -102,6 +105,7 @@ export const buildRequestContext = async (
     webOrigin: deps.webOrigin,
     storage: deps.storage,
     attachmentDeleteQueue: deps.attachmentDeleteQueue,
+    csvImportQueue: deps.csvImportQueue,
   };
 };
 
@@ -149,5 +153,6 @@ export const buildJobContext = async (
     webOrigin: deps.webOrigin,
     storage: deps.storage,
     attachmentDeleteQueue: deps.attachmentDeleteQueue,
+    csvImportQueue: deps.csvImportQueue,
   };
 };

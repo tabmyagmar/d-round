@@ -126,6 +126,7 @@ try {
       webOrigin: env.WEB_ORIGIN,
       storage,
       attachmentDeleteQueue,
+      csvImportQueue,
     }),
     createCsvImportSweeperWorker({ connection, db, csvImportQueue, logger }),
   );
