@@ -1,7 +1,6 @@
 "use client";
 
 import { Download } from "lucide-react";
-import { useMemo } from "react";
 
 import { Button } from "@repo/ui/components/button";
 import { createDataTableColumns, DataTable } from "@repo/ui/components/composed/data-table";
@@ -78,10 +77,7 @@ export const CsvExportHistoryTable = ({
   downloadingId,
   onDownload,
 }: CsvExportHistoryTableProps) => {
-  const columns = useMemo(
-    () => exportColumns(downloadingId, onDownload),
-    [downloadingId, onDownload],
-  );
+  const columns = exportColumns(downloadingId, onDownload);
   return (
     <DataTable
       title="CSVダウンロード数"

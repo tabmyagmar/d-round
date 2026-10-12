@@ -54,12 +54,11 @@ export const CsvExportDialog = ({
     >
       <CsvExportForm
         label={label}
-        selectedCount={ids.length}
-        groups={content.groups}
-        initial={content.initial}
+        ids={ids}
+        content={content}
         pending={create.isPending}
-        onSubmit={(values) => {
-          create.mutate(content.inputOf([...ids], values));
+        onSubmit={(input) => {
+          create.mutate(input);
         }}
         onShowHistory={onShowHistory}
       />

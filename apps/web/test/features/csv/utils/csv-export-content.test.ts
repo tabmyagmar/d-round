@@ -17,12 +17,11 @@ describe("CSV_EXPORT_CONTENT", () => {
     }
   });
 
-  it("sends the ticked columns of each group, so the same key in two groups stays apart", () => {
-    const input = CSV_EXPORT_CONTENT.CLIENT.inputOf(IDS, [
-      "fields:number",
-      "branchFields:name",
-      "branchFields:number",
-    ]);
+  it("sends each group's ticked columns, in the file's order", () => {
+    const input = CSV_EXPORT_CONTENT.CLIENT.inputOf(IDS, {
+      fields: ["number"],
+      branchFields: ["name", "number"],
+    });
 
     expect(input).toEqual({
       type: "CLIENT",
@@ -32,16 +31,13 @@ describe("CSV_EXPORT_CONTENT", () => {
     });
   });
 
-  it("adds the 続柄 ticked for a staff download's 家族情報", () => {
-    const input = CSV_EXPORT_CONTENT.STAFF.inputOf(IDS, [
-      "fields:employeeNumber",
-      "familyRelations:WIFE",
-    ]);
+  it("adds the 続柄 ticked for a staff download's 家族情報, labelled as the screens do", () => {
+    const input = CSV_EXPORT_CONTENT.STAFF.inputOf(IDS, {
+      fields: ["employeeNumber"],
+      familyRelations: ["WIFE"],
+    });
 
     expect(input).toMatchObject({ fields: ["employeeNumber"], familyRelations: ["WIFE"] });
-    expect(CSV_EXPORT_CONTENT.STAFF.groups[1]?.options[1]).toEqual({
-      value: "familyRelations:WIFE",
-      label: "妻",
-    });
+    expect(CSV_EXPORT_CONTENT.STAFF.groups[1]?.options[1]).toEqual({ value: "WIFE", label: "妻" });
   });
 });

@@ -6,104 +6,90 @@ import {
   USER_EXPORT_FIELDS,
 } from "@repo/validation";
 import type { CsvExportField, CsvExportType, createCsvExportSchema, z } from "@repo/validation";
-import { FAMILY_RELATION_BY_LABEL, labelOf } from "@repo/validation/csv";
 
-/** One collapsible checkbox list of the download dialog: a sheet's columns, or the 続柄. */
+import { FAMILY_RELATION_OPTIONS } from "@/lib/family-relation-labels";
+
+/** One closed checkbox list of the download dialog: a sheet's columns, or the 続柄. */
 export type CsvExportGroup = {
   key: string;
   label: string;
   options: readonly { value: string; label: string }[];
 };
 
+/** The values ticked in each group, by the group's key. */
+export type CsvExportPicks = Readonly<Record<string, readonly string[]>>;
+
 /** What the download dialog shows for one type (legacy `<Type>CsvDownloadContent`). */
 export type CsvExportContent = {
   title: string;
   groups: readonly CsvExportGroup[];
   /** Ticked when the dialog opens: the main sheet's columns (legacy `default: true`). */
-  initial: readonly string[];
-  /** The ticked values as `csvExport.create`'s input. */
-  inputOf: (ids: string[], values: readonly string[]) => z.input<typeof createCsvExportSchema>;
+  initial: CsvExportPicks;
+  /** The ticked values as `csvExport.create`'s input, which its schema then checks. */
+  inputOf: (ids: string[], picks: CsvExportPicks) => z.input<typeof createCsvExportSchema>;
 };
 
-// A value names its group, so the same column key in two groups stays two boxes.
-const valueOf = (group: string, key: string) => `${group}:${key}`;
-
-const columnsGroup = (key: string, label: string, fields: readonly CsvExportField[]) => ({
-  key,
-  label,
-  options: fields.map((field) => ({ value: valueOf(key, field.key), label: field.header })),
-});
-
-const picked = <K extends string>(
-  values: readonly string[],
-  group: string,
-  keys: readonly K[],
-): K[] => keys.filter((key) => values.includes(valueOf(group, key)));
+const optionsOf = (fields: readonly CsvExportField[]) =>
+  fields.map((field) => ({ value: field.key, label: field.header }));
 
 const keysOf = <K extends string>(fields: readonly CsvExportField<K>[]): K[] =>
   fields.map((field) => field.key);
 
-const allOf = (group: string, fields: readonly CsvExportField[]) =>
-  fields.map((field) => valueOf(group, field.key));
+/** The keys ticked in a group, in the file's order. */
+const picked = <K extends string>(keys: readonly K[], values: readonly string[] | undefined): K[] =>
+  keys.filter((key) => values?.includes(key) ?? false);
 
 /**
- * Every download type. The extra sheets (家族情報, a client's 就業先部署情報) start unticked, as
- * in the legacy, where they were optional; ticking any of them adds the sheet.
+ * Every download type. The extra sheets (家族情報, a client's 就業先部署情報) start unticked, as in
+ * the legacy, where they were optional; ticking any of them adds the sheet.
  */
 export const CSV_EXPORT_CONTENT: Readonly<Record<CsvExportType, CsvExportContent>> = {
   USER: {
     title: "担当者情報 ダウンロード",
-    groups: [columnsGroup("fields", "担当者情報", USER_EXPORT_FIELDS)],
-    initial: allOf("fields", USER_EXPORT_FIELDS),
-    inputOf: (ids, values) => ({
+    groups: [{ key: "fields", label: "担当者情報", options: optionsOf(USER_EXPORT_FIELDS) }],
+    initial: { fields: keysOf(USER_EXPORT_FIELDS) },
+    inputOf: (ids, picks) => ({
       type: "USER",
       ids,
-      fields: picked(values, "fields", keysOf(USER_EXPORT_FIELDS)),
+      fields: picked(keysOf(USER_EXPORT_FIELDS), picks.fields),
     }),
   },
   STAFF: {
     title: "スタッフ情報 ダウンロード",
     groups: [
-      columnsGroup("fields", "スタッフ情報", STAFF_EXPORT_FIELDS),
-      {
-        key: "familyRelations",
-        label: "家族情報",
-        options: FAMILY_RELATIONS.map((relation) => ({
-          value: valueOf("familyRelations", relation),
-          label: labelOf(FAMILY_RELATION_BY_LABEL, relation),
-        })),
-      },
+      { key: "fields", label: "スタッフ情報", options: optionsOf(STAFF_EXPORT_FIELDS) },
+      { key: "familyRelations", label: "家族情報", options: FAMILY_RELATION_OPTIONS },
     ],
-    initial: allOf("fields", STAFF_EXPORT_FIELDS),
-    inputOf: (ids, values) => ({
+    initial: { fields: keysOf(STAFF_EXPORT_FIELDS) },
+    inputOf: (ids, picks) => ({
       type: "STAFF",
       ids,
-      fields: picked(values, "fields", keysOf(STAFF_EXPORT_FIELDS)),
-      familyRelations: picked(values, "familyRelations", FAMILY_RELATIONS),
+      fields: picked(keysOf(STAFF_EXPORT_FIELDS), picks.fields),
+      familyRelations: picked(FAMILY_RELATIONS, picks.familyRelations),
     }),
   },
   CLIENT: {
     title: "クライアント情報 ダウンロード",
     groups: [
-      columnsGroup("fields", "クライアント基本情報", CLIENT_EXPORT_FIELDS),
-      columnsGroup("branchFields", "就業先部署情報", BRANCH_EXPORT_FIELDS),
+      { key: "fields", label: "クライアント基本情報", options: optionsOf(CLIENT_EXPORT_FIELDS) },
+      { key: "branchFields", label: "就業先部署情報", options: optionsOf(BRANCH_EXPORT_FIELDS) },
     ],
-    initial: allOf("fields", CLIENT_EXPORT_FIELDS),
-    inputOf: (ids, values) => ({
+    initial: { fields: keysOf(CLIENT_EXPORT_FIELDS) },
+    inputOf: (ids, picks) => ({
       type: "CLIENT",
       ids,
-      fields: picked(values, "fields", keysOf(CLIENT_EXPORT_FIELDS)),
-      branchFields: picked(values, "branchFields", keysOf(BRANCH_EXPORT_FIELDS)),
+      fields: picked(keysOf(CLIENT_EXPORT_FIELDS), picks.fields),
+      branchFields: picked(keysOf(BRANCH_EXPORT_FIELDS), picks.branchFields),
     }),
   },
   BRANCH: {
     title: "就業先部署情報 ダウンロード",
-    groups: [columnsGroup("fields", "就業先部署情報", BRANCH_EXPORT_FIELDS)],
-    initial: allOf("fields", BRANCH_EXPORT_FIELDS),
-    inputOf: (ids, values) => ({
+    groups: [{ key: "fields", label: "就業先部署情報", options: optionsOf(BRANCH_EXPORT_FIELDS) }],
+    initial: { fields: keysOf(BRANCH_EXPORT_FIELDS) },
+    inputOf: (ids, picks) => ({
       type: "BRANCH",
       ids,
-      fields: picked(values, "fields", keysOf(BRANCH_EXPORT_FIELDS)),
+      fields: picked(keysOf(BRANCH_EXPORT_FIELDS), picks.fields),
     }),
   },
 };
