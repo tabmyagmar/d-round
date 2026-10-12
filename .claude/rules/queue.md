@@ -50,8 +50,8 @@ that. The email outbox is the reference implementation (`docs/adr/0004-outbox.md
    everywhere else ("Queue consumers (createWorker) may only be created in apps/worker"). One
    processor file per queue: `apps/worker/src/processors/<queue>.processor.ts` exporting
    `create<Queue>Worker(deps)`, registered in the `workers` array of `apps/worker/src/index.ts`
-   (today: the email processor, the outbox sweeper, the attachment delete processor and the
-   attachment sweeper).
+   (today: the email processor, the outbox sweeper, the attachment delete processor, the attachment
+   sweeper, the CSV import processor and the CSV import sweeper).
 4. **Deterministic jobId.** `jobIdFor(prefix, id)` (`packages/queue/src/job-id.ts`) returns
    `<prefix>-<id>`; both parts must match `[A-Za-z0-9_-]+` (BullMQ uses `:` as its key separator, so
    it is excluded) or `InvalidJobIdError` is thrown. Adding a job whose id already exists is a no-op
@@ -148,6 +148,36 @@ object in the bucket follows it.
 - `sweepAttachments` (scheduler id `attachment-sweeper`) expires stale `PENDING` rows and
   re-enqueues stale `DELETED` ones; a row it expires is enqueued by a later sweep, so a row attached
   in the same instant never meets a job. Its timings: `docs/attachments.md`.
+
+## CSV imports — rules in the API, consumer in the worker
+
+A CSV import (`docs/adr/0013-csv-import.md`) writes users, staff, clients and branches with the
+forms' rules, which live in API services, so its two jobs run code of the API: the worker imports
+the runners from `@repo/api/jobs` (`.claude/rules/layers.md`) and keeps the consumer.
+
+| Part         | File                                                                                                                                         |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Queue names  | `QUEUE_NAMES.csvImport`, `QUEUE_NAMES.csvImportSweeper`                                                                                      |
+| Job contract | `packages/queue/src/jobs/csv-import.job.ts` — `CsvImportJob`, `csvCheckJobId`, `csvImportJobId`, `enqueueCsvCheckJob`, `enqueueCsvImportJob` |
+| Rows         | `CsvImport`, `CsvImportRow` (`packages/database/src/repositories/csv-import.repository.ts`)                                                  |
+| Runners      | `apps/api/src/modules/csv-import/csv-import.runner.ts` — `runCsvCheck`, `runCsvImport` (exported by `apps/api/src/jobs`)                     |
+| Consumer     | `apps/worker/src/processors/csv-import.processor.ts` — `processCsvImportJob`, `createCsvImportWorker`                                        |
+| Sweeper      | `apps/worker/src/schedulers/csv-import-sweeper.ts` — `sweepCsvImports`, `registerCsvImportSweeper`                                           |
+
+- One queue, two job names: `check` (`csv-check-<id>`, default 5 attempts) and `import`
+  (`csv-import-<id>`, `attempts: 1`, as a retry would write rows again). Failed jobs are dropped at
+  once (`removeOnFail: true`): the import row is the record, and the sweeper re-adds the same ids.
+- A runner re-reads the import and claims it with one conditional update; a second run of the same
+  job changes nothing. The check's claim also accepts `CHECKING`, so a retry of the same job runs
+  again (it only reads and replaces the rows); the processor tells the runner whether the attempt is
+  the last (`job.attemptsStarted >= job.opts.attempts`), and only the last one marks the import
+  `FAILED`. The import writes each row through the entity's service and records its result.
+- The runner acts for the uploader through `buildJobContext` (`apps/api/src/core/context.ts`): their
+  current grants, no request headers; a deactivated uploader fails the import.
+- `sweepCsvImports` (scheduler id `csv-import-sweeper`, every 2 minutes) re-enqueues `UPLOADED` and
+  `CONFIRMED` imports older than a minute, and fails `CHECKING` and `IMPORTING` imports whose
+  `updated_at` (bumped by every claim and every row) is older than 10 minutes — an interrupted
+  import is never run again.
 
 ## BullMQ 6 / ioredis 6 notes
 

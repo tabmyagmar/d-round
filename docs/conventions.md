@@ -31,8 +31,9 @@ says why.
 Allowed directions: transport → service → repository → prisma, each layer importing only itself, the
 layer directly below and shared packages. Composition roots (`apps/api/src/index.ts`, `app.ts`,
 `env.ts`, `middleware/`, `health/`, `lib/`) may import every layer because they wire them together.
-`apps/worker` reuses repositories and packages, never `@repo/api`. `apps/web` imports `@repo/api`
-types only.
+`apps/worker` reuses repositories and packages; of `@repo/api` it imports only the job entry
+`@repo/api/jobs`, whose runners call API services (the CSV import, ADR 0013). `apps/web` imports
+`@repo/api` types only.
 
 Why:
 
@@ -138,10 +139,10 @@ list of problems).
 
 `boundaries/dependencies` from `eslint-plugin-boundaries` 7, configured in
 `packages/eslint-config/boundaries.js`: element types (`api-transport`, `api-service`, `api-core`,
-`api-app`, `repository`, `database`, `worker`, `web`, `ui`, `shared`), `default: "disallow"`,
-policies evaluated in order with the last match winning, and `@repo/*` imports matched by package
-name so the rules do not depend on how workspace symlinks resolve. See "Layer contract" above and
-`.claude/rules/layers.md` for the full matrix.
+`api-jobs`, `api-app`, `repository`, `database`, `worker`, `web`, `ui`, `shared`),
+`default: "disallow"`, policies evaluated in order with the last match winning, and `@repo/*`
+imports matched by package name so the rules do not depend on how workspace symlinks resolve. See
+"Layer contract" above and `.claude/rules/layers.md` for the full matrix.
 
 ### Misc footguns
 
@@ -239,7 +240,9 @@ up to 200 characters for this reason. Human-only commits carry no trailer.
     `WEB_ORIGIN` (CORS with credentials + `trustedOrigins`), `BETTER_AUTH_SECRET` (≥ 32 chars),
     optional `COOKIE_DOMAIN` (production parent domain);
   - worker: `MAIL_SMTP_URL` (`smtp://localhost:1025` = Mailpit), `MAIL_FROM` (its display name is
-    the brand used in emails, `apps/worker/src/mail/mail-from.ts`);
+    the brand used in emails, `apps/worker/src/mail/mail-from.ts`), and the API's `API_URL`,
+    `WEB_ORIGIN`, `BETTER_AUTH_SECRET` and optional `COOKIE_DOMAIN` (a CSV import invites users
+    through Better Auth, ADR 0013);
   - api and worker: optional `DISCORD_ALERT_WEBHOOK_URL` (error and fatal alerts,
     `docs/adr/0010-alerts.md`; a secret, since whoever holds it can post to the channel);
   - api and worker: `GCS_BUCKET` and `GCS_KEY_FILE` (the attachments bucket and the path of a

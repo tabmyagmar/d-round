@@ -2941,6 +2941,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@repo/worker@workspace:apps/worker"
   dependencies:
+    "@repo/api": "workspace:*"
     "@repo/database": "workspace:*"
     "@repo/eslint-config": "workspace:*"
     "@repo/logger": "workspace:*"

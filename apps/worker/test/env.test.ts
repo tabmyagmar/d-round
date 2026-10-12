@@ -11,6 +11,7 @@ const complete = {
   MAIL_FROM: "Acme <no-reply@example.com>",
   GCS_BUCKET: "d-round-test",
   GCS_KEY_FILE: "/secrets/gcs-key.json",
+  BETTER_AUTH_SECRET: "test-secret-test-secret-test-secret-1234",
 };
 
 describe("loadWorkerEnv", () => {
@@ -20,9 +21,11 @@ describe("loadWorkerEnv", () => {
     expect(env.NODE_ENV).toBe("development");
     expect(env.LOG_LEVEL).toBe("info");
     expect(env.MAIL_SMTP_URL).toBe("smtp://localhost:1025");
+    expect(env.API_URL).toBe("http://localhost:4000");
+    expect(env.WEB_ORIGIN).toBe("http://localhost:3000");
   });
 
-  it("refuses to start without REDIS_URL, the mail or the attachment bucket settings", () => {
+  it("refuses to start without REDIS_URL, the mail, the bucket or the auth secret", () => {
     const { REDIS_URL: _redis, ...withoutRedis } = complete;
     expect(() => loadWorkerEnv(withoutRedis)).toThrow(EnvValidationError);
 
@@ -31,6 +34,10 @@ describe("loadWorkerEnv", () => {
 
     const { GCS_KEY_FILE: _keyFile, ...withoutKeyFile } = complete;
     expect(() => loadWorkerEnv(withoutKeyFile)).toThrow(EnvValidationError);
+
+    // A CSV import invites users through Better Auth (docs/adr/0013-csv-import.md).
+    const { BETTER_AUTH_SECRET: _secret, ...withoutSecret } = complete;
+    expect(() => loadWorkerEnv(withoutSecret)).toThrow(EnvValidationError);
   });
 
   it("starts without a Discord webhook and refuses one that is not an https URL", () => {

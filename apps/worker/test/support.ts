@@ -3,13 +3,22 @@ import { Writable } from "node:stream";
 import { inject } from "vitest";
 
 import { createOutboxEmailRepository, createPrismaClient } from "@repo/database";
-import type { Attachment, AttachmentStatus, OutboxEmail, PrismaClient } from "@repo/database";
+import type {
+  Attachment,
+  AttachmentStatus,
+  CsvImport,
+  CsvImportStatus,
+  OutboxEmail,
+  PrismaClient,
+} from "@repo/database";
 import { createLogger } from "@repo/logger";
 import type { Logger } from "@repo/logger";
 import { createQueue, createRedisConnection, waitForRedis } from "@repo/queue";
 import type {
   AttachmentDeleteJob,
   AttachmentDeleteQueue,
+  CsvImportJob,
+  CsvImportQueue,
   EmailJob,
   EmailQueue,
   RedisConnection,
@@ -164,4 +173,50 @@ export const createAttachmentRow = async (
       createdAt: at,
     },
   });
+};
+
+/** An isolated CSV import queue per test, with quick retries; failed jobs stay to be inspected. */
+export const isolatedCsvImportQueue = (
+  connection: RedisConnection,
+  { attempts = 2 }: { attempts?: number } = {},
+): { name: string; queue: CsvImportQueue } => {
+  const name = `csv-import-test-${crypto.randomUUID()}`;
+  const queue = createQueue<CsvImportJob>(name, connection, {
+    defaultJobOptions: { attempts, backoff: { type: "fixed", delay: 20 } },
+  });
+  return { name, queue };
+};
+
+/**
+ * A CSV import of a fresh admin in `status`, last changed `ageMs` ago; with `file`, its CSV is
+ * attached and stored under `csv-imports/` (`put` it into the bucket the test hands the worker).
+ */
+export const createCsvImportRow = async (
+  db: PrismaClient,
+  { status = "UPLOADED", ageMs = 0 }: { status?: CsvImportStatus; ageMs?: number } = {},
+): Promise<CsvImport & { objectKey: string }> => {
+  const uploader = await db.user.create({
+    data: { name: "取込 太郎", email: `${crypto.randomUUID()}@example.com`, role: "admin" },
+  });
+  const csvImport = await db.csvImport.create({
+    data: { type: "USER_CREATE", status, fileName: "担当者.csv", createdById: uploader.id },
+  });
+  const objectKey = `csv-imports/${crypto.randomUUID()}.csv`;
+  await db.attachment.create({
+    data: {
+      kind: "CSV_IMPORT",
+      status: "ATTACHED",
+      objectKey,
+      fileName: "担当者.csv",
+      contentType: "text/csv",
+      size: 1,
+      uploadedById: uploader.id,
+      csvImportId: csvImport.id,
+      attachedAt: new Date(),
+    },
+  });
+  if (ageMs > 0) {
+    await db.$executeRaw`UPDATE csv_imports SET updated_at = now() - make_interval(secs => ${ageMs / 1000}) WHERE id = ${csvImport.id}::uuid`;
+  }
+  return { ...csvImport, objectKey };
 };
