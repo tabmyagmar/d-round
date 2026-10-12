@@ -793,3 +793,25 @@ build what the CSV jobs need on top of it.
   - T10: the client download's 就業先部署情報 sheet lists every non-deleted branch of the clients
     (the legacy `branchIds` was never sent) and needs the branch read grant; downloading a file
     again needs the grants to make it now.
+- 2026-10-12 — amendments while building T11–T17:
+  - The 担当者 list's menu says 担当者を追加 / 更新 (the legacy menu said ユーザー while the page,
+    its button and the dialogs said 担当者).
+  - The file step reuses `FileField` (drop zone, type and size checks, upload on pick, ✕): its
+    `upload` checks the file first and refuses one with format errors, listing them (D6).
+  - 内容確認 and 結果 show the ≤ 150 lines in one scrolling table (the legacy paged ten), so the
+    header's select-all covers every importable line; `DataTable` gained `canSelect` for the lines
+    with errors. No `csv-status-badge.tsx`: the history table is its only consumer.
+  - 履歴 is one menu item; its dialog switches between 追加 and 更新 (the legacy opened each type's
+    history from its own upload dialog). ダウンロード履歴 stays behind the download dialog's 履歴.
+  - The download columns are one closed checkbox list per sheet with 全選択 (`GroupedCheckboxList`
+    in a `Collapsible`, the shape of the legacy `DropdownMultiSelect`), not chips: the main sheet's
+    columns start ticked, the extra sheets (家族情報, a client's 就業先部署情報) unticked, as the
+    legacy made them optional.
+  - The menu's labels and types (`utils/csv-entities.ts`) and the download groups
+    (`utils/csv-export-content.ts`) sit beside `csv-type-content.ts`, so a list page loads the menu
+    without the CSV parser; `paginationOf` (`hooks/use-table-state.ts`) pages the dialogs' lists.
+  - Templates: all eight committed under `public/csv/template/<TYPE>/` (the USER and BRANCH update
+    templates made from the headers), the samples fitted to today's rules
+    (社員番号 required, 住所 the part after the post code's address); a test parses each against its
+    type. The manuals are git-ignored as the help PDFs, under ASCII names
+    (`public/csv/manual/user.pdf`, …).
