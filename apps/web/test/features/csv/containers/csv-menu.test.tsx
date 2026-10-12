@@ -78,10 +78,22 @@ describe("CsvMenu", () => {
       { action: "create", subject: "SourceCsvHistory" },
       { action: "read", subject: "SourceCsvHistory" },
       { action: "update", subject: "User" },
+      { action: "read", subject: "User" },
     ]);
 
-    // No `create User`, no 追加; no `read User` of every row (the self rule), no ダウンロード.
-    expect(itemNames()).toEqual(["担当者を更新", "履歴"]);
+    // No `create User`, no 追加.
+    expect(itemNames()).toEqual(["担当者を更新", "ダウンロード", "履歴"]);
+  });
+
+  it("is not there without the read of every row, which 履歴 and following an import need", () => {
+    renderMenu([
+      { action: "create", subject: "SourceCsvHistory" },
+      { action: "read", subject: "SourceCsvHistory" },
+      { action: "create", subject: "User" },
+      { action: "update", subject: "User" },
+    ]);
+
+    expect(screen.queryByRole("button", { name: "CSV" })).toBeNull();
   });
 
   it("lists the items in a drawer from the bottom below md", async () => {

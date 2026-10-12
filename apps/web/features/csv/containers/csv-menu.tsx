@@ -74,12 +74,12 @@ type CsvMenuTarget =
 type CsvMenuItem = { key: string; label: string; icon: ReactNode; target: CsvMenuTarget };
 
 /**
- * A list's 「CSV」 menu (legacy `CsvMenus` and the toolbar's download button, D13): {label}を追加 and
- * {label}を更新 for those who may upload CSV files (catalog 1401) and write every row of the
- * entity, ダウンロード of the ticked rows and 履歴 for those who may download (1402) — the download
- * also needs the entity's read of every row. Nothing allowed, no menu. Below `md` the items open
- * in a drawer from the bottom, as `FilterPopover`'s fields (D14). Rendered inside the list's
- * `RowSelectionProvider`.
+ * A list's 「CSV」 menu (legacy `CsvMenus` and the toolbar's download button, D13), offering what
+ * the services allow (D11): ダウンロード of the ticked rows and 履歴 for those who may download
+ * (catalog 1402) and read every row of the entity; {label}を追加 and {label}を更新 for those who
+ * may also upload CSV files (1401) and write every row — following an import reads it as 履歴
+ * does. Nothing allowed, no menu. Below `md` the items open in a drawer from the bottom, as
+ * `FilterPopover`'s fields (D14). Rendered inside the list's `RowSelectionProvider`.
  */
 export const CsvMenu = ({ entity }: { entity: CsvEntity }) => {
   const ability = useAbility();
@@ -88,8 +88,9 @@ export const CsvMenu = ({ entity }: { entity: CsvEntity }) => {
   const [target, setTarget] = useState<CsvMenuTarget | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isMobile = useIsMobile();
-  const mayUpload = ability.can("create", "SourceCsvHistory");
-  const mayDownload = ability.can("read", "SourceCsvHistory");
+  const mayDownload =
+    ability.can("read", "SourceCsvHistory") && canUnscoped(ability, "read", content.subject);
+  const mayUpload = mayDownload && ability.can("create", "SourceCsvHistory");
 
   const items: CsvMenuItem[] = [];
   if (mayUpload && canUnscoped(ability, "create", content.subject)) {
@@ -108,16 +109,11 @@ export const CsvMenu = ({ entity }: { entity: CsvEntity }) => {
       target: { kind: "import", type: content.updateType },
     });
   }
-  if (mayDownload && canUnscoped(ability, "read", content.subject)) {
-    items.push({
-      key: "export",
-      label: "ダウンロード",
-      icon: <Download />,
-      target: { kind: "export" },
-    });
-  }
   if (mayDownload) {
-    items.push({ key: "history", label: "履歴", icon: <History />, target: { kind: "history" } });
+    items.push(
+      { key: "export", label: "ダウンロード", icon: <Download />, target: { kind: "export" } },
+      { key: "history", label: "履歴", icon: <History />, target: { kind: "history" } },
+    );
   }
   if (items.length === 0) {
     return null;
