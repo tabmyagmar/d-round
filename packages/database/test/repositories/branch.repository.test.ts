@@ -184,6 +184,22 @@ describe("branch repository", () => {
     });
   });
 
+  it("lists the non-deleted branches of some clients with their 就業先番号", async () => {
+    await scenario(async (tx) => {
+      const repo = createBranchRepository(tx);
+      const client = await createClient(tx);
+      const other = await createClient(tx);
+      const kept = await repo.create(write(client.id, { number: 1 }));
+      const gone = await repo.create(write(client.id, { number: 2 }));
+      await repo.create(write(other.id, { number: 1 }));
+      await repo.softDeleteMany([gone.id]);
+
+      expect(await repo.findActiveByClientIds([client.id])).toEqual([
+        { id: kept.id, clientId: client.id, number: 1 },
+      ]);
+    });
+  });
+
   it("finds the highest 就業先番号 of a client's non-deleted branches", async () => {
     await scenario(async (tx) => {
       const repo = createBranchRepository(tx);

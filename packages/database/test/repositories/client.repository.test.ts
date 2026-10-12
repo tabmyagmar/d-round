@@ -159,6 +159,20 @@ describe("client repository", () => {
     });
   });
 
+  it("finds the non-deleted clients holding some クライアント番号", async () => {
+    await scenario(async (tx) => {
+      const repo = createClientRepository(tx);
+      const number = uniqueNumber();
+      const { id } = await repo.create(write({ number }));
+      const gone = await repo.create(write({ number: number + 1 }));
+      await repo.softDeleteMany([gone.id]);
+
+      expect(await repo.findActiveByNumbers([number, number + 1, number + 2])).toEqual([
+        { id, number },
+      ]);
+    });
+  });
+
   it("changes the status and reads the statuses within the caller's where", async () => {
     await scenario(async (tx) => {
       const repo = createClientRepository(tx);

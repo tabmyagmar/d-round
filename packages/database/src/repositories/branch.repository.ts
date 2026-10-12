@@ -110,6 +110,15 @@ export const createBranchRepository = (db: DbClient) => ({
     });
   },
 
+  /** The non-deleted branches of these clients, by 就業先番号 (a CSV's branches: taken, or targets). */
+  findActiveByClientIds: (
+    clientIds: readonly string[],
+  ): Promise<{ id: string; clientId: string; number: number }[]> =>
+    db.branch.findMany({
+      where: { clientId: { in: [...clientIds] }, deletedAt: null },
+      select: { id: true, clientId: true, number: true },
+    }),
+
   /** How many of the client's non-deleted branches hold `number`, leaving out `exceptId`. */
   countActiveByNumber: (clientId: string, number: number, exceptId?: string): Promise<number> =>
     db.branch.count({
