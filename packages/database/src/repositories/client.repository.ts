@@ -145,8 +145,10 @@ export const createClientRepository = (db: DbClient) => ({
       where: { number, deletedAt: null, ...(exceptId ? { id: { not: exceptId } } : {}) },
     }),
 
-  /** The statuses of these non-deleted clients, within `where` (the caller's rows). */
-  /** The statuses of `ids`, with what a delete's audit row calls each (番号 and name). */
+  /**
+   * The statuses of these non-deleted clients, within `where` (the caller's rows), with what a
+   * delete's audit row calls each (番号 and name).
+   */
   findStatuses: (
     ids: readonly string[],
     where: Prisma.ClientWhereInput = {},

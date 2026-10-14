@@ -239,6 +239,49 @@ describe("audit views", () => {
     expect(userLabelOf(user!)).toBe(`${String(user!.profile?.employeeNumber)} 権限 次郎`);
   });
 
+  it("build from a row without its optional parts: no address, relations or profile", async () => {
+    const ctx = await adminContext();
+    const charger = await signedInUser(h);
+    const client = await clientService.create(ctx, clientInput([charger.user.id]));
+    const branch = await branchService.create(ctx, branchInput(client.id, [charger.user.id]));
+    const staff = await staffService.create(ctx, staffInput([charger.user.id]));
+    const user = await createUserRepository(h.db).findById(charger.user.id);
+
+    const views = {
+      Client: clientAuditView({ ...client, address: null, regions: [], chargers: [] }),
+      Branch: branchAuditView({ ...branch, address: null, chargers: [], memo: null }),
+      Staff: staffAuditView(
+        {
+          ...staff,
+          address: null,
+          regions: [],
+          prefectures: [],
+          chargers: [],
+          familyMembers: [],
+          memos: [],
+          jobHistories: [],
+        },
+        [],
+      ),
+      User: userAuditView({ ...user!, profile: null }, [], new Map()),
+    };
+
+    expect(Object.keys(views.Client)).toEqual(keysOf("Client"));
+    expect(Object.keys(views.Branch)).toEqual(keysOf("Branch"));
+    expect(Object.keys(views.Staff)).toEqual(keysOf("Staff"));
+    expect(Object.keys(views.User)).toEqual(keysOf("User"));
+    expect(views.Client).toMatchObject({ postCode: "", address1: "", regions: "", chargers: "" });
+    expect(views.Branch).toMatchObject({ postCode: "", chargers: "", memo: "" });
+    expect(views.Staff).toMatchObject({
+      postCode: "",
+      jobHistories: "",
+      familyMembers: "",
+      memos: "",
+    });
+    expect(views.User).toMatchObject({ employeeNumber: "", regions: "", permissions: "" });
+    expect(JSON.stringify(views)).not.toMatch(/null|undefined|NaN/);
+  });
+
   it("record a masked field as changed, without its values", async () => {
     const ctx = await adminContext();
     const staff = await staffService.create(ctx, staffInput([(await signedInUser(h)).user.id]));

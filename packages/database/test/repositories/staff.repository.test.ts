@@ -257,10 +257,19 @@ describe("staff repository", () => {
     await scenario(async (tx) => {
       const repo = createStaffRepository(tx);
       const charger = await createUser(tx, "担当");
-      const { id } = await repo.create(write({ chargerUserIds: [charger.id] }));
+      const data = write({ chargerUserIds: [charger.id] });
+      const { id } = await repo.create(data);
 
       expect(await repo.updateStatus(id, "SUSPENDED")).toEqual({ id, status: "SUSPENDED" });
-      expect(await repo.findStatuses([id])).toMatchObject([{ id, status: "SUSPENDED" }]);
+      expect(await repo.findStatuses([id])).toEqual([
+        {
+          id,
+          status: "SUSPENDED",
+          employeeNumber: data.fields.employeeNumber,
+          lastName: "山田",
+          firstName: "花子",
+        },
+      ]);
       expect(await repo.findStatuses([id], { status: "ACTIVE" })).toEqual([]);
       const charged = await repo.findManyByCharger(charger.id);
       expect(charged.map((staff) => staff.id)).toEqual([id]);

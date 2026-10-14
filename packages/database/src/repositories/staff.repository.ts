@@ -261,8 +261,10 @@ export const createStaffRepository = (db: DbClient) => ({
       },
     }),
 
-  /** The statuses of these non-deleted staff, within `where` (the caller's rows). */
-  /** The statuses of `ids`, with what a delete's audit row calls each (番号 and name). */
+  /**
+   * The statuses of these non-deleted staff, within `where` (the caller's rows), with what a
+   * delete's audit row calls each (番号 and name).
+   */
   findStatuses: (
     ids: readonly string[],
     where: Prisma.StaffWhereInput = {},

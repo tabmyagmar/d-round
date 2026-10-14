@@ -147,8 +147,10 @@ export const createBranchRepository = (db: DbClient) => ({
       })
     )._max.number,
 
-  /** The statuses of these non-deleted branches, within `where` (the caller's rows). */
-  /** The statuses of `ids`, with what a delete's audit row calls each (the numbers and name). */
+  /**
+   * The statuses of these non-deleted branches, within `where` (the caller's rows), with what a
+   * delete's audit row calls each (the numbers and name).
+   */
   findStatuses: (
     ids: readonly string[],
     where: Prisma.BranchWhereInput = {},

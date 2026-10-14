@@ -1,6 +1,9 @@
+import { Writable } from "node:stream";
+
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createPrismaClient } from "@repo/database";
+import { createLogger } from "@repo/logger";
 
 import { createCallerFactory } from "../../src/trpc/init";
 import { appRouter } from "../../src/trpc/router";
@@ -85,13 +88,27 @@ describe("failed mutations in the audit log", () => {
     expect(await failuresOf(admin.user.id)).toEqual([]);
   });
 
-  it("answers with the same error when the failure row cannot be written", async () => {
+  it("answers with the same error, and logs it, when the failure row cannot be written", async () => {
     const am = await signedInUser(h);
+    const written: string[] = [];
+    const logger = createLogger(
+      { name: "test" },
+      new Writable({
+        write: (chunk: Buffer, _encoding, callback) => {
+          written.push(chunk.toString());
+          callback();
+        },
+      }),
+    );
     const unreachable = createPrismaClient({
       connectionString: "postgresql://nobody:nothing@127.0.0.1:1/none",
     });
     try {
-      const caller = createCaller({ ...(await contextFor(h, am.headers)), db: unreachable });
+      const caller = createCaller({
+        ...(await contextFor(h, am.headers)),
+        db: unreachable,
+        logger,
+      });
 
       await expect(caller.client.create(clientInput([am.user.id]))).rejects.toMatchObject({
         code: "FORBIDDEN",
@@ -100,5 +117,12 @@ describe("failed mutations in the audit log", () => {
       await unreachable.$disconnect();
     }
     expect(await failuresOf(am.user.id)).toEqual([]);
+    expect(written.map((line): unknown => JSON.parse(line))).toContainEqual(
+      expect.objectContaining({
+        msg: "audit log row not written",
+        action: "client.create",
+        errorCode: "FORBIDDEN",
+      }),
+    );
   });
 });

@@ -191,10 +191,13 @@ describe("client repository", () => {
   it("changes the status and reads the statuses within the caller's where", async () => {
     await scenario(async (tx) => {
       const repo = createClientRepository(tx);
-      const { id } = await repo.create(write());
+      const data = write();
+      const { id } = await repo.create(data);
 
       expect(await repo.updateStatus(id, "SUSPENDED")).toEqual({ id, status: "SUSPENDED" });
-      expect(await repo.findStatuses([id])).toMatchObject([{ id, status: "SUSPENDED" }]);
+      expect(await repo.findStatuses([id])).toEqual([
+        { id, status: "SUSPENDED", number: data.fields.number, name: "株式会社テスト" },
+      ]);
       expect(await repo.findStatuses([id], { status: "ACTIVE" })).toEqual([]);
     });
   });
