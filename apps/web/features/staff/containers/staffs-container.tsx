@@ -3,6 +3,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { listStaffsSchema } from "@repo/validation";
@@ -38,7 +39,7 @@ const StaffDeleteDialog = dynamic(
  * The list inside its row selection: deleted staff leave the selection, so the list reads the
  * store too (the users list only writes it through the table).
  */
-const StaffsList = () => {
+const StaffsList = ({ csvMenu }: { csvMenu: ReactNode }) => {
   const trpc = useTRPC();
   const { searchParams, setMany } = useSearch();
   const input = useMemo(() => parseSearchParams(listStaffsSchema, searchParams), [searchParams]);
@@ -58,6 +59,7 @@ const StaffsList = () => {
   return (
     <div className="flex flex-col gap-4">
       <StaffsToolbar
+        csvMenu={csvMenu}
         filters={filters}
         names={hierarchy}
         onChange={setMany}
@@ -110,10 +112,11 @@ const StaffsList = () => {
 
 /**
  * スタッフ管理: the URL is the list's state (search, filters, page, sort), read through the API's
- * own input schema; the previous page stays on screen while the next one loads.
+ * own input schema; the previous page stays on screen while the next one loads. The page hands in
+ * the CSV feature's menu (`csvMenu`), which downloads the selected rows.
  */
-export const StaffsContainer = () => (
+export const StaffsContainer = ({ csvMenu }: { csvMenu?: ReactNode }) => (
   <RowSelectionProvider>
-    <StaffsList />
+    <StaffsList csvMenu={csvMenu} />
   </RowSelectionProvider>
 );

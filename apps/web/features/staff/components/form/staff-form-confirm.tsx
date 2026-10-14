@@ -10,10 +10,10 @@ import { StaffResumeList } from "@/features/staff/components/staff-resume-list";
 import type { ChargerChoice } from "@/features/staff/types";
 import {
   EMPLOYEE_TYPE_LABELS,
-  FAMILY_RELATION_LABELS,
   GENDER_LABELS,
   STAFF_MEMO_TYPE_LABELS,
 } from "@/features/staff/utils/staff-labels";
+import { FAMILY_RELATION_LABELS } from "@/lib/family-relation-labels";
 import { POSITION_LABELS } from "@/lib/position-labels";
 
 /** A `yyyy-MM-dd` value as the legacy wrote dates (2026/04/01), or `null`. */

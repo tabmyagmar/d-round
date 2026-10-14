@@ -2,6 +2,7 @@
 
 import { Plus } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { Can } from "@repo/permissions/react";
 import { Button } from "@repo/ui/components/button";
@@ -20,10 +21,15 @@ export type UsersToolbarProps = {
   regions: readonly { code: number; name: string }[];
   /** URL changes: `null` removes a parameter (the API default applies). */
   onChange: (changes: UserFilterChanges) => void;
+  /** The 「CSV」 menu, from the CSV feature: the page composes the features. */
+  csvMenu?: ReactNode;
 };
 
-/** 検索, the filter popover, 担当者追加 for those who may create users, then the active filters. */
-export const UsersToolbar = ({ filters, regions, onChange }: UsersToolbarProps) => (
+/**
+ * 検索, the filter popover, the 「CSV」 menu and 担当者追加 for those who may create users, then
+ * the active filters.
+ */
+export const UsersToolbar = ({ filters, regions, onChange, csvMenu }: UsersToolbarProps) => (
   <ListToolbar
     search={
       <SearchInput
@@ -36,14 +42,15 @@ export const UsersToolbar = ({ filters, regions, onChange }: UsersToolbarProps) 
     }
     filters={<UserFilter filters={filters} onChange={onChange} />}
     actions={
-      // TODO(D_ROUND-TBD): CSV upload / download (legacy CsvMenus, CsvDownloadDialog) — own ticket;
-      // the download takes the selected ids from the list's row selection (useRowSelection).
-      <Can I="create" a="User">
-        <Button render={<Link href={href(routes.user.create)} />} nativeButton={false}>
-          <Plus data-icon="inline-start" />
-          担当者追加
-        </Button>
-      </Can>
+      <>
+        {csvMenu}
+        <Can I="create" a="User">
+          <Button render={<Link href={href(routes.user.create)} />} nativeButton={false}>
+            <Plus data-icon="inline-start" />
+            担当者追加
+          </Button>
+        </Can>
+      </>
     }
   >
     <FilterTags

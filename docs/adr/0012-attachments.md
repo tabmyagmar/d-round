@@ -68,3 +68,14 @@ tickets left プロフィール画像 and 履歴書 out until this decision.
   concurrency.
 - A delete in a missing bucket answers 404, which counts as done; so the API and the worker list one
   object of their bucket at start-up and refuse to start when they cannot (review round 3).
+
+## Changes
+
+- 2026-10-12 — A third owner: the file of a CSV import, kind `CSV_IMPORT`, owner column
+  `attachments.csv_import_id` (ADR 0013, migration `add_csv_imports`).
+- 2026-10-12 — `StorageProvider` gains `download` and `upload` for the small files the server
+  processes itself (a CSV import's file, a CSV export); `upload` is create-only, as the signed PUT
+  (ADR 0013).
+- 2026-10-12 — A fourth owner: a CSV download's workbook, kind `CSV_EXPORT`, owner column
+  `attachments.csv_export_id`. The API writes it (`storeFile`) and attaches it like an upload; no
+  browser gets an upload URL for it (ADR 0013, migration `add_csv_exports`).

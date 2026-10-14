@@ -33,7 +33,8 @@ export type ReadUrl = {
 
 /**
  * Object storage as the app uses it: the browser uploads and downloads through signed URLs, the
- * server only signs, checks and deletes (docs/adr/0012-attachments.md).
+ * server signs, checks and deletes (docs/adr/0012-attachments.md), and reads or writes the small
+ * files it processes itself — a CSV import's file, a CSV export (docs/adr/0013-csv-import.md).
  */
 export type StorageProvider = {
   /**
@@ -50,6 +51,10 @@ export type StorageProvider = {
    * `PermanentStorageError` when retrying cannot help (the bucket answered 400 / 401 / 403).
    */
   delete: (key: string) => Promise<void>;
+  /** The object's bytes, or null when nothing was uploaded under the key. Small files only. */
+  download: (key: string) => Promise<Uint8Array | null>;
+  /** Stores bytes the server produced under a new key; never overwrites an existing object. */
+  upload: (key: string, body: Uint8Array, contentType: string) => Promise<void>;
 };
 
 /** A storage answer the same request will get again: a refused key or role (400 / 401 / 403). */

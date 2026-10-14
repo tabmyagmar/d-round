@@ -84,10 +84,10 @@ missing or malformed value.
 | --------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
 | `DATABASE_URL`              | all        | Postgres connection string (`POSTGRES_*` feed docker-compose; keep them in sync)                             |
 | `REDIS_URL`                 | api/worker | Redis connection string                                                                                      |
-| `BETTER_AUTH_SECRET`        | api        | signs sessions and tokens (`openssl rand -base64 32`, at least 32 chars); rotating it signs everyone out     |
-| `API_URL`                   | api        | public origin of the API; Better Auth sets its cookies for this host (default `http://localhost:4000`)       |
-| `WEB_ORIGIN`                | api        | browser origin allowed with credentials (CORS, `trustedOrigins`; default `http://localhost:3000`)            |
-| `COOKIE_DOMAIN`             | api        | optional; production parent domain shared by web and api (see `docs/adr/0002-auth.md`)                       |
+| `BETTER_AUTH_SECRET`        | api/worker | signs sessions and tokens (`openssl rand -base64 32`, at least 32 chars); rotating it signs everyone out     |
+| `API_URL`                   | api/worker | public origin of the API; Better Auth sets its cookies for this host (default `http://localhost:4000`)       |
+| `WEB_ORIGIN`                | api/worker | browser origin allowed with credentials (CORS, `trustedOrigins`; default `http://localhost:3000`)            |
+| `COOKIE_DOMAIN`             | api/worker | optional; production parent domain shared by web and api (see `docs/adr/0002-auth.md`)                       |
 | `MAIL_SMTP_URL`             | worker     | SMTP endpoint, `smtp://localhost:1025` for Mailpit                                                           |
 | `MAIL_FROM`                 | worker     | sender, e.g. `My App <no-reply@example.com>`; the display name is the brand used in emails                   |
 | `DISCORD_ALERT_WEBHOOK_URL` | api/worker | optional; Discord webhook that receives every error and fatal log line (`docs/adr/0010-alerts.md`); a secret |
@@ -103,7 +103,11 @@ sidebar and on the auth card) and auth background (`apps/web/public/auth-backgro
 The 操作方法 page links guide books under `apps/web/public/help/` (`guidebook.pdf`, list in
 `apps/web/features/help/utils/help-guides.ts`). They are too large for git and are ignored: a
 deployment places them, and a developer copies them from the legacy d-round-web checkout
-(`public/help/ガイドブック.pdf`).
+(`public/help/ガイドブック.pdf`). The CSV dialogs' CSVデータ説明書 are ignored the same way:
+`apps/web/public/csv/manual/{user,staff,client,branch}.pdf` (named in
+`apps/web/features/csv/utils/csv-type-content.ts`), copied from the legacy
+`public/csv/manual/<TYPE>/CSVデータの項目説明_*.pdf`. The CSVデータフォーマット templates beside
+them (`public/csv/template/`) are committed.
 
 ## What is included
 

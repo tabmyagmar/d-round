@@ -220,6 +220,39 @@ describe("staff repository", () => {
     });
   });
 
+  it("lists the non-deleted staff of a where in full, by スタッフ番号", async () => {
+    await scenario(async (tx) => {
+      const repo = createStaffRepository(tx);
+      const base = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+      const second = await repo.create(write({ employeeNumber: base + 1 }));
+      const first = await repo.create(write({ employeeNumber: base }));
+      const gone = await repo.create(write({ employeeNumber: base + 2 }));
+      await repo.softDeleteMany([gone.id]);
+
+      const staff = await repo.findManyDetailed({ id: { in: [first.id, second.id, gone.id] } });
+      expect(staff.map((row) => row.id)).toEqual([first.id, second.id]);
+      expect(staff[0]?.jobHistories).toHaveLength(2);
+    });
+  });
+
+  it("finds the non-deleted staff holding some スタッフ番号", async () => {
+    await scenario(async (tx) => {
+      const repo = createStaffRepository(tx);
+      const employeeNumber = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+      const { id } = await repo.create(write({ employeeNumber }));
+      const gone = await repo.create(write({ employeeNumber: employeeNumber + 1 }));
+      await repo.softDeleteMany([gone.id]);
+
+      expect(
+        await repo.findActiveByEmployeeNumbers([
+          employeeNumber,
+          employeeNumber + 1,
+          employeeNumber + 2,
+        ]),
+      ).toEqual([{ id, employeeNumber }]);
+    });
+  });
+
   it("changes the status and finds the staff a user is in charge of, within the caller's where", async () => {
     await scenario(async (tx) => {
       const repo = createStaffRepository(tx);

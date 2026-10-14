@@ -10,7 +10,7 @@ import { ja } from "@repo/ui/lib/calendar-locale";
 import { STAFF_LIST_MAX } from "@repo/validation";
 import type { StaffFormValues } from "@repo/validation";
 
-import { FAMILY_RELATION_OPTIONS } from "@/features/staff/utils/staff-labels";
+import { FAMILY_RELATION_OPTIONS } from "@/lib/family-relation-labels";
 
 const newFamilyMember = (): StaffFormValues["familyMembers"][number] => ({
   lastName: "",

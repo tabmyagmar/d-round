@@ -1,7 +1,9 @@
+import { createAppAuth } from "@repo/api/jobs";
 import { disconnectPrismaClient, getPrismaClient } from "@repo/database";
 import { createDiscordAlertStream, createLogger } from "@repo/logger";
 import {
   createAttachmentDeleteQueue,
+  createCsvImportQueue,
   createEmailQueue,
   createRedisConnection,
   waitForRedis,
@@ -13,12 +15,18 @@ import { registerGracefulShutdown } from "./lib/graceful-shutdown";
 import { mailDisplayName } from "./mail/mail-from";
 import { createSmtpMailProvider } from "./mail/smtp-mail-provider";
 import { createAttachmentDeleteWorker } from "./processors/attachment-delete.processor";
+import { createCsvImportWorker } from "./processors/csv-import.processor";
 import { createEmailWorker } from "./processors/email.processor";
 import {
   createAttachmentSweeperQueue,
   createAttachmentSweeperWorker,
   registerAttachmentSweeper,
 } from "./schedulers/attachment-sweeper";
+import {
+  createCsvImportSweeperQueue,
+  createCsvImportSweeperWorker,
+  registerCsvImportSweeper,
+} from "./schedulers/csv-import-sweeper";
 import {
   createOutboxSweeperQueue,
   createOutboxSweeperWorker,
@@ -28,7 +36,7 @@ import {
 /**
  * Worker process bootstrap. Every BullMQ consumer in the system is started from here and
  * nowhere else: the email processor and the outbox sweeper, the attachment delete processor and
- * the attachment sweeper.
+ * the attachment sweeper, the CSV import processor and its sweeper.
  */
 const env = loadWorkerEnv();
 // Error and fatal lines also go to Discord when a webhook is set (docs/adr/0010-alerts.md).
@@ -57,6 +65,19 @@ const sweeperQueue = createOutboxSweeperQueue(connection);
 const storage = createGcsStorage({ bucket: env.GCS_BUCKET, keyFile: env.GCS_KEY_FILE });
 const attachmentDeleteQueue = createAttachmentDeleteQueue(connection);
 const attachmentSweeperQueue = createAttachmentSweeperQueue(connection);
+// CSV imports: the runners and their rules come from the API (docs/adr/0013-csv-import.md), and
+// act for the uploader with Better Auth as the API builds it (imported users get the invitation).
+const csvImportQueue = createCsvImportQueue(connection);
+const csvImportSweeperQueue = createCsvImportSweeperQueue(connection);
+const auth = createAppAuth({
+  db,
+  emailQueue,
+  logger,
+  secret: env.BETTER_AUTH_SECRET,
+  apiUrl: env.API_URL,
+  webOrigin: env.WEB_ORIGIN,
+  cookieDomain: env.COOKIE_DOMAIN,
+});
 
 // Registered in src/processors/*.processor.ts and src/schedulers/* and listed here. A BullMQ
 // worker takes jobs as soon as it exists, so they are created once the checks below passed: a
@@ -75,6 +96,8 @@ const shutdown = registerGracefulShutdown({
           sweeperQueue.close(),
           attachmentDeleteQueue.close(),
           attachmentSweeperQueue.close(),
+          csvImportQueue.close(),
+          csvImportSweeperQueue.close(),
         ]),
     },
     { name: "mail provider", run: () => mailProvider.close?.() },
@@ -94,9 +117,22 @@ try {
     createOutboxSweeperWorker({ connection, db, emailQueue, logger }),
     createAttachmentDeleteWorker({ connection, db, storage, logger }),
     createAttachmentSweeperWorker({ connection, db, attachmentDeleteQueue, logger }),
+    createCsvImportWorker({
+      connection,
+      logger,
+      db,
+      redis: connection,
+      auth,
+      webOrigin: env.WEB_ORIGIN,
+      storage,
+      attachmentDeleteQueue,
+      csvImportQueue,
+    }),
+    createCsvImportSweeperWorker({ connection, db, csvImportQueue, logger }),
   );
   await registerOutboxSweeper(sweeperQueue);
   await registerAttachmentSweeper(attachmentSweeperQueue);
+  await registerCsvImportSweeper(csvImportSweeperQueue);
   logger.info({ workers: workers.length }, "worker ready");
 } catch (error) {
   logger.fatal({ err: error }, "worker failed to start");

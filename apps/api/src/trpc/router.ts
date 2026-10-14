@@ -3,6 +3,8 @@ import { attachmentRouter } from "./routers/attachment.router";
 import { branchRouter } from "./routers/branch.router";
 import { clientRouter } from "./routers/client.router";
 import { commentTemplateRouter } from "./routers/comment-template.router";
+import { csvExportRouter } from "./routers/csv-export.router";
+import { csvImportRouter } from "./routers/csv-import.router";
 import { healthRouter } from "./routers/health.router";
 import { permissionRouter } from "./routers/permission.router";
 import { sourceRouter } from "./routers/source.router";
@@ -14,6 +16,8 @@ export const appRouter = router({
   branch: branchRouter,
   client: clientRouter,
   commentTemplate: commentTemplateRouter,
+  csvExport: csvExportRouter,
+  csvImport: csvImportRouter,
   health: healthRouter,
   permission: permissionRouter,
   source: sourceRouter,

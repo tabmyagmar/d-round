@@ -6,6 +6,7 @@
   "description": "zod re-export, shared schemas and the createEnv() helper",
   "exports": {
     ".": "./src/index.ts",
+    "./csv": "./src/csv/index.ts",
     "./env": "./src/env.ts"
   },
   "scripts": {
@@ -15,6 +16,7 @@
   },
   "dependencies": {
     "@repo/dayjs": "workspace:*",
+    "csv-parse": "7.0.3",
     "libphonenumber-js": "1.13.14",
     "zod": "4.5.4"
   },

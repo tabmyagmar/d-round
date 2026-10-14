@@ -124,6 +124,21 @@ export const createClientRepository = (db: DbClient) => ({
     });
   },
 
+  /** The non-deleted clients `where` matches, as the detail shows them, by クライアント番号. */
+  findManyDetailed: (where: Prisma.ClientWhereInput): Promise<ClientDetailRow[]> =>
+    db.client.findMany({
+      where: { AND: [where, { deletedAt: null }] },
+      include: CLIENT_DETAIL_INCLUDE,
+      orderBy: [{ number: "asc" }, { id: "asc" }],
+    }),
+
+  /** The non-deleted clients holding these クライアント番号 (a CSV's numbers and branch rows). */
+  findActiveByNumbers: (numbers: readonly number[]): Promise<{ id: string; number: number }[]> =>
+    db.client.findMany({
+      where: { number: { in: [...numbers] }, deletedAt: null },
+      select: { id: true, number: true },
+    }),
+
   /** How many non-deleted clients hold `number`, leaving out `exceptId`. */
   countActiveByNumber: (number: number, exceptId?: string): Promise<number> =>
     db.client.count({

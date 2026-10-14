@@ -10,11 +10,17 @@ import { createLogger } from "@repo/logger";
 import type { Logger } from "@repo/logger";
 import {
   createAttachmentDeleteQueue,
+  createCsvImportQueue,
   createEmailQueue,
   createRedisConnection,
   waitForRedis,
 } from "@repo/queue";
-import type { AttachmentDeleteQueue, EmailQueue, RedisConnection } from "@repo/queue";
+import type {
+  AttachmentDeleteQueue,
+  CsvImportQueue,
+  EmailQueue,
+  RedisConnection,
+} from "@repo/queue";
 import { createMemoryStorage } from "@repo/storage";
 import type { MemoryStorage } from "@repo/storage";
 import { DEFAULT_ROLE } from "@repo/validation";
@@ -49,6 +55,7 @@ export type TestHarness = {
   /** The bucket as a map: `storage.put(key, …)` plays the browser's signed PUT. */
   storage: MemoryStorage;
   attachmentDeleteQueue: AttachmentDeleteQueue;
+  csvImportQueue: CsvImportQueue;
   logger: Logger;
   /** Every verification mail Better Auth asked for (also written to the outbox). */
   sentMails: VerificationEmail[];
@@ -65,6 +72,7 @@ export const createHarness = async (): Promise<TestHarness> => {
   const logger = silentLogger();
   const emailQueue = createEmailQueue(redis);
   const attachmentDeleteQueue = createAttachmentDeleteQueue(redis);
+  const csvImportQueue = createCsvImportQueue(redis);
   const sentMails: VerificationEmail[] = [];
   // The production callbacks (outbox rows + jobs), with the verification mails also recorded.
   const senders = createAuthEmailSenders({ db, emailQueue, logger });
@@ -88,11 +96,13 @@ export const createHarness = async (): Promise<TestHarness> => {
     emailQueue,
     storage: createMemoryStorage(),
     attachmentDeleteQueue,
+    csvImportQueue,
     logger,
     sentMails,
     stop: async () => {
       await emailQueue.close();
       await attachmentDeleteQueue.close();
+      await csvImportQueue.close();
       await redis.quit();
       await db.$disconnect();
     },
@@ -170,6 +180,7 @@ export const contextDeps = (harness: TestHarness): ContextDeps => ({
   webOrigin: TEST_WEB_ORIGIN,
   storage: harness.storage,
   attachmentDeleteQueue: harness.attachmentDeleteQueue,
+  csvImportQueue: harness.csvImportQueue,
 });
 
 /** A RequestContext exactly as the transport would build it for these headers. */

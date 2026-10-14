@@ -127,7 +127,10 @@ describe("DataTable card", () => {
 
 describe("DataTable row selection", () => {
   /** Renders a selectable table and returns the `onChange` spy. */
-  const renderSelectable = (state: Record<string, true>) => {
+  const renderSelectable = (
+    state: Record<string, true>,
+    canSelect?: (person: Person) => boolean,
+  ) => {
     const onChange = vi.fn();
     render(
       <DataTable
@@ -138,6 +141,7 @@ describe("DataTable row selection", () => {
           state,
           onChange,
           labels: { all: "Select page", row: (person) => `Select ${person.name}` },
+          ...(canSelect ? { canSelect } : {}),
         }}
       />,
     );
@@ -188,6 +192,24 @@ describe("DataTable row selection", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Select page" }));
 
     expect(nextSelection(onChange, {})).toEqual({ "1": true, "2": true });
+  });
+
+  it("keeps a row that may not be selected out, the header's select-all included", () => {
+    const onChange = renderSelectable({}, (person) => person.name !== "Bob");
+
+    expect(screen.getByRole("checkbox", { name: "Select Bob" }).hasAttribute("data-disabled")).toBe(
+      true,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select page" }));
+    expect(nextSelection(onChange, {})).toEqual({ "1": true });
+  });
+
+  it("counts the page as all selected once every row that may be is", () => {
+    renderSelectable({ "1": true }, (person) => person.name !== "Bob");
+
+    expect(screen.getByRole("checkbox", { name: "Select page" }).getAttribute("aria-checked")).toBe(
+      "true",
+    );
   });
 
   it("has no checkboxes when the table is not selectable", () => {

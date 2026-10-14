@@ -74,6 +74,11 @@ export type DataTableRowSelectionState = RowSelectionState;
 export type DataTableRowSelection<TData extends RowData> = {
   state: DataTableRowSelectionState;
   onChange: OnChangeFn<DataTableRowSelectionState>;
+  /**
+   * Whether a row may be selected (default: every row). Another row keeps a disabled box, and the
+   * header's select-all passes it over.
+   */
+  canSelect?: (row: TData) => boolean;
   /** Accessible names: the header's select-all box and each row's box. */
   labels?: { all?: string; row?: (row: TData, index: number) => string };
 };
@@ -120,6 +125,7 @@ export const DataTable = <TData extends RowData>({
   className,
 }: DataTableProps<TData>) => {
   const selectable = rowSelection !== undefined;
+  const canSelect = rowSelection?.canSelect;
   const allLabel = rowSelection?.labels?.all ?? "Select all rows on this page";
   const rowLabel = rowSelection?.labels?.row;
   const allColumns = useMemo((): DataTableColumns<TData> => {
@@ -150,6 +156,7 @@ export const DataTable = <TData extends RowData>({
               rowLabel ? rowLabel(row.original, row.index) : `Select row ${String(row.index + 1)}`
             }
             checked={row.getIsSelected()}
+            disabled={!row.getCanSelect()}
             onCheckedChange={(checked) => {
               row.toggleSelected(checked);
             }}
@@ -172,7 +179,9 @@ export const DataTable = <TData extends RowData>({
     ...(sorting ? { onSortingChange: sorting.onChange } : { enableSorting: false }),
     ...(rowSelection
       ? {
-          enableRowSelection: true,
+          enableRowSelection: canSelect
+            ? (row: { original: TData }) => canSelect(row.original)
+            : true,
           onRowSelectionChange: rowSelection.onChange,
         }
       : { enableRowSelection: false }),

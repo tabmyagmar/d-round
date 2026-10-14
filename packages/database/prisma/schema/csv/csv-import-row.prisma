@@ -1,0 +1,33 @@
+// One data line of a CSV import (docs/adr/0013-csv-import.md): what was read, what the check found,
+// whether the user confirmed it and what the import did with it.
+
+/// Set once the import handled the row: written, or refused with `result_error`.
+enum CsvImportRowResult {
+  IMPORTED
+  FAILED
+
+  @@map("csv_import_row_result")
+}
+
+model CsvImportRow {
+  id          String              @id @default(uuid(7)) @db.Uuid
+  csvImportId String              @map("csv_import_id") @db.Uuid
+  /// The CSV line the row starts on; the header is line 1.
+  lineNumber  Int                 @map("line_number")
+  /// The cells by column key, as read (strings).
+  data        Json
+  /// The check's messages ("姓: 必須"); empty when the row may be imported.
+  errors      String[]            @default([])
+  selected    Boolean             @default(false)
+  result      CsvImportRowResult?
+  resultError String?             @map("result_error")
+  /// The user, staff, client or branch the import wrote.
+  entityId    String?             @map("entity_id") @db.Uuid
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  csvImport CsvImport @relation(fields: [csvImportId], references: [id], onDelete: Cascade)
+
+  @@unique([csvImportId, lineNumber])
+  @@map("csv_import_rows")
+}

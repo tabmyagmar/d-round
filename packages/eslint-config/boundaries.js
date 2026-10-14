@@ -24,6 +24,7 @@ export const boundariesElements = [
   element("api-transport", "apps/api/src/rest"),
   element("api-service", "apps/api/src/modules"),
   element("api-core", "apps/api/src/core"),
+  element("api-jobs", "apps/api/src/jobs"),
   element("api-app", "apps/api/src"),
   element("repository", "packages/database/src/repositories"),
   element("database", "packages/database"),
@@ -56,7 +57,9 @@ export const boundariesPolicies = [
   allowLocal("api-transport", ["api-transport", "api-service", "api-core"]),
   allowLocal("api-service", ["api-service", "api-core"]),
   allowLocal("api-core", ["api-core"]),
-  allowLocal("api-app", ["api-app", "api-transport", "api-service", "api-core"]),
+  // The job runners the worker may call (`@repo/api/jobs`, ADR 0013): services and core, no transport.
+  allowLocal("api-jobs", ["api-jobs", "api-service", "api-core"]),
+  allowLocal("api-app", ["api-app", "api-transport", "api-service", "api-core", "api-jobs"]),
   allowLocal("repository", ["repository", "database"]),
   allowLocal("database", ["database", "repository"]),
   allowLocal("worker", ["worker"]),
@@ -69,6 +72,7 @@ export const boundariesPolicies = [
   disallowPackages("api-transport", ["@repo/database"], { dependency: { kind: "value" } }),
   // Services know nothing about the transport (tRPC/Hono live in trpc/ and core/error-mapping).
   disallowPackages("api-service", TRANSPORT_LIBRARIES),
+  disallowPackages("api-jobs", TRANSPORT_LIBRARIES),
   // Repositories are pure data access: no validation, no queueing, no transport.
   disallowPackages("repository", [
     ...TRANSPORT_LIBRARIES,
@@ -85,8 +89,13 @@ export const boundariesPolicies = [
   // Shared packages never depend on applications.
   disallowPackages("shared", ["@repo/api", "@repo/worker", "@repo/web"]),
   disallowPackages("ui", ["@repo/api", "@repo/worker", "@repo/web", ...SERVER_ONLY_PACKAGES]),
-  // The worker reuses repositories/packages but never the API's code.
+  // The worker reuses repositories/packages but never the API's code...
   disallowPackages("worker", [...TRANSPORT_LIBRARIES, "@repo/api", "@repo/web"]),
+  // ...except the job entry: runners of jobs whose rules live in API services (ADR 0013).
+  {
+    from: { element: { type: "worker" } },
+    allow: { to: { module: { source: "@repo/api", internalPath: "jobs" } } },
+  },
   // The web app may import API *types* (AppRouter) and nothing server-side.
   disallowPackages("web", ["@repo/api"], { dependency: { kind: "value" } }),
   disallowPackages("web", SERVER_ONLY_PACKAGES),
@@ -111,6 +120,7 @@ export const boundariesPolicies = [
           "api-transport",
           "api-service",
           "api-core",
+          "api-jobs",
           "web",
           "ui",
           "shared",

@@ -19,6 +19,16 @@ export type {
   EnqueueAttachmentDeleteOptions,
 } from "./jobs/attachment-delete.job";
 export {
+  CSV_CHECK_JOB_NAME,
+  CSV_IMPORT_JOB_NAME,
+  createCsvImportQueue,
+  csvCheckJobId,
+  csvImportJobId,
+  enqueueCsvCheckJob,
+  enqueueCsvImportJob,
+} from "./jobs/csv-import.job";
+export type { CsvImportJob, CsvImportQueue } from "./jobs/csv-import.job";
+export {
   EMAIL_JOB_ID_PREFIX,
   EMAIL_JOB_NAME,
   EMAIL_TEMPLATES,

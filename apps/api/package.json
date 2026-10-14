@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Hono + tRPC API server (transport adapters → services → repositories)",
   "exports": {
+    "./jobs": "./src/jobs/index.ts",
     "./router": "./src/trpc/router.ts"
   },
   "scripts": {
@@ -30,7 +31,8 @@
     "dotenv": "17.4.2",
     "hono": "4.13.7",
     "rate-limiter-flexible": "11.2.0",
-    "superjson": "2.2.6"
+    "superjson": "2.2.6",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

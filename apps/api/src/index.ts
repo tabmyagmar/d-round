@@ -1,15 +1,19 @@
 import { serve } from "@hono/node-server";
 
-import { createAuth } from "@repo/auth";
 import { disconnectPrismaClient, getPrismaClient } from "@repo/database";
 import { createDiscordAlertStream, createLogger } from "@repo/logger";
-import { createAttachmentDeleteQueue, createEmailQueue, createRedisConnection } from "@repo/queue";
+import {
+  createAttachmentDeleteQueue,
+  createCsvImportQueue,
+  createEmailQueue,
+  createRedisConnection,
+} from "@repo/queue";
 import { createGcsStorage } from "@repo/storage";
 
 import { createApp } from "./app";
 import { loadApiEnv } from "./env";
+import { createAppAuth } from "./jobs/app-auth";
 import { registerGracefulShutdown } from "./lib/graceful-shutdown";
-import { createAuthEmailSenders } from "./modules/email/auth-emails";
 
 const env = loadApiEnv();
 // Error and fatal lines also go to Discord when a webhook is set (docs/adr/0010-alerts.md).
@@ -42,15 +46,16 @@ try {
   process.exit(1);
 }
 const attachmentDeleteQueue = createAttachmentDeleteQueue(redis);
+const csvImportQueue = createCsvImportQueue(redis);
 
-const auth = createAuth({
-  prisma: db,
+const auth = createAppAuth({
+  db,
+  emailQueue,
+  logger,
   secret: env.BETTER_AUTH_SECRET,
-  baseURL: env.API_URL,
-  trustedOrigins: [env.WEB_ORIGIN],
-  ...(env.COOKIE_DOMAIN ? { cookieDomain: env.COOKIE_DOMAIN } : {}),
-  // Outbox: row inside a transaction, job after commit; the worker sends the mail.
-  ...createAuthEmailSenders({ db, emailQueue, logger }),
+  apiUrl: env.API_URL,
+  webOrigin: env.WEB_ORIGIN,
+  cookieDomain: env.COOKIE_DOMAIN,
 });
 
 const app = createApp({
@@ -61,6 +66,7 @@ const app = createApp({
   webOrigin: env.WEB_ORIGIN,
   storage,
   attachmentDeleteQueue,
+  csvImportQueue,
 });
 
 const server = serve({ fetch: app.fetch, port: env.API_PORT }, (info) => {
@@ -85,6 +91,7 @@ registerGracefulShutdown({
     },
     { name: "email queue", run: () => emailQueue.close() },
     { name: "attachment delete queue", run: () => attachmentDeleteQueue.close() },
+    { name: "csv import queue", run: () => csvImportQueue.close() },
     { name: "redis", run: () => redis.quit() },
     { name: "database", run: () => disconnectPrismaClient() },
     // Last, so the failure of a step above still reaches Discord.

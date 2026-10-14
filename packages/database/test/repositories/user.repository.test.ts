@@ -316,6 +316,91 @@ describe("user repository", () => {
     expect(await repo.countProfilesByEmployeeNumber(data.employeeNumber + 1)).toBe(0);
   });
 
+  it("finds the addresses and 社員番号 already taken, deactivated users included", async () => {
+    const repo = createUserRepository(prisma);
+    const active = await createUser({ group: group() });
+    const deactivated = await createUser({ group: group() });
+    const activeProfile = profileData();
+    const deactivatedProfile = profileData();
+    await repo.upsertProfile(active.id, activeProfile);
+    await repo.upsertProfile(deactivated.id, deactivatedProfile);
+    await repo.softDelete(deactivated.id);
+    const free = `${crypto.randomUUID()}@example.com`;
+
+    expect(
+      (
+        await repo.findTakenEmailsIncludingDeleted([
+          active.email.toUpperCase(),
+          deactivated.email,
+          free,
+        ])
+      ).sort(),
+    ).toEqual([active.email, deactivated.email].sort());
+    expect(
+      (
+        await repo.findTakenEmployeeNumbersIncludingDeleted([
+          activeProfile.employeeNumber,
+          deactivatedProfile.employeeNumber,
+          activeProfile.employeeNumber + 1,
+        ])
+      ).sort(),
+    ).toEqual([activeProfile.employeeNumber, deactivatedProfile.employeeNumber].sort());
+  });
+
+  it("finds active users by address with the regions they cover, within a where", async () => {
+    const repo = createUserRepository(prisma);
+    const charger = await createUser({ group: group(), role: "am" });
+    const admin = await createUser({ group: group(), role: "admin" });
+    const deactivated = await createUser({ group: group() });
+    await repo.upsertProfile(charger.id, profileData());
+    await repo.replaceProfileRegions(charger.id, [4, 5]);
+    await repo.softDelete(deactivated.id);
+
+    const found = await repo.findWithRegionsByEmails(
+      [charger.email.toUpperCase(), admin.email, deactivated.email],
+      { role: { not: "admin" } },
+    );
+    expect(found).toEqual([
+      {
+        id: charger.id,
+        email: charger.email,
+        profile: { regions: [{ regionCode: 4 }, { regionCode: 5 }] },
+      },
+    ]);
+  });
+
+  it("lists the users of a where by 社員番号, deactivated ones included", async () => {
+    const repo = createUserRepository(prisma);
+    const active = await createUser({ group: group() });
+    const deactivated = await createUser({ group: group() });
+    const base = 10_000 + Math.floor(Math.random() * 2_000_000_000);
+    await repo.upsertProfile(active.id, profileData({ employeeNumber: base + 1 }));
+    await repo.upsertProfile(deactivated.id, profileData({ employeeNumber: base }));
+    await repo.softDelete(deactivated.id);
+
+    const users = await repo.findManyIncludingDeleted({ id: { in: [active.id, deactivated.id] } });
+    expect(users.map((user) => user.id)).toEqual([deactivated.id, active.id]);
+  });
+
+  it("finds active users by 社員番号 with their profile", async () => {
+    const repo = createUserRepository(prisma);
+    const active = await createUser({ group: group() });
+    const deactivated = await createUser({ group: group() });
+    const activeProfile = profileData();
+    const deactivatedProfile = profileData();
+    await repo.upsertProfile(active.id, activeProfile);
+    await repo.upsertProfile(deactivated.id, deactivatedProfile);
+    await repo.softDelete(deactivated.id);
+
+    const found = await repo.findByEmployeeNumbers([
+      activeProfile.employeeNumber,
+      deactivatedProfile.employeeNumber,
+    ]);
+    expect(found.map((user) => [user.id, user.profile?.employeeNumber])).toEqual([
+      [active.id, activeProfile.employeeNumber],
+    ]);
+  });
+
   it("lists charger options in kana order, users without kana last, deactivated users never", async () => {
     const repo = createUserRepository(prisma);
     const prefix = group();

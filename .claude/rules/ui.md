@@ -19,8 +19,8 @@ paths:
 | App-wide pieces                                  | `apps/web/components/`                           | `page-guard.tsx`, `placeholder-page.tsx`, `theme-provider.tsx`                                                                                                                                                                               |
 | Route catalog and navigation                     | `apps/web/config/`                               | `routes.ts` (paths, titles, access), `nav.ts` (sidebar groups)                                                                                                                                                                               |
 | Feature code                                     | `apps/web/features/<feature>/`                   | `features/users/containers/users-container.tsx`                                                                                                                                                                                              |
-| Client-side libraries, labels two features share | `apps/web/lib/`                                  | `auth/client.ts`, `auth/server.ts`, `trpc/react.tsx`, `env.ts`, `position-labels.ts` (役職: 担当者 and スタッフ), `attachments.ts` (signed PUT, stored file → field value)                                                                   |
-| App-wide hooks (URL state, timing, uploads)      | `apps/web/hooks/`                                | `use-search.ts`, `use-table-state.ts`, `search-params.ts`, `use-attachment-upload.ts` (a file field's `upload`, ADR 0012)                                                                                                                    |
+| Client-side libraries, labels two features share | `apps/web/lib/`                                  | `auth/client.ts`, `auth/server.ts`, `trpc/react.tsx`, `env.ts`, `position-labels.ts` (役職: 担当者 and スタッフ), `attachments.ts` (signed PUT, stored file → field value), `download.ts` (a file to save: text or a signed URL)             |
+| App-wide hooks (URL state, timing, uploads)      | `apps/web/hooks/`                                | `use-search.ts`, `use-table-state.ts` (and `paginationOf` for a dialog's list), `search-params.ts`, `use-attachment-upload.ts` (a file field's `upload`, ADR 0012)                                                                           |
 | Shared reference-data pieces                     | `apps/web/components/source/`                    | `address-fields.tsx` (郵便番号 → 住所 from the post-code master), `hierarchy-fields.tsx` (エリア → 地域 → 都道府県 form fields), `hierarchy-filter-fields.tsx`, `use-source-hierarchy.ts`, `hierarchy-options.ts` (pure), `source-labels.ts` |
 
 `apps/web` has no `src/` folder: `app/`, `features/`, `components/`, `config/`, `hooks/`, `lib/` and
@@ -51,7 +51,7 @@ There is no `api/` or `graphql/` folder (tRPC hooks are called where they are us
 the URL (filters, page, sort — shareable), a container's `useState` (one component's dialog target),
 or a store (zustand 5) when several components share it. A list's row selection is the app-level
 `apps/web/stores/row-selection.tsx`: the list's container mounts a `RowSelectionProvider`, the table
-writes it and the toolbar's bulk actions (削除, the CSV export to come) read it with
+writes it and the toolbar's bulk actions (削除, the CSV menu's ダウンロード) read it with
 `useRowSelection((store) => store.rowSelection)`. Other shared screen state goes into a feature
 store (`stores/`) built the same way: created per mounted screen by its provider (`useState` lazy
 init), never as a module singleton, read with selectors. Features do not import each other; the app
@@ -78,8 +78,9 @@ invalid ones). `useSearch()` (`searchParams`, `set`, `setMany`) pushes the new U
 in the list's container. The toolbar is `ListToolbar` with a `SearchInput` (debounces the change
 event through `useDebouncedCallback`, never a value mirrored into an effect), a `FilterPopover`
 whose fields are a `next/dynamic` component (`features/users/components/list/user-filter.tsx`), the
-actions, and `FilterTags` underneath; row menus are `RowActions`. CSV import / export is not built
-yet (a TODO in `users-toolbar.tsx`).
+actions, and `FilterTags` underneath; row menus are `RowActions`. The 「CSV」 menu
+(`features/csv/containers/csv-menu.tsx`, ADR 0013) is the CSV feature's: each list's route file
+hands it to the list container's `csvMenu` slot, which the toolbar renders before its add button.
 
 ### Load only what the page shows
 
@@ -254,13 +255,15 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   `DataTablePagination` is `PaginationBar`'s props plus the total,
   `{ page, totalPages, total, hasPrev, hasNext, onPageChange, labels? }` — server-side pagination
   that maps 1:1 onto the API's `PageResult`. `DataTableRowSelection` is
-  `{ state, onChange, labels? }` (TanStack `RowSelectionState`, keyed by `getRowId` so it survives
-  paging): it adds a checkbox column with a page-wide select-all, checked once every row of the page
-  is selected and mixed while only some are (TanStack v9's `getIsSomePageRowsSelected` is true for
-  "all" too, so the table passes `indeterminate` as some-and-not-all); `labels.row(row)` names each
-  box. `DataTableSorting` is `{ state, onChange }` (TanStack `SortingState`): sorting is server-side
-  (`manualSorting`), single-column and asc ↔ desc; a column takes part with `enableSorting: true`
-  and its header becomes a toggle button with `aria-sort`. Reference:
+  `{ state, onChange, canSelect?, labels? }` (TanStack `RowSelectionState`, keyed by `getRowId` so
+  it survives paging): it adds a checkbox column with a page-wide select-all, checked once every row
+  of the page is selected and mixed while only some are (TanStack v9's `getIsSomePageRowsSelected`
+  is true for "all" too, so the table passes `indeterminate` as some-and-not-all); `labels.row(row)`
+  names each box, and `canSelect(row)` keeps a row out — a disabled box the select-all passes over
+  (a CSV line with errors, `features/csv/components/import/csv-check-step.tsx`). `DataTableSorting`
+  is `{ state, onChange }` (TanStack `SortingState`): sorting is server-side (`manualSorting`),
+  single-column and asc ↔ desc; a column takes part with `enableSorting: true` and its header
+  becomes a toggle button with `aria-sort`. Reference:
   `apps/web/features/users/components/list/users-table.tsx`.
 - `PaginationBar` (`pagination-bar.tsx`) — first / previous / numbered pages with ellipsis
   (`pageItems(page, totalPages)`, the current page outlined in primary) / next / last, and a box to
@@ -272,6 +275,11 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   `title`, `description?`, body (`children`, mounted only while open), `footer?`, `className?`
   (width), `showCloseButton?`. Render it only when needed (a `next/dynamic` component, or
   `{open ? … : null}`). Reference: `apps/web/features/users/components/form/permission-dialog.tsx`.
+- `ResponsiveDialog` (`responsive-dialog.tsx`) — `ContentDialog`'s props; a `ContentDialog` from
+  `md` up and below it the same title, body and footer in a bottom `Drawer` whose body scrolls
+  (`FilterPopover`'s switch, the legacy `ResponsiveOverlay`). For dialogs a phone opens with wide
+  content; a test stubs `matchMedia`. Reference:
+  `apps/web/features/csv/components/import/csv-import-dialog.tsx`.
 - `ConfirmDialog` (`confirm-dialog.tsx`) — `ContentDialog` with cancel / confirm; props `open`,
   `onOpenChange`, `title`, `description?`, `confirmLabel`, `cancelLabel?`, `pendingLabel?`,
   `destructive?`, `pending?`, `onConfirm`, and `children?` (a body under the text, such as the
@@ -298,14 +306,14 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   background (the base `Input` is transparent, right for forms on cards).
 - `Stepper` (`stepper.tsx`) — the steps of a multi-step form, as romuten-v3's: `steps` (labels),
   `current` (index), `onStepClick?` (the completed steps become buttons back to themselves, as the
-  legacy `Steps`), `label?`; hook-free. `useStepper({ steps })`
-  (`packages/ui/src/hooks/use-stepper.ts`) holds the index over one schema: `steps` lists each
-  step's field paths, `goNext(trigger, beforeNext?)` validates them with react-hook-form's `trigger`
-  and then runs the async guard (a uniqueness check that sets its own field error) before moving on;
-  `goPrev`, `goTo(earlier)`, `isFirst`, `isLast`; `countSubmitClicks` (the form's `onClickCapture`)
-  and `isDoubleClickSubmit()` (first in its `onSubmit`) keep a double click on 次へ to one step, as
-  its second click would land on the relabelled submit (追加) and send the form unseen. Reference:
-  `apps/web/features/staff/components/form/staff-form.tsx`.
+  legacy `Steps`), `label?`; hook-free; below `sm` only the current step's label stays on screen.
+  `useStepper({ steps })` (`packages/ui/src/hooks/use-stepper.ts`) holds the index over one schema:
+  `steps` lists each step's field paths, `goNext(trigger, beforeNext?)` validates them with
+  react-hook-form's `trigger` and then runs the async guard (a uniqueness check that sets its own
+  field error) before moving on; `goPrev`, `goTo(earlier)`, `isFirst`, `isLast`; `countSubmitClicks`
+  (the form's `onClickCapture`) and `isDoubleClickSubmit()` (first in its `onSubmit`) keep a double
+  click on 次へ to one step, as its second click would land on the relabelled submit (追加) and send
+  the form unseen. Reference: `apps/web/features/staff/components/form/staff-form.tsx`.
 - `StickyBar` (`sticky-bar.tsx`) — the bar at the bottom of a page for its main actions, as
   romuten-v3's create and update pages. Render it last in a flex column that fills the page
   (`flex flex-1 flex-col`): `mt-auto` keeps it at the bottom of a short page, `sticky bottom-0` in

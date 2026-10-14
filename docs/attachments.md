@@ -13,12 +13,15 @@ sweeper as queue code: `../.claude/rules/queue.md` (Attachment deletes).
   goes through a signed URL.
 - **Rows**: `attachments` (`packages/database/prisma/schema/attachment/attachment.prisma`) — one row
   per object: kind, status, object key, original name, content type, size, uploader and the owner
-  column (`user_id` for a プロフィール画像, `staff_id` for a 履歴書).
+  column (`user_id` for a プロフィール画像, `staff_id` for a 履歴書, `csv_import_id` for the file of
+  a CSV import, `csv_export_id` for the workbook of a CSV download — ADR 0013).
 - **Storage access**: `@repo/storage` (`packages/storage`): `createGcsStorage` signs V4 URLs locally
-  from the service-account key (no request per URL), `head` and `delete` call the JSON API;
-  `createMemoryStorage` replaces it in tests.
+  from the service-account key (no request per URL), `head`, `delete`, `download` and `upload` call
+  the JSON API (`download` and `upload` serve the files the server processes itself: a CSV import's
+  file, a CSV export — ADR 0013); `createMemoryStorage` replaces it in tests.
 - **API**: `attachment.createUploadUrl` (`apps/api/src/modules/attachment/attachment.service.ts`)
-  and the guards the owners' services call (`assertUploaded`, `syncAttachments`, `viewsOf`).
+  and the guards the owners' services call (`assertUploaded`, `syncAttachments`, `viewsOf`), plus
+  `storeFile` for a file the API writes itself (a CSV download's workbook).
 - **Worker**: `attachment-delete.processor.ts` and `attachment-sweeper.ts` in `apps/worker`.
 - **Web**: `AvatarField` and `FileField` (`packages/ui`), `useAttachmentUpload(kind)`
   (`apps/web/hooks/use-attachment-upload.ts`) and `lib/attachments.ts`.
@@ -58,11 +61,12 @@ sequenceDiagram
 ## Reading a file
 
 There is no generic "read this file" procedure. The owner's read returns the files with signed GET
-URLs valid for 15 minutes: `user.me` / `user.byId` (`avatar`), `staff.byId` (`resumes`). Whoever may
-read the owner may read its files — the owner's ability check is the file's. The header treats
-`user.me` as fresh for 10 minutes, so a page opened or a tab refocused later fetches new URLs before
-the old ones expire. Read URLs name the file in `Content-Disposition` (`inline`, with the Japanese
-name), so a PDF opens in the browser and saves under its own name.
+URLs valid for 15 minutes: `user.me` / `user.byId` (`avatar`), `staff.byId` (`resumes`),
+`csvExport.create` / `csvExport.downloadUrl` (the workbook). Whoever may read the owner may read its
+files — the owner's ability check is the file's. The header treats `user.me` as fresh for 10
+minutes, so a page opened or a tab refocused later fetches new URLs before the old ones expire. Read
+URLs name the file in `Content-Disposition` (`inline`, with the Japanese name), so a PDF opens in
+the browser and saves under its own name.
 
 ## Who may upload
 
@@ -70,7 +74,10 @@ Every signed-in user may ask for an upload URL (`create Attachment`,
 `.claude/rules/permissions.md`). A 履歴書 needs `create` or `update Staff` as well. Attaching is
 decided by the owner's write: one's own プロフィール画像 through the self rule, someone else's
 through `update User` (担当者情報編集) or `create User` (担当者追加), a staff's 履歴書 through the
-staff write. A pending upload is attachable only by the user who uploaded it.
+staff write. A pending upload is attachable only by the user who uploaded it. Nobody uploads a
+`CSV_EXPORT`: the API stores the workbook (`storeFile` — its `PENDING` row, then the object), the
+download's transaction attaches it, and a browser asking for such an upload URL is refused. A
+workbook whose transaction failed expires like an upload whose form was never saved.
 
 ## How the bucket is cleaned
 

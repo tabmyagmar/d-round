@@ -4,7 +4,12 @@ import { z } from "zod";
  * What a file is for (docs/adr/0012-attachments.md). The kind fixes the owner, the accepted types,
  * the size limit and the bucket folder below; the database enum `AttachmentKind` matches.
  */
-export const ATTACHMENT_KINDS = ["USER_AVATAR", "STAFF_RESUME"] as const;
+export const ATTACHMENT_KINDS = [
+  "USER_AVATAR",
+  "STAFF_RESUME",
+  "CSV_IMPORT",
+  "CSV_EXPORT",
+] as const;
 export const attachmentKindSchema = z.enum(ATTACHMENT_KINDS);
 export type AttachmentKind = z.infer<typeof attachmentKindSchema>;
 
@@ -20,7 +25,16 @@ export type AttachmentRule = {
 
 const MB = 1024 * 1024;
 
-/** The legacy limits: images for the プロフィール画像, up to three PDFs for the 履歴書, 5 MB each. */
+/** An Excel workbook: the file a CSV ダウンロード writes (docs/adr/0013-csv-import.md). */
+export const XLSX_CONTENT_TYPE =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+/**
+ * The legacy limits: images for the プロフィール画像, up to three PDFs for the 履歴書, 5 MB each; one
+ * CSV per import, 5 MB (legacy `CsvUpload`). Windows with Excel installed reports a `.csv` as
+ * `application/vnd.ms-excel`, so both types are accepted with the `.csv` extension (ADR 0013).
+ * A ダウンロード's workbook is written by the API, never uploaded: no browser gets its upload URL.
+ */
 export const ATTACHMENT_RULES: Readonly<Record<AttachmentKind, AttachmentRule>> = {
   USER_AVATAR: {
     types: { "image/jpeg": [".jpg", ".jpeg"], "image/png": [".png"], "image/webp": [".webp"] },
@@ -33,6 +47,18 @@ export const ATTACHMENT_RULES: Readonly<Record<AttachmentKind, AttachmentRule>> 
     maxBytes: 5 * MB,
     maxFiles: 3,
     folder: "resumes",
+  },
+  CSV_IMPORT: {
+    types: { "text/csv": [".csv"], "application/vnd.ms-excel": [".csv"] },
+    maxBytes: 5 * MB,
+    maxFiles: 1,
+    folder: "csv-imports",
+  },
+  CSV_EXPORT: {
+    types: { [XLSX_CONTENT_TYPE]: [".xlsx"] },
+    maxBytes: 5 * MB,
+    maxFiles: 1,
+    folder: "csv-exports",
   },
 };
 

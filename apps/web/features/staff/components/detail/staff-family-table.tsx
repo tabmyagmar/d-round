@@ -4,7 +4,7 @@ import { createDataTableColumns, DataTable } from "@repo/ui/components/composed/
 import { formatDate } from "@repo/ui/components/form";
 
 import type { StaffDetail } from "@/features/staff/types";
-import { FAMILY_RELATION_LABELS } from "@/features/staff/utils/staff-labels";
+import { FAMILY_RELATION_LABELS } from "@/lib/family-relation-labels";
 
 type FamilyMember = StaffDetail["familyMembers"][number];
 

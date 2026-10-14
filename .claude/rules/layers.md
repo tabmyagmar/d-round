@@ -19,8 +19,10 @@ prisma       packages/database/src/client.ts  ->  PostgreSQL
 
 Side processes:
 
-- `apps/worker` consumes queues and reuses `@repo/database` repositories and shared packages. It
-  never imports `@repo/api`.
+- `apps/worker` consumes queues and reuses `@repo/database` repositories and shared packages. Of
+  `@repo/api` it imports the job entry `@repo/api/jobs` (`apps/api/src/jobs`) and nothing else: the
+  runners of jobs whose rules live in API services (the CSV import, `docs/adr/0013-csv-import.md`),
+  and Better Auth as the API builds it (`createAppAuth`). The queue consumer stays in the worker.
 - `apps/web` calls the API over tRPC and may import API **types** only
   (`import type { AppRouter } from "@repo/api/router"`). It never imports `@repo/database`,
   `@repo/queue` or `@repo/logger`.
@@ -36,6 +38,7 @@ Side processes:
 | `api-transport` | `apps/api/src/trpc`, `apps/api/src/graphql`, `apps/api/src/rest` |
 | `api-service`   | `apps/api/src/modules`                                           |
 | `api-core`      | `apps/api/src/core`                                              |
+| `api-jobs`      | `apps/api/src/jobs` (the package entry `@repo/api/jobs`)         |
 | `api-app`       | everything else under `apps/api/src` (composition root)          |
 | `repository`    | `packages/database/src/repositories`                             |
 | `database`      | the rest of `packages/database`                                  |
@@ -51,10 +54,11 @@ Side processes:
 | `api-transport` | `api-transport`, `api-service`, `api-core`, shared packages; `@repo/database` **types only**                                    |
 | `api-service`   | `api-service`, `api-core`, shared packages (`@repo/database`, `@repo/queue`, `@repo/validation`, `@repo/logger`, `@repo/dayjs`) |
 | `api-core`      | `api-core`, shared packages                                                                                                     |
+| `api-jobs`      | `api-jobs`, `api-service`, `api-core`, shared packages (no transport library, no `createWorker`)                                |
 | `api-app`       | every layer inside `apps/api` (it wires them together) and shared packages                                                      |
 | `repository`    | `repository`, `database`                                                                                                        |
 | `database`      | `database`, `repository`                                                                                                        |
-| `worker`        | `worker`, shared packages                                                                                                       |
+| `worker`        | `worker`, shared packages, `@repo/api/jobs`                                                                                     |
 | `web`           | `web`, `@repo/ui`, `@repo/validation`, `@repo/dayjs`; `@repo/api` **types only**                                                |
 | `ui`            | `ui`, browser-safe shared packages (`@repo/validation`)                                                                         |
 | `shared`        | other shared packages — never an app                                                                                            |
@@ -80,7 +84,7 @@ import { updateProfileSchema } from "@repo/validation";
 import { createQueue } from "@repo/queue"; // repositories do not enqueue
 
 // apps/worker/src/processors/email.processor.ts
-import { appRouter } from "@repo/api/router"; // the worker never depends on the API
+import { appRouter } from "@repo/api/router"; // the worker imports @repo/api/jobs, nothing else
 
 // apps/web/app/admin/master/user/page.tsx
 import { getPrismaClient } from "@repo/database"; // browser code never sees the database

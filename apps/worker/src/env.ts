@@ -18,6 +18,14 @@ export const workerEnvShape = {
   /** Service-account key (JSON) outside the repository; read once at start-up. */
   GCS_KEY_FILE: z.string().min(1),
   /**
+   * Better Auth as the API runs it: a CSV import invites users and mails their links
+   * (docs/adr/0013-csv-import.md). The same values as the API's.
+   */
+  BETTER_AUTH_SECRET: z.string().min(32),
+  API_URL: urlSchema.default("http://localhost:4000"),
+  WEB_ORIGIN: urlSchema.default("http://localhost:3000"),
+  COOKIE_DOMAIN: z.string().min(1).optional(),
+  /**
    * Discord webhook for error and fatal log lines; https only, since the URL is a secret. Unset =
    * no alerts (docs/adr/0010-alerts.md).
    */

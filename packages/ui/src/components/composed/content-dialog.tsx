@@ -28,7 +28,8 @@ export type ContentDialogProps = {
 /**
  * A titled dialog with a body and an optional footer — the shell every app dialog uses (forms,
  * pickers, viewers). Render it only when needed (`{open ? <MyDialog /> : null}` or a
- * `next/dynamic` component) so a page does not load dialogs it never opens.
+ * `next/dynamic` component) so a page does not load dialogs it never opens. The body is one column
+ * no wider than the dialog: a wide table scrolls inside it instead of pushing past its edge.
  */
 export const ContentDialog = ({
   open,
@@ -41,7 +42,10 @@ export const ContentDialog = ({
   showCloseButton = true,
 }: ContentDialogProps) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className={cn("sm:max-w-lg", className)} showCloseButton={showCloseButton}>
+    <DialogContent
+      className={cn("grid-cols-[minmax(0,1fr)] sm:max-w-lg", className)}
+      showCloseButton={showCloseButton}
+    >
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
         {description ? <DialogDescription>{description}</DialogDescription> : null}

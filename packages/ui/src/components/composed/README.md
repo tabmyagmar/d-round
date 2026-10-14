@@ -12,8 +12,9 @@ Domain-free components built from the shadcn primitives one level up, for every 
   `RowActions`, `PaginationBar` (first / previous / pages / next / last and a page box).
 - Pages: `StickyBar` (the action bar at the bottom of a page; holds a form's `FormActions`),
   `Stepper` (the steps of a multi-step form; `useStepper` in `../../hooks/` moves between them).
-- Dialogs: `ContentDialog` (the shell; body mounted only while open) and `ConfirmDialog` on it (use
-  instead of `window.confirm`).
+- Dialogs: `ContentDialog` (the shell; body mounted only while open), `ConfirmDialog` on it (use
+  instead of `window.confirm`) and `ResponsiveDialog` (a `ContentDialog` from `md` up, a bottom
+  `Drawer` below).
 - Choices: `GroupedCheckboxList` (labelled groups with select-all).
 
 Defaults are English; apps pass their own labels. `ContentCard`, `PageHeader`, `EmptyState`,

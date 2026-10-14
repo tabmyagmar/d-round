@@ -22,6 +22,14 @@ describe("Stepper", () => {
     expect(screen.getByText("Basics").closest("li")?.getAttribute("aria-current")).toBeNull();
   });
 
+  it("keeps only the current step's label on screen below sm, every label for screen readers", () => {
+    render(<Stepper steps={STEPS} current={1} />);
+
+    expect(screen.getByText("Family").className).not.toContain("max-sm:sr-only");
+    expect(screen.getByText("Basics").className).toContain("max-sm:sr-only");
+    expect(screen.getByText("Confirm").className).toContain("max-sm:sr-only");
+  });
+
   it("makes only the completed steps buttons, handing their index back", () => {
     const onStepClick = vi.fn();
     render(<Stepper steps={STEPS} current={2} onStepClick={onStepClick} />);

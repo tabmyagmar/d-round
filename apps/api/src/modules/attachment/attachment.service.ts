@@ -16,7 +16,8 @@ import { ForbiddenError, ValidationError } from "../../core/errors";
  * Attachments (docs/adr/0012-attachments.md). The browser asks for an upload URL and writes the
  * file straight to the bucket; the owner's write attaches it with the two guards below, the first
  * before and the second inside its transaction; the owner's read hands out read URLs (`viewsOf`).
- * Objects are deleted by the worker, after commit.
+ * A file the API writes itself goes through `storeFile` and is attached the same way. Objects are
+ * deleted by the worker, after commit.
  */
 
 export type UploadTarget = {
@@ -46,15 +47,22 @@ export const UPLOADS_TOO_MANY =
 /** Uploads one user may hold unattached at once: forms carry four files at most. */
 export const PENDING_UPLOADS_MAX = 20;
 
-/** Which owner a kind belongs to: a プロフィール画像 to a user, a 履歴書 to a staff. */
+/**
+ * Which owner a kind belongs to: a プロフィール画像 to a user, a 履歴書 to a staff, a CSV to its import,
+ * a ダウンロード's workbook to its export.
+ */
 export type AttachmentTarget =
   | { kind: "USER_AVATAR"; owner: { userId: string } }
-  | { kind: "STAFF_RESUME"; owner: { staffId: string } };
+  | { kind: "STAFF_RESUME"; owner: { staffId: string } }
+  | { kind: "CSV_IMPORT"; owner: { csvImportId: string } }
+  | { kind: "CSV_EXPORT"; owner: { csvExportId: string } };
 
-const OWNER_COLUMNS = { USER_AVATAR: "userId", STAFF_RESUME: "staffId" } as const satisfies Record<
-  AttachmentKind,
-  "userId" | "staffId"
->;
+const OWNER_COLUMNS = {
+  USER_AVATAR: "userId",
+  STAFF_RESUME: "staffId",
+  CSV_IMPORT: "csvImportId",
+  CSV_EXPORT: "csvExportId",
+} as const satisfies Record<AttachmentKind, "userId" | "staffId" | "csvImportId" | "csvExportId">;
 
 /** The type allows only fitting pairs; this catches a cast, before anything is written. */
 const assertOwnerFits = (kind: AttachmentKind, owner: AttachmentOwner): void => {
@@ -70,14 +78,28 @@ const uploaderOf = (ctx: RequestContext) => {
   return ctx.user;
 };
 
-const isOwnedBy = (row: Attachment, owner: AttachmentOwner): boolean =>
-  "userId" in owner ? row.userId === owner.userId : row.staffId === owner.staffId;
+const isOwnedBy = (row: Attachment, owner: AttachmentOwner): boolean => {
+  if ("userId" in owner) {
+    return row.userId === owner.userId;
+  }
+  if ("staffId" in owner) {
+    return row.staffId === owner.staffId;
+  }
+  if ("csvImportId" in owner) {
+    return row.csvImportId === owner.csvImportId;
+  }
+  return row.csvExportId === owner.csvExportId;
+};
 
 /**
- * A 履歴書 is picked on the staff form only, by someone who may create or update a staff. Who may
- * set a プロフィール画像 is the user write's decision (their own, or `update User`).
+ * A 履歴書 is picked on the staff form only, by someone who may create or update a staff; a CSV by
+ * someone who may upload CSV files (catalog 1401). Who may set a プロフィール画像 is the user
+ * write's decision (their own, or `update User`). A ダウンロード's workbook is the API's to write.
  */
 const assertMayUpload = (ctx: RequestContext, kind: AttachmentKind): void => {
+  if (kind === "CSV_EXPORT") {
+    throw new ForbiddenError("CSV exports are written by the API");
+  }
   if (
     kind === "STAFF_RESUME" &&
     !ctx.ability.can("create", "Staff") &&
@@ -85,7 +107,14 @@ const assertMayUpload = (ctx: RequestContext, kind: AttachmentKind): void => {
   ) {
     throw new ForbiddenError("Not allowed to upload staff files");
   }
+  if (kind === "CSV_IMPORT" && !ctx.ability.can("create", "SourceCsvHistory")) {
+    throw new ForbiddenError("Not allowed to upload CSV files");
+  }
 };
+
+/** Where a new file of the kind goes: `<folder>/<random uuid><.ext>`. */
+const objectKeyOf = (kind: AttachmentKind, fileName: string): string =>
+  `${ATTACHMENT_RULES[kind].folder}/${crypto.randomUUID()}${fileExtension(fileName)}`;
 
 /** A PENDING row and a signed PUT for it; the row expires after 24 h unless an owner attaches it. */
 export const createUploadUrl = async (
@@ -94,7 +123,6 @@ export const createUploadUrl = async (
 ): Promise<UploadTarget> => {
   const uploader = uploaderOf(ctx);
   assertMayUpload(ctx, input.kind);
-  const folder = ATTACHMENT_RULES[input.kind].folder;
   // The uploader's row is locked so parallel requests count one after another: the cap holds.
   const row = await withTransaction(ctx.db, async ({ tx }) => {
     const attachments = createAttachmentRepository(tx);
@@ -104,7 +132,7 @@ export const createUploadUrl = async (
     }
     return attachments.create({
       kind: input.kind,
-      objectKey: `${folder}/${crypto.randomUUID()}${fileExtension(input.fileName)}`,
+      objectKey: objectKeyOf(input.kind, input.fileName),
       fileName: input.fileName,
       contentType: input.contentType,
       size: input.size,
@@ -118,6 +146,29 @@ export const createUploadUrl = async (
     expiresInSeconds: ATTACHMENT_URL_TTL_SECONDS,
   });
   return { id: row.id, ...upload };
+};
+
+/**
+ * A file the API writes itself (a CSV ダウンロード): its PENDING row first, so the sweeper deletes the
+ * object should the owner's write never attach it, then the object. The owner's write attaches the
+ * returned id with `syncAttachments`, as for an upload.
+ */
+export const storeFile = async (
+  ctx: RequestContext,
+  kind: AttachmentKind,
+  file: { fileName: string; contentType: string; body: Uint8Array },
+): Promise<string> => {
+  const uploader = uploaderOf(ctx);
+  const row = await createAttachmentRepository(ctx.db).create({
+    kind,
+    objectKey: objectKeyOf(kind, file.fileName),
+    fileName: file.fileName,
+    contentType: file.contentType,
+    size: file.body.length,
+    uploadedById: uploader.id,
+  });
+  await ctx.storage.upload(row.objectKey, file.body, file.contentType);
+  return row.id;
 };
 
 /**

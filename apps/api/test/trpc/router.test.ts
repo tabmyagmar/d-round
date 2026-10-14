@@ -32,6 +32,7 @@ const contextFor = (user: AuthUser | null = null): RequestContext => ({
   webOrigin: "http://localhost:3000",
   storage: createMemoryStorage(),
   attachmentDeleteQueue: {} as RequestContext["attachmentDeleteQueue"],
+  csvImportQueue: {} as RequestContext["csvImportQueue"],
 });
 
 const am: AuthUser = {

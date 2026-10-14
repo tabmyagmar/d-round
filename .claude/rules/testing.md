@@ -56,16 +56,18 @@ Anything touching Postgres or Redis runs against testcontainers:
   `declare module "vitest" { interface ProvidedContext { databaseUrl: string } }`.
   `apps/api/test/global-setup.ts` starts both and is the template for workspaces that need both.
 - Docker must be running. `turbo.json` passes `DOCKER_*` and `TESTCONTAINERS_*` through to tasks.
-  Hook timeouts are generous (`hookTimeout` 120–180 s) because the first image pull is slow.
+  Hook timeouts are generous (`hookTimeout` 120–180 s) because the first image pull is slow. A run
+  that dies on `Failed to connect to Reaper` (testcontainers) or `Timeout waiting for worker`
+  (vitest on a loaded machine) failed on the machine, not the code: run it again before debugging.
 
 Mocks are allowed only for **external providers** we do not run locally: HTTP APIs, mail, payment,
 AI, object storage. The two existing ones are `createMemoryMailProvider`
 (`apps/worker/src/mail/memory-mail-provider.ts`), an implementation of the `MailProvider` interface
 with `failFirst` / `alwaysFailPermanently` knobs, and `createMemoryStorage` (`@repo/storage`), the
-bucket as a map (`put` plays the browser's signed PUT) with `failFirstDeletes` / `refuseDeletes`
-knobs. A browser-side `fetch` to the bucket is stubbed with `vi.stubGlobal`
-(`apps/web/test/lib/attachments.test.ts`). Never mock Prisma, Redis, BullMQ, Better Auth,
-repositories or services of this repo.
+bucket as a map (`put` plays the browser's signed PUT, with a `body` when the server reads the file
+back through `download`) with `failFirstDeletes` / `refuseDeletes` knobs. A browser-side `fetch` to
+the bucket is stubbed with `vi.stubGlobal` (`apps/web/test/lib/attachments.test.ts`). Never mock
+Prisma, Redis, BullMQ, Better Auth, repositories or services of this repo.
 
 ## Test harnesses — copy these, do not reinvent them
 
@@ -73,7 +75,7 @@ repositories or services of this repo.
 
 | Helper                                             | What it gives you                                                                                                                                                                            |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createHarness()`                                  | `{ db, redis, auth, emailQueue, storage, attachmentDeleteQueue, logger, sentMails, stop }` (`storage` is the memory bucket); call `stop()` in `afterAll`                                     |
+| `createHarness()`                                  | `{ db, redis, auth, emailQueue, storage, attachmentDeleteQueue, csvImportQueue, logger, sentMails, stop }` (`storage` is the memory bucket); call `stop()` in `afterAll`                     |
 | `contextDeps(h)`                                   | the `ContextDeps` the composition root would pass: for `createApp(...)` and hand-built contexts                                                                                              |
 | `signedInUser(h, { role, name, profile })`         | creates a verified user with the role via `auth.api.createUser`, signs in; returns `{ user, email, headers }`; with `profile` also a 担当者 profile (unique 社員番号, region 4 unless given) |
 | `uniqueEmployeeNumber()`                           | a 社員番号 / スタッフ番号 no other test of the run uses                                                                                                                                      |
@@ -102,6 +104,8 @@ then `h.storage.put(row.objectKey, …)` as the browser's PUT
 | `waitForJobDone(queue, jobId)`                             | polls until BullMQ reports `completed` / `failed` (any typed queue)                                                 |
 | `isolatedAttachmentDeleteQueue(connection)`                | a uniquely named delete queue with quick retries; pass `name` as `queueName` to `createAttachmentDeleteWorker`      |
 | `createAttachmentRow(db, { status, ageMs })`               | an `attachments` row of a fresh uploader, optionally back-dated (`created_at`, `deleted_at`) for sweeper tests      |
+| `isolatedCsvImportQueue(connection, { attempts })`         | a uniquely named `CsvImportQueue` with quick retries; pass `name` as `queueName` to `createCsvImportWorker`         |
+| `createCsvImportRow(db, { status, ageMs })`                | a `csv_imports` row of a fresh admin uploader and its file's attachment (`objectKey`), optionally back-dated        |
 
 Both `test/global-setup.ts` files start Postgres and Redis once per workspace run and are the
 template for any workspace that needs both.

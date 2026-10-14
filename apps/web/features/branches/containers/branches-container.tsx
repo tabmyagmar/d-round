@@ -3,6 +3,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { listBranchesSchema } from "@repo/validation";
@@ -35,7 +36,7 @@ const BranchDeleteDialog = dynamic(
 );
 
 /** The list inside its row selection: deleted branches leave the selection. */
-const BranchesList = () => {
+const BranchesList = ({ csvMenu }: { csvMenu: ReactNode }) => {
   const trpc = useTRPC();
   const { searchParams, setMany } = useSearch();
   const input = useMemo(() => parseSearchParams(listBranchesSchema, searchParams), [searchParams]);
@@ -53,6 +54,7 @@ const BranchesList = () => {
   return (
     <div className="flex flex-col gap-4">
       <BranchesToolbar
+        csvMenu={csvMenu}
         filters={filters}
         names={hierarchy}
         onChange={setMany}
@@ -105,10 +107,11 @@ const BranchesList = () => {
 
 /**
  * 就業先部署: the URL is the list's state (search, filters, page, sort), read through the API's own
- * input schema; the previous page stays on screen while the next one loads.
+ * input schema; the previous page stays on screen while the next one loads. The page hands in
+ * the CSV feature's menu (`csvMenu`), which downloads the selected rows.
  */
-export const BranchesContainer = () => (
+export const BranchesContainer = ({ csvMenu }: { csvMenu?: ReactNode }) => (
   <RowSelectionProvider>
-    <BranchesList />
+    <BranchesList csvMenu={csvMenu} />
   </RowSelectionProvider>
 );

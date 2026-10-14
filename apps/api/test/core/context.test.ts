@@ -1,10 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { SessionUser } from "@repo/auth";
+import { createUserRepository } from "@repo/database";
 import { prismaUserSubject } from "@repo/permissions/server";
 import { DEFAULT_ROLE } from "@repo/validation";
 
-import { REQUEST_ID_HEADER, buildRequestContext, toAuthUser } from "../../src/core/context";
+import {
+  REQUEST_ID_HEADER,
+  buildJobContext,
+  buildRequestContext,
+  toAuthUser,
+} from "../../src/core/context";
 import {
   TEST_PASSWORD,
   contextDeps,
@@ -151,5 +157,32 @@ describe("toAuthUser", () => {
     };
 
     expect(toAuthUser(sessionUser).role).toBe(DEFAULT_ROLE);
+  });
+});
+
+describe("buildJobContext", () => {
+  it("acts for the user with the grants they hold now, keeping the trace id", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const ctx = await buildJobContext({ userId: admin.user.id, traceId: "req-9" }, deps());
+
+    expect(ctx?.requestId).toBe("req-9");
+    expect(ctx?.user).toMatchObject({ id: admin.user.id, role: "admin" });
+    expect(ctx?.ability.can("create", "User")).toBe(true);
+    expect(ctx?.headers).toEqual(new Headers());
+
+    await h.db.userPermission.create({
+      data: { userId: admin.user.id, permissionKey: "1101", effect: "DENY" },
+    });
+    const later = await buildJobContext({ userId: admin.user.id }, deps());
+    expect(later?.ability.can("create", "User")).toBe(false);
+    expect(later?.requestId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("has no context for a user who can no longer sign in", async () => {
+    const am = await signedInUser(h, { role: "am" });
+    await createUserRepository(h.db).softDelete(am.user.id);
+
+    expect(await buildJobContext({ userId: am.user.id }, deps())).toBeNull();
+    expect(await buildJobContext({ userId: crypto.randomUUID() }, deps())).toBeNull();
   });
 });

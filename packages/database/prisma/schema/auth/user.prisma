@@ -44,6 +44,10 @@ model User {
   /// Files this user owns (プロフィール画像) and files they uploaded (ADR 0012).
   attachments         Attachment[]      @relation("UserAttachments")
   uploadedAttachments Attachment[]      @relation("UploadedAttachments")
+  /// CSV imports this user uploaded (ADR 0013).
+  csvImports          CsvImport[]
+  /// CSV downloads this user made (ADR 0013).
+  csvExports          CsvExport[]
 
   @@index([role])
   @@map("users")

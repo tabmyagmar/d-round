@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@repo/api": "workspace:*",
     "@repo/database": "workspace:*",
     "@repo/logger": "workspace:*",
     "@repo/queue": "workspace:*",
