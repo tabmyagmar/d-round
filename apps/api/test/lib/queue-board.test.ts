@@ -3,7 +3,7 @@ import { Writable } from "node:stream";
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from "vitest";
 
 import { createLogger } from "@repo/logger";
-import { QUEUE_NAMES, createRedisConnection } from "@repo/queue";
+import { QUEUE_NAMES, createRedisConnection, waitForRedis } from "@repo/queue";
 
 import { createApp } from "../../src/app";
 import type { App } from "../../src/app";
@@ -81,7 +81,6 @@ describe("/queues as super_admin", () => {
   });
 
   it("logs a Redis error of its queues through the logger, not the console", async () => {
-    const redis = createRedisConnection(inject("redisUrl"), { connectionName: "queue-board-test" });
     const lines: string[] = [];
     const logger = createLogger(
       { name: "test", level: "debug" },
@@ -92,17 +91,23 @@ describe("/queues as super_admin", () => {
         },
       }),
     );
-    createQueueBoard({ ...contextDeps(h), redis, logger });
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const redis = createRedisConnection(inject("redisUrl"), { connectionName: "queue-board-test" });
 
-    redis.emit("error", new Error("redis down"));
+    try {
+      await waitForRedis(redis);
+      createQueueBoard({ ...contextDeps(h), redis, logger });
 
-    expect(consoleError).not.toHaveBeenCalled();
-    expect(lines.filter((line) => line.includes("redis down"))).toHaveLength(
-      Object.values(QUEUE_NAMES).length,
-    );
-    consoleError.mockRestore();
-    await redis.quit();
+      redis.emit("error", new Error("redis down"));
+
+      expect(consoleError).not.toHaveBeenCalled();
+      expect(lines.filter((line) => line.includes("redis down"))).toHaveLength(
+        Object.values(QUEUE_NAMES).length,
+      );
+    } finally {
+      consoleError.mockRestore();
+      await redis.quit();
+    }
   });
 });
 
