@@ -14,6 +14,7 @@ import {
   listUsersSchema,
   passwordSchema,
   resetPasswordSchema,
+  roleLabelOf,
   signInSchema,
   updateUserSchema,
   userNameSchema,
@@ -28,6 +29,13 @@ const firstIssue = (result: {
   const issue = result.error?.issues[0];
   return issue ? { path: issue.path.join("."), message: issue.message } : null;
 };
+
+describe("roleLabelOf", () => {
+  it("names a role as the screens do, and keeps a key the app no longer has", () => {
+    expect(roleLabelOf("manager")).toBe("マネジャー");
+    expect(roleLabelOf("owner")).toBe("owner");
+  });
+});
 
 describe("passwordSchema (the password policy)", () => {
   it("accepts 8 characters with a letter and a digit", () => {

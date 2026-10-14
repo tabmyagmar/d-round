@@ -6,30 +6,26 @@ import type { DbClient } from "../utils/transaction";
 /** A row as a writer hands it over; the id and the time come from the database. */
 export type AuditLogData = Prisma.AuditLogCreateManyInput;
 
-/** A row as the list shows it: without the changed fields, which the detail loads. */
-export type AuditLogListItem = Omit<AuditLog, "changes">;
-
-/** One page of an entity's history, newest first, and the cursor of the next page. */
-export type AuditLogHistoryPage = { items: AuditLog[]; nextCursor: string | null };
-
+/**
+ * A row as the list shows it: 日付, 時間, 担当者, アクション, 対象 and ステータス. The detail reads the
+ * rest (role, ids, error code, address, browser, request id and the changed fields) by id.
+ */
 const LIST_SELECT = {
   id: true,
   createdAt: true,
   actorType: true,
-  actorId: true,
   actorName: true,
   actorEmail: true,
-  actorRole: true,
   action: true,
   entityType: true,
-  entityId: true,
   entityLabel: true,
   status: true,
-  errorCode: true,
-  requestId: true,
-  ipAddress: true,
-  userAgent: true,
 } as const satisfies Prisma.AuditLogSelect;
+
+export type AuditLogListItem = Prisma.AuditLogGetPayload<{ select: typeof LIST_SELECT }>;
+
+/** One page of an entity's history, newest first, and the cursor of the next page. */
+export type AuditLogHistoryPage = { items: AuditLog[]; nextCursor: string | null };
 
 const NEWEST_FIRST: Prisma.AuditLogOrderByWithRelationInput[] = [
   { createdAt: "desc" },

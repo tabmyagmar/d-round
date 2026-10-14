@@ -59,7 +59,18 @@ describe("audit log repository", () => {
     expect(page.total).toBe(3);
     expect(page.items.map((item) => item.status)).toEqual(["FAILURE", "SUCCESS", "SUCCESS"]);
     expect(page.items.at(-1)?.id).toBe(first.id);
-    expect(page.items.every((item) => !("changes" in item))).toBe(true);
+    // The list carries what its columns show; the detail reads the rest by id.
+    expect(Object.keys(page.items[0] ?? {}).sort()).toEqual([
+      "action",
+      "actorEmail",
+      "actorName",
+      "actorType",
+      "createdAt",
+      "entityLabel",
+      "entityType",
+      "id",
+      "status",
+    ]);
     expect((await repo.findById(first.id))?.changes).toEqual([
       { field: "name", before: "旧社名", after: "株式会社サンプル" },
     ]);
@@ -70,9 +81,9 @@ describe("audit log repository", () => {
     const action = uniqueAction();
     const actorId = crypto.randomUUID();
     await repo.createMany([
-      rowOf(action, { actorId }),
-      rowOf(action, { actorId, status: "FAILURE", errorCode: "CONFLICT" }),
-      rowOf(action),
+      rowOf(action, { actorId, entityLabel: "A" }),
+      rowOf(action, { actorId, status: "FAILURE", errorCode: "CONFLICT", entityLabel: "B" }),
+      rowOf(action, { status: "FAILURE", entityLabel: "C" }),
     ]);
 
     const page = await repo.findPage(
@@ -80,7 +91,7 @@ describe("audit log repository", () => {
       { action, actorId, status: "FAILURE" },
     );
 
-    expect(page.items.map((item) => item.errorCode)).toEqual(["CONFLICT"]);
+    expect(page.items.map((item) => item.entityLabel)).toEqual(["B"]);
   });
 
   it("pages an entity's history by cursor, newest first", async () => {

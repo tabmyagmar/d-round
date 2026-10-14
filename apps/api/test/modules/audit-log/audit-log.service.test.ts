@@ -263,19 +263,22 @@ describe("reading the log", () => {
     expect(page.items.every((row) => !("changes" in row))).toBe(true);
   });
 
-  it("searches the actor's email whatever its case, and what the target is called", async () => {
+  it("searches the actor's name and email and what the target is called, whatever their case", async () => {
     const ctx = await adminContext();
     const local = `kansa-${crypto.randomUUID()}`;
+    const name = `Kansa ${crypto.randomUUID()}`;
     const label = `対象-${crypto.randomUUID()}`;
     await createAuditLogRepository(h.db).createMany([
       rowOf("監査 太郎", { actorEmail: `${local}@Example.com` }),
+      rowOf(name, {}),
       rowOf("監査 太郎", { entityLabel: label }),
     ]);
 
     const search = async (text: string) =>
       (await list(ctx, listAuditLogsSchema.parse({ search: text }))).total;
     expect(await search(local.toUpperCase())).toBe(1);
-    expect(await search(label)).toBe(1);
+    expect(await search(name.toUpperCase())).toBe(1);
+    expect(await search(label.toUpperCase())).toBe(1);
   });
 
   it("reads one row with its changes, and an entity's history by cursor", async () => {

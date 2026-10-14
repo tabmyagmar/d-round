@@ -82,7 +82,6 @@ describe("AuditLogsTable", () => {
         entityType: "User",
         entityLabel: "typed@example.com",
         status: "FAILURE",
-        errorCode: "INVALID_EMAIL_OR_PASSWORD",
       }),
     ]);
 

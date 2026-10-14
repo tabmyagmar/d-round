@@ -9,11 +9,10 @@ import {
   AUDIT_ENTITY_TYPES,
   BRANCH_EXPORT_FIELDS,
   CLIENT_EXPORT_FIELDS,
-  ROLE_LABELS,
   STAFF_EXPORT_FIELDS,
   STAFF_MEMO_TYPE_LABELS,
   USER_EXPORT_FIELDS,
-  roleSchema,
+  roleLabelOf,
 } from "@repo/validation";
 import type { AuditEntityType, CsvExportType, CsvImportType } from "@repo/validation";
 
@@ -44,11 +43,6 @@ const cellsOf = <K extends string, Row>(
   row: Row,
 ): Record<K, string> =>
   Object.fromEntries(fields.map(({ key }) => [key, cells[key](row)])) as Record<K, string>;
-
-const roleLabelOf = (role: string): string => {
-  const known = roleSchema.safeParse(role);
-  return known.success ? ROLE_LABELS[known.data] : role;
-};
 
 /**
  * A 担当者: the download's columns, the アカウントタイプ and the 権限設定 — the user's own

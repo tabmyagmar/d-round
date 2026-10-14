@@ -21,8 +21,10 @@ an entity's history, masking, append-only rows and a write that never breaks the
   `recordChanges(ctx, db, entries)` (`apps/api/src/modules/audit-log/audit-log.service.ts`) runs
   inside the write's `withTransaction` (on `ctx.db` where a write has none): a change commits with
   its row or not at all, and the row knows the business action, the exact entity and its before (the
-  services load the row for their checks) and after (they reload it to return it) without an extra
-  query. CSV imports call the services and are recorded the same way, the uploader as actor.
+  services load the row for their checks) and after (they reload it to return it), mostly without an
+  extra query: an edit of a 担当者 also reads its permission overrides and the catalog's names,
+  a スタッフ write its 履歴書 names. CSV imports call the services and are recorded the same way,
+  the uploader as actor.
 - **Failures and sign-in events are best effort.** A tRPC middleware (`auditFailures`, part of
   `protectedProcedure`) records one `FAILURE` row with the error code when a mutation fails; Better
   Auth hooks record sign-in, sign-out, password and `/admin/*` events through an injected

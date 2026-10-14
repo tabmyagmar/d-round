@@ -213,9 +213,9 @@ export const list = async (
   if (query.search) {
     filters.push({
       OR: [
-        { actorName: { contains: query.search } },
+        { actorName: { contains: query.search, mode: "insensitive" } },
         { actorEmail: { contains: query.search, mode: "insensitive" } },
-        { entityLabel: { contains: query.search } },
+        { entityLabel: { contains: query.search, mode: "insensitive" } },
       ],
     });
   }

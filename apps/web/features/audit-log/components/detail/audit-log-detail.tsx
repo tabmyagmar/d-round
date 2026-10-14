@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { DescriptionList } from "@repo/ui/components/composed/description-list";
 import { StatusBadge } from "@repo/ui/components/composed/status-badge";
-import { AUDIT_STATUS_LABELS } from "@repo/validation";
+import { AUDIT_STATUS_LABELS, roleLabelOf } from "@repo/validation";
 
 import { AuditChanges } from "@/features/audit-log/components/detail/audit-changes";
 import type { AuditLogDetail as AuditLogDetailRow } from "@/features/audit-log/types";
@@ -12,7 +12,6 @@ import {
   changesOf,
   dateTimeOf,
   entityTypeLabelOf,
-  roleLabelOf,
 } from "@/features/audit-log/utils/audit-log-labels";
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
@@ -33,7 +32,7 @@ export const AuditLogDetail = ({ log }: { log: AuditLogDetailRow }) => (
         items={[
           { label: "名前", value: actorLabelOf(log) },
           { label: "メールアドレス", value: log.actorEmail },
-          { label: "権限", value: roleLabelOf(log.actorRole) },
+          { label: "権限", value: log.actorRole && roleLabelOf(log.actorRole) },
         ]}
       />
     </Section>

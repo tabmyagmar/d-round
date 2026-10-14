@@ -813,3 +813,36 @@ starts.
     a row without fields.
   - T8: a CSV type is named from the entity's name (`担当者 追加`); a re-download from 履歴 is
     recorded when its button asks for the URL (an imperative query, never refetched).
+- 2026-10-14 — amendments while building T9–T14 (each commit verify 43/43):
+  - T4 / D6: `deleteOlderThan` reads the ids of the oldest rows past the cut-off and deletes them
+    with Prisma (`findMany` + `deleteMany`), not raw SQL: the same two statements, typed.
+  - T9: the history leaves out sign-ins and sign-outs (`NOT_CHANGES`): they change nothing,
+    and アクセスログ管理 lists them.
+  - T10: the picker closes on the second pick since it opened (react-day-picker 10 makes the first
+    pick a one-day range, so the old `DateRangeField` closed after one click).
+  - T13: the plan's `audit-history-container.tsx` is `containers/audit-history-button.tsx` (the
+    button and its dialog; a route imports containers only).
+  - T14: the changes stack below `md` (`useIsMobile`, where the dialogs become drawers), not `sm`.
+- 2026-10-14 — MR checks: verifier PASS (fresh verify 43/43, 0 cached; drift gate clean; migrate
+  status up to date, both triggers present). Reviewer REQUEST_CHANGES (2 BLOCKER, 4 SHOULD, 7 NIT);
+  security review 1 HIGH, 1 MEDIUM, 2 LOW. Fix round 1, each commit verify 43/43:
+  - The hooks keep a typed address, `userId` and `role` only when `emailSchema`, `idSchema` and
+    `roleSchema` parse them (BLOCKER, HIGH; arrays of roles joined, LOW); a body over 64 KB below
+    `/api/auth` gets 413 before Better Auth reads it (HIGH); a row keeps the address only when
+    `isIP` accepts it (LOW). The columns get no new caps: the migration is applied in the dev
+    database and is not edited, and every writer now bounds its values. The target lookup is not
+    caught apart (LOW): with the id parsed it fails only when the database does, and the insert with
+    it.
+  - Impersonation (MEDIUM): the admin roles keep `adminAc` without `impersonate`; nothing in the web
+    used it, and with no role able to impersonate the `/admin/*` actor needs no other source.
+  - `/update-user` (SHOULD, the reviewer left the choice open): disabled, not recorded — the web
+    never calls it and renames through `user.updateProfile`, which validates and records.
+  - `csvExport.downloadUrl` is a mutation (SHOULD): a GET wrote a row, and its failures went
+    unrecorded. The 履歴 dialog calls it with `mutationOptions`.
+  - Tests: `findStatuses` asserts whole rows again (BLOCKER); each view builds from a bare row; the
+    failure middleware's log line is asserted. Stacked changes use `DescriptionList` (SHOULD).
+  - NIT: case-insensitive search on every field; the list selects only its columns; `roleLabelOf`
+    lives in `@repo/validation`; ADR 0015 and module-template.md name the extra queries and the
+    `recordAuthEvent` exception. Left: the first X-Forwarded-For entry as the client's address
+    predates this MR (the rate limiter keys on it too) — the trusted proxy hop is a deployment
+    ticket.

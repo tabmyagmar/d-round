@@ -8,8 +8,6 @@ import {
   auditChangeSchema,
   isAuditAction,
   isAuditEntityType,
-  ROLE_LABELS,
-  roleSchema,
   z,
 } from "@repo/validation";
 import type { AuditChange, AuditLogStatus } from "@repo/validation";
@@ -36,12 +34,6 @@ export const dayOf = (date: Date): string => dayjs(date).tz(TIME_ZONE).format("Y
 export const timeOf = (date: Date): string => dayjs(date).tz(TIME_ZONE).format("HH:mm");
 export const dateTimeOf = (date: Date): string =>
   dayjs(date).tz(TIME_ZONE).format("YYYY/MM/DD HH:mm:ss");
-
-/** An actor's アカウントタイプ, or the key itself for a role the app no longer has. */
-export const roleLabelOf = (role: string | null): string | null => {
-  const known = roleSchema.safeParse(role);
-  return known.success ? ROLE_LABELS[known.data] : role;
-};
 
 const auditChangesSchema = z.array(auditChangeSchema);
 
