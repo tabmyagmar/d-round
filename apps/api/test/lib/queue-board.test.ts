@@ -106,7 +106,10 @@ describe("/queues as super_admin", () => {
       );
     } finally {
       consoleError.mockRestore();
-      await redis.quit();
+      // Not QUIT: the queues are still starting, so their first commands follow it on the wire,
+      // Redis resets a connection it closes with unread commands, and the reset can lose QUIT's
+      // reply (seen on the Linux CI runner as "Connection is closed").
+      redis.disconnect();
     }
   });
 });
