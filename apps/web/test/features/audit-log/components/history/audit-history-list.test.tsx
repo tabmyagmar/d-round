@@ -1,12 +1,30 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuditHistoryList } from "@/features/audit-log/components/history/audit-history-list";
 
 import { auditLogDetail } from "../../fixtures";
 
-afterEach(cleanup);
+// jsdom has no matchMedia; useIsMobile subscribes to one and reads the width from innerWidth.
+const stubViewport = (width: number) => {
+  vi.stubGlobal("innerWidth", width);
+  vi.stubGlobal("matchMedia", (media: string) => ({
+    matches: false,
+    media,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+};
+
+beforeEach(() => {
+  stubViewport(1024);
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("AuditHistoryList", () => {
   it("lists each entry's time, actor and action, opening into its changed fields", () => {

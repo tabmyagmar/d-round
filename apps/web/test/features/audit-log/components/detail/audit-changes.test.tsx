@@ -1,10 +1,28 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuditChanges } from "@/features/audit-log/components/detail/audit-changes";
 
-afterEach(cleanup);
+// jsdom has no matchMedia; useIsMobile subscribes to one and reads the width from innerWidth.
+const stubViewport = (width: number) => {
+  vi.stubGlobal("innerWidth", width);
+  vi.stubGlobal("matchMedia", (media: string) => ({
+    matches: false,
+    media,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+};
+
+beforeEach(() => {
+  stubViewport(1024);
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const cellsOf = (row: HTMLElement) =>
   [...row.querySelectorAll("td")].map((cell) => cell.textContent);
@@ -40,6 +58,24 @@ describe("AuditChanges", () => {
     const [, phone, memo] = screen.getAllByRole("row");
     expect(cellsOf(phone!)).toEqual(["電話番号", "変更あり（非表示）"]);
     expect(cellsOf(memo!)[2]).toBe("長い（一部省略）");
+  });
+
+  it("stacks each field below md, inside the drawer", () => {
+    stubViewport(375);
+    render(
+      <AuditChanges
+        entityType="Staff"
+        changes={[
+          { field: "branchName", before: "新宿支店", after: "渋谷支店" },
+          { field: "phoneNumber", masked: true },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByRole("table")).toBeNull();
+    const [branch, phone] = screen.getAllByRole("listitem");
+    expect(branch?.textContent).toBe("支店名変更前新宿支店変更後渋谷支店");
+    expect(phone?.textContent).toBe("電話番号変更あり（非表示）");
   });
 
   it("says so when no field changed", () => {
