@@ -63,7 +63,7 @@ not a menu group: the 設定 group's two screens are `comment-templates` and `he
 `auth-card`, …). Route files under `app/` are thin: they import only from
 `@/features/<feature>/containers/...`, `@/components/...`, `@/config/...`, `@/lib/...` and
 `@repo/ui`, and render one container inside `PageGuard` (another feature's container goes in as a
-slot prop).
+slot prop: the four detail pages hand in `AuditHistoryButton` as `history`, 「変更履歴」, ADR 0015).
 
 ### List pages: state in the URL
 

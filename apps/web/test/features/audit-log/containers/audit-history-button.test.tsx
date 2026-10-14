@@ -4,9 +4,9 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { AbilityProvider } from "@repo/permissions/react";
 
-import { AuditHistoryButton } from "@/features/audit-log/components/history/audit-history-button";
+import { AuditHistoryButton } from "@/features/audit-log/containers/audit-history-button";
 
-import { AM_GRANTS, userWith } from "../../../../support/grants";
+import { AM_GRANTS, userWith } from "../../../support/grants";
 
 afterEach(cleanup);
 

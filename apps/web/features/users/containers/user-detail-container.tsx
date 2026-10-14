@@ -54,6 +54,8 @@ export type UserDetailContainerProps = {
   userId: string;
   /** 担当スタッフ, from the staff feature: the page composes the features. */
   staffs: ReactNode;
+  /** 「変更履歴」, from the audit-log feature. */
+  history?: ReactNode;
 };
 
 /**
@@ -61,7 +63,7 @@ export type UserDetailContainerProps = {
  * may change them, then 担当クライアント (a placeholder) next to 担当スタッフ. Editing is on the
  * update page; after 利用停止 the user is gone from this page (`user.byId` does not find them).
  */
-export const UserDetailContainer = ({ userId, staffs }: UserDetailContainerProps) => {
+export const UserDetailContainer = ({ userId, staffs, history }: UserDetailContainerProps) => {
   const trpc = useTRPC();
   const router = useRouter();
   const ability = useAbility();
@@ -99,15 +101,18 @@ export const UserDetailContainer = ({ userId, staffs }: UserDetailContainerProps
           <h2 className="truncate font-heading text-xl font-semibold">{detail.name}</h2>
           <p className="truncate text-sm text-muted-foreground">{detail.email}</p>
         </div>
-        <UserDetailToolbar
-          user={detail}
-          onSendPasswordMail={() => {
-            setDialog("password-mail");
-          }}
-          onToggleStatus={() => {
-            setDialog("status");
-          }}
-        />
+        <div className="flex flex-wrap justify-end gap-2">
+          {history}
+          <UserDetailToolbar
+            user={detail}
+            onSendPasswordMail={() => {
+              setDialog("password-mail");
+            }}
+            onToggleStatus={() => {
+              setDialog("status");
+            }}
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
