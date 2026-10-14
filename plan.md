@@ -796,3 +796,20 @@ starts.
   with a dialog; 7 the two admin roles read every row; 8 the stage order). One branch for the epic;
   each ticket is one or more commits named after it. The orchestrator implements the tickets itself
   (as in the CSV epic) and runs the verifier and the reviewer per MR.
+- 2026-10-14 — amendments while building T1–T9 (each commit verify 43/43; T1's run had a
+  testcontainers port timeout in the worker tests under load, green alone):
+  - T1 holds the schema, the trigger and the repository; `AUDIT_ACTIONS` came with T2 and the input
+    schemas with T9, where they are used. The trigger raises the default `P0001`: with
+    `restrict_violation` Prisma reported a foreign-key error and lost the message.
+  - D3: the cap is per value (500 characters, the entry marked `truncated`), not 16 kB per row.
+  - The purge's action key is `system.auditLogPurge` (Better Auth's are `auth.*`, the system's
+    `system.*`; the coverage test skips both).
+  - T3: as planned; a failed sign-in records `INVALID_EMAIL_OR_PASSWORD` with the typed address.
+  - T5: `ROLE_LABELS` and `STAFF_MEMO_TYPE_LABELS` moved to `@repo/validation` (the web re-exports
+    them); the 就業先部署's メモ joined its view; the プロフィール画像 is not audited.
+  - T6: an edit of a 担当者 reads its overrides before and after and the catalog's names (three
+    queries, rare admin writes); an invitation reads the user back in its transaction.
+  - T7: a status change runs in one transaction with its row; a status set to the one it had records
+    a row without fields.
+  - T8: a CSV type is named from the entity's name (`担当者 追加`); the dashboard of downloads
+    re-sends are recorded when the button asks for the URL (an imperative query, no refetch).
