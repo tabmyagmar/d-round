@@ -6,8 +6,10 @@ import {
 } from "@repo/database";
 import type { BranchRow, BranchWrite, DbClient, PageResult, Prisma } from "@repo/database";
 import { accessibleBranchesWhere, prismaBranchSubject } from "@repo/permissions/server";
-import { employeeNumberOfSearch } from "@repo/validation";
+import { employeeNumberOfSearch, maskedAuditFields } from "@repo/validation";
 import type {
+  AuditAction,
+  AuditChange,
   BranchSortField,
   ChangeBranchStatusInput,
   CreateBranchInput,
@@ -21,6 +23,9 @@ import type {
 
 import type { RequestContext } from "../../core/context";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../core/errors";
+import { diffViews, recordChanges } from "../audit-log/audit-log.service";
+import type { AuditEntry } from "../audit-log/audit-log.service";
+import { branchAuditView, branchLabelOf } from "../audit-log/audit-views";
 import { assertKnownSource } from "../source/source.service";
 import { assertChargersActive } from "../user/user.service";
 
@@ -45,6 +50,21 @@ const assertCanRow = (ctx: RequestContext, action: BranchAction, branch: BranchR
     throw new ForbiddenError(`Not allowed to ${action} this branch`);
   }
 };
+
+const BRANCH_MASKED_FIELDS = maskedAuditFields("Branch");
+
+/** The audit log's row for a write to one 就業先部署 (docs/adr/0015-audit-log.md). */
+const branchAuditEntry = (
+  action: AuditAction,
+  branch: { id: string; number: number; name: string; client: { number: number } },
+  changes: AuditChange[],
+): AuditEntry => ({
+  action,
+  entityType: "Branch",
+  entityId: branch.id,
+  entityLabel: branchLabelOf(branch),
+  changes,
+});
 
 const loadBranch = async (db: DbClient, branchId: string): Promise<BranchRow> => {
   const branch = await createBranchRepository(db).findById(branchId);
@@ -187,7 +207,15 @@ export const create = async (ctx: RequestContext, input: CreateBranchInput): Pro
     await assertWritable(tx, input);
     await assertChargersActive(tx, input.chargerUserIds);
     const { id } = await createBranchRepository(tx).create(toWrite(input));
-    return loadBranch(tx, id);
+    const created = await loadBranch(tx, id);
+    await recordChanges(ctx, tx, [
+      branchAuditEntry(
+        "branch.create",
+        created,
+        diffViews(null, branchAuditView(created), BRANCH_MASKED_FIELDS),
+      ),
+    ]);
+    return created;
   });
 };
 
@@ -211,7 +239,15 @@ export const update = async (ctx: RequestContext, input: UpdateBranchInput): Pro
     const write = toWrite(input);
     await branches.updateFields(current.id, write.fields, write.address);
     await branches.replaceChargers(current.id, write.chargerUserIds);
-    return loadBranch(tx, current.id);
+    const updated = await loadBranch(tx, current.id);
+    await recordChanges(ctx, tx, [
+      branchAuditEntry(
+        "branch.update",
+        updated,
+        diffViews(branchAuditView(current), branchAuditView(updated), BRANCH_MASKED_FIELDS),
+      ),
+    ]);
+    return updated;
   });
 };
 
@@ -221,12 +257,22 @@ export const changeStatus = async (
   input: ChangeBranchStatusInput,
 ): Promise<{ id: string; status: GeneralStatus }> => {
   assertMay(ctx, "status");
-  const branch = await loadBranch(ctx.db, input.branchId);
-  assertCanRow(ctx, "status", branch);
-  if (branch.status === input.status) {
-    return { id: branch.id, status: branch.status };
-  }
-  return createBranchRepository(ctx.db).updateStatus(branch.id, input.status);
+  return withTransaction(ctx.db, async ({ tx }) => {
+    const branch = await loadBranch(tx, input.branchId);
+    assertCanRow(ctx, "status", branch);
+    const changed = { ...branch, status: input.status };
+    await recordChanges(ctx, tx, [
+      branchAuditEntry(
+        "branch.changeStatus",
+        branch,
+        diffViews(branchAuditView(branch), branchAuditView(changed), BRANCH_MASKED_FIELDS),
+      ),
+    ]);
+    if (branch.status === input.status) {
+      return { id: branch.id, status: branch.status };
+    }
+    return createBranchRepository(tx).updateStatus(branch.id, input.status);
+  });
 };
 
 /**
@@ -248,7 +294,13 @@ export const removeMany = async (
     if (rows.some((row) => row.status !== SUSPENDED)) {
       throw new ConflictError("Only suspended branches can be deleted");
     }
-    return { count: await branches.softDeleteMany(ids) };
+    const count = await branches.softDeleteMany(ids);
+    await recordChanges(
+      ctx,
+      tx,
+      rows.map((row) => branchAuditEntry("branch.deleteMany", row, [])),
+    );
+    return { count };
   });
 };
 

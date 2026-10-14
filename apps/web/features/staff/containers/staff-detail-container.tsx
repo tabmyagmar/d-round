@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import type { ReactNode } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { Skeleton } from "@repo/ui/components/skeleton";
@@ -43,7 +44,13 @@ type OpenDialog = "status" | "delete" | null;
  * 住所・連絡先情報, 在籍情報, 家族情報, メモ and 履歴書 on the right. After スタッフ削除 the page goes
  * back to the list.
  */
-export const StaffDetailContainer = ({ staffId }: { staffId: string }) => {
+export type StaffDetailContainerProps = {
+  staffId: string;
+  /** 「変更履歴」, from the audit-log feature: the page composes the features. */
+  history?: ReactNode;
+};
+
+export const StaffDetailContainer = ({ staffId, history }: StaffDetailContainerProps) => {
   const trpc = useTRPC();
   const router = useRouter();
   const staff = useQuery(trpc.staff.byId.queryOptions({ staffId }));
@@ -78,15 +85,18 @@ export const StaffDetailContainer = ({ staffId }: { staffId: string }) => {
             <StaffStatusBadge status={detail.status} />
           </div>
         </div>
-        <StaffDetailToolbar
-          staff={detail}
-          onChangeStatus={() => {
-            setDialog("status");
-          }}
-          onDelete={() => {
-            setDialog("delete");
-          }}
-        />
+        <div className="flex flex-wrap justify-end gap-2">
+          {history}
+          <StaffDetailToolbar
+            staff={detail}
+            onChangeStatus={() => {
+              setDialog("status");
+            }}
+            onDelete={() => {
+              setDialog("delete");
+            }}
+          />
+        </div>
       </div>
 
       <div className="grid items-start gap-4 lg:grid-cols-12">

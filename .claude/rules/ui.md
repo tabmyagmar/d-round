@@ -63,7 +63,7 @@ not a menu group: the 設定 group's two screens are `comment-templates` and `he
 `auth-card`, …). Route files under `app/` are thin: they import only from
 `@/features/<feature>/containers/...`, `@/components/...`, `@/config/...`, `@/lib/...` and
 `@repo/ui`, and render one container inside `PageGuard` (another feature's container goes in as a
-slot prop).
+slot prop: the four detail pages hand in `AuditHistoryButton` as `history`, 「変更履歴」, ADR 0015).
 
 ### List pages: state in the URL
 
@@ -300,6 +300,12 @@ export const RoleBadge = ({ role }: { role: string | null | undefined }) => {
   `onValueChange` (`string[]`; checking appends, unchecking removes, unknown values are kept),
   `label?` (a legend; `hideLabel` for screen readers), `orientation?`, `disabled?`, `invalid?`. For
   filters with a few options (ステータス, 性別, エリア); `CheckboxGroupField` wraps it for forms.
+- `DateRangePicker` (`date-range-picker.tsx`) — a standalone 期間: `value` / `onValueChange`
+  (react-day-picker's `DateRange`, `undefined` for none), `label?` / `hideLabel`, `placeholder?`,
+  `clearable?` with `clearLabel?` (a ✕ beside the trigger), `numberOfMonths?`, `min?` / `max?`,
+  `disabledDays?`, `locale?` / `calendarLocale?`; the legacy calendar (`<<` / `>>` step a year). It
+  closes on the second pick since it opened: react-day-picker 10 makes the first pick a one-day
+  range already. For filters (アクセスログ's 期間); `DateRangeField` wraps it for forms.
 - `SearchInput` (`search-input.tsx`) — `value`, `onSearch(trimmed)` after a pause
   (`useDebouncedCallback`, `delayMs?`), `label`; shows a value changed elsewhere but keeps what the
   user typed while its own search comes back. Sits on `bg-card`, so it stands out from the page

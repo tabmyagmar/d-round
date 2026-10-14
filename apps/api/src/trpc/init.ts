@@ -6,18 +6,25 @@ import type { Action, SubjectName } from "@repo/permissions";
 import type { RequestContext } from "../core/context";
 import { toTRPCError } from "../core/error-mapping";
 import { ForbiddenError, isDomainError } from "../core/errors";
+import { recordFailure } from "../modules/audit-log/audit-log.service";
+
+/** What a procedure tells the middleware: `audit: false` exempts a mutation from the audit log. */
+export type ProcedureMeta = { audit?: false };
 
 /**
  * tRPC wiring. Routers live in ./routers, one per module, and only ever do:
  * zod input → ability check → service call. No business logic here.
  */
-const t = initTRPC.context<RequestContext>().create({
-  transformer: superjson,
-  errorFormatter: ({ shape, ctx }) => ({
-    ...shape,
-    data: { ...shape.data, requestId: ctx?.requestId ?? null },
-  }),
-});
+const t = initTRPC
+  .context<RequestContext>()
+  .meta<ProcedureMeta>()
+  .create({
+    transformer: superjson,
+    errorFormatter: ({ shape, ctx }) => ({
+      ...shape,
+      data: { ...shape.data, requestId: ctx?.requestId ?? null },
+    }),
+  });
 
 export const router = t.router;
 export const mergeRouters = t.mergeRouters;
@@ -51,12 +58,28 @@ const domainErrorMapping = t.middleware(async ({ ctx, path, type, next }) => {
 
 export const publicProcedure = t.procedure.use(domainErrorMapping);
 
-export const protectedProcedure = publicProcedure.use(({ ctx, next }) => {
-  if (!ctx.user) {
-    throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required" });
+/**
+ * A failed mutation — refused by `requireAbility`, invalid input, a domain error, a crash — leaves
+ * one FAILURE row in the audit log (docs/adr/0015-audit-log.md); a successful write records its own
+ * rows inside its transaction. Queries and exempt mutations pass untouched.
+ */
+const auditFailures = t.middleware(async ({ ctx, path, type, meta, next }) => {
+  const result = await next();
+  if (!result.ok && type === "mutation" && meta?.audit !== false) {
+    const cause = result.error.cause;
+    await recordFailure(ctx, path, isDomainError(cause) ? cause.code : result.error.code);
   }
-  return next({ ctx: { ...ctx, user: ctx.user } });
+  return result;
 });
+
+export const protectedProcedure = publicProcedure
+  .use(({ ctx, next }) => {
+    if (!ctx.user) {
+      throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required" });
+    }
+    return next({ ctx: { ...ctx, user: ctx.user } });
+  })
+  .use(auditFailures);
 
 /**
  * Layer-1 authorization: may this role attempt this kind of action at all? Row-level and

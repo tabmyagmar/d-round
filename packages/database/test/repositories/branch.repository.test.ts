@@ -236,7 +236,9 @@ describe("branch repository", () => {
       const { id } = await repo.create(write(client.id));
 
       expect(await repo.updateStatus(id, "SUSPENDED")).toEqual({ id, status: "SUSPENDED" });
-      expect(await repo.findStatuses([id])).toEqual([{ id, status: "SUSPENDED" }]);
+      expect(await repo.findStatuses([id])).toEqual([
+        { id, status: "SUSPENDED", number: 1, name: "新宿店", client: { number: client.number } },
+      ]);
       expect(await repo.findStatuses([id], { status: "ACTIVE" })).toEqual([]);
     });
   });

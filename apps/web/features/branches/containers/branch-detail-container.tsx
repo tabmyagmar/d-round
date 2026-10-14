@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { Skeleton } from "@repo/ui/components/skeleton";
@@ -13,7 +14,13 @@ import { useTRPC } from "@/lib/trpc/react";
  * 就業先部署詳細 (read-only, as the legacy BranchContainer, which had no actions: the list's row
  * menu edits and deletes): the branch's name, reading and status, then its four cards.
  */
-export const BranchDetailContainer = ({ branchId }: { branchId: string }) => {
+export type BranchDetailContainerProps = {
+  branchId: string;
+  /** 「変更履歴」, from the audit-log feature: the page composes the features. */
+  history?: ReactNode;
+};
+
+export const BranchDetailContainer = ({ branchId, history }: BranchDetailContainerProps) => {
   const trpc = useTRPC();
   const branch = useQuery(trpc.branch.byId.queryOptions({ branchId }));
 
@@ -33,12 +40,15 @@ export const BranchDetailContainer = ({ branchId }: { branchId: string }) => {
   return (
     <>
       {/* The header holds the page's h1 (the route title); the branch shown here is an h2. */}
-      <div className="flex min-w-0 flex-col gap-1">
-        <h2 className="truncate font-heading text-xl font-semibold">{detail.name}</h2>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="truncate">{detail.nameKana}</span>
-          <GeneralStatusBadge status={detail.status} />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h2 className="truncate font-heading text-xl font-semibold">{detail.name}</h2>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="truncate">{detail.nameKana}</span>
+            <GeneralStatusBadge status={detail.status} />
+          </div>
         </div>
+        {history}
       </div>
       <BranchDetail branch={detail} />
     </>

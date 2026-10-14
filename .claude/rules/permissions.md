@@ -94,6 +94,10 @@ rows minus its `DENY` rows. What each role gets is `permissions.csv`
 | `manager`              | self (`read`/`update`) only     | `read`                  | Workflow all five; SourceCsvHistory `create`, `read`   |
 | `am`                   | self (`read`/`update`) only     | `read`                  | Workflow all five                                      |
 
+The audit log (ADR 0015) is read only: `read AuditLog` (row 1502) lists every row and shows
+the 変更履歴 of an entity; the legacy delete (row 1504) stays in the catalog, hidden (`visible = 0`)
+and granted to nobody, and no procedure deletes a row.
+
 An anonymous visitor (`defineAbilityFor(null)`) can do nothing. A scoped role (for example a team
 lead who reads their own team) is one `can("read", "User", { teamId: user.teamId })` after the grant
 loop (equality condition on a subject attribute) plus a spec row. Changing who may do what is a CSV
@@ -101,12 +105,12 @@ change (plus the seed-test counts and the DB-backed catalog test); changing the 
 spec change first.
 
 Catalog grants shape this ability only — our tRPC API and the web UI. Better Auth's own
-`/api/auth/admin/*` endpoints stay gated by the admin plugin's role map (`super_admin`, `admin`): a
-user `DENY` row does not narrow them, and row 1101 does not gate `admin/create-user`. Aligning them
-with the grants is a follow-up (ADR 0003). The app does not use those endpoints to add users:
-`user.invite` requires `create User` (row 1101) and `user.sendPasswordReset` requires `update User`
-(row 1103) on the target row; both call Better Auth server-side, so the catalog and `DENY` rows
-decide.
+`/api/auth/admin/*` endpoints stay gated by the admin plugin's role map (`super_admin`, `admin`;
+`adminAc` without `impersonate`, ADR 0015): a user `DENY` row does not narrow them, and row 1101
+does not gate `admin/create-user`. Aligning them with the grants is a follow-up (ADR 0003). The app
+does not use those endpoints to add users: `user.invite` requires `create User` (row 1101) and
+`user.sendPasswordReset` requires `update User` (row 1103) on the target row; both call Better Auth
+server-side, so the catalog and `DENY` rows decide.
 
 The queue dashboard at `/queues` (`apps/api/src/lib/queue-board.ts`, ADR 0014) is the other
 role-gated route: `super_admin` only, checked on the request context's `user.role`, no catalog row

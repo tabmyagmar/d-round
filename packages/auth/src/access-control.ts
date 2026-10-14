@@ -14,9 +14,18 @@ export const statement = { ...defaultStatements } as const;
 
 export const ac = createAccessControl(statement);
 
+/**
+ * The admin plugin's admin grants without `impersonate`: an impersonated session puts the target's
+ * name on the admin's writes, so the audit log could not tell who acted (docs/adr/0015-audit-log.md).
+ */
+const adminStatements = {
+  ...adminAc.statements,
+  user: adminAc.statements.user.filter((action) => action !== "impersonate"),
+};
+
 export const roles = {
-  super_admin: ac.newRole({ ...adminAc.statements }),
-  admin: ac.newRole({ ...adminAc.statements }),
+  super_admin: ac.newRole(adminStatements),
+  admin: ac.newRole(adminStatements),
   manager: ac.newRole({ ...userAc.statements }),
   am: ac.newRole({ ...userAc.statements }),
 } satisfies Record<Role, unknown>;

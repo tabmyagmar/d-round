@@ -54,7 +54,7 @@ describe("csvExport router", () => {
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
-  it("downloads one's own file again and answers NOT_FOUND for another's", async () => {
+  it("downloads one's own file again and answers NOT_FOUND for another's, which is recorded", async () => {
     const owner = await signedIn("admin");
     const other = await signedIn("admin");
     const csvExport = await owner.caller.csvExport.create({
@@ -69,5 +69,10 @@ describe("csvExport router", () => {
     await expect(
       other.caller.csvExport.downloadUrl({ csvExportId: csvExport.id }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(
+      await h.db.auditLog.findMany({
+        where: { action: "csvExport.downloadUrl", actorId: other.user.user.id },
+      }),
+    ).toEqual([expect.objectContaining({ status: "FAILURE", errorCode: "NOT_FOUND" })]);
   });
 });

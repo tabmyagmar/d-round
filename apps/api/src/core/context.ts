@@ -30,6 +30,10 @@ export type AuthUser = {
  */
 export type RequestContext = {
   requestId: string;
+  /** The client's address as the HTTP layer saw it (`clientIp`); null in a job. Audit rows keep it. */
+  ipAddress: string | null;
+  /** The browser's User-Agent; null in a job. Audit rows keep it. */
+  userAgent: string | null;
   logger: Logger;
   /** Raw request headers — needed to call Better Auth's admin API on behalf of the caller. */
   headers: Headers;
@@ -64,6 +68,8 @@ export type ContextInput = {
   headers: Headers;
   /** Request id already assigned by the HTTP layer; falls back to the header, then a UUID. */
   requestId?: string;
+  /** The client's address (`clientIp`: the first X-Forwarded-For entry, else the socket). */
+  ipAddress?: string | undefined;
 };
 
 /** What `toAuthUser` reads: a Better Auth session's user, or a user row with its grants (jobs). */
@@ -95,6 +101,8 @@ export const buildRequestContext = async (
 
   return {
     requestId,
+    ipAddress: input.ipAddress ?? null,
+    userAgent: input.headers.get("user-agent"),
     logger: childLogger(deps.logger, { requestId, userId: user?.id ?? null }),
     headers: input.headers,
     user,
@@ -143,6 +151,8 @@ export const buildJobContext = async (
 
   return {
     requestId,
+    ipAddress: null,
+    userAgent: null,
     logger: childLogger(deps.logger, { requestId, userId: user.id }),
     headers: new Headers(),
     user,

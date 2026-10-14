@@ -9,8 +9,10 @@ import type {
   Prisma,
 } from "@repo/database";
 import { accessibleClientsWhere, prismaClientSubject } from "@repo/permissions/server";
-import { employeeNumberOfSearch } from "@repo/validation";
+import { employeeNumberOfSearch, maskedAuditFields } from "@repo/validation";
 import type {
+  AuditAction,
+  AuditChange,
   ChangeClientStatusInput,
   ClientNumberAvailableInput,
   ClientOptionsInput,
@@ -25,6 +27,9 @@ import type {
 
 import type { RequestContext } from "../../core/context";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../core/errors";
+import { diffViews, recordChanges } from "../audit-log/audit-log.service";
+import type { AuditEntry } from "../audit-log/audit-log.service";
+import { clientAuditView, clientLabelOf } from "../audit-log/audit-views";
 import { assertKnownSource } from "../source/source.service";
 import { assertChargersActive } from "../user/user.service";
 
@@ -48,6 +53,21 @@ const assertCanRow = (ctx: RequestContext, action: ClientAction, client: ClientD
     throw new ForbiddenError(`Not allowed to ${action} this client`);
   }
 };
+
+const CLIENT_MASKED_FIELDS = maskedAuditFields("Client");
+
+/** The audit log's row for a write to one client (docs/adr/0015-audit-log.md). */
+const clientAuditEntry = (
+  action: AuditAction,
+  client: { id: string; number: number; name: string },
+  changes: AuditChange[],
+): AuditEntry => ({
+  action,
+  entityType: "Client",
+  entityId: client.id,
+  entityLabel: clientLabelOf(client),
+  changes,
+});
 
 const loadClient = async (db: DbClient, clientId: string): Promise<ClientDetailRow> => {
   const client = await createClientRepository(db).findById(clientId);
@@ -170,7 +190,15 @@ export const create = async (
     await assertWritable(tx, input);
     await assertChargersActive(tx, input.chargerUserIds);
     const { id } = await createClientRepository(tx).create(toWrite(input));
-    return loadClient(tx, id);
+    const created = await loadClient(tx, id);
+    await recordChanges(ctx, tx, [
+      clientAuditEntry(
+        "client.create",
+        created,
+        diffViews(null, clientAuditView(created), CLIENT_MASKED_FIELDS),
+      ),
+    ]);
+    return created;
   });
 };
 
@@ -197,7 +225,15 @@ export const update = async (
     await clients.updateFields(current.id, write.fields, write.address);
     await clients.replaceRegions(current.id, write.regionCodes);
     await clients.replaceChargers(current.id, write.chargerUserIds);
-    return loadClient(tx, current.id);
+    const updated = await loadClient(tx, current.id);
+    await recordChanges(ctx, tx, [
+      clientAuditEntry(
+        "client.update",
+        updated,
+        diffViews(clientAuditView(current), clientAuditView(updated), CLIENT_MASKED_FIELDS),
+      ),
+    ]);
+    return updated;
   });
 };
 
@@ -207,12 +243,22 @@ export const changeStatus = async (
   input: ChangeClientStatusInput,
 ): Promise<{ id: string; status: GeneralStatus }> => {
   assertMay(ctx, "status");
-  const client = await loadClient(ctx.db, input.clientId);
-  assertCanRow(ctx, "status", client);
-  if (client.status === input.status) {
-    return { id: client.id, status: client.status };
-  }
-  return createClientRepository(ctx.db).updateStatus(client.id, input.status);
+  return withTransaction(ctx.db, async ({ tx }) => {
+    const client = await loadClient(tx, input.clientId);
+    assertCanRow(ctx, "status", client);
+    const changed = { ...client, status: input.status };
+    await recordChanges(ctx, tx, [
+      clientAuditEntry(
+        "client.changeStatus",
+        client,
+        diffViews(clientAuditView(client), clientAuditView(changed), CLIENT_MASKED_FIELDS),
+      ),
+    ]);
+    if (client.status === input.status) {
+      return { id: client.id, status: client.status };
+    }
+    return createClientRepository(tx).updateStatus(client.id, input.status);
+  });
 };
 
 /**
@@ -234,7 +280,13 @@ export const removeMany = async (
     if (rows.some((row) => row.status !== SUSPENDED)) {
       throw new ConflictError("Only suspended clients can be deleted");
     }
-    return { count: await clients.softDeleteMany(ids) };
+    const count = await clients.softDeleteMany(ids);
+    await recordChanges(
+      ctx,
+      tx,
+      rows.map((row) => clientAuditEntry("client.deleteMany", row, [])),
+    );
+    return { count };
   });
 };
 

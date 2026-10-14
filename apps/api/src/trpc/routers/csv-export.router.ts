@@ -18,8 +18,9 @@ export const csvExportRouter = router({
     .input(listCsvExportsSchema)
     .query(({ ctx, input }) => csvExportService.list(ctx, input)),
 
+  // A mutation, not a query: every download is recorded in the audit log, a refused one too.
   downloadUrl: protectedProcedure
     .use(requireAbility("read", "SourceCsvHistory"))
     .input(csvExportIdSchema)
-    .query(({ ctx, input }) => csvExportService.downloadUrl(ctx, input.csvExportId)),
+    .mutation(({ ctx, input }) => csvExportService.downloadUrl(ctx, input.csvExportId)),
 });

@@ -55,13 +55,16 @@ paths:
     counts and `updated_at` as the sweeper's heartbeat), `csv-import-row.prisma`
     (`enum CsvImportRowResult` and `CsvImportRow`: one row per data line, Cascade to the import,
     unique `(csv_import_id, line_number)`) and `csv-export.prisma` (`enum CsvExportType` and
-    `CsvExport`: one row per workbook the API wrote). `access/` is our authorization catalog;
-    `auth/` stays Better Auth's, and `auth/user.prisma` only gains relation fields
-    (`permissions UserPermission[]`, `profile UserProfile?`, `staffCharges StaffCharger[]`,
-    `clientCharges ClientCharger[]`, `branchCharges BranchCharger[]`, `attachments` /
-    `uploadedAttachments Attachment[]`, `csvImports CsvImport[]`, `csvExports CsvExport[]`, no
-    column, and `roleRef Role` over the existing `role` column), `@@index([role])` and `role`'s NOT
-    NULL / default — see "Better Auth models" below.
+    `CsvExport`: one row per workbook the API wrote). The アクセスログ in `audit/` (ADR 0015):
+    `audit-log.prisma` (`enum AuditActorType`, `enum AuditStatus` and `AuditLog`: snapshots of the
+    actor without foreign keys, the changed fields as `Json`, no `updated_at`; append-only by a
+    trigger the migration creates). `access/` is our authorization catalog; `auth/` stays Better
+    Auth's, and `auth/user.prisma` only gains relation fields (`permissions UserPermission[]`,
+    `profile UserProfile?`, `staffCharges StaffCharger[]`, `clientCharges ClientCharger[]`,
+    `branchCharges BranchCharger[]`, `attachments` / `uploadedAttachments Attachment[]`,
+    `csvImports CsvImport[]`, `csvExports CsvExport[]`, no column, and `roleRef Role` over the
+    existing `role` column), `@@index([role])` and `role`'s NOT NULL / default — see "Better Auth
+    models" below.
   - Prisma merges every `.prisma` file in the folder; relations may point at models in other files.
     A new module gets a new folder.
 - Seeds live in `packages/database/prisma/seed/`: one `<dataset>.seed.ts` per dataset exporting a
@@ -127,14 +130,19 @@ paths:
   `updatedAt DateTime @updatedAt @map("updated_at")`; soft-deletable tables add
   `deletedAt DateTime? @map("deleted_at")`.
 - Enums for closed sets (`OutboxStatus { PENDING SENT FAILED }`, mapped to `outbox_status`); `Json`
-  for provider payloads only (`OutboxEmail.payload`); `Unsupported("...")` for types Prisma cannot
-  model (PostGIS), accessed via raw SQL in a repository. Exception: `User.role` is a
+  for provider payloads only (`OutboxEmail.payload`) and for data whose fields differ per row's kind
+  (`CsvImportRow.data`, `AuditLog.changes`); `Unsupported("...")` for types Prisma cannot model
+  (PostGIS), accessed via raw SQL in a repository. Exception: `User.role` is a
   `String @default("am")` with a foreign key to `roles.key` (`onDelete: Restrict`), not an enum,
   because Better Auth writes roles as strings — the allowed set is `roleSchema` in
   `@repo/validation`, and the catalog rows are inserted by the migration so a migrations-only
   database can insert users (`docs/adr/0002-auth.md`, `docs/adr/0005-legacy-reference-data.md`).
 - Relations declare `onDelete` explicitly. Index every foreign key and every column used in the
   `where` of a list endpoint.
+- A rule the database must hold for every writer (the audit log's append-only rule) may be a trigger
+  in the migration, written by hand below the generated SQL with a comment naming its ADR. Prisma
+  does not model triggers, so the drift gate neither sees nor checks them: a test on the
+  testcontainers database does.
 - Export the new model's type from `packages/database/src/index.ts`.
 
 ## Existing migrations
@@ -157,6 +165,7 @@ paths:
 | `20261009055901_add_attachments`                                   | enums `attachment_kind`, `attachment_status`; table `attachments` (unique `object_key`; FKs `uploaded_by_id` and `user_id` → `users.id`, `staff_id` → `staffs.id`, Restrict; ADR 0012)                                                                                                                                                                                                                         |
 | `20261012043637_add_csv_imports`                                   | enums `csv_import_type`, `csv_import_status`, `csv_import_row_result`; tables `csv_imports` (FK `created_by_id` → `users.id`, Restrict) and `csv_import_rows` (Cascade to the import; unique `(csv_import_id, line_number)`); `attachment_kind` value `CSV_IMPORT`, nullable `attachments.csv_import_id` (Restrict; ADR 0013)                                                                                  |
 | `20261012064454_add_csv_exports`                                   | enum `csv_export_type`; table `csv_exports` (FK `created_by_id` → `users.id`, Restrict); `attachment_kind` value `CSV_EXPORT`, nullable `attachments.csv_export_id` (Restrict; ADR 0013)                                                                                                                                                                                                                       |
+| `20261014041947_add_audit_logs`                                    | enums `audit_actor_type`, `audit_status`; table `audit_logs` (no foreign keys; five indexes ending in `created_at`); function and triggers `audit_logs_append_only` refusing `UPDATE`, `TRUNCATE` and the `DELETE` of a row younger than 90 days (ADR 0015)                                                                                                                                                    |
 
 The template shipped `0001_init` as its single baseline. Once a migration has been applied anywhere,
 never edit it; add a new one.

@@ -2,6 +2,7 @@
 // `create<Entity>Repository(db: DbClient)` with pure data-access methods (no validation,
 // no business rules). See .claude/rules/repositories.md.
 export * from "./attachment.repository";
+export * from "./audit-log.repository";
 export * from "./branch.repository";
 export * from "./client.repository";
 export * from "./comment-template.repository";

@@ -33,6 +33,7 @@ import type {
 
 import { buildRequestContext } from "../src/core/context";
 import type { ContextDeps, RequestContext } from "../src/core/context";
+import { recordAuthEvent } from "../src/modules/audit-log/audit-log.service";
 import { createAuthEmailSenders } from "../src/modules/email/auth-emails";
 
 /** Shared wiring for API tests: real Postgres + Redis (testcontainers), real Better Auth. */
@@ -87,6 +88,7 @@ export const createHarness = async (): Promise<TestHarness> => {
       await senders.sendVerificationEmail(mail);
     },
     sendPasswordResetEmail: senders.sendPasswordResetEmail,
+    onAuthEvent: (event) => recordAuthEvent({ db, logger }, event),
   });
 
   return {

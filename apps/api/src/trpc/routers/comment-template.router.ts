@@ -10,7 +10,8 @@ import { protectedProcedure, requireAbility, router } from "../init";
 
 /**
  * zod input → ability check → service. The owner rule passes every signed-in user here; the
- * service keeps each user to their own templates.
+ * service keeps each user to their own templates. A user's own 定型文 are not audited (as in the
+ * legacy, ADR 0006): its writes say `meta({ audit: false })`.
  */
 export const commentTemplateRouter = router({
   list: protectedProcedure
@@ -19,16 +20,19 @@ export const commentTemplateRouter = router({
     .query(({ ctx, input }) => commentTemplateService.list(ctx, input)),
 
   create: protectedProcedure
+    .meta({ audit: false })
     .use(requireAbility("create", "CommentTemplate"))
     .input(createCommentTemplateSchema)
     .mutation(({ ctx, input }) => commentTemplateService.create(ctx, input)),
 
   update: protectedProcedure
+    .meta({ audit: false })
     .use(requireAbility("update", "CommentTemplate"))
     .input(updateCommentTemplateSchema)
     .mutation(({ ctx, input }) => commentTemplateService.update(ctx, input)),
 
   deleteMany: protectedProcedure
+    .meta({ audit: false })
     .use(requireAbility("delete", "CommentTemplate"))
     .input(deleteCommentTemplatesSchema)
     .mutation(({ ctx, input }) => commentTemplateService.removeMany(ctx, input)),

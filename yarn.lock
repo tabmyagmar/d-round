@@ -2988,6 +2988,7 @@ __metadata:
   dependencies:
     "@repo/api": "workspace:*"
     "@repo/database": "workspace:*"
+    "@repo/dayjs": "workspace:*"
     "@repo/eslint-config": "workspace:*"
     "@repo/logger": "workspace:*"
     "@repo/queue": "workspace:*"

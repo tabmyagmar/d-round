@@ -79,6 +79,16 @@ export const STAFF_MEMO_TYPES = [
 export const staffMemoTypeSchema = z.enum(STAFF_MEMO_TYPES);
 export type StaffMemoType = z.infer<typeof staffMemoTypeSchema>;
 
+/** メモ labels, as in the legacy app: a memo the user added (`CUSTOM`) is just メモ. */
+export const STAFF_MEMO_TYPE_LABELS: Record<StaffMemoType, string> = {
+  STAFF_MEMO: "スタッフメモ",
+  ENTRY_EXIT: "入退社情報",
+  ADDRESS_CHANGE: "住所変更",
+  INSURANCE: "保険関係",
+  OTHER: "その他",
+  CUSTOM: "メモ",
+};
+
 /** The memos the form always shows, in the legacy order; `CUSTOM` ones are added by the user. */
 export const FIXED_MEMO_TYPES = [
   "STAFF_MEMO",

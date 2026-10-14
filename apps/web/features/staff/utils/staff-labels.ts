@@ -1,6 +1,6 @@
 import type { SelectOption } from "@repo/ui/components/form";
 import { EMPLOYEE_TYPES, GENDERS, STAFF_STATUSES } from "@repo/validation";
-import type { EmployeeType, Gender, StaffMemoType, StaffStatus } from "@repo/validation";
+import type { EmployeeType, Gender, StaffStatus } from "@repo/validation";
 
 /** The legacy ステータス labels (EnumGeneralStatus): 停止 was `DELETE`. */
 export const STAFF_STATUS_LABELS: Record<StaffStatus, string> = {
@@ -48,15 +48,8 @@ export const staffNameOf = (staff: { lastName: string; firstName: string }): str
 export const staffReadingOf = (staff: { lastNameKana: string; firstNameKana: string }): string =>
   `${staff.lastNameKana} ${staff.firstNameKana}`;
 
-/** メモ labels, as in the legacy app: a memo the user added (`CUSTOM`) is just メモ. */
-export const STAFF_MEMO_TYPE_LABELS: Record<StaffMemoType, string> = {
-  STAFF_MEMO: "スタッフメモ",
-  ENTRY_EXIT: "入退社情報",
-  ADDRESS_CHANGE: "住所変更",
-  INSURANCE: "保険関係",
-  OTHER: "その他",
-  CUSTOM: "メモ",
-};
+/** メモ labels: their home is @repo/validation (the audit log's views use them too). */
+export { STAFF_MEMO_TYPE_LABELS } from "@repo/validation";
 
 /** What the staff form says when another staff holds the スタッフ番号 (legacy wording). */
 export const STAFF_NUMBER_TAKEN = "このスタッフ番号は既に使用されています";

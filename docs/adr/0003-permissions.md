@@ -137,3 +137,6 @@ lint error. Changing a permission means changing the matrix test first.
   write), and a file is read only through its owner's read procedure. `Attachment` joins
   `SUBJECT_NAMES` after `Source`; the unit spec expects `create Attachment` for every signed-in
   holder (ADR 0012).
+- **2026-10-14** — The admin plugin's role map for `super_admin` and `admin` is `adminAc` without
+  `impersonate` (ADR 0015): an impersonated session would sign the admin's writes with the target's
+  name in the audit log. `/api/auth/admin/impersonate-user` is refused to every role.

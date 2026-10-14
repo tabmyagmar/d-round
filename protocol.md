@@ -68,8 +68,8 @@ lines; logs and long evidence stay in files the report points at.
 - Any deviation from the approved plan requires re-approval; the orchestrator
   records accepted deviations as an amendment in plan.md.
 - If tests are weakened or skipped to go green, the reviewer marks BLOCKER.
-- When a subagent cannot be launched (permission denied, spend limit), the
-  orchestrator may do that step itself under the same rules and says so in
-  the commit message or the report.
+- When a subagent cannot be launched or stops before its report (permission
+  denied, spend limit), the orchestrator may do that step itself under the
+  same rules and says so in the commit message or the report.
 - Before launching agents: no unrelated work in the tree (`git status` clean
   or stashed), the throwaway database is up when a migration is planned.

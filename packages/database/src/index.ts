@@ -2,6 +2,8 @@
 export {
   AttachmentKind,
   AttachmentStatus,
+  AuditActorType,
+  AuditStatus,
   ClientOrderType,
   CommentFor,
   CsvExportType,
@@ -23,6 +25,7 @@ export {
 export type {
   Account,
   Attachment,
+  AuditLog,
   Branch,
   BranchAddress,
   BranchCharger,

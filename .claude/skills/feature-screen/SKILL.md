@@ -94,7 +94,9 @@ detail's 担当スタッフ, `.claude/rules/ui.md`).
 1. `yarn verify` green.
 2. Open every changed screen in the browser, signed in as each role it serves, next to the legacy
    screen: nothing missing, nothing extra; outline buttons and the search box visible on the page
-   background; select-all, an untouched form's submit button, empty and error states behave.
+   background; select-all, an untouched form's submit button, empty and error states behave. A
+   script signs in once per role and resizes the viewport: the sign-in limiter allows 10 a minute
+   per address, in the Redis the dev server on 4000 shares.
 3. Only then ask for review.
 
 ## 6. When a piece becomes reusable

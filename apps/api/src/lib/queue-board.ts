@@ -36,6 +36,7 @@ export const createQueueBoard = (deps: ContextDeps): Hono<{ Variables: AppVariab
     createQueue(QUEUE_NAMES.outboxSweeper, deps.redis),
     createQueue(QUEUE_NAMES.attachmentSweeper, deps.redis),
     createQueue(QUEUE_NAMES.csvImportSweeper, deps.redis),
+    createQueue(QUEUE_NAMES.auditLogSweeper, deps.redis),
   ];
   // They share the API's Redis connection: index.ts logs its errors and the shutdown quits it.
   // Without a listener BullMQ would print each error once more per queue to the console.

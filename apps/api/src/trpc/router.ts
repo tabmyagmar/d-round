@@ -1,5 +1,6 @@
 import { router } from "./init";
 import { attachmentRouter } from "./routers/attachment.router";
+import { auditLogRouter } from "./routers/audit-log.router";
 import { branchRouter } from "./routers/branch.router";
 import { clientRouter } from "./routers/client.router";
 import { commentTemplateRouter } from "./routers/comment-template.router";
@@ -13,6 +14,7 @@ import { userRouter } from "./routers/user.router";
 
 export const appRouter = router({
   attachment: attachmentRouter,
+  auditLog: auditLogRouter,
   branch: branchRouter,
   client: clientRouter,
   commentTemplate: commentTemplateRouter,

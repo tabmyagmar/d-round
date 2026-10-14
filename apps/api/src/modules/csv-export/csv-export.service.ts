@@ -23,6 +23,8 @@ import {
   XLSX_CONTENT_TYPE,
 } from "@repo/validation";
 import type {
+  AuditAction,
+  AuditChange,
   BranchExportField,
   CreateCsvExportInput,
   CsvExportType,
@@ -32,6 +34,9 @@ import type {
 import type { RequestContext } from "../../core/context";
 import { ForbiddenError, NotFoundError } from "../../core/errors";
 import { storeFile, syncAttachments, viewsOf } from "../attachment/attachment.service";
+import { diffViews, recordChanges } from "../audit-log/audit-log.service";
+import type { AuditEntry } from "../audit-log/audit-log.service";
+import { csvExportTypeLabelOf } from "../audit-log/audit-views";
 
 import {
   BRANCH_CELLS,
@@ -168,6 +173,31 @@ const sheetsOf = async (
 };
 
 /**
+ * The audit log's row of a download (docs/adr/0015-audit-log.md), named by its file; it records
+ * what the file holds, never the file or its URL.
+ */
+const csvExportAuditEntry = (
+  action: AuditAction,
+  csvExport: CsvExport,
+  changes: AuditChange[],
+): AuditEntry => ({
+  action,
+  entityType: "CsvExport",
+  entityId: csvExport.id,
+  entityLabel: csvExport.fileName,
+  changes,
+});
+
+/** What a new download holds: its type, file, rows and each sheet's columns. */
+const exportChangesOf = (csvExport: CsvExport, sheets: readonly CsvSheet[]): AuditChange[] =>
+  diffViews(null, {
+    type: csvExportTypeLabelOf(csvExport.type),
+    fileName: csvExport.fileName,
+    rowCount: String(csvExport.rowCount),
+    columns: sheets.map((sheet) => `${sheet.name}: ${(sheet.rows[0] ?? []).join(",")}`).join(" / "),
+  });
+
+/**
  * Writes the download: the workbook to the bucket (`storeFile`), then its row and the file's
  * attachment in one transaction, then a read URL. Named as the legacy named it, by the day in Japan.
  */
@@ -197,6 +227,9 @@ export const create = async (
       owner: { csvExportId: created.id },
       ids: [attachmentId],
     });
+    await recordChanges(ctx, transaction.tx, [
+      csvExportAuditEntry("csvExport.create", created, exportChangesOf(created, sheets)),
+    ]);
     return created;
   });
   return { ...csvExport, url: await urlOf(ctx, csvExport.id) };
@@ -228,5 +261,8 @@ export const downloadUrl = async (
     // The file may hold the clients' 就業先部署情報 sheet: the branch grant goes with it.
     assertMayExport(ctx, "BRANCH");
   }
-  return { ...csvExport, url: await urlOf(ctx, csvExport.id) };
+  const url = await urlOf(ctx, csvExport.id);
+  // A file handed out again is recorded too (the legacy downloadCsvDownloadHistory).
+  await recordChanges(ctx, ctx.db, [csvExportAuditEntry("csvExport.downloadUrl", csvExport, [])]);
+  return { ...csvExport, url };
 };

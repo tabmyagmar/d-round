@@ -20,7 +20,8 @@ reference implementation — copy its structure for every later module:
 One exception to the first argument: a guard other services call inside their own transaction takes
 that transaction's client first, not a `ctx` — `assertChargersActive(db, userIds)` in
 `user.service.ts` and `assertKnownSource(db, references)` in `source.service.ts` (the staff, client
-and branch services call them with `tx`).
+and branch services call them with `tx`). Likewise `recordAuthEvent({ db, logger }, event)` in
+`audit-log.service.ts`: Better Auth's hooks call it (`onAuthEvent`) outside any request context.
 
 For a new module `<name>` the files are `packages/validation/src/<name>.schema.ts`,
 `packages/database/src/repositories/<name>.repository.ts`,
@@ -248,9 +249,9 @@ soft-deletes the user and deletes its sessions inside one `withTransaction`.)
 Rules:
 
 - `ctx: RequestContext` (`apps/api/src/core/context.ts`) is always the first parameter. It carries
-  `requestId`, `logger`, `headers`, `user`, `ability`, `db`, `redis`, `auth`, `webOrigin`, `storage`
-  (the attachments bucket), `attachmentDeleteQueue` and `csvImportQueue`. Log through `ctx.logger`,
-  never `console`.
+  `requestId`, `ipAddress`, `userAgent`, `logger`, `headers`, `user`, `ability`, `db`, `redis`,
+  `auth`, `webOrigin`, `storage` (the attachments bucket), `attachmentDeleteQueue` and
+  `csvImportQueue`. Log through `ctx.logger`, never `console`.
 - Two authorization layers (`.claude/rules/permissions.md`): the router ran
   `requireAbility(action, "User")` (coarse); the service checks the concrete row with
   `ctx.ability.can(action, prismaUserSubject(row))` and applies stateful rules (last admin,
@@ -264,6 +265,15 @@ Rules:
   `withTransaction(ctx.db, async ({ tx, afterCommit }) => ...)` (`@repo/database`); queue producers
   and other side effects are registered with `afterCommit` and never run inside the transaction
   (`.claude/rules/queue.md`, `apps/api/src/modules/email/email.service.ts`).
+- Every write records the entities it changed in the audit log (`docs/adr/0015-audit-log.md`):
+  inside its `withTransaction`,
+  `recordChanges(ctx, tx, [{ action, entityType, entityId, entityLabel, changes }])`
+  (`apps/api/src/modules/audit-log/audit-log.service.ts`), `action` being the procedure's path in
+  `AUDIT_ACTIONS` (`@repo/validation`) and `changes` the `diffViews` of the entity's audit view
+  before and after. A mutation that records nothing is exempt in its router with
+  `.meta({ audit: false })` and a comment saying why; `apps/api/test/trpc/audit-coverage.test.ts`
+  fails for a mutation that is neither. A failed mutation is recorded by `protectedProcedure`, not
+  by the service.
 - Named exports, one function per concern, no default export, no transport imports.
 - The `health` service is the single exception to "ctx first": it is infrastructure-level and runs
   before any request context exists.
@@ -369,6 +379,8 @@ it("maps layer-1 denials to FORBIDDEN before touching the service", async () => 
 - [ ] Repository contains no validation, business rules or queue code.
 - [ ] Every non-public procedure has `requireAbility(...)`; the service re-checks the row with
       `prismaUserSubject` (or the module's subject helper) and its stateful invariants.
+- [ ] Every mutation's path is in `AUDIT_ACTIONS` and its service records its entities with
+      `recordChanges` in the write's transaction, or the procedure is `.meta({ audit: false })`.
 - [ ] Tests under `test/` mirroring `src/` (`apps/api/test/modules/<name>/`,
       `apps/api/test/trpc/routers/`, `packages/database/test/repositories/`) using
       `apps/api/test/support.ts`; anything touching Postgres or Redis uses testcontainers.

@@ -76,6 +76,9 @@ way to add a user is `user.invite` (no password; the invitation mail sets it), s
   `hooks.before` middleware in `packages/auth/src/server.ts` over `PASSWORD_SETTING_PATHS`. A new
   endpoint that stores a password must be added to that set (its test in
   `packages/auth/test/auth.test.ts` proves it).
+- Hooks see `ctx.body` as the client sent it, before the endpoint's zod parse, and after-hooks run
+  on refused calls too (`ctx.context.returned` is the `APIError`): parse every body field a hook
+  keeps with its `@repo/validation` schema, and bound arrays (the audit hooks, ADR 0015).
 
 ## How-to: the admin API on the caller's behalf
 

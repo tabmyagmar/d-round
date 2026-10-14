@@ -1,13 +1,21 @@
 import { betterAuth } from "better-auth";
 import type { BetterAuthOptions } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware, getSessionFromCtx, isAPIError } from "better-auth/api";
 import { admin } from "better-auth/plugins/admin";
 import { customSession } from "better-auth/plugins/custom-session";
 
 import { createPermissionRepository, createUserRepository } from "@repo/database";
 import type { PrismaClient } from "@repo/database";
-import { DEFAULT_ROLE, passwordSchema } from "@repo/validation";
+import {
+  DEFAULT_ROLE,
+  ROLES,
+  emailSchema,
+  idSchema,
+  passwordSchema,
+  roleSchema,
+} from "@repo/validation";
+import type { AuditAction } from "@repo/validation";
 
 import { ADMIN_ROLES, ac, roles } from "./access-control";
 
@@ -55,12 +63,156 @@ const passwordPolicyViolation = (path: string, body: unknown): string | null => 
   return result.success ? null : (result.error.issues[0]?.message ?? "Invalid password");
 };
 
-const passwordPolicy = createAuthMiddleware((ctx) => {
-  const violation = passwordPolicyViolation(ctx.path, ctx.body);
-  return violation === null
-    ? Promise.resolve()
-    : Promise.reject(new APIError("BAD_REQUEST", { code: "PASSWORD_POLICY", message: violation }));
+/**
+ * The client's address, set by the API on every request it hands Better Auth (`clientIp`, the rate
+ * limiter's rule) and read by Better Auth for its `sessions` rows as well as by the audit hooks.
+ */
+export const CLIENT_IP_HEADER = "x-client-ip";
+
+/** The API's request id (`REQUEST_ID_HEADER` in apps/api), carried into Better Auth's request. */
+const API_REQUEST_ID_HEADER = "x-request-id";
+
+/**
+ * A sign-in, sign-out, password or admin-endpoint event as the audit log records it
+ * (docs/adr/0015-audit-log.md). It never carries a password, a token or a request body.
+ */
+export type AuthAuditEvent = {
+  action: Extract<AuditAction, `auth.${string}`>;
+  status: "SUCCESS" | "FAILURE";
+  /** Who acted, when known. */
+  user: { id: string; email: string; name: string; role: string | null } | null;
+  /** The address typed into the sign-in or the forgotten-password form, when it is one. */
+  email: string | null;
+  /** The user an `/admin/*` endpoint acted on, when the body names one by id. */
+  targetUserId: string | null;
+  /** The Better Auth endpoint (`/admin/set-role`). */
+  endpoint: string;
+  /** The role an `/admin/*` call gives (`admin`, or `admin, manager` for several), when it is one. */
+  role: string | null;
+  /** The error's code (`INVALID_EMAIL_OR_PASSWORD`) of a failure. */
+  errorCode: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  requestId: string | null;
+};
+
+/** The endpoints whose calls the audit log records, `/admin/*` aside. */
+const AUDITED_ENDPOINTS: Readonly<Record<string, AuthAuditEvent["action"]>> = {
+  "/sign-in/email": "auth.signIn",
+  "/change-password": "auth.changePassword",
+  "/request-password-reset": "auth.requestPasswordReset",
+  "/reset-password": "auth.resetPassword",
+};
+
+type EventUser = { id: string; email: string; name: string; role?: string | null | undefined };
+
+const userOf = (user: EventUser | null | undefined): AuthAuditEvent["user"] =>
+  user ? { id: user.id, email: user.email, name: user.name, role: user.role ?? null } : null;
+
+/**
+ * A field of the request body as the client sent it: hooks see the body before Better Auth parses
+ * it, so the event keeps a field only when its schema parses it (a password typed into the address
+ * field is not an address).
+ */
+const bodyField = (body: unknown, key: string): unknown =>
+  typeof body === "object" && body !== null ? (body as Record<string, unknown>)[key] : undefined;
+
+/** The role an admin endpoint gives: `set-role` and `create-user` take one or several. */
+const roleFieldSchema = roleSchema.or(roleSchema.array().min(1).max(ROLES.length));
+
+const requestOf = (request: Request | undefined) => ({
+  ipAddress: request?.headers.get(CLIENT_IP_HEADER) ?? null,
+  userAgent: request?.headers.get("user-agent") ?? null,
+  requestId: request?.headers.get(API_REQUEST_ID_HEADER) ?? null,
 });
+
+type Emit = (event: AuthAuditEvent) => Promise<void>;
+
+/** Hands an event to the API's recorder; a recorder that throws never breaks Better Auth's answer. */
+const emitterOf =
+  (onAuthEvent: ((event: AuthAuditEvent) => Promise<void>) | undefined): Emit =>
+  async (event) => {
+    try {
+      await onAuthEvent?.(event);
+    } catch {
+      // The API's recorder logs its own failures; the endpoint answers as it would have.
+    }
+  };
+
+/**
+ * Before every endpoint: the password policy, and the sign-out event — sign-out deletes the session
+ * before any after-hook runs, so its user is read here. Only requests that came over HTTP are
+ * recorded: a server-side `auth.api` call belongs to a service that records its own action.
+ */
+const beforeHook = (emit: Emit) =>
+  createAuthMiddleware(async (ctx) => {
+    const violation = passwordPolicyViolation(ctx.path, ctx.body);
+    if (violation !== null) {
+      throw new APIError("BAD_REQUEST", { code: "PASSWORD_POLICY", message: violation });
+    }
+    if (ctx.path !== "/sign-out" || !ctx.request) {
+      return;
+    }
+    const session = await getSessionFromCtx(ctx, { disableRefresh: true });
+    if (session) {
+      await emit({
+        action: "auth.signOut",
+        status: "SUCCESS",
+        user: userOf(session.user),
+        email: null,
+        targetUserId: null,
+        endpoint: ctx.path,
+        role: null,
+        errorCode: null,
+        ...requestOf(ctx.request),
+      });
+    }
+  });
+
+/**
+ * After an audited endpoint, whether it answered or refused (Better Auth runs after-hooks on an
+ * `APIError` too, `context.returned` being that error): sign-in, password change, forgotten
+ * password, a refused reset (a successful one is recorded by `onPasswordReset`, which knows its
+ * user) and every POST to `/admin/*`.
+ */
+const afterHook = (emit: Emit) =>
+  createAuthMiddleware(async (ctx) => {
+    const isAdmin = ctx.path.startsWith("/admin/") && ctx.request?.method === "POST";
+    const action = isAdmin ? "auth.admin" : AUDITED_ENDPOINTS[ctx.path];
+    if (!action || !ctx.request) {
+      return;
+    }
+    const returned: unknown = ctx.context.returned;
+    const failed = isAPIError(returned);
+    if (action === "auth.resetPassword" && !failed) {
+      return;
+    }
+    const anonymous = action === "auth.requestPasswordReset" || action === "auth.resetPassword";
+    const user =
+      ctx.context.newSession?.user ??
+      (anonymous || action === "auth.signIn"
+        ? null
+        : (await getSessionFromCtx(ctx, { disableRefresh: true }))?.user);
+    // An endpoint that needs a session refuses a call without one before reading it; like a tRPC
+    // call without one (`auditFailures` runs after the sign-in check), that call is not recorded.
+    if (!user && (isAdmin || action === "auth.changePassword")) {
+      return;
+    }
+    const email = emailSchema.safeParse(bodyField(ctx.body, "email"));
+    const userId = idSchema.safeParse(bodyField(ctx.body, "userId"));
+    const role = roleFieldSchema.safeParse(bodyField(ctx.body, "role"));
+    await emit({
+      action,
+      status: failed ? "FAILURE" : "SUCCESS",
+      user: userOf(user),
+      email: (action === "auth.signIn" || anonymous) && email.success ? email.data : null,
+      targetUserId: isAdmin && userId.success ? userId.data : null,
+      endpoint: ctx.path,
+      role: isAdmin && role.success ? [role.data].flat().join(", ") : null,
+      errorCode: failed ? (returned.body?.code ?? String(returned.status)) : null,
+      ...requestOf(ctx.request),
+    });
+  });
 
 export type CreateAuthOptions = {
   prisma: PrismaClient;
@@ -80,6 +232,8 @@ export type CreateAuthOptions = {
    * re-send). Same rule as above: the API writes an outbox row, nothing is sent inline.
    */
   sendPasswordResetEmail: (email: PasswordResetEmail) => Promise<void>;
+  /** Records a sign-in, sign-out, password or admin event in the audit log (ADR 0015). */
+  onAuthEvent?: (event: AuthAuditEvent) => Promise<void>;
   /**
    * Same-parent-domain deployment (web.example.com + api.example.com): set the parent domain so
    * the session cookie is shared. Leave undefined for localhost. See docs/adr/0002-auth.md.
@@ -90,6 +244,7 @@ export type CreateAuthOptions = {
 export const createAuth = (options: CreateAuthOptions) => {
   const permissions = createPermissionRepository(options.prisma);
   const users = createUserRepository(options.prisma);
+  const emit = emitterOf(options.onAuthEvent);
 
   // The base options are passed to `customSession` as well, so `user` inside it carries the admin
   // plugin's fields (`role`) and `Auth["$Infer"]["Session"]` picks up the custom shape.
@@ -122,8 +277,21 @@ export const createAuth = (options: CreateAuthOptions) => {
       },
       // The link was mailed, so using it proves the mailbox: an invited user is verified by
       // setting the first password (ADR 0002).
-      onPasswordReset: async ({ user }) => {
+      onPasswordReset: async ({ user }, request) => {
         await users.markEmailVerified(user.id);
+        if (request) {
+          await emit({
+            action: "auth.resetPassword",
+            status: "SUCCESS",
+            user: userOf(user),
+            email: null,
+            targetUserId: null,
+            endpoint: "/reset-password",
+            role: null,
+            errorCode: null,
+            ...requestOf(request),
+          });
+        }
       },
     },
     emailVerification: {
@@ -143,8 +311,12 @@ export const createAuth = (options: CreateAuthOptions) => {
       expiresIn: 7 * DAY_SECONDS,
       updateAge: DAY_SECONDS,
     },
-    hooks: { before: passwordPolicy },
+    // Better Auth's own profile update would change `users.name` with no row in the audit log; the
+    // web edits a 担当者 through `user.updateProfile`, which validates and records it (ADR 0015).
+    disabledPaths: ["/update-user"],
+    hooks: { before: beforeHook(emit), after: afterHook(emit) },
     advanced: {
+      ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
       database: {
         // Postgres generates UUID v7 ids (prisma schema `@default(uuid(7))`).
         generateId: false,

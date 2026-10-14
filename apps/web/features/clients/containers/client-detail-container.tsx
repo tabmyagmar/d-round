@@ -19,6 +19,8 @@ export type ClientDetailContainerProps = {
   clientId: string;
   /** 就業先部署情報, from the branches feature: the page composes the features. */
   branches?: ReactNode;
+  /** 「変更履歴」, from the audit-log feature. */
+  history?: ReactNode;
 };
 
 /**
@@ -26,7 +28,11 @@ export type ClientDetailContainerProps = {
  * the client's 就業先部署 on the right. The legacy toolbar's 編集 sits beside the client's name; its
  * print and download buttons did nothing and are not carried over.
  */
-export const ClientDetailContainer = ({ clientId, branches }: ClientDetailContainerProps) => {
+export const ClientDetailContainer = ({
+  clientId,
+  branches,
+  history,
+}: ClientDetailContainerProps) => {
   const trpc = useTRPC();
   const client = useQuery(trpc.client.byId.queryOptions({ clientId }));
 
@@ -54,15 +60,18 @@ export const ClientDetailContainer = ({ clientId, branches }: ClientDetailContai
             <GeneralStatusBadge status={detail.status} />
           </div>
         </div>
-        <Can I="update" a="Client">
-          <Button
-            render={<Link href={href(routes.client.update, { id: detail.id })} />}
-            nativeButton={false}
-          >
-            <FilePen data-icon="inline-start" />
-            編集
-          </Button>
-        </Can>
+        <div className="flex flex-wrap justify-end gap-2">
+          {history}
+          <Can I="update" a="Client">
+            <Button
+              render={<Link href={href(routes.client.update, { id: detail.id })} />}
+              nativeButton={false}
+            >
+              <FilePen data-icon="inline-start" />
+              編集
+            </Button>
+          </Can>
+        </div>
       </div>
 
       <div className="grid items-start gap-4 lg:grid-cols-12">

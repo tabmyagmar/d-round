@@ -46,6 +46,17 @@ describe("buildRequestContext", () => {
     );
   });
 
+  it("carries the client's address and browser for the audit log", async () => {
+    const headers = new Headers({ "user-agent": "Mozilla/5.0 (test)" });
+
+    const ctx = await buildRequestContext({ headers, ipAddress: "203.0.113.7" }, deps());
+    expect(ctx).toMatchObject({ ipAddress: "203.0.113.7", userAgent: "Mozilla/5.0 (test)" });
+    expect(await buildRequestContext({ headers: new Headers() }, deps())).toMatchObject({
+      ipAddress: null,
+      userAgent: null,
+    });
+  });
+
   it("is anonymous without a session cookie and nothing is allowed", async () => {
     const ctx = await contextFor(h);
 
@@ -169,6 +180,7 @@ describe("buildJobContext", () => {
     expect(ctx?.user).toMatchObject({ id: admin.user.id, role: "admin" });
     expect(ctx?.ability.can("create", "User")).toBe(true);
     expect(ctx?.headers).toEqual(new Headers());
+    expect(ctx).toMatchObject({ ipAddress: null, userAgent: null });
 
     await h.db.userPermission.create({
       data: { userId: admin.user.id, permissionKey: "1101", effect: "DENY" },

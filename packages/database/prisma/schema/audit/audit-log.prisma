@@ -1,0 +1,53 @@
+// アクセスログ (docs/adr/0015-audit-log.md): one row per entity a write changed, per failed
+// mutation and per sign-in event. Append-only: a trigger in the migration refuses an UPDATE and the
+// DELETE of a row younger than the retention, so only the worker's sweeper removes rows.
+
+/// Who acted: a signed-in user, a job of the system, or nobody known (a failed sign-in).
+enum AuditActorType {
+  USER
+  SYSTEM
+  ANONYMOUS
+
+  @@map("audit_actor_type")
+}
+
+enum AuditStatus {
+  SUCCESS
+  FAILURE
+
+  @@map("audit_status")
+}
+
+model AuditLog {
+  id          String         @id @default(uuid(7)) @db.Uuid
+  createdAt   DateTime       @default(now()) @map("created_at")
+  actorType   AuditActorType @map("actor_type")
+  /// Snapshots, no foreign keys: a row outlives a rename and never blocks a delete.
+  actorId     String?        @map("actor_id") @db.Uuid
+  actorName   String?        @map("actor_name")
+  /// For a failed sign-in or a forgotten password, the address that was typed.
+  actorEmail  String?        @map("actor_email")
+  actorRole   String?        @map("actor_role")
+  /// An `AUDIT_ACTIONS` key (@repo/validation): the tRPC path (`client.update`), `auth.signIn`, …
+  action      String         @db.VarChar(64)
+  /// An `AUDIT_ENTITY_TYPES` key (`Client`, …); null for an action without a target.
+  entityType  String?        @map("entity_type") @db.VarChar(32)
+  entityId    String?        @map("entity_id") @db.Uuid
+  /// What the target was called then (`1024 株式会社サンプル`), for the list and after a delete.
+  entityLabel String?        @map("entity_label")
+  status      AuditStatus
+  /// The domain, tRPC or Better Auth code of a FAILURE row.
+  errorCode   String?        @map("error_code") @db.VarChar(64)
+  /// `[{ field, before, after }]` of the entity's audit view; a masked field carries no values.
+  changes     Json?
+  requestId   String?        @map("request_id")
+  ipAddress   String?        @map("ip_address")
+  userAgent   String?        @map("user_agent") @db.VarChar(512)
+
+  @@index([createdAt, id])
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([action, createdAt])
+  @@index([status, createdAt])
+  @@map("audit_logs")
+}
