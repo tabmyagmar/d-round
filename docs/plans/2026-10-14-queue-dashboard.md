@@ -3,7 +3,8 @@
 Ticket: `feature/D_ROUND-TBD_queue-dashboard`, cut from `develop` (`aca8099`, the CSV import
 merged). Status: **approved 2026-10-14** ("ok") with both open questions answered by the
 recommendation: `super_admin` only, and 404 (not a login redirect) for everyone else. One MR, one
-commit.
+commit planned; **closed 2026-10-14** with four (feature, review rounds 1 and 2, a flaky test) and
+merged into develop at the user's request.
 
 Read before this plan: romuten-v3 `apps/backend/src/lib/bullmq/board.ts` (bull-board on Express at
 `/queues`, 14 queues), `apps/backend/src/lib/middlewares/queue-dashboard-auth.ts` (Basic Auth) and
@@ -96,3 +97,10 @@ shutdown's `redis.quit()` ends them; `index.ts` does not change.
   database, so when the file runs late (23rd that time) more than 200 users sort before them — this
   MR's admin fixture adds one. **Amendment**: a test-only fix in its own commit gives those users
   the kana `アアア`, so they sort first; verify 43/43 again.
+- 2026-10-14 close: verify 43/43 on every commit but `01ccca9`, whose one failure was the
+  charger-options flake fixed in the next commit; verifier fresh PASS on `a10ff21`; two review
+  rounds; security review clean; browser-checked as super_admin, admin and without a session. What
+  slowed the ticket: the `/security-review` skill cannot run here (it diffs `origin/HEAD...`, unset,
+  and the local develop is not pushed) — protocol Step 6 could say "run it as a subagent on the
+  explicit range when the skill cannot diff"; and editing the worktree while the verifier ran made
+  its first report mixed — the orchestrator waits for the verifier before the next edit.
