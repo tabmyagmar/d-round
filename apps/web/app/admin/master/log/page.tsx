@@ -1,10 +1,10 @@
 import { PageGuard } from "@/components/page-guard";
-import { PlaceholderPage } from "@/components/placeholder-page";
 import { routes } from "@/config/routes";
+import { AuditLogsContainer } from "@/features/audit-log/containers/audit-logs-container";
 
 const AuditLogListPage = () => (
   <PageGuard route={routes.auditLog.list}>
-    <PlaceholderPage route={routes.auditLog.list} />
+    <AuditLogsContainer />
   </PageGuard>
 );
 
