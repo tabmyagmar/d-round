@@ -28,6 +28,10 @@ an entity's history, masking, append-only rows and a write that never breaks the
   Auth hooks record sign-in, sign-out, password and `/admin/*` events through an injected
   `onAuthEvent`. Neither can share a transaction, so their insert is awaited, caught and logged —
   never rethrown.
+- **Better Auth cannot write around the log.** `/update-user` is disabled (`disabledPaths`; the web
+  changes a name through `user.updateProfile`, which records it), and the admin roles keep ADR
+  0003's `adminAc` without `impersonate`: an impersonated session would put the target's name on the
+  admin's writes.
 - **Coverage.** Every mutation is a key of `AUDIT_ACTIONS` (`@repo/validation`) or exempt with
   `meta({ audit: false })`; a test over `appRouter._def.procedures` fails otherwise.
 - **Table `audit_logs`** (schema folder `audit/`, migration `add_audit_logs`): snapshots of the

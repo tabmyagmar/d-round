@@ -299,6 +299,9 @@ export const createAuth = (options: CreateAuthOptions) => {
       expiresIn: 7 * DAY_SECONDS,
       updateAge: DAY_SECONDS,
     },
+    // Better Auth's own profile update would change `users.name` with no row in the audit log; the
+    // web edits a 担当者 through `user.updateProfile`, which validates and records it (ADR 0015).
+    disabledPaths: ["/update-user"],
     hooks: { before: beforeHook(emit), after: afterHook(emit) },
     advanced: {
       ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },

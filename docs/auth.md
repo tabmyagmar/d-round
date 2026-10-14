@@ -168,10 +168,11 @@ Facts about today's code, not decisions; each would be its own ticket.
 3. The expired-session redirect loses `?next=` when the cookie is still present (see What ends a
    session).
 4. Better Auth's own `/api/auth/admin/*` endpoints (`set-role`, `ban-user`, `remove-user`,
-   `set-user-password`, `impersonate-user`, `revoke-user-sessions`, …) are open over HTTP to every
-   `admin` and `super_admin`, gated by the admin plugin's role map alone: our service rules
-   (last-admin protection, `DENY` grants) do not apply there. ADR 0003 records a `hooks.before` on
-   `/admin/*` as the follow-up.
+   `set-user-password`, `revoke-user-sessions`, …) are open over HTTP to every `admin` and
+   `super_admin`, gated by the admin plugin's role map alone: our service rules (last-admin
+   protection, `DENY` grants) do not apply there. ADR 0003 records a `hooks.before` on `/admin/*` as
+   the follow-up. `impersonate-user` is refused to every role (the map lacks `impersonate`, ADR
+   0015), and `/update-user` is disabled.
 5. Expired `sessions` rows are deleted only when their own cookie comes back; rows of abandoned
    devices stay until something sweeps them. There is no sweeper.
 6. The effective-grants query runs on every request; a Redis cache is the planned follow-up (ADR

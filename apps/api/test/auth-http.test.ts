@@ -441,6 +441,42 @@ describe("Better Auth's events in the audit log (ADR 0015)", () => {
     expect(JSON.stringify(refusedRows)).not.toContain(junk);
   });
 
+  it("refuses an admin's impersonation and records the admin who tried", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const manager = await signedInUser(h, { role: "manager" });
+
+    const response = await post(
+      "/api/auth/admin/impersonate-user",
+      { userId: manager.user.id },
+      { cookie: admin.headers.get("cookie") ?? "", "x-forwarded-for": "192.0.2.20" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(cookieHeaderFrom(response)).not.toContain("better-auth.session_token");
+    expect(await rowsWhere({ action: "auth.admin", entityId: manager.user.id })).toEqual([
+      expect.objectContaining({
+        actorId: admin.user.id,
+        status: "FAILURE",
+        changes: [{ field: "endpoint", before: null, after: "/admin/impersonate-user" }],
+      }),
+    ]);
+  });
+
+  it("closes Better Auth's own profile update, which no row would record", async () => {
+    const user = await signedInUser(h, { name: "改名 されない" });
+
+    const response = await post(
+      "/api/auth/update-user",
+      { name: "勝手な 名前" },
+      { cookie: user.headers.get("cookie") ?? "", "x-forwarded-for": "192.0.2.21" },
+    );
+
+    expect(response.status).toBe(404);
+    expect((await h.db.user.findUniqueOrThrow({ where: { id: user.user.id } })).name).toBe(
+      "改名 されない",
+    );
+  });
+
   it("records nothing for Better Auth calls a service makes on the server", async () => {
     const someone = await signedInUser(h);
 
