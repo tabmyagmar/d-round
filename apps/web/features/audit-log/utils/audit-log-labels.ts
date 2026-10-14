@@ -5,10 +5,14 @@ import {
   AUDIT_ENTITY_TYPES,
   AUDIT_STATUS_LABELS,
   AUDIT_STATUSES,
+  auditChangeSchema,
   isAuditAction,
   isAuditEntityType,
+  ROLE_LABELS,
+  roleSchema,
+  z,
 } from "@repo/validation";
-import type { AuditLogStatus } from "@repo/validation";
+import type { AuditChange, AuditLogStatus } from "@repo/validation";
 
 import type { AuditLogRow } from "@/features/audit-log/types";
 
@@ -27,9 +31,25 @@ export const actorLabelOf = (
   row: Pick<AuditLogRow, "actorType" | "actorName" | "actorEmail">,
 ): string => (row.actorType === "SYSTEM" ? "システム" : (row.actorName ?? row.actorEmail ?? "—"));
 
-/** A row's 日付 and 時間, in Japan, as the legacy list wrote them. */
+/** A row's 日付 and 時間, in Japan, as the legacy list wrote them; the detail's 日時 to the second. */
 export const dayOf = (date: Date): string => dayjs(date).tz(TIME_ZONE).format("YYYY/MM/DD");
 export const timeOf = (date: Date): string => dayjs(date).tz(TIME_ZONE).format("HH:mm");
+export const dateTimeOf = (date: Date): string =>
+  dayjs(date).tz(TIME_ZONE).format("YYYY/MM/DD HH:mm:ss");
+
+/** An actor's アカウントタイプ, or the key itself for a role the app no longer has. */
+export const roleLabelOf = (role: string | null): string | null => {
+  const known = roleSchema.safeParse(role);
+  return known.success ? ROLE_LABELS[known.data] : role;
+};
+
+const auditChangesSchema = z.array(auditChangeSchema);
+
+/** A row's changed fields from its JSON; nothing for a row that has none. */
+export const changesOf = (json: unknown): AuditChange[] => {
+  const parsed = auditChangesSchema.safeParse(json);
+  return parsed.success ? parsed.data : [];
+};
 
 export const ACTION_OPTIONS: SelectOption[] = Object.entries(AUDIT_ACTIONS).map(
   ([value, { label }]) => ({ value, label }),

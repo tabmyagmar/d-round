@@ -77,11 +77,18 @@ export const AUDIT_LOG_RETENTION_DAYS = 90;
 
 /**
  * One changed field of a row: its value before and after as the screens show it (null for none), or,
- * for a masked field, only that it changed.
+ * for a masked field, only that it changed. The web parses a row's JSON `changes` with it.
  */
-export type AuditChange =
-  | { field: string; before: string | null; after: string | null; truncated?: true }
-  | { field: string; masked: true };
+export const auditChangeSchema = z.union([
+  z.object({ field: z.string(), masked: z.literal(true) }),
+  z.object({
+    field: z.string(),
+    before: z.string().nullable(),
+    after: z.string().nullable(),
+    truncated: z.literal(true).optional(),
+  }),
+]);
+export type AuditChange = z.infer<typeof auditChangeSchema>;
 
 /** A field of an entity's audit view: its key, its label, and whether the log hides its values. */
 export type AuditField = { key: string; label: string; masked?: true };

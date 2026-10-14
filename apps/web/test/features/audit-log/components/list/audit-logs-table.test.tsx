@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AuditLogsTable } from "@/features/audit-log/components/list/audit-logs-table";
@@ -9,11 +9,12 @@ import { auditLogRow } from "../../fixtures";
 
 afterEach(cleanup);
 
-const renderTable = (rows: AuditLogRow[], total = rows.length) =>
+const renderTable = (rows: AuditLogRow[], total = rows.length, onOpen = vi.fn()) =>
   render(
     <AuditLogsTable
       data={rows}
       isLoading={false}
+      onOpen={onOpen}
       pagination={{
         page: 1,
         totalPages: 1,
@@ -37,7 +38,18 @@ describe("AuditLogsTable", () => {
       "アクション",
       "対象",
       "ステータス",
+      "詳細",
     ]);
+  });
+
+  it("opens a row's detail with its 詳細 button", () => {
+    const onOpen = vi.fn();
+    const row = auditLogRow();
+    renderTable([row], 1, onOpen);
+
+    fireEvent.click(screen.getByRole("button", { name: "詳細" }));
+
+    expect(onOpen).toHaveBeenCalledWith(row);
   });
 
   it("shows a row's day and time in Japan, its action, target and status", () => {

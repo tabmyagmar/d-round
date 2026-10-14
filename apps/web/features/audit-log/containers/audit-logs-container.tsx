@@ -1,7 +1,8 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import dynamic from "next/dynamic";
+import { useMemo, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
 import { listAuditLogsSchema } from "@repo/validation";
@@ -13,6 +14,15 @@ import { parseSearchParams } from "@/hooks/search-params";
 import { useSearch } from "@/hooks/use-search";
 import { useTableState } from "@/hooks/use-table-state";
 import { useTRPC } from "@/lib/trpc/react";
+
+// Loaded when a row's 詳細 is pressed, not with the list.
+const AuditLogDetailDialog = dynamic(
+  () =>
+    import("@/features/audit-log/components/detail/audit-log-detail-dialog").then(
+      (module) => module.AuditLogDetailDialog,
+    ),
+  { ssr: false },
+);
 
 /**
  * アクセスログ管理 (docs/adr/0015-audit-log.md): the URL is the list's state (search, filters,
@@ -27,6 +37,7 @@ export const AuditLogsContainer = () => {
     trpc.auditLog.list.queryOptions(input, { placeholderData: keepPreviousData }),
   );
   const { pagination } = useTableState(logs.data);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-4">
@@ -37,7 +48,24 @@ export const AuditLogsContainer = () => {
           <AlertDescription>{logs.error.message}</AlertDescription>
         </Alert>
       ) : null}
-      <AuditLogsTable data={logs.data?.items} isLoading={logs.isPending} pagination={pagination} />
+      <AuditLogsTable
+        data={logs.data?.items}
+        isLoading={logs.isPending}
+        pagination={pagination}
+        onOpen={(row) => {
+          setDetailId(row.id);
+        }}
+      />
+      {detailId ? (
+        <AuditLogDetailDialog
+          auditLogId={detailId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDetailId(null);
+            }
+          }}
+        />
+      ) : null}
     </div>
   );
 };
