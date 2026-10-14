@@ -105,12 +105,12 @@ change (plus the seed-test counts and the DB-backed catalog test); changing the 
 spec change first.
 
 Catalog grants shape this ability only — our tRPC API and the web UI. Better Auth's own
-`/api/auth/admin/*` endpoints stay gated by the admin plugin's role map (`super_admin`, `admin`): a
-user `DENY` row does not narrow them, and row 1101 does not gate `admin/create-user`. Aligning them
-with the grants is a follow-up (ADR 0003). The app does not use those endpoints to add users:
-`user.invite` requires `create User` (row 1101) and `user.sendPasswordReset` requires `update User`
-(row 1103) on the target row; both call Better Auth server-side, so the catalog and `DENY` rows
-decide.
+`/api/auth/admin/*` endpoints stay gated by the admin plugin's role map (`super_admin`, `admin`;
+`adminAc` without `impersonate`, ADR 0015): a user `DENY` row does not narrow them, and row 1101
+does not gate `admin/create-user`. Aligning them with the grants is a follow-up (ADR 0003). The app
+does not use those endpoints to add users: `user.invite` requires `create User` (row 1101) and
+`user.sendPasswordReset` requires `update User` (row 1103) on the target row; both call Better Auth
+server-side, so the catalog and `DENY` rows decide.
 
 The queue dashboard at `/queues` (`apps/api/src/lib/queue-board.ts`, ADR 0014) is the other
 role-gated route: `super_admin` only, checked on the request context's `user.role`, no catalog row

@@ -424,7 +424,10 @@ describe("Better Auth's events in the audit log (ADR 0015)", () => {
       userId: target.id,
       role: ["manager"],
     });
-    const refused = await setRole(am.headers.get("cookie") ?? "", { userId: junk, role: junk });
+    const refused = await setRole(am.headers.get("cookie") ?? "", {
+      userId: junk,
+      role: Array.from({ length: 5_000 }, () => "am"),
+    });
 
     expect([given.status, refused.status]).toEqual([200, 403]);
     const endpoint = { field: "endpoint", before: null, after: "/admin/set-role" };
@@ -434,11 +437,35 @@ describe("Better Auth's events in the audit log (ADR 0015)", () => {
         changes: [endpoint, { field: "role", before: null, after: "manager" }],
       }),
     ]);
+    // No user id, no target: the caller is not the target of its own refused call.
     const refusedRows = await rowsWhere({ action: "auth.admin", actorId: am.user.id });
     expect(refusedRows).toEqual([
-      expect.objectContaining({ status: "FAILURE", changes: [endpoint] }),
+      expect.objectContaining({
+        status: "FAILURE",
+        entityId: null,
+        entityLabel: null,
+        changes: [endpoint],
+      }),
     ]);
     expect(JSON.stringify(refusedRows)).not.toContain(junk);
+  });
+
+  it("records nothing for a call without a session to an endpoint that needs one", async () => {
+    const target = await verifiedUser("無断 対象");
+    const anonymous = (path: string, body: Record<string, unknown>) =>
+      post(path, body, { "x-forwarded-for": "192.0.2.23" });
+
+    const setRole = await anonymous("/api/auth/admin/set-role", {
+      userId: target.id,
+      role: Array.from({ length: 5_000 }, () => "am"),
+    });
+    const change = await anonymous("/api/auth/change-password", {
+      currentPassword: TEST_PASSWORD,
+      newPassword: "NewPassw0rd3",
+    });
+
+    expect([setRole.status, change.status]).toEqual([401, 401]);
+    expect(await rowsWhere({ ipAddress: "192.0.2.23" })).toEqual([]);
   });
 
   it("refuses an admin's impersonation and records the admin who tried", async () => {

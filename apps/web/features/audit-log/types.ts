@@ -4,7 +4,7 @@ import type { AppRouter } from "@repo/api/router";
 
 type AuditLogOutputs = inferRouterOutputs<AppRouter>["auditLog"];
 
-/** A row of `auditLog.list`: everything but the changed fields (superjson keeps the dates). */
+/** A row of `auditLog.list`: the list's columns only (superjson keeps the dates); byId has the rest. */
 export type AuditLogRow = AuditLogOutputs["list"]["items"][number];
 
 /** `auditLog.byId`: one row with its changed fields. */

@@ -7,7 +7,14 @@ import { customSession } from "better-auth/plugins/custom-session";
 
 import { createPermissionRepository, createUserRepository } from "@repo/database";
 import type { PrismaClient } from "@repo/database";
-import { DEFAULT_ROLE, emailSchema, idSchema, passwordSchema, roleSchema } from "@repo/validation";
+import {
+  DEFAULT_ROLE,
+  ROLES,
+  emailSchema,
+  idSchema,
+  passwordSchema,
+  roleSchema,
+} from "@repo/validation";
 import type { AuditAction } from "@repo/validation";
 
 import { ADMIN_ROLES, ac, roles } from "./access-control";
@@ -111,7 +118,7 @@ const bodyField = (body: unknown, key: string): unknown =>
   typeof body === "object" && body !== null ? (body as Record<string, unknown>)[key] : undefined;
 
 /** The role an admin endpoint gives: `set-role` and `create-user` take one or several. */
-const roleFieldSchema = roleSchema.or(roleSchema.array().min(1));
+const roleFieldSchema = roleSchema.or(roleSchema.array().min(1).max(ROLES.length));
 
 const requestOf = (request: Request | undefined) => ({
   ipAddress: request?.headers.get(CLIENT_IP_HEADER) ?? null,
@@ -186,6 +193,11 @@ const afterHook = (emit: Emit) =>
       (anonymous || action === "auth.signIn"
         ? null
         : (await getSessionFromCtx(ctx, { disableRefresh: true }))?.user);
+    // An endpoint that needs a session refuses a call without one before reading it; like a tRPC
+    // call without one (`auditFailures` runs after the sign-in check), that call is not recorded.
+    if (!user && (isAdmin || action === "auth.changePassword")) {
+      return;
+    }
     const email = emailSchema.safeParse(bodyField(ctx.body, "email"));
     const userId = idSchema.safeParse(bodyField(ctx.body, "userId"));
     const role = roleFieldSchema.safeParse(bodyField(ctx.body, "role"));

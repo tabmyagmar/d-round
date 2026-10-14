@@ -846,3 +846,18 @@ starts.
     `recordAuthEvent` exception. Left: the first X-Forwarded-For entry as the client's address
     predates this MR (the rate limiter keys on it too) — the trusted proxy hop is a deployment
     ticket.
+- 2026-10-14 — round 1 browser-checked (API 4001 / web 3001 on the dev database): the list, a
+  case-insensitive search, the detail and a client's 変更履歴 as super_admin and admin on a desktop
+  and at 375 px (the stacked changes as a `DescriptionList`, no sideways scroll); a CSV re-download
+  from 「CSVダウンロード履歴」 as admin (`POST` 200, the workbook saved; super_admin and manager
+  hold no download of their own); manager and AM get the 403 page. Re-review: 0 BLOCKER, 3 SHOULD, 4
+  NIT. Fix round 2 (verify 43/43):
+  - Round 1's "every writer bounds its values" had two gaps: a role array had no upper bound (now at
+    most `ROLES.length`), and `isIP` takes an IPv6 zone index of any length (a row now refuses `%`
+    and more than 45 characters). An `/admin/*` or `/change-password` call without a session is no
+    longer recorded, as a tRPC call without one is not.
+  - An `auth.admin` row's target is the parsed `userId` only: the caller is no longer the target of
+    its own refused or `create-user` call.
+  - The stacked 変更後 says （一部省略） for a cut value cleared to nothing, as the table does.
+  - Docs: ADR 0003 and permissions.md name the role map without `impersonate`; ADR 0015 names the
+    two closed paths and what stays unrecorded; two stale comments.

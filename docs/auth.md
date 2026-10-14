@@ -150,15 +150,17 @@ Better Auth's events reach the アクセスログ (`docs/adr/0015-audit-log.md`)
 | any POST to `/api/auth/admin/*` | `hooks.after`                                                          | the session's user; the target user and the role given |
 
 Only requests that came over HTTP are recorded: a service calling `auth.api.*` on the server
-(`user.invite`, `user.sendPasswordReset`) records its own action. No password, token or body is read
-beyond the typed address, `userId` and `role`, and each is kept only when it parses (`emailSchema`,
-`idSchema`, `roleSchema`; the hooks see the body before Better Auth checks it): a password typed
-into the address field is not stored. A recorder that fails is logged and never changes Better
-Auth's answer. The API hands Better Auth every request with `x-client-ip` (`clientIp`, the rate
-limiter's rule) and `x-request-id`, overwriting what the client sent; Better Auth reads the address
-from `x-client-ip` for its `sessions` rows as well (`advanced.ipAddress.ipAddressHeaders`). A row
-keeps that address only when it is an IPv4 or IPv6 address (the client fills X-Forwarded-For), and
-the API refuses a body over 64 KB below `/api/auth` (413) before Better Auth or its hooks read it.
+(`user.invite`, `user.sendPasswordReset`) records its own action. A call without a session to an
+endpoint that needs one (`/change-password`, `/admin/*`) is refused before it reads anything and is
+not recorded, as a tRPC call without one is not. No password, token or body is read beyond the typed
+address, `userId` and `role`, and each is kept only when it parses (`emailSchema`, `idSchema`,
+`roleSchema`; the hooks see the body before Better Auth checks it): a password typed into the
+address field is not stored. A recorder that fails is logged and never changes Better Auth's answer.
+The API hands Better Auth every request with `x-client-ip` (`clientIp`, the rate limiter's rule) and
+`x-request-id`, overwriting what the client sent; Better Auth reads the address from `x-client-ip`
+for its `sessions` rows as well (`advanced.ipAddress.ipAddressHeaders`). A row keeps that address
+only when it is an IPv4 or IPv6 address (the client fills X-Forwarded-For), and the API refuses a
+body over 64 KB below `/api/auth` (413) before Better Auth or its hooks read it.
 
 ## Known gaps
 

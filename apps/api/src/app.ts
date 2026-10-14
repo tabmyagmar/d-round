@@ -38,7 +38,7 @@ export type App = Hono<{ Variables: AppVariables }>;
 
 /**
  * Better Auth's bodies are a few fields; a larger one is refused before Better Auth or its audit
- * hooks read it (ADR 0015).
+ * hooks read it (docs/auth.md, The audit log).
  */
 const AUTH_BODY_MAX_BYTES = 64 * 1024;
 

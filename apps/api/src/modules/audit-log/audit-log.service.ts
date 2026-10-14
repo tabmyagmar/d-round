@@ -51,12 +51,21 @@ export const AUDIT_VALUE_MAX_LENGTH = 500;
 
 const USER_AGENT_MAX_LENGTH = 512;
 
+/** The longest IPv6 address in text (`ffff:…:ffff:255.255.255.255`). */
+const IP_ADDRESS_MAX_LENGTH = 45;
+
 /**
  * The client's address as a row keeps it: an IPv4 or IPv6 address, else nothing — the API reads it
- * from X-Forwarded-For (`clientIp`), which the client may fill with any text.
+ * from X-Forwarded-For (`clientIp`), which the client may fill with any text. `isIP` also accepts an
+ * IPv6 zone index of any length (`fe80::1%…`), which no client address carries.
  */
 const ipAddressOf = (value: string | null): string | null =>
-  value !== null && isIP(value) !== 0 ? value : null;
+  value !== null &&
+  value.length <= IP_ADDRESS_MAX_LENGTH &&
+  !value.includes("%") &&
+  isIP(value) !== 0
+    ? value
+    : null;
 
 const valueOf = (value: string | undefined): string | null =>
   value === undefined || value === "" ? null : value;
@@ -156,8 +165,8 @@ const adminChangesOf = (event: AuthAuditEvent): AuditChange[] => [
 
 /**
  * Records a sign-in, sign-out, password or admin-endpoint event (`createAuth`'s `onAuthEvent`). The
- * target is the user the event concerns: the actor, or the user an admin endpoint acted on. Never
- * throws.
+ * target is the user the event concerns: the actor, or the user an admin endpoint acted on (none
+ * when its body names none — the caller is not its own target). Never throws.
  */
 export const recordAuthEvent = async (
   deps: AuthEventDeps,
@@ -175,8 +184,9 @@ export const recordAuthEvent = async (
       actorRole: event.user?.role ?? null,
       action: event.action,
       entityType: "User",
-      entityId: event.targetUserId ?? event.user?.id ?? null,
-      entityLabel: target?.name ?? event.user?.name ?? event.email,
+      ...(event.action === "auth.admin"
+        ? { entityId: event.targetUserId, entityLabel: target?.name ?? null }
+        : { entityId: event.user?.id ?? null, entityLabel: event.user?.name ?? event.email }),
       status: event.status,
       errorCode: event.errorCode,
       ...(event.action === "auth.admin" ? { changes: adminChangesOf(event) } : {}),

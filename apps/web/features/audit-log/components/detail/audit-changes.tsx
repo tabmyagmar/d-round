@@ -24,10 +24,10 @@ const valueCell = (value: string | null) =>
 
 const MASKED = "変更あり（非表示）";
 
+const isCut = (change: AuditChange): boolean => "truncated" in change && change.truncated === true;
+
 const cutMark = (change: AuditChange) =>
-  "truncated" in change && change.truncated ? (
-    <span className="text-muted-foreground">（一部省略）</span>
-  ) : null;
+  isCut(change) ? <span className="text-muted-foreground">（一部省略）</span> : null;
 
 /**
  * Below `md` (inside the drawer) each field stacks: its name, then 変更前 and 変更後 as a
@@ -51,12 +51,14 @@ const StackedChanges = ({ entityType, changes }: AuditChangesProps) => (
               },
               {
                 label: "変更後",
-                value: change.after && (
-                  <span className="whitespace-pre-wrap">
-                    {change.after}
-                    {cutMark(change)}
-                  </span>
-                ),
+                // A cut value cleared to nothing still says it was cut, as the table's cell does.
+                value:
+                  change.after === null && !isCut(change) ? null : (
+                    <span className="whitespace-pre-wrap">
+                      {valueCell(change.after)}
+                      {cutMark(change)}
+                    </span>
+                  ),
               },
             ]}
           />

@@ -133,6 +133,9 @@ describe("recordChanges", () => {
       ["203.0.113.9", "203.0.113.9"],
       ["2001:db8::1", "2001:db8::1"],
       ["<script>alert(1)</script>", null],
+      // `isIP` takes an IPv6 zone index of any length; no client address carries one.
+      [`fe80::1%${"a".repeat(1000)}`, null],
+      ["fe80::1%eth0", null],
     ] as const;
 
     const kept = await Promise.all(
