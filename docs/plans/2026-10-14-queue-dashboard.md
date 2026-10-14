@@ -59,3 +59,20 @@ shutdown's `redis.quit()` ends them; `index.ts` does not change.
   shows only `outboxEmailId`, `/queues/queue/email` survives a reload; as admin and without a
   session `/queues` is the app's JSON 404. The same check against the built `dist/index.mjs` passes,
   so the externalised UI files resolve from `node_modules`.
+- 2026-10-14 review round 1 (reviewer subagent, REQUEST_CHANGES, 0 BLOCKER / 3 SHOULD / 4 NIT; no
+  gate bypass found: trailing slash, encoded paths, HEAD, CSRF). Fixed in the second commit:
+  - SHOULD the gate built its own session lookup → it calls `buildRequestContext` and reads
+    `ctx.user.role`; `createQueueBoard` takes `ContextDeps`.
+  - SHOULD the role check is not CASL → ADR 0014 lists the CASL catalog row as a rejected
+    alternative; `.claude/rules/permissions.md` records the gate next to Better Auth's role map;
+    `queue.md` points there for who may open it. The README row keeps "sign in as super_admin" as a
+    usage hint.
+  - SHOULD the board's queues printed every Redis error to the console (BullMQ's `emit` fallback,
+    seen in the test: six `console.error` calls) and showed the generic job options for
+    attachment-delete and csv-import → each queue logs at `debug`, and the queues come from the
+    producers' factories. **Amendment** to the Design table's "Queues" row: an explicit list of six
+    instead of a map over `QUEUE_NAMES`; the test that compares the board with `QUEUE_NAMES` makes a
+    missing queue a failure.
+  - NIT HEAD got 405 → GET and HEAD pass, the 405 carries `Allow: GET, HEAD`; NIT the ADR names the
+    runtime `bullmq` load; NIT an admin write is tested (404). Declined: moving the test file's doc
+    comment off `let h` — `test/app.test.ts` has the same shape.

@@ -1,9 +1,13 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { Writable } from "node:stream";
 
-import { QUEUE_NAMES } from "@repo/queue";
+import { afterAll, beforeAll, describe, expect, inject, it, vi } from "vitest";
+
+import { createLogger } from "@repo/logger";
+import { QUEUE_NAMES, createRedisConnection } from "@repo/queue";
 
 import { createApp } from "../../src/app";
 import type { App } from "../../src/app";
+import { createQueueBoard } from "../../src/lib/queue-board";
 import { contextDeps, createHarness, signedInUser } from "../support";
 import type { SignedInUser, TestHarness } from "../support";
 
@@ -39,6 +43,9 @@ describe("/queues as super_admin", () => {
 
     const asset = await app.request(`/queues/${script ?? ""}`, { headers: superAdmin.headers });
     expect(asset.status).toBe(200);
+
+    const head = await app.request("/queues", { method: "HEAD", headers: superAdmin.headers });
+    expect(head.status).toBe(200);
   });
 
   it("lists every queue, each read-only", async () => {
@@ -52,6 +59,15 @@ describe("/queues as super_admin", () => {
     expect(queues.every((queue) => queue.readOnlyMode)).toBe(true);
   });
 
+  it("shows the job options the producers enqueue with", async () => {
+    for (const name of [QUEUE_NAMES.attachmentDelete, QUEUE_NAMES.csvImport]) {
+      const response = await app.request(`/queues/api/queues/${name}/default-job-options`, {
+        headers: superAdmin.headers,
+      });
+      expect(await response.json(), name).toMatchObject({ removeOnFail: true });
+    }
+  });
+
   it("refuses every write with 405", async () => {
     for (const [method, path] of [
       ["PUT", "/queues/api/queues/email/retry/failed"],
@@ -60,7 +76,33 @@ describe("/queues as super_admin", () => {
     ] as const) {
       const response = await app.request(path, { method, headers: superAdmin.headers });
       expect(response.status, `${method} ${path}`).toBe(405);
+      expect(response.headers.get("allow")).toBe("GET, HEAD");
     }
+  });
+
+  it("logs a Redis error of its queues through the logger, not the console", async () => {
+    const redis = createRedisConnection(inject("redisUrl"), { connectionName: "queue-board-test" });
+    const lines: string[] = [];
+    const logger = createLogger(
+      { name: "test", level: "debug" },
+      new Writable({
+        write: (chunk: Buffer, _encoding, callback) => {
+          lines.push(chunk.toString());
+          callback();
+        },
+      }),
+    );
+    createQueueBoard({ ...contextDeps(h), redis, logger });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    redis.emit("error", new Error("redis down"));
+
+    expect(consoleError).not.toHaveBeenCalled();
+    expect(lines.filter((line) => line.includes("redis down"))).toHaveLength(
+      Object.values(QUEUE_NAMES).length,
+    );
+    consoleError.mockRestore();
+    await redis.quit();
   });
 });
 
@@ -76,8 +118,14 @@ describe("/queues for everyone else", () => {
     }
   });
 
-  it("answers 404, not 405, to a write without a session", async () => {
-    const response = await app.request("/queues/api/queues/pause", { method: "PUT" });
+  it.each([
+    ["no session", () => new Headers()],
+    ["an admin", () => admin.headers],
+  ])("answers 404, not 405, to a write from %s", async (_who, headers) => {
+    const response = await app.request("/queues/api/queues/pause", {
+      method: "PUT",
+      headers: headers(),
+    });
 
     expect(response.status).toBe(404);
   });

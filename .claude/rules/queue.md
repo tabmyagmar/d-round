@@ -102,8 +102,9 @@ again, and nothing in Redis can tell "never enqueued" from "failed and cleaned u
   failed job still exists in Redis under the same jobId, a re-add is a no-op until that job is
   removed or retried — which is exactly why the retry goes through the row and not through Redis.
   The same pattern applies to every later outbox.
-- The dashboard at `API_URL/queues` (bull-board, super_admin only) is read-only for the same reason:
-  it shows the queues, the rows stay the place to act (`docs/adr/0014-queue-dashboard.md`).
+- The dashboard at `API_URL/queues` (bull-board, `docs/adr/0014-queue-dashboard.md`; who may open
+  it: `.claude/rules/permissions.md`) is read-only for the same reason: it shows the queues, the
+  rows stay the place to act.
 
 ## Sweeper
 
