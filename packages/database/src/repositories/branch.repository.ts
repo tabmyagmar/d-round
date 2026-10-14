@@ -148,13 +148,28 @@ export const createBranchRepository = (db: DbClient) => ({
     )._max.number,
 
   /** The statuses of these non-deleted branches, within `where` (the caller's rows). */
+  /** The statuses of `ids`, with what a delete's audit row calls each (the numbers and name). */
   findStatuses: (
     ids: readonly string[],
     where: Prisma.BranchWhereInput = {},
-  ): Promise<{ id: string; status: GeneralStatus }[]> =>
+  ): Promise<
+    {
+      id: string;
+      status: GeneralStatus;
+      number: number;
+      name: string;
+      client: { number: number };
+    }[]
+  > =>
     db.branch.findMany({
       where: { AND: [where, { id: { in: [...ids] }, deletedAt: null }] },
-      select: { id: true, status: true },
+      select: {
+        id: true,
+        status: true,
+        number: true,
+        name: true,
+        client: { select: { number: true } },
+      },
     }),
 
   updateStatus: (

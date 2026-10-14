@@ -262,13 +262,22 @@ export const createStaffRepository = (db: DbClient) => ({
     }),
 
   /** The statuses of these non-deleted staff, within `where` (the caller's rows). */
+  /** The statuses of `ids`, with what a delete's audit row calls each (番号 and name). */
   findStatuses: (
     ids: readonly string[],
     where: Prisma.StaffWhereInput = {},
-  ): Promise<{ id: string; status: StaffStatus }[]> =>
+  ): Promise<
+    {
+      id: string;
+      status: StaffStatus;
+      employeeNumber: number;
+      lastName: string;
+      firstName: string;
+    }[]
+  > =>
     db.staff.findMany({
       where: { AND: [where, { id: { in: [...ids] }, deletedAt: null }] },
-      select: { id: true, status: true },
+      select: { id: true, status: true, employeeNumber: true, lastName: true, firstName: true },
     }),
 
   updateStatus: (id: string, status: StaffStatus): Promise<{ id: string; status: StaffStatus }> =>

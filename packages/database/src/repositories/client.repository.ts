@@ -146,13 +146,14 @@ export const createClientRepository = (db: DbClient) => ({
     }),
 
   /** The statuses of these non-deleted clients, within `where` (the caller's rows). */
+  /** The statuses of `ids`, with what a delete's audit row calls each (番号 and name). */
   findStatuses: (
     ids: readonly string[],
     where: Prisma.ClientWhereInput = {},
-  ): Promise<{ id: string; status: GeneralStatus }[]> =>
+  ): Promise<{ id: string; status: GeneralStatus; number: number; name: string }[]> =>
     db.client.findMany({
       where: { AND: [where, { id: { in: [...ids] }, deletedAt: null }] },
-      select: { id: true, status: true },
+      select: { id: true, status: true, number: true, name: true },
     }),
 
   updateStatus: (

@@ -1,4 +1,4 @@
-import { createStaffRepository, withTransaction } from "@repo/database";
+import { createAttachmentRepository, createStaffRepository, withTransaction } from "@repo/database";
 import type {
   ChargedStaffRow,
   DbClient,
@@ -10,8 +10,10 @@ import type {
 } from "@repo/database";
 import { fromIsoDay } from "@repo/dayjs";
 import { accessibleStaffWhere, prismaStaffSubject } from "@repo/permissions/server";
-import { employeeNumberOfSearch } from "@repo/validation";
+import { employeeNumberOfSearch, maskedAuditFields } from "@repo/validation";
 import type {
+  AuditAction,
+  AuditChange,
   ChangeStaffStatusInput,
   CreateStaffInput,
   DeleteStaffsInput,
@@ -27,6 +29,9 @@ import type { RequestContext } from "../../core/context";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../core/errors";
 import { assertUploaded, syncAttachments, viewsOf } from "../attachment/attachment.service";
 import type { AttachmentView } from "../attachment/attachment.service";
+import { diffViews, recordChanges } from "../audit-log/audit-log.service";
+import type { AuditEntry } from "../audit-log/audit-log.service";
+import { staffAuditView, staffLabelOf } from "../audit-log/audit-views";
 import { assertKnownSource } from "../source/source.service";
 import { assertChargersActive } from "../user/user.service";
 
@@ -114,6 +119,27 @@ export const list = async (
     STAFF_ORDER_BY[query.sortBy](query.sortOrder),
   );
 };
+
+const STAFF_MASKED_FIELDS = maskedAuditFields("Staff");
+
+/** The audit log's row for a write to one スタッフ (docs/adr/0015-audit-log.md). */
+const staffAuditEntry = (
+  action: AuditAction,
+  staff: { id: string; employeeNumber: number; lastName: string; firstName: string },
+  changes: AuditChange[],
+): AuditEntry => ({
+  action,
+  entityType: "Staff",
+  entityId: staff.id,
+  entityLabel: staffLabelOf(staff),
+  changes,
+});
+
+/** The 履歴書 file names a staff holds in `db` now, for its audit view. */
+const resumeNamesIn = async (db: DbClient, staffId: string): Promise<string[]> =>
+  (await createAttachmentRepository(db).findAttached({ staffId }, "STAFF_RESUME")).map(
+    (file) => file.fileName,
+  );
 
 /** A staff as the detail and edit screens need it, with the 履歴書 files and their read URLs. */
 export type StaffDetail = StaffDetailRow & { resumes: AttachmentView[] };
@@ -208,7 +234,12 @@ export const create = async (
       owner: { staffId: id },
       ids: resumeIds,
     });
-    return loadStaff(tx, id);
+    const created = await loadStaff(tx, id);
+    const after = staffAuditView(created, await resumeNamesIn(tx, id));
+    await recordChanges(ctx, tx, [
+      staffAuditEntry("staff.create", created, diffViews(null, after, STAFF_MASKED_FIELDS)),
+    ]);
+    return created;
   });
   return withResumes(ctx, created);
 };
@@ -234,6 +265,7 @@ export const update = async (
     const staffs = createStaffRepository(tx);
     const current = await loadStaff(tx, input.staffId);
     assertCanRow(ctx, "update", current);
+    const beforeView = staffAuditView(current, await resumeNamesIn(tx, current.id));
     await assertWritable(tx, input, current.id);
     const write = toWrite(input);
     const before = await staffs.findCurrentChargerIds(current.id);
@@ -255,7 +287,12 @@ export const update = async (
     if (resumeIds !== undefined) {
       await syncAttachments(ctx, txc, { kind: "STAFF_RESUME", owner, ids: resumeIds });
     }
-    return loadStaff(tx, current.id);
+    const saved = await loadStaff(tx, current.id);
+    const afterView = staffAuditView(saved, await resumeNamesIn(tx, current.id));
+    await recordChanges(ctx, tx, [
+      staffAuditEntry("staff.update", saved, diffViews(beforeView, afterView, STAFF_MASKED_FIELDS)),
+    ]);
+    return saved;
   });
   return withResumes(ctx, updated);
 };
@@ -266,12 +303,23 @@ export const changeStatus = async (
   input: ChangeStaffStatusInput,
 ): Promise<{ id: string; status: StaffStatus }> => {
   assertMay(ctx, "status");
-  const staff = await loadStaff(ctx.db, input.staffId);
-  assertCanRow(ctx, "status", staff);
-  if (staff.status === input.status) {
-    return { id: staff.id, status: staff.status };
-  }
-  return createStaffRepository(ctx.db).updateStatus(staff.id, input.status);
+  return withTransaction(ctx.db, async ({ tx }) => {
+    const staff = await loadStaff(tx, input.staffId);
+    assertCanRow(ctx, "status", staff);
+    // Only the ステータス can differ, so the views leave the 履歴書 out on both sides.
+    const changed = { ...staff, status: input.status };
+    await recordChanges(ctx, tx, [
+      staffAuditEntry(
+        "staff.changeStatus",
+        staff,
+        diffViews(staffAuditView(staff, []), staffAuditView(changed, []), STAFF_MASKED_FIELDS),
+      ),
+    ]);
+    if (staff.status === input.status) {
+      return { id: staff.id, status: staff.status };
+    }
+    return createStaffRepository(tx).updateStatus(staff.id, input.status);
+  });
 };
 
 /**
@@ -293,7 +341,13 @@ export const removeMany = async (
     if (rows.some((row) => row.status !== SUSPENDED)) {
       throw new ConflictError("Only suspended staff can be deleted");
     }
-    return { count: await staffs.softDeleteMany(ids) };
+    const count = await staffs.softDeleteMany(ids);
+    await recordChanges(
+      ctx,
+      tx,
+      rows.map((row) => staffAuditEntry("staff.deleteMany", row, [])),
+    );
+    return { count };
   });
 };
 
