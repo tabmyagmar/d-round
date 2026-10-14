@@ -1,6 +1,6 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@repo/ui/components/alert";
@@ -27,7 +27,6 @@ export const CsvExportHistoryDialog = ({
   onOpenChange: (open: boolean) => void;
 }) => {
   const trpc = useTRPC();
-  const queryClient = useQueryClient();
   const { exportType } = CSV_ENTITIES[entity];
   const [page, setPage] = useState(1);
   const exports = useQuery(
@@ -36,13 +35,13 @@ export const CsvExportHistoryDialog = ({
       { placeholderData: keepPreviousData },
     ),
   );
-  const download = useMutation({
-    mutationFn: (csvExportId: string) =>
-      queryClient.query(trpc.csvExport.downloadUrl.queryOptions({ csvExportId }, { staleTime: 0 })),
-    onSuccess: (file) => {
-      downloadFromUrl(file.url);
-    },
-  });
+  const download = useMutation(
+    trpc.csvExport.downloadUrl.mutationOptions({
+      onSuccess: (file) => {
+        downloadFromUrl(file.url);
+      },
+    }),
+  );
 
   return (
     <ResponsiveDialog
@@ -63,9 +62,9 @@ export const CsvExportHistoryDialog = ({
             data={exports.data?.items}
             isLoading={exports.isPending}
             pagination={exports.data ? paginationOf(exports.data, setPage) : undefined}
-            downloadingId={download.isPending ? download.variables : null}
+            downloadingId={download.isPending ? download.variables.csvExportId : null}
             onDownload={(item) => {
-              download.mutate(item.id);
+              download.mutate({ csvExportId: item.id });
             }}
           />
         </div>
