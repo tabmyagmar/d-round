@@ -273,6 +273,26 @@ describe("Better Auth's events in the audit log (ADR 0015)", () => {
     expect(JSON.stringify(rows)).not.toContain("wrong-password-9");
   });
 
+  it("keeps a typed address only when it is one: a password typed there is not stored", async () => {
+    const typed = "Secret-Passw0rd-typed-as-address";
+
+    const response = await signIn(typed, TEST_PASSWORD, "192.0.2.18");
+
+    expect(response.status).toBe(400);
+    const rows = await rowsWhere({ action: "auth.signIn", ipAddress: "192.0.2.18" });
+    expect(rows).toEqual([
+      expect.objectContaining({
+        actorType: "ANONYMOUS",
+        actorEmail: null,
+        entityId: null,
+        entityLabel: null,
+        status: "FAILURE",
+        errorCode: "INVALID_EMAIL",
+      }),
+    ]);
+    expect(JSON.stringify(rows)).not.toContain(typed);
+  });
+
   it("records a sign-out with the user who signed out", async () => {
     const user = await verifiedUser("Signing Out");
     const cookie = cookieHeaderFrom(await signIn(user.email, TEST_PASSWORD, "192.0.2.13"));
@@ -390,6 +410,35 @@ describe("Better Auth's events in the audit log (ADR 0015)", () => {
       }),
       expect.objectContaining({ actorId: am.user.id, status: "FAILURE" }),
     ]);
+  });
+
+  it("keeps an admin call's target and role only when they are a user id and roles", async () => {
+    const admin = await signedInUser(h, { role: "admin" });
+    const am = await signedInUser(h);
+    const target = await verifiedUser("複数 ロール");
+    const setRole = (cookie: string, body: Record<string, unknown>) =>
+      post("/api/auth/admin/set-role", body, { cookie, "x-forwarded-for": "192.0.2.19" });
+    const junk = "x".repeat(10_000);
+
+    const given = await setRole(admin.headers.get("cookie") ?? "", {
+      userId: target.id,
+      role: ["manager"],
+    });
+    const refused = await setRole(am.headers.get("cookie") ?? "", { userId: junk, role: junk });
+
+    expect([given.status, refused.status]).toEqual([200, 403]);
+    const endpoint = { field: "endpoint", before: null, after: "/admin/set-role" };
+    expect(await rowsWhere({ action: "auth.admin", entityId: target.id })).toEqual([
+      expect.objectContaining({
+        actorId: admin.user.id,
+        changes: [endpoint, { field: "role", before: null, after: "manager" }],
+      }),
+    ]);
+    const refusedRows = await rowsWhere({ action: "auth.admin", actorId: am.user.id });
+    expect(refusedRows).toEqual([
+      expect.objectContaining({ status: "FAILURE", changes: [endpoint] }),
+    ]);
+    expect(JSON.stringify(refusedRows)).not.toContain(junk);
   });
 
   it("records nothing for Better Auth calls a service makes on the server", async () => {

@@ -151,10 +151,12 @@ Better Auth's events reach the アクセスログ (`docs/adr/0015-audit-log.md`)
 
 Only requests that came over HTTP are recorded: a service calling `auth.api.*` on the server
 (`user.invite`, `user.sendPasswordReset`) records its own action. No password, token or body is read
-beyond the typed address, `userId` and `role`. A recorder that fails is logged and never changes
-Better Auth's answer. The API hands Better Auth every request with `x-client-ip` (`clientIp`, the
-rate limiter's rule) and `x-request-id`, overwriting what the client sent; Better Auth reads the
-address from `x-client-ip` for its `sessions` rows as well (`advanced.ipAddress.ipAddressHeaders`).
+beyond the typed address, `userId` and `role`, and each is kept only when it parses (`emailSchema`,
+`idSchema`, `roleSchema`; the hooks see the body before Better Auth checks it): a password typed
+into the address field is not stored. A recorder that fails is logged and never changes Better
+Auth's answer. The API hands Better Auth every request with `x-client-ip` (`clientIp`, the rate
+limiter's rule) and `x-request-id`, overwriting what the client sent; Better Auth reads the address
+from `x-client-ip` for its `sessions` rows as well (`advanced.ipAddress.ipAddressHeaders`).
 
 ## Known gaps
 

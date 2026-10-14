@@ -7,7 +7,7 @@ import { customSession } from "better-auth/plugins/custom-session";
 
 import { createPermissionRepository, createUserRepository } from "@repo/database";
 import type { PrismaClient } from "@repo/database";
-import { DEFAULT_ROLE, passwordSchema } from "@repo/validation";
+import { DEFAULT_ROLE, emailSchema, idSchema, passwordSchema, roleSchema } from "@repo/validation";
 import type { AuditAction } from "@repo/validation";
 
 import { ADMIN_ROLES, ac, roles } from "./access-control";
@@ -74,13 +74,13 @@ export type AuthAuditEvent = {
   status: "SUCCESS" | "FAILURE";
   /** Who acted, when known. */
   user: { id: string; email: string; name: string; role: string | null } | null;
-  /** The address typed into the sign-in or the forgotten-password form. */
+  /** The address typed into the sign-in or the forgotten-password form, when it is one. */
   email: string | null;
-  /** The user an `/admin/*` endpoint acted on. */
+  /** The user an `/admin/*` endpoint acted on, when the body names one by id. */
   targetUserId: string | null;
   /** The Better Auth endpoint (`/admin/set-role`). */
   endpoint: string;
-  /** The role an `/admin/set-role` call gives. */
+  /** The role an `/admin/*` call gives (`admin`, or `admin, manager` for several), when it is one. */
   role: string | null;
   /** The error's code (`INVALID_EMAIL_OR_PASSWORD`) of a failure. */
   errorCode: string | null;
@@ -102,13 +102,16 @@ type EventUser = { id: string; email: string; name: string; role?: string | null
 const userOf = (user: EventUser | null | undefined): AuthAuditEvent["user"] =>
   user ? { id: user.id, email: user.email, name: user.name, role: user.role ?? null } : null;
 
-const stringField = (body: unknown, key: string): string | null => {
-  if (typeof body !== "object" || body === null) {
-    return null;
-  }
-  const value: unknown = (body as Record<string, unknown>)[key];
-  return typeof value === "string" ? value : null;
-};
+/**
+ * A field of the request body as the client sent it: hooks see the body before Better Auth parses
+ * it, so the event keeps a field only when its schema parses it (a password typed into the address
+ * field is not an address).
+ */
+const bodyField = (body: unknown, key: string): unknown =>
+  typeof body === "object" && body !== null ? (body as Record<string, unknown>)[key] : undefined;
+
+/** The role an admin endpoint gives: `set-role` and `create-user` take one or several. */
+const roleFieldSchema = roleSchema.or(roleSchema.array().min(1));
 
 const requestOf = (request: Request | undefined) => ({
   ipAddress: request?.headers.get(CLIENT_IP_HEADER) ?? null,
@@ -183,14 +186,17 @@ const afterHook = (emit: Emit) =>
       (anonymous || action === "auth.signIn"
         ? null
         : (await getSessionFromCtx(ctx, { disableRefresh: true }))?.user);
+    const email = emailSchema.safeParse(bodyField(ctx.body, "email"));
+    const userId = idSchema.safeParse(bodyField(ctx.body, "userId"));
+    const role = roleFieldSchema.safeParse(bodyField(ctx.body, "role"));
     await emit({
       action,
       status: failed ? "FAILURE" : "SUCCESS",
       user: userOf(user),
-      email: action === "auth.signIn" || anonymous ? stringField(ctx.body, "email") : null,
-      targetUserId: isAdmin ? stringField(ctx.body, "userId") : null,
+      email: (action === "auth.signIn" || anonymous) && email.success ? email.data : null,
+      targetUserId: isAdmin && userId.success ? userId.data : null,
       endpoint: ctx.path,
-      role: isAdmin ? stringField(ctx.body, "role") : null,
+      role: isAdmin && role.success ? [role.data].flat().join(", ") : null,
       errorCode: failed ? (returned.body?.code ?? String(returned.status)) : null,
       ...requestOf(ctx.request),
     });
