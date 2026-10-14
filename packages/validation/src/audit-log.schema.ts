@@ -1,3 +1,11 @@
+import {
+  BRANCH_EXPORT_FIELDS,
+  CLIENT_EXPORT_FIELDS,
+  STAFF_EXPORT_FIELDS,
+  USER_EXPORT_FIELDS,
+} from "./csv-export.schema";
+import type { CsvExportField } from "./csv-export.schema";
+
 /**
  * アクセスログ (docs/adr/0015-audit-log.md): the names of what a row records. The API writes the keys,
  * the web shows the labels and filters by the keys.
@@ -14,6 +22,9 @@ export const AUDIT_ENTITY_TYPES = {
   AuditLog: "アクセスログ",
 } as const satisfies Record<string, string>;
 export type AuditEntityType = keyof typeof AUDIT_ENTITY_TYPES;
+
+export const isAuditEntityType = (key: string): key is AuditEntityType =>
+  Object.hasOwn(AUDIT_ENTITY_TYPES, key);
 
 type AuditActionDefinition = { label: string; entityType: AuditEntityType };
 
@@ -68,3 +79,81 @@ export const AUDIT_LOG_RETENTION_DAYS = 90;
 export type AuditChange =
   | { field: string; before: string | null; after: string | null; truncated?: true }
   | { field: string; masked: true };
+
+/** A field of an entity's audit view: its key, its label, and whether the log hides its values. */
+export type AuditField = { key: string; label: string; masked?: true };
+
+/**
+ * Personal data (個人情報) a row records as changed without its values: who changed it and when
+ * stay, the values get no second copy in a table kept for 90 days. Names stay: they identify the
+ * row.
+ */
+const MASKED_FIELDS: Readonly<Partial<Record<AuditEntityType, readonly string[]>>> = {
+  User: ["email"],
+  Staff: [
+    "birthday",
+    "postCode",
+    "prefCity",
+    "address1",
+    "phoneNumber",
+    "emergencyPhoneNumber",
+    "email",
+    "familyMembers",
+  ],
+  Branch: ["contactEmail"],
+};
+
+/** An entity's fields: the download's columns with their headers, then `extra`; masked as above. */
+const fieldsOf = (
+  entityType: AuditEntityType,
+  columns: readonly CsvExportField[],
+  extra: readonly Omit<AuditField, "masked">[] = [],
+): AuditField[] =>
+  [...columns.map(({ key, header }) => ({ key, label: header })), ...extra].map((field) =>
+    MASKED_FIELDS[entityType]?.includes(field.key) ? { ...field, masked: true } : field,
+  );
+
+/**
+ * Each entity type's audit view in order: the CSV download's columns (the same labels, names and
+ * days as the file), then the fields a form changes that a download leaves out.
+ */
+export const AUDIT_FIELDS: Readonly<Record<AuditEntityType, readonly AuditField[]>> = {
+  User: fieldsOf("User", USER_EXPORT_FIELDS, [
+    { key: "role", label: "アカウントタイプ" },
+    { key: "permissions", label: "権限設定" },
+  ]),
+  Staff: fieldsOf("Staff", STAFF_EXPORT_FIELDS, [
+    { key: "jobHistories", label: "在籍情報" },
+    { key: "familyMembers", label: "家族情報" },
+    { key: "memos", label: "メモ" },
+    { key: "resumes", label: "履歴書" },
+  ]),
+  Client: fieldsOf("Client", CLIENT_EXPORT_FIELDS),
+  Branch: fieldsOf("Branch", BRANCH_EXPORT_FIELDS, [{ key: "memo", label: "メモ" }]),
+  CsvImport: [
+    { key: "type", label: "種類" },
+    { key: "fileName", label: "ファイル名" },
+    { key: "selectedCount", label: "登録件数" },
+  ],
+  CsvExport: [
+    { key: "type", label: "種類" },
+    { key: "fileName", label: "ファイル名" },
+    { key: "rowCount", label: "件数" },
+    { key: "columns", label: "項目" },
+  ],
+  AuditLog: [{ key: "deletedCount", label: "削除件数" }],
+};
+
+/** The fields of an `/admin/*` call's row, which records an event rather than an entity. */
+const EVENT_FIELD_LABELS: Readonly<Record<string, string>> = { endpoint: "エンドポイント" };
+
+/** The label of a row's changed field, or the key itself for a field no list names. */
+export const auditFieldLabel = (entityType: string | null, key: string): string => {
+  const fields =
+    entityType !== null && isAuditEntityType(entityType) ? AUDIT_FIELDS[entityType] : [];
+  return fields.find((field) => field.key === key)?.label ?? EVENT_FIELD_LABELS[key] ?? key;
+};
+
+/** The keys of an entity type's masked fields, as the API's `diffViews` takes them. */
+export const maskedAuditFields = (entityType: AuditEntityType): ReadonlySet<string> =>
+  new Set(AUDIT_FIELDS[entityType].filter((field) => field.masked).map((field) => field.key));

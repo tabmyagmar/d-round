@@ -48,8 +48,8 @@ export const columnsOf = <K extends string, Row>(
 const textOf = (value: string | number | null | undefined): string =>
   value === null || value === undefined ? "" : String(value);
 
-/** A DATE column's day: midnight UTC. */
-const dayOf = (date: Date | null | undefined): string =>
+/** A DATE column's day: midnight UTC. The audit log's views write days the same way. */
+export const dayOf = (date: Date | null | undefined): string =>
   date ? dayjs.utc(date).format("YYYY/MM/DD") : "";
 
 const listOf = (items: readonly string[]): string => items.join(",");

@@ -20,6 +20,14 @@ export const ROLES = ["super_admin", "admin", "manager", "am"] as const;
 export const roleSchema = z.enum(ROLES);
 export type Role = z.infer<typeof roleSchema>;
 export const DEFAULT_ROLE: Role = "am";
+
+/** アカウントタイプ labels, as in the legacy app: the user screens and the audit log's views. */
+export const ROLE_LABELS: Record<Role, string> = {
+  super_admin: "スーパーアドミン",
+  admin: "アドミン",
+  manager: "マネジャー",
+  am: "AM",
+};
 /**
  * The admin role set, used for two authorization decisions: Better Auth `adminRoles` (who may
  * call privileged admin-plugin endpoints) and the roles the last-admin rule counts

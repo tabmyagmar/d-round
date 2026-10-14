@@ -1,12 +1,7 @@
-import type { Role, UserStatus } from "@repo/validation";
+import type { UserStatus } from "@repo/validation";
 
-/** アカウントタイプ labels, as in the legacy app. */
-export const ROLE_LABELS: Record<Role, string> = {
-  super_admin: "スーパーアドミン",
-  admin: "アドミン",
-  manager: "マネジャー",
-  am: "AM",
-};
+/** アカウントタイプ labels: their home is @repo/validation (the audit log's views use them too). */
+export { ROLE_LABELS } from "@repo/validation";
 
 /** The legacy ステータス labels: 利用中 (can sign in), 停止 (deactivated). */
 export const USER_STATUS_LABELS: Record<UserStatus, string> = {
