@@ -23,6 +23,11 @@ import {
   registerAttachmentSweeper,
 } from "./schedulers/attachment-sweeper";
 import {
+  createAuditLogSweeperQueue,
+  createAuditLogSweeperWorker,
+  registerAuditLogSweeper,
+} from "./schedulers/audit-log-sweeper";
+import {
   createCsvImportSweeperQueue,
   createCsvImportSweeperWorker,
   registerCsvImportSweeper,
@@ -36,7 +41,7 @@ import {
 /**
  * Worker process bootstrap. Every BullMQ consumer in the system is started from here and
  * nowhere else: the email processor and the outbox sweeper, the attachment delete processor and
- * the attachment sweeper, the CSV import processor and its sweeper.
+ * the attachment sweeper, the CSV import processor and its sweeper, the audit log's sweeper.
  */
 const env = loadWorkerEnv();
 // Error and fatal lines also go to Discord when a webhook is set (docs/adr/0010-alerts.md).
@@ -69,6 +74,8 @@ const attachmentSweeperQueue = createAttachmentSweeperQueue(connection);
 // act for the uploader with Better Auth as the API builds it (imported users get the invitation).
 const csvImportQueue = createCsvImportQueue(connection);
 const csvImportSweeperQueue = createCsvImportSweeperQueue(connection);
+// The audit log keeps its rows 90 days (docs/adr/0015-audit-log.md).
+const auditLogSweeperQueue = createAuditLogSweeperQueue(connection);
 const auth = createAppAuth({
   db,
   emailQueue,
@@ -98,6 +105,7 @@ const shutdown = registerGracefulShutdown({
           attachmentSweeperQueue.close(),
           csvImportQueue.close(),
           csvImportSweeperQueue.close(),
+          auditLogSweeperQueue.close(),
         ]),
     },
     { name: "mail provider", run: () => mailProvider.close?.() },
@@ -129,10 +137,12 @@ try {
       csvImportQueue,
     }),
     createCsvImportSweeperWorker({ connection, db, csvImportQueue, logger }),
+    createAuditLogSweeperWorker({ connection, db, logger }),
   );
   await registerOutboxSweeper(sweeperQueue);
   await registerAttachmentSweeper(attachmentSweeperQueue);
   await registerCsvImportSweeper(csvImportSweeperQueue);
+  await registerAuditLogSweeper(auditLogSweeperQueue);
   logger.info({ workers: workers.length }, "worker ready");
 } catch (error) {
   logger.fatal({ err: error }, "worker failed to start");

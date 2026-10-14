@@ -51,7 +51,7 @@ that. The email outbox is the reference implementation (`docs/adr/0004-outbox.md
    processor file per queue: `apps/worker/src/processors/<queue>.processor.ts` exporting
    `create<Queue>Worker(deps)`, registered in the `workers` array of `apps/worker/src/index.ts`
    (today: the email processor, the outbox sweeper, the attachment delete processor, the attachment
-   sweeper, the CSV import processor and the CSV import sweeper).
+   sweeper, the CSV import processor, the CSV import sweeper and the audit log sweeper).
 4. **Deterministic jobId.** `jobIdFor(prefix, id)` (`packages/queue/src/job-id.ts`) returns
    `<prefix>-<id>`; both parts must match `[A-Za-z0-9_-]+` (BullMQ uses `:` as its key separator, so
    it is excluded) or `InvalidJobIdError` is thrown. Adding a job whose id already exists is a no-op
@@ -181,6 +181,17 @@ the runners from `@repo/api/jobs` (`.claude/rules/layers.md`) and keeps the cons
   `CONFIRMED` imports older than a minute, and fails `CHECKING` and `IMPORTING` imports whose
   `updated_at` (bumped by every claim and every row) is older than 10 minutes — an interrupted
   import is never run again.
+
+## Audit log retention — a sweeper without a job of its own
+
+The audit log (`docs/adr/0015-audit-log.md`) is written synchronously in the writes' transactions;
+the queue only runs its retention. `apps/worker/src/schedulers/audit-log-sweeper.ts`:
+`sweepAuditLogs` deletes the rows created before midnight in Japan `AUDIT_LOG_RETENTION_DAYS` (90,
+`@repo/validation`) ago, `AUDIT_LOG_SWEEP_BATCH` (1,000) at a time, and records one `SYSTEM` row
+`system.auditLogPurge` with the count; `registerAuditLogSweeper` upserts the scheduler
+`audit-log-sweeper` with `{ pattern: "0 4 * * *", tz: "Asia/Tokyo" }` on
+`QUEUE_NAMES.auditLogSweeper`. The cut-off is always older than the migration's trigger requires, so
+the trigger never refuses its deletes; a run that finds nothing records nothing.
 
 ## BullMQ 6 / ioredis 6 notes
 

@@ -15,6 +15,7 @@
   "dependencies": {
     "@repo/api": "workspace:*",
     "@repo/database": "workspace:*",
+    "@repo/dayjs": "workspace:*",
     "@repo/logger": "workspace:*",
     "@repo/queue": "workspace:*",
     "@repo/storage": "workspace:*",

@@ -15,6 +15,8 @@ export const QUEUE_NAMES = {
   csvImport: "csv-import",
   /** Repeatable job that re-enqueues lost CSV jobs and fails interrupted ones (apps/worker). */
   csvImportSweeper: "csv-import-sweeper",
+  /** Daily job that deletes the audit log's rows past the retention (ADR 0015). */
+  auditLogSweeper: "audit-log-sweeper",
 } as const satisfies Record<string, string>;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
