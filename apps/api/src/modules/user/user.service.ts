@@ -26,9 +26,12 @@ import {
   employeeNumberOfSearch,
   fullName,
   isOverridableRole,
+  maskedAuditFields,
   OVERRIDABLE_ROLES,
 } from "@repo/validation";
 import type {
+  AuditAction,
+  AuditChange,
   ChargerOptionsInput,
   EmployeeNumberAvailableInput,
   InviteUserInput,
@@ -47,6 +50,9 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from ".
 import { webLinks } from "../../core/web-links";
 import { assertUploaded, syncAttachments, viewsOf } from "../attachment/attachment.service";
 import type { AttachmentView } from "../attachment/attachment.service";
+import { diffViews, recordChanges } from "../audit-log/audit-log.service";
+import type { AuditEntry, AuditView } from "../audit-log/audit-log.service";
+import { userAuditView, userLabelOf } from "../audit-log/audit-views";
 
 /**
  * User module — the reference implementation of .claude/rules/module-template.md.
@@ -118,6 +124,42 @@ const withAvatar = async (
   const [avatar] = await viewsOf(ctx, { kind: "USER_AVATAR", owner: { userId: user.id } });
   return { ...user, avatar: avatar ?? null };
 };
+
+/** The audit log's row for a write to one 担当者 (docs/adr/0015-audit-log.md). */
+const userAuditEntry = (
+  action: AuditAction,
+  user: UserWithProfile,
+  changes: AuditChange[],
+): AuditEntry => ({
+  action,
+  entityType: "User",
+  entityId: user.id,
+  entityLabel: userLabelOf(user),
+  changes,
+});
+
+const USER_MASKED_FIELDS = maskedAuditFields("User");
+
+/** Permission names by catalog key, for the 権限設定 of the audit view. */
+const permissionNamesIn = async (db: DbClient): Promise<Map<string, string>> =>
+  new Map(
+    (await createPermissionRepository(db).findVisibleCatalog()).map(({ key, nameJp }) => [
+      key,
+      nameJp,
+    ]),
+  );
+
+/** The 担当者's audit view, with the overrides `db` holds now. */
+const auditViewIn = async (
+  db: DbClient,
+  user: UserWithProfile,
+  names: ReadonlyMap<string, string>,
+): Promise<AuditView> =>
+  userAuditView(user, await createPermissionRepository(db).findUserOverrides(user.id), names);
+
+/** The audit view of a write that leaves the overrides alone (names, status): none on both sides. */
+const viewWithoutOverrides = (user: UserWithProfile): AuditView =>
+  userAuditView(user, [], new Map());
 
 /** `avatarId` as the attachment guards take it: absent → untouched, null → none. */
 const avatarIdsOf = (avatarId: string | null | undefined): string[] | undefined => {
@@ -359,6 +401,8 @@ export const updateProfile = async (
   const data = nameChanges(target, input);
   const avatarIds = avatarIdsOf(input.avatarId);
   if (Object.keys(data).length === 0 && avatarIds === undefined) {
+    // Saved without a change: the audit log still records that the profile was saved.
+    await recordChanges(ctx, ctx.db, [userAuditEntry("user.updateProfile", target, [])]);
     return target;
   }
   const owner = { userId: target.id };
@@ -373,9 +417,23 @@ export const updateProfile = async (
       if (avatarIds !== undefined) {
         await syncAttachments(ctx, txc, { kind: "USER_AVATAR", owner, ids: avatarIds });
       }
-      return Object.keys(data).length > 0
-        ? createUserRepository(txc.tx).updateProfile(target.id, data)
-        : target;
+      const saved =
+        Object.keys(data).length > 0
+          ? await createUserRepository(txc.tx).updateProfile(target.id, data)
+          : target;
+      const renamed = { ...target, ...data };
+      await recordChanges(ctx, txc.tx, [
+        userAuditEntry(
+          "user.updateProfile",
+          renamed,
+          diffViews(
+            viewWithoutOverrides(target),
+            viewWithoutOverrides(renamed),
+            USER_MASKED_FIELDS,
+          ),
+        ),
+      ]);
+      return saved;
     });
   } catch (error) {
     const translated = translateDatabaseError(error);
@@ -415,6 +473,8 @@ export const update = async (ctx: RequestContext, input: UpdateUserInput): Promi
       throw new NotFoundError("User", input.userId);
     }
     assertCan(ctx, "update", target);
+    const permissionNames = await permissionNamesIn(tx);
+    const before = await auditViewIn(tx, target, permissionNames);
 
     const changes = nameChanges(target, input);
     if (Object.keys(changes).length > 0) {
@@ -464,6 +524,10 @@ export const update = async (ctx: RequestContext, input: UpdateUserInput): Promi
     if (!updated) {
       throw new NotFoundError("User", target.id);
     }
+    const after = await auditViewIn(tx, updated, permissionNames);
+    await recordChanges(ctx, tx, [
+      userAuditEntry("user.update", updated, diffViews(before, after, USER_MASKED_FIELDS)),
+    ]);
     return withPermissionKeys(tx, updated);
   });
   return withAvatar(ctx, saved);
@@ -493,6 +557,18 @@ export const deactivate = async (ctx: RequestContext, userId: string): Promise<U
     // Existing sessions end in the same transaction, so a refused deactivation revokes nothing
     // and no Better Auth admin call (which checks the caller's own role) is needed.
     await users.deleteSessions(target.id);
+    const deactivated = { ...target, deletedAt: softDeleted.deletedAt };
+    await recordChanges(ctx, tx, [
+      userAuditEntry(
+        "user.deactivate",
+        target,
+        diffViews(
+          viewWithoutOverrides(target),
+          viewWithoutOverrides(deactivated),
+          USER_MASKED_FIELDS,
+        ),
+      ),
+    ]);
     return softDeleted;
   });
 };
@@ -515,7 +591,20 @@ export const reactivate = async (ctx: RequestContext, userId: string): Promise<U
       throw new NotFoundError("User", userId);
     }
     assertCan(ctx, "status", target);
-    return users.restore(target.id);
+    const restored = await users.restore(target.id);
+    const reactivated = { ...target, deletedAt: null };
+    await recordChanges(ctx, tx, [
+      userAuditEntry(
+        "user.reactivate",
+        target,
+        diffViews(
+          viewWithoutOverrides(target),
+          viewWithoutOverrides(reactivated),
+          USER_MASKED_FIELDS,
+        ),
+      ),
+    ]);
+    return restored;
   });
 };
 
@@ -599,6 +688,14 @@ export const invite = async (ctx: RequestContext, input: InviteUserInput): Promi
         const owner = { userId: createdId };
         await syncAttachments(ctx, txc, { kind: "USER_AVATAR", owner, ids: avatarIds });
       }
+      const created = await createUserRepository(tx).findById(createdId);
+      if (!created) {
+        throw new NotFoundError("User", createdId);
+      }
+      const after = await auditViewIn(tx, created, await permissionNamesIn(tx));
+      await recordChanges(ctx, tx, [
+        userAuditEntry("user.invite", created, diffViews(null, after, USER_MASKED_FIELDS)),
+      ]);
     });
   } catch (error) {
     throw new ConflictError(
@@ -624,6 +721,7 @@ export const sendPasswordReset = async (ctx: RequestContext, userId: string): Pr
   const target = await loadUser(ctx, userId);
   assertCan(ctx, "update", target);
   await mailPasswordLink(ctx, target.email);
+  await recordChanges(ctx, ctx.db, [userAuditEntry("user.sendPasswordReset", target, [])]);
 };
 
 /** The most 担当者 options one lookup returns (one organisation's users of a few regions). */
