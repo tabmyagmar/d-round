@@ -11,6 +11,7 @@ import { QUEUE_BOARD_PATH, createQueueBoard } from "./lib/queue-board";
 import {
   PASSWORD_RESET_RATE_LIMIT,
   SIGN_IN_RATE_LIMIT,
+  clientIp,
   createRateLimiter,
   rateLimit,
 } from "./middleware/rate-limit";
@@ -70,7 +71,10 @@ export const createApp = (deps: AppDeps): App => {
     trpcServer({
       router: appRouter,
       createContext: (_opts, c) =>
-        buildRequestContext({ headers: c.req.raw.headers, requestId: c.get("requestId") }, deps),
+        buildRequestContext(
+          { headers: c.req.raw.headers, requestId: c.get("requestId"), ipAddress: clientIp(c) },
+          deps,
+        ),
     }),
   );
 

@@ -119,6 +119,9 @@ isolate through unique names instead.
 
 - Assert on outcomes: the returned value, the row in the database, the job in the queue, the HTTP
   status, the thrown domain error (`await expect(promise).rejects.toBeInstanceOf(NotFoundError)`).
+- A write's service test also asserts its audit row (`audit_logs`: action, target, changed fields;
+  ADR 0015) — the row is part of the write's outcome. A failure the test provokes on purpose (a
+  database that cannot be reached) uses a real client on a closed port, not a mock.
 - Do not assert call counts, call order or private state; do not spy on internal modules.
 - Name tests as behaviour: `it("refuses to demote the last admin")`, not `it("calls update")`.
 - A test written for a fix must fail without the fix: run it once against the old code (or with the

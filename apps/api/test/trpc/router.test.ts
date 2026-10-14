@@ -22,6 +22,8 @@ import { silentLogger } from "../support";
 /** Pure wiring tests: hand-built contexts, no database (health and middleware only). */
 const contextFor = (user: AuthUser | null = null): RequestContext => ({
   requestId: "req-1",
+  ipAddress: null,
+  userAgent: null,
   logger: silentLogger(),
   headers: new Headers(),
   user,
