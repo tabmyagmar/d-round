@@ -7,6 +7,8 @@ import type { CsvImport, CsvImportListItem, CsvImportRow, PageResult } from "@re
 import { canUnscoped } from "@repo/permissions/server";
 import { enqueueCsvCheckJob, enqueueCsvImportJob } from "@repo/queue";
 import type {
+  AuditAction,
+  AuditChange,
   ConfirmCsvImportInput,
   CreateCsvImportInput,
   CsvImportType,
@@ -17,6 +19,9 @@ import { toCsvText } from "@repo/validation/csv";
 import type { RequestContext } from "../../core/context";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../core/errors";
 import { UPLOAD_EXPIRED, assertUploaded, syncAttachments } from "../attachment/attachment.service";
+import { diffViews, recordChanges } from "../audit-log/audit-log.service";
+import type { AuditEntry } from "../audit-log/audit-log.service";
+import { csvImportTypeLabelOf } from "../audit-log/audit-views";
 
 import { uploaderOf } from "./csv-importer";
 import { CSV_IMPORTERS } from "./importers";
@@ -99,6 +104,22 @@ const enqueueAfterCommit =
   };
 
 /**
+ * The audit log's row of an import (docs/adr/0015-audit-log.md); the entities it writes are
+ * recorded by their own services, with the uploader as actor and this request's id.
+ */
+const csvImportAuditEntry = (
+  action: AuditAction,
+  csvImport: CsvImport,
+  changes: AuditChange[],
+): AuditEntry => ({
+  action,
+  entityType: "CsvImport",
+  entityId: csvImport.id,
+  entityLabel: csvImport.fileName,
+  changes,
+});
+
+/**
  * Starts the import of an uploaded CSV (`attachment.createUploadUrl`, kind CSV_IMPORT): the import
  * row and the file's attachment in one transaction, the check job after commit.
  */
@@ -125,6 +146,16 @@ export const create = async (
       owner: { csvImportId: csvImport.id },
       ids: [input.attachmentId],
     });
+    await recordChanges(ctx, transaction.tx, [
+      csvImportAuditEntry(
+        "csvImport.create",
+        csvImport,
+        diffViews(null, {
+          type: csvImportTypeLabelOf(csvImport.type),
+          fileName: csvImport.fileName,
+        }),
+      ),
+    ]);
     transaction.afterCommit(
       enqueueAfterCommit(
         ctx,
@@ -168,6 +199,11 @@ export const confirm = async (
     if (!confirmed) {
       throw new NotFoundError("CsvImport", csvImport.id);
     }
+    await recordChanges(ctx, tx, [
+      csvImportAuditEntry("csvImport.confirm", confirmed, [
+        { field: "selectedCount", before: null, after: String(selected) },
+      ]),
+    ]);
     return confirmed;
   });
 };

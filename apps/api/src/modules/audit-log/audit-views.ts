@@ -6,6 +6,7 @@ import type {
   UserWithProfile,
 } from "@repo/database";
 import {
+  AUDIT_ENTITY_TYPES,
   BRANCH_EXPORT_FIELDS,
   CLIENT_EXPORT_FIELDS,
   ROLE_LABELS,
@@ -14,6 +15,7 @@ import {
   USER_EXPORT_FIELDS,
   roleSchema,
 } from "@repo/validation";
+import type { AuditEntityType, CsvExportType, CsvImportType } from "@repo/validation";
 
 import {
   BRANCH_CELLS,
@@ -122,3 +124,33 @@ export const branchLabelOf = (branch: {
   name: string;
   client: { number: number };
 }): string => `${String(branch.client.number)}-${String(branch.number)} ${branch.name}`;
+
+/** The entity a CSV download is of. */
+const CSV_EXPORT_ENTITIES: Record<CsvExportType, AuditEntityType> = {
+  USER: "User",
+  STAFF: "Staff",
+  CLIENT: "Client",
+  BRANCH: "Branch",
+};
+
+/** What a CSV import does, to which entity. */
+const CSV_IMPORT_KINDS: Record<CsvImportType, readonly [CsvExportType, string]> = {
+  USER_CREATE: ["USER", "追加"],
+  USER_UPDATE: ["USER", "更新"],
+  STAFF_CREATE: ["STAFF", "追加"],
+  STAFF_UPDATE: ["STAFF", "更新"],
+  CLIENT_CREATE: ["CLIENT", "追加"],
+  CLIENT_UPDATE: ["CLIENT", "更新"],
+  BRANCH_CREATE: ["BRANCH", "追加"],
+  BRANCH_UPDATE: ["BRANCH", "更新"],
+};
+
+/** A CSV download's type in words: the entity's name (`STAFF` → スタッフ). */
+export const csvExportTypeLabelOf = (type: CsvExportType): string =>
+  AUDIT_ENTITY_TYPES[CSV_EXPORT_ENTITIES[type]];
+
+/** A CSV import's type in words: the entity's name and what it does (`STAFF_UPDATE` → スタッフ 更新). */
+export const csvImportTypeLabelOf = (type: CsvImportType): string => {
+  const [entity, verb] = CSV_IMPORT_KINDS[type];
+  return `${csvExportTypeLabelOf(entity)} ${verb}`;
+};
