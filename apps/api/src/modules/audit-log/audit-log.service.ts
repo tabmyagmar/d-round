@@ -1,11 +1,28 @@
 import type { AuthAuditEvent } from "@repo/auth";
 import { createAuditLogRepository, createUserRepository } from "@repo/database";
-import type { AuditLogData, DbClient } from "@repo/database";
+import type {
+  AuditLog,
+  AuditLogData,
+  AuditLogHistoryPage,
+  AuditLogListItem,
+  DbClient,
+  PageResult,
+  Prisma,
+} from "@repo/database";
+import { TIME_ZONE, dayjs } from "@repo/dayjs";
 import type { Logger } from "@repo/logger";
-import { AUDIT_ACTIONS, isAuditAction } from "@repo/validation";
-import type { AuditAction, AuditChange, AuditEntityType } from "@repo/validation";
+import { canUnscoped } from "@repo/permissions/server";
+import { AUDIT_ACTIONS, AUDIT_HISTORY_PAGE_SIZE, isAuditAction } from "@repo/validation";
+import type {
+  AuditAction,
+  AuditChange,
+  AuditEntityType,
+  AuditLogHistoryInput,
+  ListAuditLogsQuery,
+} from "@repo/validation";
 
 import type { RequestContext } from "../../core/context";
+import { ForbiddenError, NotFoundError } from "../../core/errors";
 
 /**
  * アクセスログ (docs/adr/0015-audit-log.md). A write records the entities it changed inside its own
@@ -161,4 +178,77 @@ export const recordAuthEvent = async (
   } catch (error) {
     deps.logger.error({ err: error, action: event.action }, "audit log row not written");
   }
+};
+
+/**
+ * Reading the log needs `read AuditLog` (catalog row 1502: super_admin and admin) for every row:
+ * there is no row rule, and the history of an entity shows its actors, addresses and failures.
+ */
+const assertMayRead = (ctx: RequestContext): void => {
+  if (!canUnscoped(ctx.ability, "read", "AuditLog")) {
+    throw new ForbiddenError("Not allowed to read the audit log");
+  }
+};
+
+/** A day of the period filter, in Japan: its first moment, and the first of the next day. */
+const dayStart = (isoDay: string): Date => dayjs.tz(isoDay, TIME_ZONE).toDate();
+const nextDayStart = (isoDay: string): Date => dayjs.tz(isoDay, TIME_ZONE).add(1, "day").toDate();
+
+/** 「アクセスログ管理」: the rows the search and the filters match, newest first, without changes. */
+export const list = async (
+  ctx: RequestContext,
+  query: ListAuditLogsQuery,
+): Promise<PageResult<AuditLogListItem>> => {
+  assertMayRead(ctx);
+  const filters: Prisma.AuditLogWhereInput[] = [];
+  if (query.search) {
+    filters.push({
+      OR: [
+        { actorName: { contains: query.search } },
+        { actorEmail: { contains: query.search, mode: "insensitive" } },
+        { entityLabel: { contains: query.search } },
+      ],
+    });
+  }
+  if (query.actions?.length) {
+    filters.push({ action: { in: query.actions } });
+  }
+  if (query.entityTypes?.length) {
+    filters.push({ entityType: { in: query.entityTypes } });
+  }
+  if (query.statuses?.length) {
+    filters.push({ status: { in: query.statuses } });
+  }
+  if (query.from) {
+    filters.push({ createdAt: { gte: dayStart(query.from) } });
+  }
+  if (query.to) {
+    filters.push({ createdAt: { lt: nextDayStart(query.to) } });
+  }
+  return createAuditLogRepository(ctx.db).findPage(
+    { page: query.page, perPage: query.perPage },
+    { AND: filters },
+  );
+};
+
+/** One row with its changed fields (the list's detail). */
+export const getById = async (ctx: RequestContext, auditLogId: string): Promise<AuditLog> => {
+  assertMayRead(ctx);
+  const row = await createAuditLogRepository(ctx.db).findById(auditLogId);
+  if (!row) {
+    throw new NotFoundError("AuditLog", auditLogId);
+  }
+  return row;
+};
+
+/** An entity's 「変更履歴」: its rows newest first, `AUDIT_HISTORY_PAGE_SIZE` at a time. */
+export const history = async (
+  ctx: RequestContext,
+  input: AuditLogHistoryInput,
+): Promise<AuditLogHistoryPage> => {
+  assertMayRead(ctx);
+  return createAuditLogRepository(ctx.db).findHistory(
+    { entityType: input.entityType, entityId: input.entityId },
+    { cursor: input.cursor, take: AUDIT_HISTORY_PAGE_SIZE },
+  );
 };

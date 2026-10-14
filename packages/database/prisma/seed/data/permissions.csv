@@ -23,7 +23,7 @@ key,name,nameJp,parentKey,action,subject,modelName,visible,super_admin,admin,man
 1402,Csv download,CSVダウンロード,1400,read,Source_csv,SourceCsvHistory,1,1,1,1,0
 1500,AuditLog,アクセスログ,,all,Admin_Log,AuditLog,1,0,0,0,0
 1502,AuditLog read,アクセスログの閲覧,1500,read,Admin_Log,AuditLog,1,1,1,0,0
-1504,AuditLog delete,アクセスログの削除,1500,delete,Admin_Log,AuditLog,1,1,1,0,0
+1504,AuditLog delete,アクセスログの削除,1500,delete,Admin_Log,AuditLog,0,0,0,0,0
 1600,WorkflowTemplate,ワークフロー書式・経路管理,,all,Admin_Workflow_Template,WorkflowTemplate,1,0,0,0,0
 1601,Workflow template create,ワークフロー申請書書式作成,1600,create,Admin_Workflow_Template,WorkflowTemplate,1,1,1,0,0
 1602,Workflow template read,ワークフロー申請書書式一覧閲覧,1600,read,Admin_Workflow_Template,WorkflowTemplate,1,1,1,0,0

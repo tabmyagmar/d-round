@@ -94,24 +94,28 @@ describe("seedPermissions", () => {
       modelName: "User",
       visible: true,
     });
-    expect(permissions.filter((permission) => !permission.visible)).toEqual([]);
+    // The audit log is append-only (ADR 0015): its legacy delete row is hidden and granted to nobody.
+    expect(
+      permissions.filter((permission) => !permission.visible).map((permission) => permission.key),
+    ).toEqual(["1504"]);
   });
 
   it("grants each role exactly the permissions flagged in its CSV column", async () => {
     await seedRolesAndPermissions();
 
-    expect(await prisma.rolePermission.count()).toBe(88);
+    expect(await prisma.rolePermission.count()).toBe(86);
     const grants = await findGrants();
     const perRole: Record<string, number> = {};
     for (const { roleKey } of grants) {
       perRole[roleKey] = (perRole[roleKey] ?? 0) + 1;
     }
-    expect(perRole).toEqual({ super_admin: 35, admin: 35, manager: 10, am: 8 });
+    expect(perRole).toEqual({ super_admin: 34, admin: 34, manager: 10, am: 8 });
     expect(await rolesGranted("1202")).toEqual(["admin", "am", "manager", "super_admin"]);
     expect(await rolesGranted("1101")).toEqual(["admin", "super_admin"]);
     expect(await rolesGranted("1106")).toEqual(["admin", "super_admin"]);
     expect(await rolesGranted("1100")).toEqual([]);
     expect(await rolesGranted("1401")).toEqual(["admin", "manager", "super_admin"]);
+    expect(await rolesGranted("1504")).toEqual([]);
   });
 
   it("syncs role grants to the CSV: removes a stale grant and restores a missing one", async () => {
@@ -126,7 +130,7 @@ describe("seedPermissions", () => {
     expect(summary).toEqual({ ...UNCHANGED, grants: { created: 1, deleted: 1 } });
     expect(await grantOf("am", "1101")).toBeNull();
     expect(await grantOf("manager", "1202")).not.toBeNull();
-    expect(await prisma.rolePermission.count()).toBe(88);
+    expect(await prisma.rolePermission.count()).toBe(86);
   });
 
   it("never touches a user's own permission grants", async () => {

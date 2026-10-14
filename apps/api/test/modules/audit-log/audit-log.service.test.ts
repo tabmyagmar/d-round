@@ -1,11 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createPrismaClient, withTransaction } from "@repo/database";
+import { createAuditLogRepository, createPrismaClient, withTransaction } from "@repo/database";
+import type { AuditLogData } from "@repo/database";
+import { listAuditLogsSchema } from "@repo/validation";
+import type { ListAuditLogsInput } from "@repo/validation";
 
 import { buildJobContext } from "../../../src/core/context";
+import { ForbiddenError, NotFoundError } from "../../../src/core/errors";
 import {
   AUDIT_VALUE_MAX_LENGTH,
   diffViews,
+  getById,
+  history,
+  list,
   recordChanges,
   recordFailure,
 } from "../../../src/modules/audit-log/audit-log.service";
@@ -184,5 +191,111 @@ describe("recordFailure", () => {
     } finally {
       await unreachable.$disconnect();
     }
+  });
+});
+
+describe("reading the log", () => {
+  const adminContext = async () =>
+    contextFor(h, (await signedInUser(h, { role: "admin" })).headers);
+
+  /** A row of a test-unique actor, so a search finds only this test's rows. */
+  const rowOf = (actorName: string, data: Partial<AuditLogData>): AuditLogData => ({
+    actorType: "USER",
+    actorName,
+    action: "client.update",
+    entityType: "Client",
+    status: "SUCCESS",
+    ...data,
+  });
+
+  it("lists what the search and the filters match, newest first, a period's days in Japan", async () => {
+    const ctx = await adminContext();
+    const marker = `監査-${crypto.randomUUID()}`;
+    await createAuditLogRepository(h.db).createMany([
+      // 2026-10-14 00:30, 2026-10-13 23:30 and 2026-10-14 23:59 in Japan.
+      rowOf(marker, { entityLabel: "A", createdAt: new Date("2026-10-13T15:30:00Z") }),
+      rowOf(marker, {
+        entityLabel: "B",
+        action: "client.create",
+        status: "FAILURE",
+        errorCode: "FORBIDDEN",
+        createdAt: new Date("2026-10-13T14:30:00Z"),
+      }),
+      rowOf(marker, {
+        entityLabel: "C",
+        action: "staff.update",
+        entityType: "Staff",
+        createdAt: new Date("2026-10-14T14:59:00Z"),
+      }),
+    ]);
+    const labelsOf = async (query: Omit<ListAuditLogsInput, "search">) =>
+      (await list(ctx, listAuditLogsSchema.parse({ search: marker, ...query }))).items.map(
+        (row) => row.entityLabel,
+      );
+
+    expect(await labelsOf({})).toEqual(["C", "A", "B"]);
+    expect(await labelsOf({ actions: ["client.update", "client.create"] })).toEqual(["A", "B"]);
+    expect(await labelsOf({ entityTypes: ["Staff"] })).toEqual(["C"]);
+    expect(await labelsOf({ statuses: ["FAILURE"] })).toEqual(["B"]);
+    expect(await labelsOf({ from: "2026-10-14", to: "2026-10-14" })).toEqual(["C", "A"]);
+    expect(await labelsOf({ to: "2026-10-13" })).toEqual(["B"]);
+    const page = await list(ctx, listAuditLogsSchema.parse({ search: marker }));
+    expect(page.total).toBe(3);
+    expect(page.items.every((row) => !("changes" in row))).toBe(true);
+  });
+
+  it("searches the actor's email whatever its case, and what the target is called", async () => {
+    const ctx = await adminContext();
+    const local = `kansa-${crypto.randomUUID()}`;
+    const label = `対象-${crypto.randomUUID()}`;
+    await createAuditLogRepository(h.db).createMany([
+      rowOf("監査 太郎", { actorEmail: `${local}@Example.com` }),
+      rowOf("監査 太郎", { entityLabel: label }),
+    ]);
+
+    const search = async (text: string) =>
+      (await list(ctx, listAuditLogsSchema.parse({ search: text }))).total;
+    expect(await search(local.toUpperCase())).toBe(1);
+    expect(await search(label)).toBe(1);
+  });
+
+  it("reads one row with its changes, and an entity's history by cursor", async () => {
+    const ctx = await adminContext();
+    const entityId = crypto.randomUUID();
+    const repo = createAuditLogRepository(h.db);
+    const first = await repo.create(
+      rowOf("監査", {
+        entityId,
+        changes: [{ field: "name", before: "旧", after: "新" }],
+        createdAt: new Date(Date.now() - 60_000),
+      }),
+    );
+    // Twenty newer rows, all in one moment: the cursor must page them by id as well.
+    const now = new Date();
+    await repo.createMany(
+      Array.from({ length: 20 }, () => rowOf("監査", { entityId, createdAt: now })),
+    );
+
+    expect((await getById(ctx, first.id)).changes).toEqual([
+      { field: "name", before: "旧", after: "新" },
+    ]);
+    await expect(getById(ctx, crypto.randomUUID())).rejects.toBeInstanceOf(NotFoundError);
+    const page = await history(ctx, { entityType: "Client", entityId });
+    expect(page.items).toHaveLength(20);
+    const rest = await history(ctx, { entityType: "Client", entityId, cursor: page.nextCursor });
+    expect(rest.items.map((row) => row.id)).toEqual([first.id]);
+    expect(rest.nextCursor).toBeNull();
+  });
+
+  it("refuses every read to a role without the grant", async () => {
+    const manager = await contextFor(h, (await signedInUser(h, { role: "manager" })).headers);
+
+    await expect(list(manager, listAuditLogsSchema.parse({}))).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    await expect(getById(manager, crypto.randomUUID())).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(
+      history(manager, { entityType: "Client", entityId: crypto.randomUUID() }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 });

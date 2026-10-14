@@ -94,6 +94,10 @@ rows minus its `DENY` rows. What each role gets is `permissions.csv`
 | `manager`              | self (`read`/`update`) only     | `read`                  | Workflow all five; SourceCsvHistory `create`, `read`   |
 | `am`                   | self (`read`/`update`) only     | `read`                  | Workflow all five                                      |
 
+The audit log (ADR 0015) is read only: `read AuditLog` (row 1502) lists every row and shows
+the 変更履歴 of an entity; the legacy delete (row 1504) stays in the catalog, hidden (`visible = 0`)
+and granted to nobody, and no procedure deletes a row.
+
 An anonymous visitor (`defineAbilityFor(null)`) can do nothing. A scoped role (for example a team
 lead who reads their own team) is one `can("read", "User", { teamId: user.teamId })` after the grant
 loop (equality condition on a subject attribute) plus a spec row. Changing who may do what is a CSV

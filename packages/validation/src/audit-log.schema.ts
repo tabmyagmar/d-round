@@ -1,3 +1,6 @@
+import { z } from "zod";
+
+import { idSchema, paginationSchema } from "./common.schema";
 import {
   BRANCH_EXPORT_FIELDS,
   CLIENT_EXPORT_FIELDS,
@@ -157,3 +160,39 @@ export const auditFieldLabel = (entityType: string | null, key: string): string 
 /** The keys of an entity type's masked fields, as the API's `diffViews` takes them. */
 export const maskedAuditFields = (entityType: AuditEntityType): ReadonlySet<string> =>
   new Set(AUDIT_FIELDS[entityType].filter((field) => field.masked).map((field) => field.key));
+
+/** A row's outcome, as the list shows it. */
+export const AUDIT_STATUSES = ["SUCCESS", "FAILURE"] as const;
+export const auditStatusSchema = z.enum(AUDIT_STATUSES);
+export type AuditLogStatus = z.infer<typeof auditStatusSchema>;
+
+export const AUDIT_STATUS_LABELS: Record<AuditLogStatus, string> = {
+  SUCCESS: "成功",
+  FAILURE: "エラー",
+};
+
+/** 「アクセスログ管理」's query: the search, the filters (a period in days in Japan) and the page. */
+export const listAuditLogsSchema = paginationSchema.extend({
+  /** 担当者名, メールアドレス or 対象. */
+  search: z.string().trim().min(1).max(100).optional(),
+  actions: z.array(z.string().refine(isAuditAction)).optional(),
+  entityTypes: z.array(z.string().refine(isAuditEntityType)).optional(),
+  statuses: z.array(auditStatusSchema).optional(),
+  from: z.iso.date().optional(),
+  to: z.iso.date().optional(),
+});
+export type ListAuditLogsInput = z.input<typeof listAuditLogsSchema>;
+export type ListAuditLogsQuery = z.output<typeof listAuditLogsSchema>;
+
+export const auditLogIdSchema = z.object({ auditLogId: idSchema });
+
+/** The rows an entity's 「変更履歴」 shows at a time (もっと見る for the next). */
+export const AUDIT_HISTORY_PAGE_SIZE = 20;
+
+/** One entity's 「変更履歴」, after the row `cursor` names (React Query's infinite query sets it). */
+export const auditLogHistorySchema = z.object({
+  entityType: z.string().refine(isAuditEntityType),
+  entityId: idSchema,
+  cursor: idSchema.nullish(),
+});
+export type AuditLogHistoryInput = z.infer<typeof auditLogHistorySchema>;

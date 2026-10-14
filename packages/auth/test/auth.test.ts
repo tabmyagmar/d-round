@@ -260,10 +260,11 @@ describe("session permissions (customSession)", () => {
     expect(session?.user.permissions).toHaveLength(9);
   });
 
-  it("carries every catalog grant (35) for a super_admin", async () => {
+  it("carries every catalog grant (34) for a super_admin", async () => {
     const { cookie } = await signedInAs("super_admin");
     const expected = await roleGrants("super_admin");
-    expect(expected).toHaveLength(35);
+    // Every child row but the audit log's delete, granted to nobody (ADR 0015).
+    expect(expected).toHaveLength(34);
 
     const session = await sessionWithCookie(cookie);
     expect(session?.user.permissions).toEqual(expected);
