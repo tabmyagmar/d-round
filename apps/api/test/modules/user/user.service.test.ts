@@ -941,11 +941,18 @@ describe("担当者 profile (ADR 0007)", () => {
   it("offers every active user but the super_admins when no region is given, profile or not", async () => {
     const admin = await signedInUser(h, { role: "admin" });
     const ctx = await contextFor(h, admin.headers);
-    const east = await signedInUser(h, { profile: { regionCodes: [4] } });
-    const west = await signedInUser(h, { profile: { regionCodes: [7] } });
-    const noProfile = await signedInUser(h);
-    const superAdmin = await signedInUser(h, { role: "super_admin" });
-    const gone = await signedInUser(h);
+    // First in the kana order, so the CHARGER_OPTIONS_MAX cap never hides them, however many users
+    // the files before this one made in the shared database.
+    const first = async (options: Parameters<typeof signedInUser>[1] = {}) => {
+      const signedIn = await signedInUser(h, options);
+      await h.db.user.update({ where: { id: signedIn.user.id }, data: { lastNameKana: "アアア" } });
+      return signedIn;
+    };
+    const east = await first({ profile: { regionCodes: [4] } });
+    const west = await first({ profile: { regionCodes: [7] } });
+    const noProfile = await first();
+    const superAdmin = await first({ role: "super_admin" });
+    const gone = await first();
     await h.db.user.update({ where: { id: gone.user.id }, data: { deletedAt: new Date() } });
 
     const ids = new Set((await userService.chargerOptions(ctx, {})).map((option) => option.id));

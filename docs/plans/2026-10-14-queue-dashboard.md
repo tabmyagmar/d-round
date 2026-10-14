@@ -76,3 +76,23 @@ shutdown's `redis.quit()` ends them; `index.ts` does not change.
   - NIT HEAD got 405 → GET and HEAD pass, the 405 carries `Allow: GET, HEAD`; NIT the ADR names the
     runtime `bullmq` load; NIT an admin write is tested (404). Declined: moving the test file's doc
     comment off `let h` — `test/app.test.ts` has the same shape.
+- 2026-10-14 verifier on `a10ff21`: PASS, fresh (`--cache=local:,remote:`), 43/43, 1544 tests.
+  Review round 2 (reviewer subagent): every round-1 finding resolved, 0 BLOCKER / 1 SHOULD / 0 NIT —
+  the Redis-error test cleaned up only on success and quit the connection without `waitForRedis`.
+  Fixed in the third commit: `waitForRedis`, the cleanup in `finally` (the repo's idiom,
+  `test/modules/user/user.service.test.ts`). Follow-up outside this MR (reviewer): the API's own
+  producer queues in `index.ts` have no `error` listener either, so BullMQ prints a Redis error once
+  per queue to the console.
+- 2026-10-14 security review (general-purpose subagent; the `/security-review` skill needs
+  `origin/HEAD`, unset here, and its base would not be the local develop): no HIGH or MEDIUM finding
+  in `aca8099..a10ff21` — 21 paths × 7 methods probed in process against the real adapter tree, all
+  gated; serveStatic rejects traversal; EJS and the UI escape job data; ID-only payloads. Outside
+  the diff (for the user): an `admin` may call Better Auth's `POST /api/auth/admin/set-role` on
+  itself and become `super_admin` (`packages/auth/src/access-control.ts` gives admin
+  `user:set-role`).
+- 2026-10-14 verify of the round-2 fix failed once: `user.service.test.ts` "offers every active user
+  but the super_admins …" missed its users. `chargerOptions` returns the first `CHARGER_OPTIONS_MAX`
+  (200) users in kana order; the test's users have no kana and random ids, and the files share one
+  database, so when the file runs late (23rd that time) more than 200 users sort before them — this
+  MR's admin fixture adds one. **Amendment**: a test-only fix in its own commit gives those users
+  the kana `アアア`, so they sort first; verify 43/43 again.
