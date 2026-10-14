@@ -1,5 +1,7 @@
-import { createAuditLogRepository } from "@repo/database";
+import type { AuthAuditEvent } from "@repo/auth";
+import { createAuditLogRepository, createUserRepository } from "@repo/database";
 import type { AuditLogData, DbClient } from "@repo/database";
+import type { Logger } from "@repo/logger";
 import { AUDIT_ACTIONS, isAuditAction } from "@repo/validation";
 import type { AuditAction, AuditChange, AuditEntityType } from "@repo/validation";
 
@@ -7,9 +9,9 @@ import type { RequestContext } from "../../core/context";
 
 /**
  * アクセスログ (docs/adr/0015-audit-log.md). A write records the entities it changed inside its own
- * transaction (`recordChanges`), so a change commits with its row or not at all. A failed mutation is
- * recorded outside the transaction that rolled back (`recordFailure`), and never fails what it
- * records.
+ * transaction (`recordChanges`), so a change commits with its row or not at all. A failed mutation
+ * (`recordFailure`) and a Better Auth event (`recordAuthEvent`) are recorded outside any transaction,
+ * and never fail what they record.
  */
 
 /** An entity as the log shows it: field key → the value as the screens display it ("" for none). */
@@ -114,5 +116,49 @@ export const recordFailure = async (
     });
   } catch (error) {
     ctx.logger.error({ err: error, action, errorCode }, "audit log row not written");
+  }
+};
+
+/** What recording a Better Auth event needs: it runs outside any request context. */
+export type AuthEventDeps = { db: DbClient; logger: Logger };
+
+/** An `/admin/*` call's changes: the endpoint and, for a role change, the role it gives. */
+const adminChangesOf = (event: AuthAuditEvent): AuditChange[] => [
+  { field: "endpoint", before: null, after: event.endpoint },
+  ...(event.role === null ? [] : [{ field: "role", before: null, after: event.role }]),
+];
+
+/**
+ * Records a sign-in, sign-out, password or admin-endpoint event (`createAuth`'s `onAuthEvent`). The
+ * target is the user the event concerns: the actor, or the user an admin endpoint acted on. Never
+ * throws.
+ */
+export const recordAuthEvent = async (
+  deps: AuthEventDeps,
+  event: AuthAuditEvent,
+): Promise<void> => {
+  try {
+    const target = event.targetUserId
+      ? await createUserRepository(deps.db).findByIdIncludingDeleted(event.targetUserId)
+      : null;
+    await createAuditLogRepository(deps.db).create({
+      actorType: event.user ? "USER" : "ANONYMOUS",
+      actorId: event.user?.id ?? null,
+      actorName: event.user?.name ?? null,
+      actorEmail: event.user?.email ?? event.email,
+      actorRole: event.user?.role ?? null,
+      action: event.action,
+      entityType: "User",
+      entityId: event.targetUserId ?? event.user?.id ?? null,
+      entityLabel: target?.name ?? event.user?.name ?? event.email,
+      status: event.status,
+      errorCode: event.errorCode,
+      ...(event.action === "auth.admin" ? { changes: adminChangesOf(event) } : {}),
+      requestId: event.requestId,
+      ipAddress: event.ipAddress,
+      userAgent: event.userAgent?.slice(0, USER_AGENT_MAX_LENGTH) ?? null,
+    });
+  } catch (error) {
+    deps.logger.error({ err: error, action: event.action }, "audit log row not written");
   }
 };

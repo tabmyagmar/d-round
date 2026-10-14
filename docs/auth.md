@@ -135,6 +135,27 @@ error says to complete the user on the edit page and re-send the invitation.
 | `/api/auth/sign-in/*`              | 10 attempts per minute | 429 with `Retry-After`, blocked for 60 s   |
 | `/api/auth/request-password-reset` | 5 requests per 15 min  | 429 with `Retry-After`, blocked for 15 min |
 
+## The audit log
+
+Better Auth's events reach the アクセスログ (`docs/adr/0015-audit-log.md`) through `createAuth`'s
+`onAuthEvent`, which the API wires to `recordAuthEvent` (`apps/api/src/jobs/app-auth.ts`):
+
+| Event                           | Recorded by                                                            | Actor                                                  |
+| ------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------ |
+| sign-in, refused or not         | `hooks.after` on `/sign-in/email`                                      | the new session's user, or the typed address           |
+| sign-out                        | `hooks.before` on `/sign-out` (the endpoint deletes the session first) | the session's user                                     |
+| password change, refused or not | `hooks.after` on `/change-password`                                    | the session's user                                     |
+| forgotten password              | `hooks.after` on `/request-password-reset`                             | the typed address                                      |
+| password set from a mailed link | `onPasswordReset`; a refused link by `hooks.after`                     | the link's user                                        |
+| any POST to `/api/auth/admin/*` | `hooks.after`                                                          | the session's user; the target user and the role given |
+
+Only requests that came over HTTP are recorded: a service calling `auth.api.*` on the server
+(`user.invite`, `user.sendPasswordReset`) records its own action. No password, token or body is read
+beyond the typed address, `userId` and `role`. A recorder that fails is logged and never changes
+Better Auth's answer. The API hands Better Auth every request with `x-client-ip` (`clientIp`, the
+rate limiter's rule) and `x-request-id`, overwriting what the client sent; Better Auth reads the
+address from `x-client-ip` for its `sessions` rows as well (`advanced.ipAddress.ipAddressHeaders`).
+
 ## Known gaps
 
 Facts about today's code, not decisions; each would be its own ticket.

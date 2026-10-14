@@ -1,8 +1,11 @@
 import { trpcServer } from "@hono/trpc-server";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
 import type { RateLimiterAbstract } from "rate-limiter-flexible";
+
+import { CLIENT_IP_HEADER } from "@repo/auth";
 
 import { REQUEST_ID_HEADER, buildRequestContext } from "./core/context";
 import type { ContextDeps } from "./core/context";
@@ -31,6 +34,18 @@ export type AppDeps = ContextDeps & {
 };
 
 export type App = Hono<{ Variables: AppVariables }>;
+
+/**
+ * The request Better Auth gets: the client's address (`clientIp`, the rate limiter's rule) and the
+ * request id in headers the API sets itself, overwriting whatever the client sent — Better Auth's
+ * `sessions` rows and the audit log read them (ADR 0015).
+ */
+const authRequestOf = (c: Context<{ Variables: AppVariables }>): Request => {
+  const headers = new Headers(c.req.raw.headers);
+  headers.set(CLIENT_IP_HEADER, clientIp(c));
+  headers.set(REQUEST_ID_HEADER, c.get("requestId"));
+  return new Request(c.req.raw, { headers });
+};
 
 /**
  * HTTP composition root. Transports are mounted side by side: /api/auth (Better Auth) and
@@ -64,7 +79,7 @@ export const createApp = (deps: AppDeps): App => {
   // (they send mail) are rate limited per IP.
   app.use("/api/auth/sign-in/*", rateLimit(signInLimiter));
   app.use("/api/auth/request-password-reset", rateLimit(passwordResetLimiter));
-  app.on(["GET", "POST"], "/api/auth/*", (c) => deps.auth.handler(c.req.raw));
+  app.on(["GET", "POST"], "/api/auth/*", (c) => deps.auth.handler(authRequestOf(c)));
 
   app.use(
     "/trpc/*",

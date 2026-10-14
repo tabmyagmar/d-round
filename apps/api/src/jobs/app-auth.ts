@@ -4,6 +4,7 @@ import type { PrismaClient } from "@repo/database";
 import type { Logger } from "@repo/logger";
 import type { EmailQueue } from "@repo/queue";
 
+import { recordAuthEvent } from "../modules/audit-log/audit-log.service";
 import { createAuthEmailSenders } from "../modules/email/auth-emails";
 
 export type AppAuthOptions = {
@@ -37,4 +38,6 @@ export const createAppAuth = (options: AppAuthOptions): Auth =>
       emailQueue: options.emailQueue,
       logger: options.logger,
     }),
+    // Sign-in, sign-out, password and admin-endpoint events go to the audit log (ADR 0015).
+    onAuthEvent: (event) => recordAuthEvent({ db: options.db, logger: options.logger }, event),
   });
