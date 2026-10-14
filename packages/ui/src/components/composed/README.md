@@ -9,7 +9,8 @@ Domain-free components built from the shadcn primitives one level up, for every 
 - Lists: `ListToolbar`, `SearchInput`, `FilterPopover` (fields rendered only while open),
   `FilterTags`, `OptionSelect` (also the base of the form `SelectField`), `MultiOptionSelect` (the
   chips combobox, base of `MultiSelectField`), `CheckboxGroup` (base of `CheckboxGroupField`),
-  `RowActions`, `PaginationBar` (first / previous / pages / next / last and a page box).
+  `DateRangePicker` (a 期間 on the legacy calendar, base of `DateRangeField`), `RowActions`,
+  `PaginationBar` (first / previous / pages / next / last and a page box).
 - Pages: `StickyBar` (the action bar at the bottom of a page; holds a form's `FormActions`),
   `Stepper` (the steps of a multi-step form; `useStepper` in `../../hooks/` moves between them).
 - Dialogs: `ContentDialog` (the shell; body mounted only while open), `ConfirmDialog` on it (use

@@ -811,5 +811,5 @@ starts.
     queries, rare admin writes); an invitation reads the user back in its transaction.
   - T7: a status change runs in one transaction with its row; a status set to the one it had records
     a row without fields.
-  - T8: a CSV type is named from the entity's name (`担当者 追加`); the dashboard of downloads
-    re-sends are recorded when the button asks for the URL (an imperative query, no refetch).
+  - T8: a CSV type is named from the entity's name (`担当者 追加`); a re-download from 履歴 is
+    recorded when its button asks for the URL (an imperative query, never refetched).

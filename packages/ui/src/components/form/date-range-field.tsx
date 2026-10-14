@@ -1,16 +1,12 @@
 "use client";
 
-import { CalendarIcon, XIcon } from "lucide-react";
-import { useState } from "react";
 import type { DateRange, Locale, Matcher } from "react-day-picker";
 import type { FieldValues } from "react-hook-form";
 
-import { Button } from "../button";
-import { Popover, PopoverContent, PopoverTrigger } from "../popover";
+import { DateRangePicker } from "../composed/date-range-picker";
 
-import { compact, formatDate, toDate, toIsoDate } from "./date-utils";
+import { compact, toDate, toIsoDate } from "./date-utils";
 import type { DateLocale } from "./date-utils";
-import { FieldCalendar } from "./field-calendar";
 import { FormFieldShell } from "./form-field-shell";
 import type { BaseFieldProps } from "./types";
 import { useFormField } from "./use-form-field";
@@ -42,7 +38,7 @@ const readRange = (value: unknown): DateRange | undefined => {
   return { from: fromDate, to: toDate(to) };
 };
 
-/** Start/end date picker (期間). Stores `{ from, to }`. */
+/** Start/end date picker (期間) for a form: `DateRangePicker` storing `{ from, to }`. */
 export const DateRangeField = <TValues extends FieldValues>({
   control,
   name,
@@ -63,19 +59,6 @@ export const DateRangeField = <TValues extends FieldValues>({
   calendarLocale,
 }: DateRangeFieldProps<TValues>) => {
   const { ref, field, fieldState } = useFormField({ control, name, disabled });
-  const [open, setOpen] = useState(false);
-  const range = readRange(field.value);
-  const minDate = toDate(min);
-  const maxDate = toDate(max);
-  const disabledMatchers: Matcher[] = [
-    ...(minDate ? [{ before: minDate }] : []),
-    ...(maxDate ? [{ after: maxDate }] : []),
-    ...(disabledDays === undefined
-      ? []
-      : Array.isArray(disabledDays)
-        ? disabledDays
-        : [disabledDays]),
-  ];
 
   const convert = (date: Date | undefined) =>
     date ? (valueAs === "date" ? date : toIsoDate(date)) : null;
@@ -88,10 +71,6 @@ export const DateRangeField = <TValues extends FieldValues>({
     field.onChange({ from: convert(next.from), to: convert(next.to) });
   };
 
-  const text = range?.from
-    ? `${formatDate(range.from, locale)} 〜 ${range.to ? formatDate(range.to, locale) : ""}`
-    : placeholder;
-
   return (
     <FormFieldShell
       htmlFor={field.name}
@@ -102,61 +81,31 @@ export const DateRangeField = <TValues extends FieldValues>({
       error={fieldState.error}
       className={className}
     >
-      <div className="flex items-center gap-1">
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger
-            render={
-              <Button
-                id={field.name}
-                ref={ref}
-                type="button"
-                variant="outline"
-                className="w-full justify-between font-normal"
-                disabled={field.disabled}
-                aria-invalid={fieldState.invalid}
-                onBlur={field.onBlur}
-              />
-            }
-          >
-            <span className={range?.from ? undefined : "text-muted-foreground"}>{text}</span>
-            <CalendarIcon className="text-muted-foreground" />
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <FieldCalendar
-              mode="range"
-              onSelect={(next) => {
-                emit(next);
-                if (next?.from && next.to) {
-                  setOpen(false);
-                }
-              }}
-              numberOfMonths={numberOfMonths}
-              disabled={disabledMatchers}
-              {...compact({
-                selected: range,
-                defaultMonth: range?.from,
-                startMonth: minDate,
-                endMonth: maxDate,
-                locale: calendarLocale,
-              })}
-            />
-          </PopoverContent>
-        </Popover>
-        {nullable && range?.from ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Clear"
-            disabled={field.disabled}
-            onClick={() => {
-              emit(undefined);
-            }}
-          >
-            <XIcon />
-          </Button>
-        ) : null}
-      </div>
+      <DateRangePicker
+        id={field.name}
+        ref={ref}
+        value={readRange(field.value)}
+        onValueChange={emit}
+        placeholder={placeholder}
+        clearable={nullable}
+        invalid={fieldState.invalid}
+        onBlur={field.onBlur}
+        numberOfMonths={numberOfMonths}
+        disabledDays={
+          disabledDays === undefined
+            ? []
+            : Array.isArray(disabledDays)
+              ? disabledDays
+              : [disabledDays]
+        }
+        {...compact({
+          disabled: field.disabled,
+          min: toDate(min),
+          max: toDate(max),
+          locale,
+          calendarLocale,
+        })}
+      />
     </FormFieldShell>
   );
 };
