@@ -87,7 +87,8 @@ export const CsvHistoryDialog = ({
           <AlertDescription>{imports.error.message}</AlertDescription>
         </Alert>
       ) : (
-        <div className="max-h-[60vh] overflow-y-auto">
+        // One height for both lists and every page, so the dialog does not jump when they change.
+        <div className="max-h-[60vh] overflow-y-auto md:h-[60vh]">
           <CsvHistoryTable
             title={CSV_TYPE_CONTENT[type].historyTitle}
             data={imports.data?.items}

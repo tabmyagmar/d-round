@@ -57,7 +57,8 @@ export const CsvExportHistoryDialog = ({
           <AlertDescription>{exports.error.message}</AlertDescription>
         </Alert>
       ) : (
-        <div className="max-h-[60vh] overflow-y-auto">
+        // One height for every page, as 履歴 of the imports: the dialog does not jump.
+        <div className="max-h-[60vh] overflow-y-auto md:h-[60vh]">
           <CsvExportHistoryTable
             data={exports.data?.items}
             isLoading={exports.isPending}
