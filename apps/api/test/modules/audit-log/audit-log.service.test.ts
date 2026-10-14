@@ -127,6 +127,25 @@ describe("recordChanges", () => {
     expect(rows[0]?.changes).toEqual([]);
   });
 
+  it("keeps the client's address only when it is an IPv4 or IPv6 address", async () => {
+    const ctx = await contextFor(h, (await signedInUser(h, { role: "admin" })).headers);
+    const cases = [
+      ["203.0.113.9", "203.0.113.9"],
+      ["2001:db8::1", "2001:db8::1"],
+      ["<script>alert(1)</script>", null],
+    ] as const;
+
+    const kept = await Promise.all(
+      cases.map(async ([sent]) => {
+        const entityId = crypto.randomUUID();
+        await recordChanges({ ...ctx, ipAddress: sent }, h.db, [entryFor(entityId)]);
+        return (await h.db.auditLog.findFirstOrThrow({ where: { entityId } })).ipAddress;
+      }),
+    );
+
+    expect(kept).toEqual(cases.map(([, expected]) => expected));
+  });
+
   it("leaves no row when the write rolls back", async () => {
     const ctx = await contextFor(h, (await signedInUser(h, { role: "admin" })).headers);
     const entityId = crypto.randomUUID();

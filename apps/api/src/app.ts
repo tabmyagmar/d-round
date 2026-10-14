@@ -1,6 +1,7 @@
 import { trpcServer } from "@hono/trpc-server";
 import { Hono } from "hono";
 import type { Context } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
 import type { RateLimiterAbstract } from "rate-limiter-flexible";
@@ -34,6 +35,12 @@ export type AppDeps = ContextDeps & {
 };
 
 export type App = Hono<{ Variables: AppVariables }>;
+
+/**
+ * Better Auth's bodies are a few fields; a larger one is refused before Better Auth or its audit
+ * hooks read it (ADR 0015).
+ */
+const AUTH_BODY_MAX_BYTES = 64 * 1024;
 
 /**
  * The request Better Auth gets: the client's address (`clientIp`, the rate limiter's rule) and the
@@ -77,6 +84,13 @@ export const createApp = (deps: AppDeps): App => {
 
   // Better Auth owns everything below /api/auth; sign-in attempts and password reset requests
   // (they send mail) are rate limited per IP.
+  app.use(
+    "/api/auth/*",
+    bodyLimit({
+      maxSize: AUTH_BODY_MAX_BYTES,
+      onError: (c) => c.json({ error: "Payload too large", requestId: c.get("requestId") }, 413),
+    }),
+  );
   app.use("/api/auth/sign-in/*", rateLimit(signInLimiter));
   app.use("/api/auth/request-password-reset", rateLimit(passwordResetLimiter));
   app.on(["GET", "POST"], "/api/auth/*", (c) => deps.auth.handler(authRequestOf(c)));

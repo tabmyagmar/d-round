@@ -477,6 +477,28 @@ describe("Better Auth's events in the audit log (ADR 0015)", () => {
     );
   });
 
+  it("refuses a body over 64 KB before Better Auth or its hooks read it", async () => {
+    const response = await signIn(
+      `${"x".repeat(70 * 1024)}@example.com`,
+      TEST_PASSWORD,
+      "192.0.2.22",
+    );
+
+    expect(response.status).toBe(413);
+    expect(await rowsWhere({ ipAddress: "192.0.2.22" })).toEqual([]);
+  });
+
+  it("records no address when X-Forwarded-For holds something else", async () => {
+    const user = await verifiedUser("Forwarded");
+
+    const response = await signIn(user.email, TEST_PASSWORD, `not-an-address-${user.id}`);
+
+    expect(response.status).toBe(200);
+    expect(await rowsWhere({ actorId: user.id })).toEqual([
+      expect.objectContaining({ action: "auth.signIn", ipAddress: null }),
+    ]);
+  });
+
   it("records nothing for Better Auth calls a service makes on the server", async () => {
     const someone = await signedInUser(h);
 

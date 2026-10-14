@@ -156,7 +156,9 @@ beyond the typed address, `userId` and `role`, and each is kept only when it par
 into the address field is not stored. A recorder that fails is logged and never changes Better
 Auth's answer. The API hands Better Auth every request with `x-client-ip` (`clientIp`, the rate
 limiter's rule) and `x-request-id`, overwriting what the client sent; Better Auth reads the address
-from `x-client-ip` for its `sessions` rows as well (`advanced.ipAddress.ipAddressHeaders`).
+from `x-client-ip` for its `sessions` rows as well (`advanced.ipAddress.ipAddressHeaders`). A row
+keeps that address only when it is an IPv4 or IPv6 address (the client fills X-Forwarded-For), and
+the API refuses a body over 64 KB below `/api/auth` (413) before Better Auth or its hooks read it.
 
 ## Known gaps
 

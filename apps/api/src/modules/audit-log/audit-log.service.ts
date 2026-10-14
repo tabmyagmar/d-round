@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 import type { AuthAuditEvent } from "@repo/auth";
 import { createAuditLogRepository, createUserRepository } from "@repo/database";
 import type {
@@ -49,6 +51,13 @@ export const AUDIT_VALUE_MAX_LENGTH = 500;
 
 const USER_AGENT_MAX_LENGTH = 512;
 
+/**
+ * The client's address as a row keeps it: an IPv4 or IPv6 address, else nothing — the API reads it
+ * from X-Forwarded-For (`clientIp`), which the client may fill with any text.
+ */
+const ipAddressOf = (value: string | null): string | null =>
+  value !== null && isIP(value) !== 0 ? value : null;
+
 const valueOf = (value: string | undefined): string | null =>
   value === undefined || value === "" ? null : value;
 
@@ -98,7 +107,7 @@ const sourceOf = (ctx: RequestContext) =>
     actorEmail: ctx.user?.email ?? null,
     actorRole: ctx.user?.role ?? null,
     requestId: ctx.requestId,
-    ipAddress: ctx.ipAddress,
+    ipAddress: ipAddressOf(ctx.ipAddress),
     userAgent: ctx.userAgent?.slice(0, USER_AGENT_MAX_LENGTH) ?? null,
   }) satisfies Partial<AuditLogData>;
 
@@ -172,7 +181,7 @@ export const recordAuthEvent = async (
       errorCode: event.errorCode,
       ...(event.action === "auth.admin" ? { changes: adminChangesOf(event) } : {}),
       requestId: event.requestId,
-      ipAddress: event.ipAddress,
+      ipAddress: ipAddressOf(event.ipAddress),
       userAgent: event.userAgent?.slice(0, USER_AGENT_MAX_LENGTH) ?? null,
     });
   } catch (error) {
