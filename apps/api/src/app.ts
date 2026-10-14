@@ -7,6 +7,7 @@ import type { RateLimiterAbstract } from "rate-limiter-flexible";
 import { REQUEST_ID_HEADER, buildRequestContext } from "./core/context";
 import type { ContextDeps } from "./core/context";
 import { createHealthProbes } from "./health/probes";
+import { QUEUE_BOARD_PATH, createQueueBoard } from "./lib/queue-board";
 import {
   PASSWORD_RESET_RATE_LIMIT,
   SIGN_IN_RATE_LIMIT,
@@ -72,6 +73,9 @@ export const createApp = (deps: AppDeps): App => {
         buildRequestContext({ headers: c.req.raw.headers, requestId: c.get("requestId") }, deps),
     }),
   );
+
+  // The bull-board dashboard, opened in the browser by a super_admin (ADR 0014).
+  app.route(QUEUE_BOARD_PATH, createQueueBoard(deps));
 
   app.notFound((c) => c.json({ error: "Not found", requestId: c.get("requestId") }, 404));
 

@@ -564,6 +564,47 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bull-board/api@npm:9.10.4":
+  version: 9.10.4
+  resolution: "@bull-board/api@npm:9.10.4"
+  dependencies:
+    redis-info: "npm:^3.1.0"
+    valibot: "npm:^1.5.0"
+  peerDependencies:
+    "@bull-board/ui": 9.10.4
+    bull: ^4.16.5
+    bullmq: ^5.56.0 || ^6.0.0
+  peerDependenciesMeta:
+    bull:
+      optional: true
+    bullmq:
+      optional: true
+  checksum: 10c0/4604fcf880d6fc724141e8b1287f29d7787794f27f0d503e0bb4564d8a4c450f55fb13311c368424a5d142179bc41511096b4a8b9e04d5b561a84461de156d5b
+  languageName: node
+  linkType: hard
+
+"@bull-board/hono@npm:9.10.4":
+  version: 9.10.4
+  resolution: "@bull-board/hono@npm:9.10.4"
+  dependencies:
+    "@bull-board/api": "npm:9.10.4"
+    "@bull-board/ui": "npm:9.10.4"
+    ejs: "npm:^6.0.1"
+  peerDependencies:
+    hono: ^4
+  checksum: 10c0/e143ec0ff3d40ce3a2b2b63c5c5bf520c669899e2aad7ea61f202552cf5993bc0a96030baa10e9b464b7b1ca99eb8b03ffb9581c61bdf5a65a4926606a64ee00
+  languageName: node
+  linkType: hard
+
+"@bull-board/ui@npm:9.10.4":
+  version: 9.10.4
+  resolution: "@bull-board/ui@npm:9.10.4"
+  dependencies:
+    "@bull-board/api": "npm:9.10.4"
+  checksum: 10c0/96d040f0ed38e66172f53446f486f77b5e0072b54bdbb0da83fb9136f8812df9a95ff608614b31b50dc8abc4181fa8f2d9afbdab03e6660b82a5fb637acba05f
+  languageName: node
+  linkType: hard
+
 "@cacheable/memory@npm:^2.2.0":
   version: 2.2.0
   resolution: "@cacheable/memory@npm:2.2.0"
@@ -2651,6 +2692,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@repo/api@workspace:apps/api"
   dependencies:
+    "@bull-board/api": "npm:9.10.4"
+    "@bull-board/hono": "npm:9.10.4"
+    "@bull-board/ui": "npm:9.10.4"
     "@hono/node-server": "npm:2.1.1"
     "@hono/trpc-server": "npm:0.4.2"
     "@repo/auth": "workspace:*"
@@ -6171,6 +6215,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ejs@npm:^6.0.1":
+  version: 6.0.1
+  resolution: "ejs@npm:6.0.1"
+  bin:
+    ejs: bin/cli.js
+  checksum: 10c0/475665efdab9deb01448a0b136129d138483228520138b2fba7991330255e4e1050eae145124c26101ff1ab158bf5f506f19a8dae5996054fc7e76bb94a12ebd
+  languageName: node
+  linkType: hard
+
 "electron-to-chromium@npm:^1.5.420":
   version: 1.5.425
   resolution: "electron-to-chromium@npm:1.5.425"
@@ -8726,7 +8779,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lodash@npm:^4.17.15, lodash@npm:^4.17.21":
+"lodash@npm:^4.17.11, lodash@npm:^4.17.15, lodash@npm:^4.17.21":
   version: 4.18.1
   resolution: "lodash@npm:4.18.1"
   checksum: 10c0/757228fc68805c59789e82185135cf85f05d0b2d3d54631d680ca79ec21944ec8314d4533639a14b8bcfbd97a517e78960933041a5af17ecb693ec6eecb99a27
@@ -10390,6 +10443,15 @@ __metadata:
   version: 1.2.0
   resolution: "redis-errors@npm:1.2.0"
   checksum: 10c0/5b316736e9f532d91a35bff631335137a4f974927bb2fb42bf8c2f18879173a211787db8ac4c3fde8f75ed6233eb0888e55d52510b5620e30d69d7d719c8b8a7
+  languageName: node
+  linkType: hard
+
+"redis-info@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "redis-info@npm:3.1.0"
+  dependencies:
+    lodash: "npm:^4.17.11"
+  checksum: 10c0/ec0f31d97893c5828cec7166486d74198c92160c60073b6f2fe805cdf575a10ddcccc7641737d44b8f451355f0ab5b6c7b0d79e8fc24742b75dd625f91ffee38
   languageName: node
   linkType: hard
 
@@ -12114,6 +12176,18 @@ __metadata:
     typescript:
       optional: true
   checksum: 10c0/71b861de928fd5533b03fc4d84c619c07602f176d2bc6b12c5c80b2a6e889574c4126c843dd0771ce450bbb29566ca6df13d5b538ce5e4c39c2fccfb7623cf4e
+  languageName: node
+  linkType: hard
+
+"valibot@npm:^1.5.0":
+  version: 1.5.0
+  resolution: "valibot@npm:1.5.0"
+  peerDependencies:
+    typescript: ">=5"
+  peerDependenciesMeta:
+    typescript:
+      optional: true
+  checksum: 10c0/d49dab2b2fcbb477c894def73466de598b602859a47ab92b26d387c4d2a472cbfd4ef57b49eea91aeeff143c38f5a9523914dc5a73469ec93c7cfd4326eb5fbf
   languageName: node
   linkType: hard
 
