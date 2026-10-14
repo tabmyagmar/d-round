@@ -207,7 +207,9 @@ export const CsvImportDialog = ({
         }
       }}
       title={content.title}
-      className="sm:max-w-5xl"
+      // ファイル選択 as before; the lines from 内容確認 on get the room the 就業先部署 table needs to
+      // show its 説明欄 and ステータス without scrolling on a 1280 px screen.
+      className={csvImportId === null ? "sm:max-w-5xl" : "sm:max-w-[min(80rem,calc(100%-2rem))]"}
     >
       <Stepper
         steps={CSV_IMPORT_STEPS}

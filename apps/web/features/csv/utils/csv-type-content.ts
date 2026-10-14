@@ -88,7 +88,9 @@ const branchSummary = (verb: string): CsvSummaryColumn[] => [
     lines: [
       ["contactLastName", "contactFirstName"],
       ["contactLastNameKana", "contactFirstNameKana"],
-      ["contactPosition", "contactEmail"],
+      // 役職 and メール on lines of their own keep the column narrow, so 説明欄 stays in view.
+      ["contactPosition"],
+      ["contactEmail"],
     ],
   },
 ];

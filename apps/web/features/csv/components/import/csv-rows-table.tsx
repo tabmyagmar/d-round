@@ -48,7 +48,7 @@ const rowColumns = (summary: readonly CsvSummaryColumn[], { notesOf, badgeOf }: 
       id: "notes",
       header: "説明欄",
       cell: ({ row }) => (
-        <ul className="flex max-w-80 flex-col gap-0.5 text-xs whitespace-pre-line text-destructive">
+        <ul className="flex max-w-80 min-w-48 flex-col gap-0.5 text-xs whitespace-pre-line text-destructive">
           {notesOf(row.original).map((message) => (
             <li key={message}>{message}</li>
           ))}
