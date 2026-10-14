@@ -70,6 +70,7 @@ Then sign in at http://localhost:3000/login as `admin@test.com` / `A12345678` (o
 | Web          | http://localhost:3000          | `/login`, `/admin/workflow` (sidebar shell, landing) |
 | API          | http://localhost:4000/health   | Postgres and Redis probes; 200 `ok` / 503 `degraded` |
 | Auth         | http://localhost:4000/api/auth | Better Auth endpoints (used by the web app)          |
+| Queues       | http://localhost:4000/queues   | bull-board, read-only; sign in as super_admin first  |
 | Mailpit      | http://localhost:8025          | every outbox email lands here (SMTP on port 1025)    |
 | pgAdmin      | http://localhost:5050          | login `admin@example.com` / `admin` (from `.env`)    |
 | RedisInsight | http://localhost:5540          | optional: `docker compose --profile tools up -d`     |

@@ -108,6 +108,10 @@ with the grants is a follow-up (ADR 0003). The app does not use those endpoints 
 (row 1103) on the target row; both call Better Auth server-side, so the catalog and `DENY` rows
 decide.
 
+The queue dashboard at `/queues` (`apps/api/src/lib/queue-board.ts`, ADR 0014) is the other
+role-gated route: `super_admin` only, checked on the request context's `user.role`, no catalog row
+(admin holds the same grants, so CASL could not tell them apart). A `DENY` row does not affect it.
+
 Who may give which role is `assignableRoles(callerRole)` in `@repo/validation` (the legacy role
 picker: admin roles give admin / manager / AM, a manager gives manager / AM, an AM nothing;
 `super_admin` is never given in the app). The user service enforces it on `invite` (new role) and
