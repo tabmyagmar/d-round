@@ -241,6 +241,9 @@ export const getById = async (ctx: RequestContext, auditLogId: string): Promise<
   return row;
 };
 
+/** A 担当者's sign-ins and sign-outs change nothing: アクセスログ管理 lists them, the history not. */
+const NOT_CHANGES: readonly AuditAction[] = ["auth.signIn", "auth.signOut"];
+
 /** An entity's 「変更履歴」: its rows newest first, `AUDIT_HISTORY_PAGE_SIZE` at a time. */
 export const history = async (
   ctx: RequestContext,
@@ -248,7 +251,11 @@ export const history = async (
 ): Promise<AuditLogHistoryPage> => {
   assertMayRead(ctx);
   return createAuditLogRepository(ctx.db).findHistory(
-    { entityType: input.entityType, entityId: input.entityId },
+    {
+      entityType: input.entityType,
+      entityId: input.entityId,
+      action: { notIn: [...NOT_CHANGES] },
+    },
     { cursor: input.cursor, take: AUDIT_HISTORY_PAGE_SIZE },
   );
 };

@@ -276,6 +276,9 @@ describe("reading the log", () => {
       Array.from({ length: 20 }, () => rowOf("監査", { entityId, createdAt: now })),
     );
 
+    // A sign-in of the entity is in the log, not in its history.
+    await repo.create(rowOf("監査", { entityId, action: "auth.signIn", entityType: "Client" }));
+
     expect((await getById(ctx, first.id)).changes).toEqual([
       { field: "name", before: "旧", after: "新" },
     ]);

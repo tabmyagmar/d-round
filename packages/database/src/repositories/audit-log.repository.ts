@@ -66,13 +66,13 @@ export const createAuditLogRepository = (db: DbClient) => ({
     return buildPage(items, total, page);
   },
 
-  /** One entity's rows, newest first: `take` of them after the row `cursor` names. */
+  /** The rows `where` matches (one entity's), newest first: `take` of them after `cursor`'s row. */
   findHistory: async (
-    entity: { entityType: string; entityId: string },
+    where: Prisma.AuditLogWhereInput,
     page: { cursor?: string | null | undefined; take: number },
   ): Promise<AuditLogHistoryPage> => {
     const rows = await db.auditLog.findMany({
-      where: entity,
+      where,
       orderBy: NEWEST_FIRST,
       take: page.take + 1,
       ...(page.cursor ? { cursor: { id: page.cursor }, skip: 1 } : {}),
