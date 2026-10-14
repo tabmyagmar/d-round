@@ -1,5 +1,6 @@
 "use client";
 
+import { DescriptionList } from "@repo/ui/components/composed/description-list";
 import {
   Table,
   TableBody,
@@ -28,24 +29,37 @@ const cutMark = (change: AuditChange) =>
     <span className="text-muted-foreground">（一部省略）</span>
   ) : null;
 
-/** Below `md` (inside the drawer) each field stacks: its name, then 変更前 and 変更後. */
+/**
+ * Below `md` (inside the drawer) each field stacks: its name, then 変更前 and 変更後 as a
+ * `DescriptionList` (a value of several lines keeps them, as on staff-form-confirm).
+ */
 const StackedChanges = ({ entityType, changes }: AuditChangesProps) => (
   <ul className="flex flex-col gap-2">
     {changes.map((change) => (
-      <li key={change.field} className="rounded-md border p-2 text-sm">
+      <li key={change.field} className="flex flex-col gap-1 rounded-md border p-2 text-sm">
         <p className="font-medium">{auditFieldLabel(entityType, change.field)}</p>
         {"masked" in change ? (
           <p className="text-muted-foreground">{MASKED}</p>
         ) : (
-          <dl className="grid grid-cols-[auto_1fr] gap-x-3">
-            <dt className="text-muted-foreground">変更前</dt>
-            <dd className="min-w-0 break-words whitespace-pre-wrap">{valueCell(change.before)}</dd>
-            <dt className="text-muted-foreground">変更後</dt>
-            <dd className="min-w-0 break-words whitespace-pre-wrap">
-              {valueCell(change.after)}
-              {cutMark(change)}
-            </dd>
-          </dl>
+          <DescriptionList
+            items={[
+              {
+                label: "変更前",
+                value: change.before && (
+                  <span className="whitespace-pre-wrap">{change.before}</span>
+                ),
+              },
+              {
+                label: "変更後",
+                value: change.after && (
+                  <span className="whitespace-pre-wrap">
+                    {change.after}
+                    {cutMark(change)}
+                  </span>
+                ),
+              },
+            ]}
+          />
         )}
       </li>
     ))}
